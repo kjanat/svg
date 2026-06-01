@@ -679,6 +679,10 @@ impl LanguageServer for SvgLanguageServer {
         })
     }
 
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "kept async for LanguageServer trait-impl consistency"
+    )]
     async fn shutdown(&self) -> Result<()> {
         tracing::info!("shutdown requested");
         Ok(())
