@@ -299,20 +299,16 @@ fn verdict_for_profile(
         .map(|(_, verdict)| *verdict)
 }
 
-/// Return the snapshot-specific value description for an attribute when
-/// the spec text genuinely diverges between snapshots.
-///
-/// Returns `Some` only for `(snapshot, name)` pairs whose value list
-/// differs from the union default baked into [`AttributeDef::values`].
-/// Callers should fall back to `attribute_for_profile(..).value.values`
-/// when this returns `None`.
-#[must_use]
-pub fn attribute_values_for_profile(
-    profile: SpecSnapshotId,
-    name: &str,
-) -> Option<&'static AttributeValues> {
-    let canonical = attribute(name).map(|attribute| attribute.name)?;
-    generated_attribute_values_for_profile(profile, canonical)
+impl AttributeDef {
+    /// Resolve this attribute's value description for the given profile,
+    /// preferring the per-snapshot override (when the spec text diverges
+    /// between snapshots) over the union default baked into
+    /// [`AttributeDef::values`]. Skips the catalog name lookup that a
+    /// standalone helper would have to re-do internally.
+    #[must_use]
+    pub fn values_for_profile(&self, profile: SpecSnapshotId) -> &AttributeValues {
+        generated_attribute_values_for_profile(profile, self.name).unwrap_or(&self.values)
+    }
 }
 
 /// Return all SVG elements available in the selected profile.

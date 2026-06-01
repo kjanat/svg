@@ -430,12 +430,12 @@ fn normalize_value_syntax(
         return Ok(value_syntax);
     }
 
-    // Prefer the snapshot-specific value list when the union builder
-    // detected divergence between snapshots (see
-    // `build.rs::build_union_attributes`). Falls back to the union default
-    // baked into `AttributeDef::values` when the snapshot matches the
-    // base.
-    let values = svg_data::attribute_values_for_profile(snapshot, attribute_name).unwrap_or(values);
+    // Prefer the snapshot-specific value list when the union builder detected
+    // divergence between snapshots (see `build.rs::build_union_attributes`).
+    // Falls back to the caller-supplied union value when the attribute isn't in
+    // the catalog or no per-snapshot override applies.
+    let values =
+        svg_data::attribute(attribute_name).map_or(values, |def| def.values_for_profile(snapshot));
 
     match values {
         AttributeValues::Enum(values) => Ok(value_syntax_from_grammar_id(
