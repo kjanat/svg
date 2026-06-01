@@ -399,6 +399,13 @@ pub fn format_element_hover_with_profile(
     builder.build()
 }
 
+/// Render the attribute hover markdown for the active profile.
+///
+/// Resolves the attribute's value constraints through
+/// [`svg_data::AttributeDef::values_for_profile`] so per-snapshot value
+/// overrides surface in the hover panel, then layers profile-lifecycle text,
+/// baseline status, and browser-support chips (optionally overridden by the
+/// runtime compat overlay `rt`) on top.
 pub fn format_attribute_hover_with_profile(
     attr: &svg_data::AttributeDef,
     profile: SpecSnapshotId,
@@ -425,7 +432,7 @@ pub fn format_attribute_hover_with_profile(
         builder.status(profile_lifecycle);
     }
 
-    builder.value_constraints(value_constraints_lines(&attr.values));
+    builder.value_constraints(value_constraints_lines(attr.values_for_profile(profile)));
 
     if let Some(baseline) = baseline {
         builder.baseline(format_baseline(*baseline));

@@ -521,3 +521,49 @@ fn hover_shows_profile_lifecycle_separately_from_browser_support() -> TestResult
 
     Ok(())
 }
+
+#[test]
+fn attribute_hover_value_constraints_follow_profile_snapshot_overrides() -> TestResult {
+    // The `display` value list diverges per snapshot: SVG 1.1 keeps the
+    // CSS2 keyword `run-in`, the union default does not. Hovering the
+    // attribute name must render the active profile's value constraints.
+    let hover_svg = r#"<svg display="inline"></svg>"#;
+    let name_col = u32::try_from(hover_svg.find("display").ok_or("display attr")? + 1)?;
+    let uri = "file:///profile-attr-hover.svg";
+    let position = json!({ "line": 0, "character": name_col });
+
+    let mut svg11_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "svg11" }
+    }))?;
+    svg11_server.open(uri, hover_svg)?;
+    let svg11_resp = svg11_server.request(
+        "textDocument/hover",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg11_value = svg11_resp["result"]["contents"]["value"]
+        .as_str()
+        .unwrap_or("");
+    assert!(
+        svg11_value.contains("run-in"),
+        "SVG 1.1 `display` hover should list the override value `run-in`: {svg11_resp}"
+    );
+    svg11_server.shutdown_and_exit()?;
+
+    let mut svg2_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "Svg2Draft" }
+    }))?;
+    svg2_server.open(uri, hover_svg)?;
+    let svg2_resp = svg2_server.request(
+        "textDocument/hover",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg2_value = svg2_resp["result"]["contents"]["value"]
+        .as_str()
+        .unwrap_or("");
+    assert!(
+        !svg2_value.contains("run-in"),
+        "SVG 2 `display` hover must not list the SVG 1.1-only value `run-in`: {svg2_resp}"
+    );
+    svg2_server.shutdown_and_exit()?;
+    Ok(())
+}

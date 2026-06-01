@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   parse, lock poison)
 - Editor setup docs for VS Code, Neovim, and Zed
 - Known limitations section in README
+- Profile-aware attribute value completions and hover: snapshot-specific
+  value lists (e.g. SVG 1.1 `display` keeps `run-in`/`compact`/`marker`)
+  now surface for the active profile, falling back to the union default
 
 ### Changed
 

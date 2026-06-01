@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use svg_data::{AttributeValues, ContentModel, ProfiledAttribute, ProfiledElement, SpecLifecycle};
+use svg_data::{
+    AttributeValues, ContentModel, ProfiledAttribute, ProfiledElement, SpecLifecycle,
+    SpecSnapshotId,
+};
 use svg_tree::{find_ancestor_any, is_attribute_name_kind};
 use tower_lsp_server::ls_types::{
     CompletionItem, CompletionItemKind, CompletionItemTag, CompletionTextEdit, InsertTextFormat,
@@ -467,11 +470,20 @@ pub fn root_element_completion_items(profile: svg_data::SpecSnapshotId) -> Vec<C
     }
 }
 
+/// Build completion items for an attribute value position.
+///
+/// Dispatches grammar-typed `*_attribute_value` node kinds first (typed
+/// completions like `length`, `paint`, `transform`), then falls back to the
+/// `svg-data` catalog and resolves the active profile's value list via
+/// [`svg_data::AttributeDef::values_for_profile`] so SVG 1.1-only keywords
+/// (e.g. `display` keeps `run-in`/`compact`/`marker`) surface for the active
+/// profile and disappear from SVG 2.
 pub fn value_completions(
     attr_name: &str,
     source: &[u8],
     tree: &tree_sitter::Tree,
     value_node: tree_sitter::Node<'_>,
+    profile: SpecSnapshotId,
 ) -> Vec<CompletionItem> {
     // Grammar-typed attribute values: dispatch on the tree node kind produced by
     // tree-sitter-svg rather than re-deriving the type from the catalog.
@@ -503,7 +515,11 @@ pub fn value_completions(
     let Some(attr_def) = svg_data::attribute(attr_name) else {
         return Vec::new();
     };
-    match &attr_def.values {
+    // Profile overrides only reach the catalog-driven arms below; grammar-typed
+    // values are dispatched above. SVG 1.1 `display`, for instance, keeps the
+    // CSS2 `run-in`/`compact`/`marker` keywords that the union default drops.
+    let values = attr_def.values_for_profile(profile);
+    match values {
         AttributeValues::Enum(values) => values
             .iter()
             .map(|value| completion_item(value.to_string(), CompletionItemKind::VALUE))
