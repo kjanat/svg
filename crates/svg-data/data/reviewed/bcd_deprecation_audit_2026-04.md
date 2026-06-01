@@ -49,13 +49,15 @@ Each entry has one of four verdicts:
 | `xml:lang`                     | Invisible               | Absent from `data/derived/union/attributes.json`; only in `placeholder_attribute_names.txt`. Not in Rust catalog → no conflict                                                                                                                                     | No action in this audit; file follow-up to add coverage                     |
 | `xml:space`                    | Invisible               | Same                                                                                                                                                                                                                                                               | Same                                                                        |
 
-## Snapshot surgery plan
+## Snapshot surgery plan (completed)
 
-**Edit `crates/svg-data/data/specs/Svg2EditorsDraft20250914/attributes.json`**: remove entries for `baseProfile`, `version`, `clip`, `zoomAndPan`.
+The edits below have been applied; this section is historical documentation, not an outstanding TODO.
 
-**Edit `crates/svg-data/data/specs/Svg2Cr20181004/attributes.json`**: remove the same four entries (per the SVG 2 changes doc, all four were gone by CR-era).
+**Edited `crates/svg-data/data/specs/Svg2EditorsDraft20250914/attributes.json`**: removed entries for `baseProfile`, `version`, `clip`, `zoomAndPan`.
 
-**Edit `crates/svg-data/data/derived/union/attributes.json`**: remove `Svg2Cr20181004` and `Svg2EditorsDraft20250914` from `present_in` for the four removed attributes. (Union should cascade from snapshot sources in general; verify whether a regen script exists — if not, hand-edit is fine.)
+**Edited `crates/svg-data/data/specs/Svg2Cr20181004/attributes.json`**: removed the same four entries (per the SVG 2 changes doc, all four were gone by CR-era).
+
+**Edited `crates/svg-data/data/derived/union/attributes.json`**: removed `Svg2Cr20181004` and `Svg2EditorsDraft20250914` from the `present_in` arrays for the four removed attributes.
 
 **Leave untouched**:
 
