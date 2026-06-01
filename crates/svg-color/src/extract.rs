@@ -361,6 +361,22 @@ mod tests {
     }
 
     #[test]
+    fn color_var_in_attribute_not_resolved() {
+        // `var(--brand, red)` directly in an SVG attribute has no
+        // custom-property scope: the rendered color depends on whether
+        // `--brand` is defined in a stylesheet the attribute can't see.
+        // Resolving it to the literal `red` fallback would paint a
+        // misleading swatch, so the extractor must leave it unresolved.
+        // (var() only resolves inside `<style>` with a full property map.)
+        let src = b"<svg><rect fill=\"var(--brand, red)\"/></svg>";
+        let colors = extract_colors(src);
+        assert!(
+            colors.is_empty(),
+            "var() in an attribute must not resolve to its fallback: {colors:?}"
+        );
+    }
+
+    #[test]
     fn paint_server_fallback() {
         let src = b"<svg><rect fill=\"url(#grad) #00ff00\"/></svg>";
         let colors = extract_colors(src);

@@ -9,8 +9,24 @@ use crate::{named_colors, parse, types::ColorKind};
 /// inside `<style>`), where `var(--name)` references cannot resolve. Handles
 /// every form `resolve_css_color` does except `var()`, including nested
 /// `color-mix(...)` whose operands are themselves literal.
+///
+/// Any `var()` usage — top-level or nested, with or without a literal
+/// fallback — is rejected outright: without a property map the rendered
+/// color is unknowable, and `resolve_css_color`'s fallback branch would
+/// otherwise paint a misleading swatch.
 pub(super) fn resolve_literal_color(text: &str) -> Option<ResolvedColor> {
+    if contains_var_function(text) {
+        return None;
+    }
     resolve_css_color(text, &CustomProperties::new(), &mut HashSet::new())
+}
+
+/// True if `text` contains a CSS `var(` function token (case-insensitive),
+/// at any nesting depth.
+fn contains_var_function(text: &str) -> bool {
+    text.as_bytes()
+        .windows(4)
+        .any(|window| window.eq_ignore_ascii_case(b"var("))
 }
 
 pub(super) fn resolve_css_color(
@@ -239,4 +255,25 @@ fn split_top_level(text: &str, separator: char) -> Vec<&str> {
 
     parts.push(text[start..].trim());
     parts
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_literal_color;
+
+    #[test]
+    fn literal_color_rejects_var_even_with_literal_fallback() {
+        // No custom-property scope here, so var() must not resolve — not even
+        // to a literal fallback (which would otherwise leak through
+        // `resolve_css_color`'s fallback branch). Enforces the "no var()"
+        // contract that the attribute extraction path relies on.
+        assert!(resolve_literal_color("var(--brand, red)").is_none());
+        assert!(resolve_literal_color("var(--x)").is_none());
+        // Nested var() inside an otherwise-literal function must also fail.
+        assert!(resolve_literal_color("color-mix(in srgb, var(--x, red), blue)").is_none());
+        // A fully-literal color-mix() still resolves.
+        assert!(resolve_literal_color("color-mix(in srgb, red, blue)").is_some());
+        // Plain literals are unaffected.
+        assert!(resolve_literal_color("#ff0000").is_some());
+    }
 }
