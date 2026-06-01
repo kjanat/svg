@@ -304,6 +304,62 @@ fn completions_follow_selected_profile() -> TestResult {
 }
 
 #[test]
+fn value_completions_follow_profile_snapshot_overrides() -> TestResult {
+    // SVG 1.1 keeps the CSS2 `display` keywords (`run-in`, `compact`,
+    // `marker`) that the union default drops, so the per-snapshot value
+    // override must surface for the active profile and disappear otherwise.
+    let value_svg = r#"<svg display="inline"></svg>"#;
+    let value_col = u32::try_from(value_svg.find("inline").ok_or("display value")? + 1)?;
+    let uri = "file:///profile-value-completion.svg";
+    let position = json!({ "line": 0, "character": value_col });
+
+    let mut svg11_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "svg11" }
+    }))?;
+    svg11_server.open(uri, value_svg)?;
+    let svg11_resp = svg11_server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg11_items = svg11_resp["result"]
+        .as_array()
+        .ok_or("SVG 1.1 value completion result should be an array")?;
+    assert!(
+        svg11_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("run-in")),
+        "SVG 1.1 profile should surface the `display` override value `run-in`: {svg11_resp}"
+    );
+    svg11_server.shutdown_and_exit()?;
+
+    let mut svg2_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "Svg2Draft" }
+    }))?;
+    svg2_server.open(uri, value_svg)?;
+    let svg2_resp = svg2_server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg2_items = svg2_resp["result"]
+        .as_array()
+        .ok_or("SVG 2 value completion result should be an array")?;
+    assert!(
+        svg2_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("inline")),
+        "SVG 2 profile should still offer the union `display` values: {svg2_resp}"
+    );
+    assert!(
+        svg2_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("run-in")),
+        "SVG 2 profile must not surface the SVG 1.1-only `display` value `run-in`: {svg2_resp}"
+    );
+    svg2_server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
 fn completions_follow_document_version_attribute() -> TestResult {
     // Default server profile is SVG 2. A document declaring
     // `version="1.1"` must auto-swap, so completions for `<use>` show

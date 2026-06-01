@@ -505,8 +505,12 @@ pub fn value_completions(
     let Some(attr_def) = svg_data::attribute(attr_name) else {
         return Vec::new();
     };
-    let values = svg_data::attribute_values_for_profile(profile, attr_name)
-        .unwrap_or(&attr_def.values);
+    // Prefer the snapshot-specific value list when the active profile overrides
+    // it (e.g. SVG 1.1 `display` keeps `run-in`/`compact`/`marker`), otherwise
+    // fall back to the union default. Profile overrides only reach the
+    // catalog-driven arms below; grammar-typed values are dispatched above.
+    let values =
+        svg_data::attribute_values_for_profile(profile, attr_name).unwrap_or(&attr_def.values);
     match values {
         AttributeValues::Enum(values) => values
             .iter()
