@@ -47,6 +47,9 @@ use super::{bcd, types::SpecSnapshotId};
 
 const EXCEPTION_FILE_PATH: &str = "data/reviewed/bcd_spec_exceptions.toml";
 const SPEC_REMOVALS_PATH: &str = "data/reviewed/spec_removals.json";
+/// Opt-out for [`load_spec_report`]: when set, a missing `spec_removals.json`
+/// logs a warning and skips the spec→snapshot check instead of failing.
+const ALLOW_MISSING_SPEC_REMOVALS_ENV: &str = "SVG_DATA_ALLOW_MISSING_SPEC_REMOVALS";
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
 
 /// The declared shape of a single exception entry.
@@ -229,6 +232,7 @@ pub fn run(
     // Track both files so cargo reruns the build when either changes.
     println!("cargo::rerun-if-changed={}", exceptions_path.display());
     println!("cargo::rerun-if-changed={}", spec_removals_path.display());
+    println!("cargo::rerun-if-env-changed={ALLOW_MISSING_SPEC_REMOVALS_ENV}");
 
     let exception_file = load_exceptions(&exceptions_path)?;
     let all_exceptions: Vec<(Kind, &Exception)> = exception_file
@@ -458,13 +462,27 @@ fn load_exceptions(path: &Path) -> Result<ExceptionFile, String> {
 /// --out crates/svg-data/data/reviewed/spec_removals.json`.
 fn load_spec_report(path: &Path) -> Result<SpecReport, String> {
     if !path.exists() {
-        println!(
-            "cargo::warning=reconcile: no spec_removals.json at {} — skipping spec→snapshot checks. \
-             Regenerate via `deno run -A workers/svg-compat/src/cli.ts scan-spec --out {}`.",
-            path.display(),
-            path.display(),
+        let regen = format!(
+            "regenerate via `deno run -A workers/svg-compat/src/cli.ts scan-spec --out {}`",
+            path.display()
         );
-        return Ok(SpecReport::default());
+        // spec_removals.json is checked in, so an absent file means a broken
+        // tree — not a normal state. Fail the gate rather than silently
+        // skipping the spec→snapshot conflict check (Pass 1). The env var is
+        // an explicit, logged opt-out for intentionally running without it.
+        if std::env::var_os(ALLOW_MISSING_SPEC_REMOVALS_ENV).is_some() {
+            println!(
+                "cargo::warning=reconcile: no spec_removals.json at {} but {ALLOW_MISSING_SPEC_REMOVALS_ENV} \
+                 is set — skipping spec→snapshot checks. {regen}.",
+                path.display(),
+            );
+            return Ok(SpecReport::default());
+        }
+        return Err(format!(
+            "reconcile: spec_removals.json missing at {} — the spec→snapshot conflict check \
+             cannot run. {regen}, or set {ALLOW_MISSING_SPEC_REMOVALS_ENV}=1 to skip.",
+            path.display(),
+        ));
     }
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
