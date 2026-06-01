@@ -281,6 +281,12 @@ const fn pick_headline_template(rec: Tier, reasons: &[Reason]) -> &'static str {
         Some(Reason::PartialImplementationIn(_)) => "partially implemented",
         Some(Reason::PrefixRequiredIn { .. }) => "requires a vendor prefix",
         Some(Reason::BehindFlagIn(_)) => "behind a flag",
+        // Every tracked browser explicitly unsupported promotes the
+        // recommendation to Forbid (`forbid_from_unsupported`); say so rather
+        // than fall back to the milder per-browser headline below.
+        Some(Reason::UnsupportedIn(_)) if matches!(rec, Tier::Forbid) => {
+            "unsupported in all tracked browsers"
+        }
         Some(Reason::UnsupportedIn(_)) => "not universally supported",
         Some(Reason::RemovedIn { .. }) => "removed in some browsers",
         None => match rec {
