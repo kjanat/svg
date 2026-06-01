@@ -81,8 +81,15 @@ fn find_attribute_value<'a>(tag: Node<'a>, source: &[u8], target: &str) -> Optio
         if !is_attribute_like(attr_node.kind()) {
             continue;
         }
-        let (name_node, value_node) = attribute_name_and_value(attr_node)?;
-        let name = std::str::from_utf8(&source[name_node.byte_range()]).ok()?;
+        // Skip (don't abort) attribute-like nodes that don't yield a clean
+        // name+value pair: a single malformed attribute preceding `version`
+        // must not silently disable profile detection for the whole tag.
+        let Some((name_node, value_node)) = attribute_name_and_value(attr_node) else {
+            continue;
+        };
+        let Ok(name) = std::str::from_utf8(&source[name_node.byte_range()]) else {
+            continue;
+        };
         if name == target {
             return Some(value_node);
         }
