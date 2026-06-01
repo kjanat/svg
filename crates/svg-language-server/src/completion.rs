@@ -470,6 +470,14 @@ pub fn root_element_completion_items(profile: svg_data::SpecSnapshotId) -> Vec<C
     }
 }
 
+/// Build completion items for an attribute value position.
+///
+/// Dispatches grammar-typed `*_attribute_value` node kinds first (typed
+/// completions like `length`, `paint`, `transform`), then falls back to the
+/// `svg-data` catalog and resolves the active profile's value list via
+/// [`svg_data::AttributeDef::values_for_profile`] so SVG 1.1-only keywords
+/// (e.g. `display` keeps `run-in`/`compact`/`marker`) surface for the active
+/// profile and disappear from SVG 2.
 pub fn value_completions(
     attr_name: &str,
     source: &[u8],
