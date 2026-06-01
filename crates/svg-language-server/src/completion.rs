@@ -153,14 +153,16 @@ fn replace_completion_item(
 }
 
 fn css_completion_items(css: &str, byte_offset: usize) -> Vec<CompletionItem> {
-    let context = css_completion_context(css, byte_offset);
-    let custom_properties =
-        svg_references::collect_custom_property_definitions_from_stylesheet(css, 0, 0);
-
-    match context {
+    match css_completion_context(css, byte_offset) {
         CssCompletionContext::Selector => css_selector_completions(),
         CssCompletionContext::Property => css_property_completions(),
-        CssCompletionContext::Value => css_value_completions(&custom_properties),
+        CssCompletionContext::Value => {
+            // Only the value context consumes custom properties; defer the
+            // stylesheet scan so selector/property completions don't pay for it.
+            let custom_properties =
+                svg_references::collect_custom_property_definitions_from_stylesheet(css, 0, 0);
+            css_value_completions(&custom_properties)
+        }
     }
 }
 
