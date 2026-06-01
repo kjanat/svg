@@ -1,4 +1,6 @@
 [toolchain]
-channel    = "nightly"
+# Stable. Requires Rust 1.88+ for let-chains and edition 2024; `f32::midpoint`
+# (used in svg-color) stabilized in 1.85.
+channel    = "stable"
 profile    = "default"
 components = ["rustfmt", "clippy", "llvm-tools", "cargo", "rust-analyzer"]
