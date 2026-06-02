@@ -1,4 +1,8 @@
 #:schema ../schemas/source-manifest.schema.json
+#
+# Pins are provenance metadata for maintainers — not live build inputs.
+# Checked-in data/specs/<Snapshot>/ snapshots and the seed generator's
+# foreign_reference_binding table are authoritative; build.rs does not fetch these URLs.
 
 schema_version   = 1
 manifest_id      = "foreign-references"
