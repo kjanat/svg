@@ -244,6 +244,7 @@ impl SourceManifest {
         })?;
 
         Ok(SnapshotMetadataFile {
+            schema: None,
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             snapshot,
             title: self.title.clone(),
@@ -938,6 +939,7 @@ mod tests {
             elements: vec![sample_snapshot_element(manifest)?],
             attributes: vec![sample_snapshot_attribute(manifest)?],
             grammars: GrammarFile {
+                schema: None,
                 schema_version: SNAPSHOT_SCHEMA_VERSION,
                 grammars: Vec::new(),
             },
@@ -947,6 +949,7 @@ mod tests {
                 attribute_categories: Vec::new(),
             },
             element_attribute_matrix: ElementAttributeMatrixFile {
+                schema: None,
                 schema_version: SNAPSHOT_SCHEMA_VERSION,
                 edges: vec![crate::snapshot_schema::ElementAttributeEdge {
                     element: String::from("svg"),

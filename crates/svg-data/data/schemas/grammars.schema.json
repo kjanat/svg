@@ -4,6 +4,13 @@
 	"description": "Typed payload for `grammars.json`.",
 	"type": "object",
 	"properties": {
+		"$schema": {
+			"description": "Inline `$schema` self-reference carried by the checked-in file. The\nwriter injects the value textually, so this stays `None` in code;\nmodeling it lets `deny_unknown_fields` accept `$schema` while still\nrejecting typo keys.",
+			"type": [
+				"string",
+				"null"
+			]
+		},
 		"grammars": {
 			"description": "Grammar definitions keyed by stable id.",
 			"type": "array",
@@ -18,6 +25,7 @@
 			"minimum": 0
 		}
 	},
+	"additionalProperties": false,
 	"required": [
 		"schema_version",
 		"grammars"

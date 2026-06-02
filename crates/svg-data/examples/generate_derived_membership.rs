@@ -121,5 +121,8 @@ where
     Ok(())
 }
 
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "compile-time assertion that the schema types stay constructible; never called"
+)]
 const fn _assert_schema_types(_: &ElementMembershipFile, _: &AttributeMembershipFile) {}

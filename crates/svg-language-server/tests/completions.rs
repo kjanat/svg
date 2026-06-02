@@ -303,6 +303,71 @@ fn completions_follow_selected_profile() -> TestResult {
     Ok(())
 }
 
+/// Switching the active profile on a *single live server* (via
+/// `workspace/didChangeConfiguration`) must change completion results for
+/// an already-open document — the diagnostics side of this is covered by
+/// `profile_config_applies_on_init_and_relints_open_documents`.
+#[test]
+fn completions_follow_live_profile_switch() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(&json!({
+        "svg": {
+            "profile": "svg11"
+        }
+    }))?;
+
+    let uri = "file:///profile-live-switch.svg";
+    server.open(uri, r#"<svg><use height="32" /></svg>"#)?;
+
+    let svg11_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg11_items = svg11_resp["result"]
+        .as_array()
+        .ok_or("SVG 1.1 completion result should be an array")?;
+    assert!(
+        svg11_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("xlink:href")),
+        "svg11 profile should offer xlink:href before the switch: {svg11_resp}"
+    );
+
+    server.change_configuration(&json!({
+        "svg": {
+            "profile": "svg2draft"
+        }
+    }))?;
+
+    let svg2_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg2_items = svg2_resp["result"]
+        .as_array()
+        .ok_or("SVG 2 completion result should be an array")?;
+    assert!(
+        svg2_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("href")),
+        "live switch to svg2draft should offer href: {svg2_resp}"
+    );
+    assert!(
+        svg2_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("xlink:href")),
+        "live switch to svg2draft should drop xlink:href: {svg2_resp}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
 #[test]
 fn value_completions_follow_profile_snapshot_overrides() -> TestResult {
     // SVG 1.1 keeps the CSS2 `display` keywords (`run-in`, `compact`,

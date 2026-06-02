@@ -257,6 +257,94 @@ fn profile_config_applies_on_init_and_relints_open_documents() -> TestResult {
     Ok(())
 }
 
+/// A single live profile switch must move *both* subsystems at once:
+/// completions and diagnostics. The per-subsystem live-switch guarantees
+/// are covered separately (`completions_follow_live_profile_switch` and
+/// `profile_config_applies_on_init_and_relints_open_documents`); this test
+/// guards that one `didChangeConfiguration` drives them together for the
+/// same open document.
+#[test]
+fn profile_switch_moves_completions_and_diagnostics_together() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(&json!({
+        "svg": {
+            "profile": "svg11"
+        }
+    }))?;
+
+    let uri = "file:///profile-switch-both.svg";
+    // `xlink:href` is present (so svg2 flags it) and `height` trails it (so the
+    // cursor after `height="32" ` sits in attribute-name context). svg11 has no
+    // bare `href`; svg2 does — that flip is the completion signal.
+    let svg = r##"<svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#icon" height="32" /></svg>"##;
+    server.open(uri, svg)?;
+
+    let completion_position = json!({ "line": 0, "character": 84 });
+
+    // --- svg11 state ---
+    let svg11_diags =
+        wait_for_notification(&mut server, "textDocument/publishDiagnostics", |msg| {
+            msg["params"]["uri"].as_str() == Some(uri)
+        });
+    assert!(
+        svg11_diags["params"]["diagnostics"]
+            .as_array()
+            .ok_or("diagnostics should be array")?
+            .iter()
+            .all(|diag| diag["code"].as_str() != Some("UnsupportedInProfile")),
+        "svg11 should accept xlink:href without UnsupportedInProfile: {svg11_diags}"
+    );
+
+    let svg11_completion = server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": completion_position }),
+    )?;
+    assert!(
+        svg11_completion["result"]
+            .as_array()
+            .ok_or("svg11 completion result should be an array")?
+            .iter()
+            .all(|item| item["label"].as_str() != Some("href")),
+        "svg11 should not offer the SVG 2 bare href attribute: {svg11_completion}"
+    );
+
+    // --- switch ---
+    drain_notifications(&mut server);
+    server.change_configuration(&json!({
+        "svg": {
+            "profile": "svg2draft"
+        }
+    }))?;
+
+    // --- svg2draft state ---
+    let svg2_diags = wait_for_notification(&mut server, "textDocument/publishDiagnostics", |msg| {
+        msg["params"]["uri"].as_str() == Some(uri)
+    });
+    assert!(
+        svg2_diags["params"]["diagnostics"]
+            .as_array()
+            .ok_or("diagnostics should be array")?
+            .iter()
+            .any(|diag| diag["code"].as_str() == Some("UnsupportedInProfile")),
+        "svg2draft re-lint should flag xlink:href as UnsupportedInProfile: {svg2_diags}"
+    );
+
+    let svg2_completion = server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": completion_position }),
+    )?;
+    assert!(
+        svg2_completion["result"]
+            .as_array()
+            .ok_or("svg2 completion result should be an array")?
+            .iter()
+            .any(|item| item["label"].as_str() == Some("href")),
+        "svg2draft should offer the bare href attribute after the switch: {svg2_completion}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
 #[test]
 fn invalid_svg_publishes_diagnostics() -> TestResult {
     let mut server = TestServer::start()?;

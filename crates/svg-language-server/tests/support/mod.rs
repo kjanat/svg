@@ -191,7 +191,10 @@ impl TestServer {
         )
     }
 
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "shared test scaffolding; only the test binaries that switch profiles call this"
+    )]
     pub fn change_configuration(&mut self, settings: &Value) -> TestResult {
         self.notify(
             "workspace/didChangeConfiguration",

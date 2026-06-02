@@ -22,7 +22,14 @@ pub const SNAPSHOT_REQUIRED_FILE_NAMES: &[&str] = &[
 
 /// Typed payload for `snapshot.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SnapshotMetadataFile {
+    /// Inline `$schema` self-reference carried by the checked-in file. The
+    /// writer injects the value textually, so this stays `None` in code;
+    /// modeling it lets `deny_unknown_fields` accept `$schema` while still
+    /// rejecting typo keys.
+    #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
     /// Schema version for this checked-in snapshot payload.
     pub schema_version: u32,
     /// Canonical SVG snapshot id.
@@ -30,6 +37,7 @@ pub struct SnapshotMetadataFile {
     /// Human-readable title for review and generated reports.
     pub title: String,
     /// Publication date in `YYYY-MM-DD` form.
+    #[schemars(extend("pattern" = r"^\d{4}-\d{2}-\d{2}$"))]
     pub date: String,
     /// Publication lifecycle of the snapshot.
     pub status: SnapshotStatus,
@@ -106,7 +114,8 @@ pub enum SourcePin {
 pub struct IngestionMetadata {
     /// Version of the extractor pipeline that wrote the dataset.
     pub extractor_version: String,
-    /// UTC date on which the snapshot was normalized.
+    /// UTC date on which the snapshot was normalized, in `YYYY-MM-DD` form.
+    #[schemars(extend("pattern" = r"^\d{4}-\d{2}-\d{2}$"))]
     pub normalized_at: String,
 }
 
@@ -228,7 +237,14 @@ pub enum AnimationBehavior {
 
 /// Typed payload for `grammars.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GrammarFile {
+    /// Inline `$schema` self-reference carried by the checked-in file. The
+    /// writer injects the value textually, so this stays `None` in code;
+    /// modeling it lets `deny_unknown_fields` accept `$schema` while still
+    /// rejecting typo keys.
+    #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
     /// Schema version for the grammar payload.
     pub schema_version: u32,
     /// Grammar definitions keyed by stable id.
@@ -406,7 +422,14 @@ pub struct AttributeCategoryMembership {
 
 /// Typed payload for `element_attribute_matrix.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ElementAttributeMatrixFile {
+    /// Inline `$schema` self-reference carried by the checked-in file. The
+    /// writer injects the value textually, so this stays `None` in code;
+    /// modeling it lets `deny_unknown_fields` accept `$schema` while still
+    /// rejecting typo keys.
+    #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
     /// Schema version for the matrix payload.
     pub schema_version: u32,
     /// Explicit applicability edges.
@@ -772,6 +795,7 @@ mod tests {
     fn snapshot_metadata_uses_typed_snapshot_ids_and_source_pins() -> Result<(), serde_json::Error>
     {
         let metadata = SnapshotMetadataFile {
+            schema: None,
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             snapshot: SpecSnapshotId::Svg2EditorsDraft20250914,
             title: "SVG 2 Editor's Draft".into(),

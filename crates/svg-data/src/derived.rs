@@ -324,6 +324,7 @@ mod tests {
             elements: &[],
             attributes: &[],
             grammars: &GrammarFile {
+                schema: None,
                 schema_version: 1,
                 grammars: Vec::new(),
             },
@@ -333,6 +334,7 @@ mod tests {
                 attribute_categories: Vec::new(),
             },
             element_attribute_matrix: &ElementAttributeMatrixFile {
+                schema: None,
                 schema_version: 1,
                 edges: Vec::new(),
             },

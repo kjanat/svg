@@ -679,9 +679,10 @@ impl LanguageServer for SvgLanguageServer {
         })
     }
 
-    // `async` is required by the `LanguageServer` trait; this impl has nothing
-    // to await.
-    #[allow(clippy::unused_async)]
+    #[allow(
+        clippy::unused_async,
+        reason = "async required by the LanguageServer trait; this impl has nothing to await"
+    )]
     async fn shutdown(&self) -> Result<()> {
         tracing::info!("shutdown requested");
         Ok(())

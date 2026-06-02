@@ -53,11 +53,11 @@ Each entry has one of four verdicts:
 
 The edits below have been applied; this section is historical documentation, not an outstanding TODO.
 
-**Edited `crates/svg-data/data/specs/Svg2EditorsDraft20250914/attributes.json`**: removed entries for `baseProfile`, `version`, `clip`, `zoomAndPan`.
+**`crates/svg-data/data/specs/Svg2EditorsDraft20250914/attributes.json`**: removed entries for `baseProfile`, `version`, `clip`, `zoomAndPan`.
 
-**Edited `crates/svg-data/data/specs/Svg2Cr20181004/attributes.json`**: removed the same four entries (per the SVG 2 changes doc, all four were gone by CR-era).
+**`crates/svg-data/data/specs/Svg2Cr20181004/attributes.json`**: dropped the same four entries (per the SVG 2 changes doc, all four were gone by CR-era).
 
-**Edited `crates/svg-data/data/derived/union/attributes.json`**: removed `Svg2Cr20181004` and `Svg2EditorsDraft20250914` from the `present_in` arrays for the four removed attributes.
+**`crates/svg-data/data/derived/union/attributes.json`**: pruned `Svg2Cr20181004` and `Svg2EditorsDraft20250914` from the `present_in` arrays for the four removed attributes.
 
 **Leave untouched**:
 

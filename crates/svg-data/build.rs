@@ -1353,7 +1353,10 @@ fn write_attribute_values_profile_lookup(
     attributes: &[UnionAttribute],
     attribute_idents: &HashMap<&str, String>,
 ) -> std::fmt::Result {
-    writeln!(out, "#[allow(clippy::too_many_lines)]")?;
+    writeln!(
+        out,
+        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
+    )?;
     writeln!(
         out,
         "pub fn generated_attribute_values_for_profile(snapshot: SpecSnapshotId, name: &str) -> Option<&'static AttributeValues> {{"
@@ -1601,7 +1604,10 @@ fn write_membership_lookup(
     writeln!(out, "}}")?;
     writeln!(out)?;
 
-    writeln!(out, "#[allow(clippy::too_many_lines)]")?;
+    writeln!(
+        out,
+        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
+    )?;
     writeln!(
         out,
         "pub fn generated_known_attribute_snapshots(name: &str) -> Option<&'static [SpecSnapshotId]> {{"
@@ -1638,7 +1644,10 @@ fn write_profile_attribute_lookup(
     }
     writeln!(out)?;
 
-    writeln!(out, "#[allow(clippy::too_many_lines)]")?;
+    writeln!(
+        out,
+        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
+    )?;
     writeln!(
         out,
         "pub fn generated_attribute_names_for_profile(snapshot: SpecSnapshotId, element_name: &str) -> &'static [&'static str] {{"

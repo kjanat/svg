@@ -30,9 +30,11 @@ use super::{
 ///
 /// `last_seen` is normally `Some` for obsolete features (the pipeline
 /// records the last snapshot a feature was defined in). This defensive
-/// fallback — the earliest catalogued snapshot — only applies to the
-/// `None` case. Typed as `SpecSnapshotId` so a malformed id can't be
-/// emitted; update it if the earliest snapshot is ever renamed or removed.
+/// fallback — the latest SVG 1.1 snapshot, a conservative "at least SVG
+/// 1.1" floor chosen for the `None` case (not necessarily the earliest
+/// catalogued snapshot, which is the SVG 1.1 First Edition). Typed as
+/// `SpecSnapshotId` so a malformed id can't be emitted; update it if that
+/// snapshot is ever renamed or removed.
 const OBSOLETE_LAST_SEEN_FALLBACK: SpecSnapshotId = SpecSnapshotId::Svg11Rec20110816;
 
 /// The four recommendation tiers, in ascending severity.
@@ -269,8 +271,20 @@ fn iter_browsers(
 /// like `"> ⊘ baseProfile — removed from SVG 2"`. Chosen by the first
 /// (highest-tier) reason with a fallback on the recommendation tier.
 const fn pick_headline_template(rec: Tier, reasons: &[Reason]) -> &'static str {
+    // `ProfileObsolete` is the only Forbid-tier reason, so when present it
+    // sorts first; honor it ahead of the all-unsupported case below.
+    if let Some(Reason::ProfileObsolete { .. }) = reasons.first() {
+        return "removed from the current SVG profile";
+    }
+    // A feature unsupported in *every* tracked browser is promoted to Forbid
+    // (`forbid_from_unsupported`) even though each per-browser `UnsupportedIn`
+    // reason is only Caution-tier. Surface that before the tier-sorted first
+    // reason — which may be a milder Avoid-tier `BcdDeprecated` /
+    // `ProfileExperimental` — shadows it.
+    if matches!(rec, Tier::Forbid) && any_unsupported(reasons) {
+        return "unsupported in all tracked browsers";
+    }
     match reasons.first() {
-        Some(Reason::ProfileObsolete { .. }) => "removed from the current SVG profile",
         Some(Reason::BcdDeprecated) => "deprecated",
         Some(Reason::BcdExperimental) => "experimental",
         Some(Reason::ProfileExperimental) => "draft-only in the current profile",
@@ -279,19 +293,28 @@ const fn pick_headline_template(rec: Tier, reasons: &[Reason]) -> &'static str {
         Some(Reason::PartialImplementationIn(_)) => "partially implemented",
         Some(Reason::PrefixRequiredIn { .. }) => "requires a vendor prefix",
         Some(Reason::BehindFlagIn(_)) => "behind a flag",
-        // Every tracked browser explicitly unsupported promotes the
-        // recommendation to Forbid (`forbid_from_unsupported`); say so rather
-        // than fall back to the milder per-browser headline below.
-        Some(Reason::UnsupportedIn(_)) if matches!(rec, Tier::Forbid) => {
-            "unsupported in all tracked browsers"
-        }
         Some(Reason::UnsupportedIn(_)) => "not universally supported",
         Some(Reason::RemovedIn { .. }) => "removed in some browsers",
-        None => match rec {
+        // `ProfileObsolete` is handled by the early return above; route it
+        // and the empty case through the recommendation-tier fallback.
+        Some(Reason::ProfileObsolete { .. }) | None => match rec {
             Tier::Safe => "widely supported",
             _ => "",
         },
     }
+}
+
+/// `true` if any reason is [`Reason::UnsupportedIn`]. A `const`-friendly
+/// scan — slice iterators aren't usable in `const fn`.
+const fn any_unsupported(reasons: &[Reason]) -> bool {
+    let mut i = 0;
+    while i < reasons.len() {
+        if matches!(reasons[i], Reason::UnsupportedIn(_)) {
+            return true;
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Format a [`Verdict`] as the Rust `CompatVerdict` literal emitted into

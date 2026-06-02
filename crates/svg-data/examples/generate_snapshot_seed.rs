@@ -115,6 +115,7 @@ fn build_seed_dataset(
         attribute_categories: Vec::<AttributeCategoryMembership>::new(),
     };
     let element_attribute_matrix = ElementAttributeMatrixFile {
+        schema: None,
         schema_version: SNAPSHOT_SCHEMA_VERSION,
         edges,
     };
@@ -785,6 +786,7 @@ impl<'a> SeedGrammarRegistry<'a> {
 
     fn finish(self) -> GrammarFile {
         GrammarFile {
+            schema: None,
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             grammars: self.definitions.into_values().collect(),
         }

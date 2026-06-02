@@ -4,9 +4,17 @@
 	"description": "Typed payload for `snapshot.json`.",
 	"type": "object",
 	"properties": {
+		"$schema": {
+			"description": "Inline `$schema` self-reference carried by the checked-in file. The\nwriter injects the value textually, so this stays `None` in code;\nmodeling it lets `deny_unknown_fields` accept `$schema` while still\nrejecting typo keys.",
+			"type": [
+				"string",
+				"null"
+			]
+		},
 		"date": {
 			"description": "Publication date in `YYYY-MM-DD` form.",
-			"type": "string"
+			"type": "string",
+			"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 		},
 		"ingestion": {
 			"description": "Ingestion metadata for deterministic rebuilds.",
@@ -38,6 +46,7 @@
 			"type": "string"
 		}
 	},
+	"additionalProperties": false,
 	"required": [
 		"schema_version",
 		"snapshot",
@@ -57,8 +66,9 @@
 					"type": "string"
 				},
 				"normalized_at": {
-					"description": "UTC date on which the snapshot was normalized.",
-					"type": "string"
+					"description": "UTC date on which the snapshot was normalized, in `YYYY-MM-DD` form.",
+					"type": "string",
+					"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 				}
 			},
 			"additionalProperties": false,

@@ -511,6 +511,7 @@ mod tests {
                 provenance: provenance.clone(),
             }],
             grammars: &GrammarFile {
+                schema: None,
                 schema_version: SNAPSHOT_SCHEMA_VERSION,
                 grammars: vec![GrammarDefinition {
                     id: String::from("length"),
@@ -531,6 +532,7 @@ mod tests {
                 attribute_categories: Vec::new(),
             },
             element_attribute_matrix: &ElementAttributeMatrixFile {
+                schema: None,
                 schema_version: SNAPSHOT_SCHEMA_VERSION,
                 edges: vec![ElementAttributeEdge {
                     element: String::from("svg"),

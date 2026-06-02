@@ -48,7 +48,8 @@ use super::{bcd, types::SpecSnapshotId};
 const EXCEPTION_FILE_PATH: &str = "data/reviewed/bcd_spec_exceptions.toml";
 const SPEC_REMOVALS_PATH: &str = "data/reviewed/spec_removals.json";
 /// Opt-out for [`load_spec_report`]: when set, a missing `spec_removals.json`
-/// logs a warning and skips the spec→snapshot check instead of failing.
+/// logs a warning and skips the entire BCD↔spec reconcile gate instead of
+/// failing the build.
 const ALLOW_MISSING_SPEC_REMOVALS_ENV: &str = "SVG_DATA_ALLOW_MISSING_SPEC_REMOVALS";
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
 
@@ -109,7 +110,13 @@ struct ExceptionId {
 }
 
 impl ExceptionId {
-    fn new(kind: Kind, name: String, element: String, bcd_says: String, spec_says: String) -> Self {
+    const fn new(
+        kind: Kind,
+        name: String,
+        element: String,
+        bcd_says: String,
+        spec_says: String,
+    ) -> Self {
         Self {
             kind,
             name,
@@ -252,26 +259,30 @@ pub fn run(
         .chain(exception_file.elements.iter().map(|e| (Kind::Element, e)))
         .collect();
 
-    let spec_report = load_spec_report(&spec_removals_path)?;
+    let Some(spec_report) = load_spec_report(&spec_removals_path)? else {
+        // Opt-out (ALLOW_MISSING_SPEC_REMOVALS_ENV): spec_removals.json is
+        // intentionally absent. Both passes depend on it — Pass 1 reads the
+        // removal index, Pass 2's stance computation reads obsoleted facts —
+        // so skip the gate wholesale instead of running against an empty
+        // report and emitting false conflicts / stale-exception errors.
+        return Ok(());
+    };
     let spec_removals = spec_report.removal_index();
 
     let mut matched: HashSet<ExceptionId> = HashSet::new();
     let mut conflicts: Vec<Conflict> = Vec::new();
+    let union = UnionFacts {
+        attributes: union_attributes,
+        elements: union_elements,
+    };
 
     // Pass 1: spec-scanner says feature was removed, snapshot still lists it.
-    detect_spec_removed_conflicts(
-        union_attributes,
-        union_elements,
-        latest_snapshot,
-        &spec_removals,
-        &mut conflicts,
-    );
+    detect_spec_removed_conflicts(&union, latest_snapshot, &spec_removals, &mut conflicts);
 
     // Pass 2 + 3: BCD-deprecated but snapshot-stable (original rule).
     detect_bcd_deprecated_conflicts(
         compat,
-        union_attributes,
-        union_elements,
+        &union,
         latest_snapshot,
         &spec_report,
         &all_exceptions,
@@ -315,9 +326,15 @@ pub fn run(
 /// removed that the snapshot still lists in the latest snapshot. This
 /// is Pass 1 of `run()` — the authoritative rule, since the scanner
 /// reads spec prose directly.
+/// The union membership facts both reconcile passes scan, grouped so the
+/// passes stay under the argument-count limit.
+struct UnionFacts<'a> {
+    attributes: &'a [UnionAttributeFacts],
+    elements: &'a [UnionElementFacts],
+}
+
 fn detect_spec_removed_conflicts(
-    union_attributes: &[UnionAttributeFacts],
-    union_elements: &[UnionElementFacts],
+    union: &UnionFacts,
     latest_snapshot: SpecSnapshotId,
     spec_removals: &HashMap<(String, String), String>,
     conflicts: &mut Vec<Conflict>,
@@ -337,7 +354,7 @@ fn detect_spec_removed_conflicts(
             .cloned()
     };
 
-    for facts in union_attributes {
+    for facts in union.attributes {
         let Some(evidence) = attribute_removed_key(&facts.name) else {
             continue;
         };
@@ -355,7 +372,7 @@ fn detect_spec_removed_conflicts(
         });
     }
 
-    for facts in union_elements {
+    for facts in union.elements {
         let Some(evidence) = element_removed_key(&facts.name) else {
             continue;
         };
@@ -402,8 +419,7 @@ fn bcd_deprecated_stances(
 
 fn detect_bcd_deprecated_conflicts<'exc>(
     compat: &bcd::CompatData,
-    union_attributes: &[UnionAttributeFacts],
-    union_elements: &[UnionElementFacts],
+    union: &UnionFacts,
     latest_snapshot: SpecSnapshotId,
     spec_report: &SpecReport,
     all_exceptions: &'exc [(Kind, &'exc Exception)],
@@ -413,7 +429,7 @@ fn detect_bcd_deprecated_conflicts<'exc>(
     let already_flagged: HashSet<(Kind, String)> =
         conflicts.iter().map(|c| (c.kind, c.name.clone())).collect();
 
-    for facts in union_attributes {
+    for facts in union.attributes {
         if already_flagged.contains(&(Kind::Attribute, facts.name.clone())) {
             continue;
         }
@@ -445,7 +461,7 @@ fn detect_bcd_deprecated_conflicts<'exc>(
         }
     }
 
-    for facts in union_elements {
+    for facts in union.elements {
         if already_flagged.contains(&(Kind::Element, facts.name.clone())) {
             continue;
         }
@@ -505,29 +521,36 @@ fn load_exceptions(path: &Path) -> Result<ExceptionFile, String> {
     toml::from_str(&text).map_err(|e| format!("failed to parse {}: {e}", path.display()))
 }
 
-/// Load the committed spec scanner report. Absent file → empty report
-/// (no spec-removed conflicts surfaced, but the BCD↔spec check still runs).
+/// Load the committed spec scanner report.
+///
+/// `spec_removals.json` is checked in, so an absent file means a broken
+/// tree, not a normal state:
+/// - Missing file → `Err`, failing the gate. The report feeds both the
+///   spec→snapshot check (Pass 1) and the BCD↔spec stance computation
+///   (Pass 2, [`bcd_deprecated_stances`]), so the check cannot run without it.
+/// - Missing file with [`ALLOW_MISSING_SPEC_REMOVALS_ENV`] set → `Ok(None)`,
+///   an explicit, logged opt-out. The caller skips the whole reconcile gate
+///   rather than running it against an empty report — an empty report would
+///   silently downgrade every obsoleted stance to `"stable"` and break
+///   matching for `obsoleted-but-defined` exceptions.
+/// - Present file → `Ok(Some(report))`.
 ///
 /// The report is produced by the Deno CLI command
 /// `deno run -A workers/svg-compat/src/cli.ts scan-spec --svgwg-path=./svgwg
 /// --out crates/svg-data/data/reviewed/spec_removals.json`.
-fn load_spec_report(path: &Path) -> Result<SpecReport, String> {
+fn load_spec_report(path: &Path) -> Result<Option<SpecReport>, String> {
     if !path.exists() {
         let regen = format!(
             "regenerate via `deno run -A workers/svg-compat/src/cli.ts scan-spec --out {}`",
             path.display()
         );
-        // spec_removals.json is checked in, so an absent file means a broken
-        // tree — not a normal state. Fail the gate rather than silently
-        // skipping the spec→snapshot conflict check (Pass 1). The env var is
-        // an explicit, logged opt-out for intentionally running without it.
         if std::env::var_os(ALLOW_MISSING_SPEC_REMOVALS_ENV).is_some() {
             println!(
                 "cargo::warning=reconcile: no spec_removals.json at {} but {ALLOW_MISSING_SPEC_REMOVALS_ENV} \
-                 is set — skipping spec→snapshot checks. {regen}.",
+                 is set — skipping the BCD↔spec reconcile gate entirely. {regen}.",
                 path.display(),
             );
-            return Ok(SpecReport::default());
+            return Ok(None);
         }
         return Err(format!(
             "reconcile: spec_removals.json missing at {} — the spec→snapshot conflict check \
@@ -537,7 +560,9 @@ fn load_spec_report(path: &Path) -> Result<SpecReport, String> {
     }
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-    serde_json::from_str(&text).map_err(|e| format!("failed to parse {}: {e}", path.display()))
+    serde_json::from_str(&text)
+        .map(Some)
+        .map_err(|e| format!("failed to parse {}: {e}", path.display()))
 }
 
 fn attribute_scope(elements: &[String]) -> String {
