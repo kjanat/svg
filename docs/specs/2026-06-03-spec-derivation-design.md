@@ -181,6 +181,41 @@ artifact → parse in `build.rs` → generate/audit) — **not hand-seeded**. "C
 these editions" therefore means *vendor their artifacts + run the derivers*, not
 transcribe more snapshots by hand (which is the toil issue #9 exists to kill).
 
+### Profiles (SVG Native & the SVG family) — constraint layers, not versions
+
+A **profile** is a *subset* of a base edition, not a point-in-time version. The
+repo already models profiles (`baseProfile`; profile verdicts in
+`crates/svg-language-server/src/hover.rs:216`), so these slot into the existing
+profile axis rather than the version axis.
+
+**SVG Native** (the immediate ask):
+
+- Source: `svgwg/specs/svg-native/index.bs` — a **Bikeshed** doc in the svgwg repo
+  (`Title: SVG Native`, `Shortname: svg-native`, `Status: ED`, `Group: SVG`);
+  published at `https://svgwg.org/specs/svg-native/`. **Rolling like the SVG2 ED**
+  (not on `/TR/` — the W3C API knows the shortname but has no dated versions). →
+  treat as an **undated `SvgNative` profile**, capture commit/date as data,
+  freshness vs svgwg git HEAD.
+- **This is real spec data** (unlike the W3C API). SVG Native is defined as
+  *reductive differences* from SVG 2 Secure Static Mode: explicit lists of
+  **unsupported** elements / attributes / properties / values (e.g. no `text`/
+  `tspan`/`marker`/`pattern`/`symbol`/`switch`/`style`; no `display`/`color`/
+  `pointer-events`/`clip`; no percentage or relative lengths) **plus a few
+  supported-only allowlists** (transform-bearing elements; units px/pt/pc/mm/cm/in;
+  image formats JPEG/PNG/APNG; `gradientUnits=userSpaceOnUse` only).
+- Derivation: parse the reductive prose ("X is not supported by SVG Native") and
+  the supported-only lists into a **constraint set layered over SVG 1.1/SVG 2** —
+  heuristic prose parsing (like `spec_scan`), from the generated HTML or the `.bs`
+  source. Output feeds the profile axis so the LSP can flag *"not available in the
+  SVG Native profile."*
+
+**Broader SVG family** (related, out-of-scope for now but the same two axes):
+other *profiles* — **SVG Tiny 1.2**, **SVG Basic**, **Mobile** (all subsets, all
+on the W3C API) — and SVG 2 *modules* — **Markers, Strokes, Paths, Integration,
+AAM** (`svg-markers`, `svg-strokes`, `svg-paths`, `svg-integration`,
+`svg-aam-1.0`). Worth capturing later via the same profile/module model; flagged
+so the design's edition/profile split anticipates them.
+
 ---
 
 ## 1. Derivability matrix
