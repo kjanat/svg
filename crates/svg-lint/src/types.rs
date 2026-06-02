@@ -59,7 +59,7 @@ pub struct LintOptions {
 impl Default for LintOptions {
     fn default() -> Self {
         Self {
-            profile: SpecSnapshotId::Svg2EditorsDraft20250914,
+            profile: SpecSnapshotId::Svg2EditorsDraft,
         }
     }
 }

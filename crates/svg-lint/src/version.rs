@@ -16,7 +16,7 @@
 //!
 //! Only the four catalogued snapshots resolve: SVG 1.0 and 1.1 collapse
 //! to [`SpecSnapshotId::Svg11Rec20110816`]; SVG 2 values resolve to
-//! [`SpecSnapshotId::Svg2EditorsDraft20250914`]. SVG Tiny / Basic
+//! [`SpecSnapshotId::Svg2EditorsDraft`]. SVG Tiny / Basic
 //! (`version="1.2"` etc.) are not modelled — they silently fall through
 //! to the configured profile.
 //!
@@ -220,7 +220,7 @@ mod tests {
     fn effective_profile_returns_svg11_for_version_1_1() -> TestResult {
         let src = br#"<svg version="1.1"></svg>"#;
         let tree = parse(src)?;
-        let configured = SpecSnapshotId::Svg2EditorsDraft20250914;
+        let configured = SpecSnapshotId::Svg2EditorsDraft;
         assert_eq!(
             effective_profile(&tree, src, configured, false),
             SpecSnapshotId::Svg11Rec20110816
@@ -232,7 +232,7 @@ mod tests {
     fn effective_profile_honors_force_override() -> TestResult {
         let src = br#"<svg version="1.1"></svg>"#;
         let tree = parse(src)?;
-        let configured = SpecSnapshotId::Svg2EditorsDraft20250914;
+        let configured = SpecSnapshotId::Svg2EditorsDraft;
         assert_eq!(effective_profile(&tree, src, configured, true), configured);
         Ok(())
     }
@@ -242,7 +242,7 @@ mod tests {
         // SVG Tiny 1.2 is not catalogued — fall through to configured.
         let src = br#"<svg version="1.2"></svg>"#;
         let tree = parse(src)?;
-        let configured = SpecSnapshotId::Svg2EditorsDraft20250914;
+        let configured = SpecSnapshotId::Svg2EditorsDraft;
         assert_eq!(effective_profile(&tree, src, configured, false), configured);
         Ok(())
     }
@@ -260,7 +260,7 @@ mod tests {
     fn effective_profile_trims_whitespace_in_value() -> TestResult {
         let src = br#"<svg version=" 1.1 "></svg>"#;
         let tree = parse(src)?;
-        let configured = SpecSnapshotId::Svg2EditorsDraft20250914;
+        let configured = SpecSnapshotId::Svg2EditorsDraft;
         assert_eq!(
             effective_profile(&tree, src, configured, false),
             SpecSnapshotId::Svg11Rec20110816

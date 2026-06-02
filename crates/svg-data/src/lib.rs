@@ -78,7 +78,7 @@ const SVG2_CR_20181004_ALIASES: &[&str] = &[
     "SVG 2 Candidate Recommendation 2018-10-04",
 ];
 
-const SVG2_EDITORS_DRAFT_20250914_ALIASES: &[&str] = &[
+const SVG2_EDITORS_DRAFT_ALIASES: &[&str] = &[
     "Svg2Draft",
     "Svg2EditorsDraft20250914",
     "Svg2EditorsDraft",
@@ -92,7 +92,7 @@ const ALL_SPEC_SNAPSHOTS: &[SpecSnapshotId] = &[
     SpecSnapshotId::Svg11Rec20030114,
     SpecSnapshotId::Svg11Rec20110816,
     SpecSnapshotId::Svg2Cr20181004,
-    SpecSnapshotId::Svg2EditorsDraft20250914,
+    SpecSnapshotId::Svg2EditorsDraft,
 ];
 
 const SVG11_REC_20030114_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
@@ -122,9 +122,9 @@ const SVG2_CR_20181004_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
     errata_folded: false,
 };
 
-const SVG2_EDITORS_DRAFT_20250914_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
-    canonical_id: SpecSnapshotId::Svg2EditorsDraft20250914,
-    aliases: SVG2_EDITORS_DRAFT_20250914_ALIASES,
+const SVG2_EDITORS_DRAFT_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
+    canonical_id: SpecSnapshotId::Svg2EditorsDraft,
+    aliases: SVG2_EDITORS_DRAFT_ALIASES,
     source_url: "https://svgwg.org/svg2-draft/",
     snapshot_date: "2025-09-14",
     stable_base: Some(SpecSnapshotId::Svg2Cr20181004),
@@ -170,7 +170,7 @@ pub const fn snapshot_metadata(snapshot: SpecSnapshotId) -> &'static SpecSnapsho
         SpecSnapshotId::Svg11Rec20030114 => &SVG11_REC_20030114_METADATA,
         SpecSnapshotId::Svg11Rec20110816 => &SVG11_REC_20110816_METADATA,
         SpecSnapshotId::Svg2Cr20181004 => &SVG2_CR_20181004_METADATA,
-        SpecSnapshotId::Svg2EditorsDraft20250914 => &SVG2_EDITORS_DRAFT_20250914_METADATA,
+        SpecSnapshotId::Svg2EditorsDraft => &SVG2_EDITORS_DRAFT_METADATA,
     }
 }
 
@@ -204,7 +204,7 @@ pub fn resolve_profile_id(input: &str) -> Option<SpecSnapshotId> {
 pub fn snapshot_for_svg_version_attr(value: &str) -> Option<SpecSnapshotId> {
     match value.trim() {
         "1.0" | "1.1" => Some(SpecSnapshotId::Svg11Rec20110816),
-        "2" | "2.0" => Some(SpecSnapshotId::Svg2EditorsDraft20250914),
+        "2" | "2.0" => Some(SpecSnapshotId::Svg2EditorsDraft),
         _ => None,
     }
 }
@@ -717,7 +717,7 @@ mod tests {
     fn profile_resolution_accepts_aliases_case_insensitively() {
         assert_eq!(
             resolve_profile_id("Svg2Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
+            Some(SpecSnapshotId::Svg2EditorsDraft)
         );
         assert_eq!(
             resolve_profile_id("svg1"),
@@ -737,7 +737,7 @@ mod tests {
         );
         assert_eq!(
             resolve_profile_id("SVG 2 Editor's Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
+            Some(SpecSnapshotId::Svg2EditorsDraft)
         );
     }
 
@@ -749,7 +749,7 @@ mod tests {
         );
         assert_eq!(
             resolve_profile_id("Svg2Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
+            Some(SpecSnapshotId::Svg2EditorsDraft)
         );
     }
 
@@ -765,11 +765,11 @@ mod tests {
         );
         assert_eq!(
             snapshot_for_svg_version_attr("2"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
+            Some(SpecSnapshotId::Svg2EditorsDraft)
         );
         assert_eq!(
             snapshot_for_svg_version_attr("2.0"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
+            Some(SpecSnapshotId::Svg2EditorsDraft)
         );
     }
 
@@ -795,7 +795,7 @@ mod tests {
         assert!(svg11.errata_folded);
         assert_eq!(svg11.stable_base, None);
 
-        let draft = snapshot_metadata(SpecSnapshotId::Svg2EditorsDraft20250914);
+        let draft = snapshot_metadata(SpecSnapshotId::Svg2EditorsDraft);
         assert_eq!(draft.stable_base, Some(SpecSnapshotId::Svg2Cr20181004));
         assert!(!draft.errata_folded);
     }
@@ -804,8 +804,8 @@ mod tests {
     fn draft_only_membership_derives_experimental_lifecycle() {
         assert_eq!(
             lifecycle_for_profile(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
-                &[SpecSnapshotId::Svg2EditorsDraft20250914],
+                SpecSnapshotId::Svg2EditorsDraft,
+                &[SpecSnapshotId::Svg2EditorsDraft],
             ),
             SpecLifecycle::Experimental
         );
@@ -861,7 +861,7 @@ mod tests {
             known_in,
             &[
                 SpecSnapshotId::Svg2Cr20181004,
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
             ]
         );
         Ok(())
@@ -877,7 +877,7 @@ mod tests {
             known_in,
             &[
                 SpecSnapshotId::Svg2Cr20181004,
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
             ]
         );
 
@@ -1016,7 +1016,7 @@ mod tests {
         // of truth both the hover `Forbid` headline and the lint
         // `UnsupportedInProfile` diagnostic read from.
         let href = attribute("xlink:href").ok_or("xlink:href should exist")?;
-        let verdict = compat_verdict_for_attribute(href, SpecSnapshotId::Svg2EditorsDraft20250914)
+        let verdict = compat_verdict_for_attribute(href, SpecSnapshotId::Svg2EditorsDraft)
             .ok_or("xlink:href should have a verdict in SVG 2")?;
 
         assert_eq!(verdict.recommendation, VerdictRecommendation::Forbid);
@@ -1063,7 +1063,7 @@ mod tests {
         // `PartialImplementation` rule and the hover per-browser
         // sub-bullet both have data to render.
         let ci = attribute("color-interpolation").ok_or("color-interpolation should exist")?;
-        let verdict = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914)
+        let verdict = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft)
             .ok_or("color-interpolation should have a verdict")?;
 
         assert!(
@@ -1090,8 +1090,8 @@ mod tests {
         // caller ever reaches into `def.verdicts` directly and picks
         // a different entry, this test will fail.
         let ci = attribute("color-interpolation").ok_or("color-interpolation should exist")?;
-        let a = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914);
-        let b = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914);
+        let a = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft);
+        let b = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft);
         assert_eq!(a, b);
         Ok(())
     }

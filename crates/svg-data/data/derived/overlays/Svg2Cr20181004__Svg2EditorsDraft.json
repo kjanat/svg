@@ -1,7 +1,7 @@
 {
 	"schema_version": 1,
 	"from_snapshot": "Svg2Cr20181004",
-	"to_snapshot": "Svg2EditorsDraft20250914",
+	"to_snapshot": "Svg2EditorsDraft",
 	"elements": {
 		"added": [],
 		"removed": []

@@ -635,7 +635,7 @@ mod tests {
         let diags = lint_with_options(
             src,
             LintOptions {
-                profile: svg_data::SpecSnapshotId::Svg2EditorsDraft20250914,
+                profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
             },
         );
 
@@ -692,7 +692,7 @@ mod tests {
         let diags = lint_with_options(
             src,
             LintOptions {
-                profile: svg_data::SpecSnapshotId::Svg2EditorsDraft20250914,
+                profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
             },
         );
 

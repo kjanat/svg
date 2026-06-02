@@ -377,7 +377,7 @@ pub fn format_element_hover_with_profile(
     } else if let Some(profile_lifecycle) = profile_lifecycle {
         // Only fall back to the legacy profile lifecycle line when the
         // verdict layer has nothing to say — avoids contradictions like
-        // "**Deprecated**" + "**Stable in Svg2EditorsDraft20250914**".
+        // "**Deprecated**" + "**Stable in Svg2EditorsDraft**".
         builder.status(profile_lifecycle);
     }
 
@@ -797,7 +797,7 @@ fn format_verdict_headline(verdict: svg_data::CompatVerdict, feature_name: &str)
 
 /// Render the verdict status line — one or more reason tags joined by
 /// ` · `. This consolidates the old split between `**Deprecated**` and
-/// `**Stable in Svg2EditorsDraft20250914**` into a single non-contradictory
+/// `**Stable in Svg2EditorsDraft**` into a single non-contradictory
 /// phrase sourced from the pre-reconciled verdict.
 fn format_verdict_status(verdict: svg_data::CompatVerdict) -> Option<String> {
     if verdict.reasons.is_empty() {
@@ -1029,7 +1029,7 @@ mod tests {
     fn unsupported_profile_hover_line_marks_obsolete_after_last_known_snapshot() {
         assert_eq!(
             profile_lifecycle_hover_line(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
                 &ProfileLookup::<()>::UnsupportedInProfile {
                     known_in: &[
                         SpecSnapshotId::Svg11Rec20030114,
@@ -1045,13 +1045,13 @@ mod tests {
     fn present_profile_hover_line_uses_selected_profile_lifecycle() {
         assert_eq!(
             profile_lifecycle_hover_line(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
                 &ProfileLookup::Present {
                     value: (),
                     lifecycle: SpecLifecycle::Experimental,
                 },
             ),
-            Some("**Experimental in Svg2EditorsDraft20250914**".to_owned())
+            Some("**Experimental in Svg2EditorsDraft**".to_owned())
         );
     }
 }
