@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Hue wraparound: 359.6 degrees no longer produces `hsl(360, ...)`
 - `var()` fallback: `var(--prop, red)` now tries the fallback when the
   property value is not a valid color
+- `var()` resolution is scoped per CSS rule block plus `:root` globals
+  (local declarations win, `:root` fills the gaps), so a `var(--x)` in one
+  rule no longer picks up an `--x` defined in an unrelated rule. `:root` is
+  detected from the parsed selector AST, so a literal `:root` inside
+  `[data-x=":root"]`, `:not(:root)`, or `html:root` is not mistaken for the
+  document root
 - Post-scaling infinity: `"1e38turn"` no longer produces `Infinity`
   after unit conversion
 - `color_kinds` cache evicted on `did_close` to prevent stale entries
