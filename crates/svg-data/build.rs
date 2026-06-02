@@ -640,14 +640,24 @@ fn load_snapshot_build_data(
         .collect();
 
     Ok(SnapshotBuildData {
-        elements: collect_unique(elements, |element| element.name.clone(), "element", snapshot)?,
+        elements: collect_unique(
+            elements,
+            |element| element.name.clone(),
+            "element",
+            snapshot,
+        )?,
         attributes: collect_unique(
             attributes,
             |attribute| attribute.name.clone(),
             "attribute",
             snapshot,
         )?,
-        grammars: collect_unique(grammars.grammars, |grammar| grammar.id.clone(), "grammar", snapshot)?,
+        grammars: collect_unique(
+            grammars.grammars,
+            |grammar| grammar.id.clone(),
+            "grammar",
+            snapshot,
+        )?,
         element_attributes,
         attribute_elements,
         global_attributes,
@@ -667,9 +677,11 @@ fn collect_unique<T>(
     for item in items {
         let name = key(&item);
         if map.insert(name.clone(), item).is_some() {
-            return Err(
-                format!("duplicate {kind} `{name}` in snapshot {}", snapshot.as_str()).into(),
-            );
+            return Err(format!(
+                "duplicate {kind} `{name}` in snapshot {}",
+                snapshot.as_str()
+            )
+            .into());
         }
     }
     Ok(map)

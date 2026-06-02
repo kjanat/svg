@@ -130,9 +130,7 @@ pub fn compute(compat: Option<&CompatEntry>, spec: SpecFacts) -> Verdict {
 
     // Rule 1: profile-obsolete (highest priority).
     if spec.lifecycle == SpecLifecycle::Obsolete {
-        let last_seen = spec
-            .last_seen
-            .unwrap_or(OBSOLETE_LAST_SEEN_FALLBACK);
+        let last_seen = spec.last_seen.unwrap_or(OBSOLETE_LAST_SEEN_FALLBACK);
         reasons.push(Reason::ProfileObsolete { last_seen });
     }
 
