@@ -234,3 +234,227 @@ fn typed_attribute_values_offer_context_aware_completions() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn completions_follow_selected_profile() -> TestResult {
+    let mut svg11_server = TestServer::start_with_initialize_options(&json!({
+        "svg": {
+            "profile": "svg11"
+        }
+    }))?;
+
+    let attribute_completion_svg = r#"<svg><use height="32" /></svg>"#;
+    svg11_server.open(
+        "file:///profile-attribute-completion.svg",
+        attribute_completion_svg,
+    )?;
+
+    let svg11_resp = svg11_server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///profile-attribute-completion.svg" },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg11_items = svg11_resp["result"]
+        .as_array()
+        .ok_or("SVG 1.1 completion result should be an array")?;
+    assert!(
+        svg11_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("xlink:href")),
+        "SVG 1.1 profile should include xlink:href completions: {svg11_resp}"
+    );
+    svg11_server.shutdown_and_exit()?;
+
+    let mut svg2_server = TestServer::start_with_initialize_options(&json!({
+        "svg": {
+            "profile": "Svg2Draft"
+        }
+    }))?;
+    svg2_server.open(
+        "file:///profile-attribute-completion.svg",
+        attribute_completion_svg,
+    )?;
+
+    let svg2_resp = svg2_server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///profile-attribute-completion.svg" },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg2_items = svg2_resp["result"]
+        .as_array()
+        .ok_or("SVG 2 completion result should be an array")?;
+    assert!(
+        svg2_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("href")),
+        "SVG 2 profile should include href completions: {svg2_resp}"
+    );
+    assert!(
+        svg2_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("xlink:href")),
+        "SVG 2 profile should hide unsupported xlink:href completions: {svg2_resp}"
+    );
+    svg2_server.shutdown_and_exit()?;
+    Ok(())
+}
+
+/// Switching the active profile on a *single live server* (via
+/// `workspace/didChangeConfiguration`) must change completion results for
+/// an already-open document — the diagnostics side of this is covered by
+/// `profile_config_applies_on_init_and_relints_open_documents`.
+#[test]
+fn completions_follow_live_profile_switch() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(&json!({
+        "svg": {
+            "profile": "svg11"
+        }
+    }))?;
+
+    let uri = "file:///profile-live-switch.svg";
+    server.open(uri, r#"<svg><use height="32" /></svg>"#)?;
+
+    let svg11_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg11_items = svg11_resp["result"]
+        .as_array()
+        .ok_or("SVG 1.1 completion result should be an array")?;
+    assert!(
+        svg11_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("xlink:href")),
+        "svg11 profile should offer xlink:href before the switch: {svg11_resp}"
+    );
+
+    server.change_configuration(&json!({
+        "svg": {
+            "profile": "svg2draft"
+        }
+    }))?;
+
+    let svg2_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": 22 }
+        }),
+    )?;
+    let svg2_items = svg2_resp["result"]
+        .as_array()
+        .ok_or("SVG 2 completion result should be an array")?;
+    assert!(
+        svg2_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("href")),
+        "live switch to svg2draft should offer href: {svg2_resp}"
+    );
+    assert!(
+        svg2_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("xlink:href")),
+        "live switch to svg2draft should drop xlink:href: {svg2_resp}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn value_completions_follow_profile_snapshot_overrides() -> TestResult {
+    // SVG 1.1 keeps the CSS2 `display` keywords (`run-in`, `compact`,
+    // `marker`) that the union default drops, so the per-snapshot value
+    // override must surface for the active profile and disappear otherwise.
+    let value_svg = r#"<svg display="inline"></svg>"#;
+    let value_col = u32::try_from(value_svg.find("inline").ok_or("display value")? + 1)?;
+    let uri = "file:///profile-value-completion.svg";
+    let position = json!({ "line": 0, "character": value_col });
+
+    let mut svg11_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "svg11" }
+    }))?;
+    svg11_server.open(uri, value_svg)?;
+    let svg11_resp = svg11_server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg11_items = svg11_resp["result"]
+        .as_array()
+        .ok_or("SVG 1.1 value completion result should be an array")?;
+    assert!(
+        svg11_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("run-in")),
+        "SVG 1.1 profile should surface the `display` override value `run-in`: {svg11_resp}"
+    );
+    svg11_server.shutdown_and_exit()?;
+
+    let mut svg2_server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "profile": "Svg2Draft" }
+    }))?;
+    svg2_server.open(uri, value_svg)?;
+    let svg2_resp = svg2_server.request(
+        "textDocument/completion",
+        &json!({ "textDocument": { "uri": uri }, "position": position }),
+    )?;
+    let svg2_items = svg2_resp["result"]
+        .as_array()
+        .ok_or("SVG 2 value completion result should be an array")?;
+    assert!(
+        svg2_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("inline")),
+        "SVG 2 profile should still offer the union `display` values: {svg2_resp}"
+    );
+    assert!(
+        svg2_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("run-in")),
+        "SVG 2 profile must not surface the SVG 1.1-only `display` value `run-in`: {svg2_resp}"
+    );
+    svg2_server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn completions_follow_document_version_attribute() -> TestResult {
+    // Default server profile is SVG 2. A document declaring
+    // `version="1.1"` must auto-swap, so completions for `<use>` show
+    // `xlink:href` (SVG 1.1-only) instead of `href` (SVG 2-only).
+    let mut server = TestServer::start()?;
+
+    let doc = r#"<svg version="1.1" xmlns="http://www.w3.org/2000/svg"><use height="32" /></svg>"#;
+    server.open("file:///doc-driven-completion.svg", doc)?;
+
+    // Cursor positioned inside the `<use ...>` tag after `height="32" `.
+    // Column 71 is just after the closing quote of height and the space,
+    // before `/`. Completion should offer attribute names valid for the
+    // active (now SVG 1.1) profile.
+    let resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///doc-driven-completion.svg" },
+            "position": { "line": 0, "character": 71 }
+        }),
+    )?;
+    let items = resp["result"]
+        .as_array()
+        .ok_or("completion result should be an array")?;
+    assert!(
+        items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("xlink:href")),
+        "doc-driven SVG 1.1 profile should expose xlink:href in completions: {resp}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}

@@ -6,5 +6,8 @@ reorder_imports          = true
 reorder_modules          = true
 use_field_init_shorthand = true
 use_try_shorthand        = true
-group_imports            = "StdExternalCrate"
-imports_granularity      = "Crate"
+
+# Nightly-only rustfmt options: ignored (with a warning) by stable `cargo fmt`.
+# Uncomment when formatting with a nightly toolchain.
+# group_imports            = "StdExternalCrate"
+# imports_granularity      = "Crate"

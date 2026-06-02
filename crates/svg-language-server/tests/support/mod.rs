@@ -104,6 +104,10 @@ pub struct TestServer {
 
 impl TestServer {
     pub fn start() -> TestResult<Self> {
+        Self::start_with_initialize_options(&Value::Null)
+    }
+
+    pub fn start_with_initialize_options(initialization_options: &Value) -> TestResult<Self> {
         let mut child = Command::new(server_binary()?)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -139,7 +143,8 @@ impl TestServer {
             &json!({
                 "processId": null,
                 "rootUri": null,
-                "capabilities": {}
+                "capabilities": {},
+                "initializationOptions": initialization_options.clone()
             }),
         )?;
         server.notify("initialized", &json!({}))?;
@@ -182,6 +187,19 @@ impl TestServer {
                     "version": 1,
                     "text": text
                 }
+            }),
+        )
+    }
+
+    #[allow(
+        dead_code,
+        reason = "shared test scaffolding; only the test binaries that switch profiles call this"
+    )]
+    pub fn change_configuration(&mut self, settings: &Value) -> TestResult {
+        self.notify(
+            "workspace/didChangeConfiguration",
+            &json!({
+                "settings": settings.clone(),
             }),
         )
     }

@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use svg_data::{AttributeValues, ContentModel};
+use svg_data::{
+    AttributeValues, ContentModel, ProfiledAttribute, ProfiledElement, SpecLifecycle,
+    SpecSnapshotId,
+};
 use svg_tree::{find_ancestor_any, is_attribute_name_kind};
 use tower_lsp_server::ls_types::{
     CompletionItem, CompletionItemKind, CompletionItemTag, CompletionTextEdit, InsertTextFormat,
@@ -153,14 +156,16 @@ fn replace_completion_item(
 }
 
 fn css_completion_items(css: &str, byte_offset: usize) -> Vec<CompletionItem> {
-    let context = css_completion_context(css, byte_offset);
-    let custom_properties =
-        svg_references::collect_custom_property_definitions_from_stylesheet(css, 0, 0);
-
-    match context {
+    match css_completion_context(css, byte_offset) {
         CssCompletionContext::Selector => css_selector_completions(),
         CssCompletionContext::Property => css_property_completions(),
-        CssCompletionContext::Value => css_value_completions(&custom_properties),
+        CssCompletionContext::Value => {
+            // Only the value context consumes custom properties; defer the
+            // stylesheet scan so selector/property completions don't pay for it.
+            let custom_properties =
+                svg_references::collect_custom_property_definitions_from_stylesheet(css, 0, 0);
+            css_value_completions(&custom_properties)
+        }
     }
 }
 
@@ -432,50 +437,53 @@ fn href_value_completions(
 pub fn attribute_completion_items(
     elem_name: &str,
     existing: &HashSet<String>,
-    compat: Option<&crate::compat::RuntimeCompat>,
+    profile: svg_data::SpecSnapshotId,
 ) -> Vec<CompletionItem> {
-    svg_data::attributes_for(elem_name)
+    svg_data::attributes_for_with_profile(profile, elem_name)
         .into_iter()
-        .filter(|attr| {
-            let deprecated = compat
-                .and_then(|c| c.attributes.get(attr.name))
-                .map_or(attr.deprecated, |co| co.deprecated);
-            !deprecated
-        })
-        .filter(|attr| !existing.contains(attr.name))
+        .filter(|attr| !existing.contains(attr.attribute.name))
         .map(attribute_completion_item)
         .collect()
 }
 
 pub fn child_element_completion_items(
     elem_name: &str,
-    compat: Option<&crate::compat::RuntimeCompat>,
+    profile: svg_data::SpecSnapshotId,
 ) -> Vec<CompletionItem> {
-    svg_data::allowed_children(elem_name)
-        .into_iter()
-        .filter_map(svg_data::element)
-        .filter(|el| {
-            let deprecated = compat
-                .and_then(|c| c.elements.get(el.name))
-                .map_or(el.deprecated, |co| co.deprecated);
-            !deprecated
-        })
-        .map(element_completion_item)
-        .collect()
-}
-
-pub fn root_element_completion_items() -> Vec<CompletionItem> {
-    svg_data::element("svg")
+    svg_data::allowed_children_with_profile(profile, elem_name)
         .into_iter()
         .map(element_completion_item)
         .collect()
 }
 
+pub fn root_element_completion_items(profile: svg_data::SpecSnapshotId) -> Vec<CompletionItem> {
+    match svg_data::element_for_profile(profile, "svg") {
+        svg_data::ProfileLookup::Present { value, lifecycle } => {
+            vec![element_completion_item(ProfiledElement {
+                element: value,
+                lifecycle,
+            })]
+        }
+        svg_data::ProfileLookup::UnsupportedInProfile { .. } | svg_data::ProfileLookup::Unknown => {
+            Vec::new()
+        }
+    }
+}
+
+/// Build completion items for an attribute value position.
+///
+/// Dispatches grammar-typed `*_attribute_value` node kinds first (typed
+/// completions like `length`, `paint`, `transform`), then falls back to the
+/// `svg-data` catalog and resolves the active profile's value list via
+/// [`svg_data::AttributeDef::values_for_profile`] so SVG 1.1-only keywords
+/// (e.g. `display` keeps `run-in`/`compact`/`marker`) surface for the active
+/// profile and disappear from SVG 2.
 pub fn value_completions(
     attr_name: &str,
     source: &[u8],
     tree: &tree_sitter::Tree,
     value_node: tree_sitter::Node<'_>,
+    profile: SpecSnapshotId,
 ) -> Vec<CompletionItem> {
     // Grammar-typed attribute values: dispatch on the tree node kind produced by
     // tree-sitter-svg rather than re-deriving the type from the catalog.
@@ -507,7 +515,11 @@ pub fn value_completions(
     let Some(attr_def) = svg_data::attribute(attr_name) else {
         return Vec::new();
     };
-    match &attr_def.values {
+    // Profile overrides only reach the catalog-driven arms below; grammar-typed
+    // values are dispatched above. SVG 1.1 `display`, for instance, keeps the
+    // CSS2 `run-in`/`compact`/`marker` keywords that the union default drops.
+    let values = attr_def.values_for_profile(profile);
+    match values {
         AttributeValues::Enum(values) => values
             .iter()
             .map(|value| completion_item(value.to_string(), CompletionItemKind::VALUE))
@@ -692,26 +704,42 @@ fn preserve_aspect_ratio_completions() -> Vec<CompletionItem> {
     items
 }
 
-fn attribute_completion_item(attr: &svg_data::AttributeDef) -> CompletionItem {
+fn lifecycle_completion_detail(description: &str, lifecycle: SpecLifecycle) -> String {
+    match lifecycle {
+        SpecLifecycle::Stable => description.to_owned(),
+        SpecLifecycle::Experimental => format!("{description} [Experimental]"),
+        SpecLifecycle::Deprecated => format!("{description} [Deprecated]"),
+        SpecLifecycle::Obsolete => format!("{description} [Obsolete]"),
+    }
+}
+
+fn attribute_completion_item(attr: ProfiledAttribute) -> CompletionItem {
     detailed_snippet_completion_item(
-        attr.name,
+        attr.attribute.name,
         CompletionItemKind::PROPERTY,
-        format!("{}=\"$0\"", attr.name),
-        attr.description,
+        format!("{}=\"$0\"", attr.attribute.name),
+        lifecycle_completion_detail(attr.attribute.description, attr.lifecycle),
     )
 }
 
-pub fn element_completion_item(el: &svg_data::ElementDef) -> CompletionItem {
-    let insert_text = match el.content_model {
-        ContentModel::Void => format!("{} />", el.name),
-        _ => format!("{}>$0</{}>", el.name, el.name),
+pub fn element_completion_item(el: ProfiledElement) -> CompletionItem {
+    let insert_text = match el.element.content_model {
+        ContentModel::Void => format!("{} />", el.element.name),
+        _ => format!("{}>$0</{}>", el.element.name, el.element.name),
     };
+    let is_deprecated = matches!(
+        el.lifecycle,
+        SpecLifecycle::Deprecated | SpecLifecycle::Obsolete
+    );
     CompletionItem {
-        label: el.name.to_string(),
+        label: el.element.name.to_string(),
         kind: Some(CompletionItemKind::PROPERTY),
-        detail: Some(el.description.to_string()),
-        deprecated: if el.deprecated { Some(true) } else { None },
-        tags: if el.deprecated {
+        detail: Some(lifecycle_completion_detail(
+            el.element.description,
+            el.lifecycle,
+        )),
+        deprecated: is_deprecated.then_some(true),
+        tags: if is_deprecated {
             Some(vec![CompletionItemTag::DEPRECATED])
         } else {
             None
@@ -719,5 +747,69 @@ pub fn element_completion_item(el: &svg_data::ElementDef) -> CompletionItem {
         insert_text: Some(insert_text),
         insert_text_format: Some(InsertTextFormat::SNIPPET),
         ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_ELEMENT: svg_data::ElementDef = svg_data::ElementDef {
+        name: "demo",
+        description: "Demo element.",
+        mdn_url: "https://example.com/demo",
+        spec_lifecycle: SpecLifecycle::Stable,
+        deprecated: false,
+        experimental: false,
+        spec_url: None,
+        baseline: None,
+        browser_support: None,
+        verdicts: &[],
+        content_model: ContentModel::Void,
+        required_attrs: &[],
+        attrs: &[],
+        global_attrs: false,
+    };
+
+    const TEST_ATTRIBUTE: svg_data::AttributeDef = svg_data::AttributeDef {
+        name: "demo-attr",
+        description: "Demo attribute.",
+        mdn_url: "https://example.com/demo-attr",
+        spec_lifecycle: SpecLifecycle::Stable,
+        deprecated: false,
+        experimental: false,
+        spec_url: None,
+        baseline: None,
+        browser_support: None,
+        verdicts: &[],
+        values: AttributeValues::FreeText,
+        elements: &["*"],
+    };
+
+    #[test]
+    fn deprecated_element_completion_is_annotated_and_tagged() {
+        let item = element_completion_item(ProfiledElement {
+            element: &TEST_ELEMENT,
+            lifecycle: SpecLifecycle::Deprecated,
+        });
+
+        assert_eq!(item.detail.as_deref(), Some("Demo element. [Deprecated]"));
+        assert_eq!(item.deprecated, Some(true));
+        assert_eq!(item.tags, Some(vec![CompletionItemTag::DEPRECATED]));
+    }
+
+    #[test]
+    fn experimental_attribute_completion_is_annotated() {
+        let item = attribute_completion_item(ProfiledAttribute {
+            attribute: &TEST_ATTRIBUTE,
+            lifecycle: SpecLifecycle::Experimental,
+        });
+
+        assert_eq!(
+            item.detail.as_deref(),
+            Some("Demo attribute. [Experimental]")
+        );
+        assert_eq!(item.deprecated, None);
+        assert_eq!(item.tags, None);
     }
 }

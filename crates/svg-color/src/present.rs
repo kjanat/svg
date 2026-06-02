@@ -180,7 +180,7 @@ mod tests {
         assert!(results.iter().any(|s| s == "rgb(255, 0, 0)"));
         assert!(results.iter().any(|s| s.starts_with("hsl(")));
         // Original format should be first
-        assert!(results[0] == "#ff0000");
+        assert_eq!(results[0], "#ff0000");
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
         let results = color_presentations(1.0, 0.0, 0.0, 1.0, ColorKind::Named);
         assert!(results.iter().any(|s| s == "red"));
         // Named should be first when original is Named
-        assert!(results[0] == "red");
+        assert_eq!(results[0], "red");
     }
 
     #[test]
