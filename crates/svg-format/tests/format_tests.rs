@@ -293,6 +293,54 @@ fn format_with_host_delegates_style_content() {
 }
 
 #[test]
+fn format_with_host_reports_file_offsets() {
+    let input = concat!(
+        "<svg>\n",
+        "  <style>\n",
+        "    <![CDATA[\n",
+        "      .a{fill:red}\n",
+        "    ]]>\n",
+        "  </style>\n",
+        "  <foreignObject>\n",
+        "    <div>hello</div>\n",
+        "  </foreignObject>\n",
+        "</svg>",
+    );
+    let expected_css_offset = input.find(".a{fill:red}").unwrap();
+    let expected_html_offset = input.find("<div>hello</div>").unwrap();
+    let mut css_offset = None;
+    let mut html_offset = None;
+    let _ = format_with_host(input, legacy_tab_options(), &mut |req| {
+        match req.language {
+            EmbeddedLanguage::Css => css_offset = Some(req.file_byte_offset),
+            EmbeddedLanguage::Html => html_offset = Some(req.file_byte_offset),
+            EmbeddedLanguage::JavaScript => {}
+        }
+        None
+    });
+    assert_eq!(css_offset, Some(expected_css_offset));
+    assert_eq!(html_offset, Some(expected_html_offset));
+}
+
+#[test]
+fn format_with_host_reports_block_index() {
+    let input = "<svg><style>.a{}</style><style>.b{}</style><script>let x = 1;</script></svg>";
+    let mut seen = Vec::new();
+    let _ = format_with_host(input, legacy_tab_options(), &mut |req| {
+        seen.push((req.language, req.block_index));
+        None
+    });
+    assert_eq!(
+        seen,
+        vec![
+            (EmbeddedLanguage::Css, 1),
+            (EmbeddedLanguage::Css, 2),
+            (EmbeddedLanguage::JavaScript, 1),
+        ]
+    );
+}
+
+#[test]
 fn multiline_path_value_continuation_aligns_under_opening_quote() {
     // W3 SVG path samples break long `d="..."` values across lines to keep
     // logical path-command groups visible. Each continuation line aligns

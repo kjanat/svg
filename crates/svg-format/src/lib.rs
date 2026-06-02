@@ -16,7 +16,7 @@ use tag_parse::{
     reorder_attributes,
 };
 use text_content::{
-    collapse_whitespace, decode_xml_entities, dedent_block, encode_xml_entities,
+    collapse_whitespace, decode_xml_entities, dedent_block_with_offset, encode_xml_entities,
     is_text_content_element, normalize_text_content_with_entities, strip_cdata_wrapper,
 };
 use tree_sitter::{Node, Parser};
@@ -124,6 +124,10 @@ pub struct EmbeddedContent<'a> {
     pub content: &'a str,
     /// The nesting depth in the SVG tree where this content lives.
     pub indent_depth: usize,
+    /// Byte offset in the original SVG source where `content` begins.
+    pub file_byte_offset: usize,
+    /// 1-based index of this embedded block for its language.
+    pub block_index: usize,
 }
 
 /// Formatter configuration for SVG pretty-printing.
@@ -564,6 +568,14 @@ struct Formatter<'a> {
     source: &'a [u8],
     options: FormatOptions,
     out: String,
+    embedded_counts: EmbeddedCounts,
+}
+
+#[derive(Default)]
+struct EmbeddedCounts {
+    css: usize,
+    javascript: usize,
+    html: usize,
 }
 
 impl<'a> Formatter<'a> {
@@ -572,6 +584,11 @@ impl<'a> Formatter<'a> {
             source,
             options,
             out: String::new(),
+            embedded_counts: EmbeddedCounts {
+                css: 0,
+                javascript: 0,
+                html: 0,
+            },
         }
     }
 
@@ -615,6 +632,16 @@ impl<'a> Formatter<'a> {
             }
             _ => self.format_children(node, depth, fmt),
         }
+    }
+
+    fn next_embedded_index(&mut self, language: EmbeddedLanguage) -> usize {
+        let count = match language {
+            EmbeddedLanguage::Css => &mut self.embedded_counts.css,
+            EmbeddedLanguage::JavaScript => &mut self.embedded_counts.javascript,
+            EmbeddedLanguage::Html => &mut self.embedded_counts.html,
+        };
+        *count += 1;
+        *count
     }
 
     fn format_children(
@@ -1295,18 +1322,32 @@ impl<'a> Formatter<'a> {
         depth: usize,
         fmt: &mut dyn FnMut(EmbeddedContent<'_>) -> Option<String>,
     ) -> bool {
-        let raw = self.node_text(node).to_string();
-        let (payload, cdata_wrapped) = strip_cdata_wrapper(&raw).map_or_else(
-            || (decode_xml_entities(dedent_block(&raw)), false),
-            |inner| (dedent_block(inner), true),
+        let raw = self.node_text(node);
+        let raw_start = node.start_byte();
+        let (payload, cdata_wrapped, payload_offset) = strip_cdata_wrapper(raw).map_or_else(
+            || {
+                let (dedented, offset) = dedent_block_with_offset(raw);
+                (decode_xml_entities(dedented), false, offset)
+            },
+            |inner| {
+                let inner_offset = inner.as_ptr() as usize - raw.as_ptr() as usize;
+                let (dedented, offset) = dedent_block_with_offset(inner);
+                (dedented, true, offset.map(|value| inner_offset + value))
+            },
         );
+        let Some(payload_offset) = payload_offset else {
+            return false;
+        };
         if payload.is_empty() {
             return false;
         }
+        let file_byte_offset = raw_start + payload_offset;
         let req = EmbeddedContent {
             language,
             content: &payload,
             indent_depth: depth,
+            file_byte_offset,
+            block_index: self.next_embedded_index(language),
         };
         fmt(req).is_some_and(|formatted| {
             if cdata_wrapped {
@@ -1349,15 +1390,21 @@ impl<'a> Formatter<'a> {
         }
 
         let raw = std::str::from_utf8(&self.source[content_start..content_end]).ok()?;
-        let content = dedent_block(raw);
+        let (content, offset) = dedent_block_with_offset(raw);
+        let Some(offset) = offset else {
+            return None;
+        };
         if content.is_empty() {
             return None;
         }
+        let file_byte_offset = content_start + offset;
 
         let req = EmbeddedContent {
             language: EmbeddedLanguage::Html,
             content: &content,
             indent_depth: depth + 1,
+            file_byte_offset,
+            block_index: self.next_embedded_index(EmbeddedLanguage::Html),
         };
         let formatted = fmt(req)?;
 

@@ -1,11 +1,30 @@
-/// Remove common leading whitespace from a block of text,
-/// trimming leading/trailing blank lines.
-pub fn dedent_block(text: &str) -> String {
-    let lines: Vec<&str> = text.lines().collect();
+/// Remove common leading whitespace from a block of text, trimming leading and
+/// trailing blank lines, while also returning the byte offset where the
+/// dedented content begins within the original text.
+pub fn dedent_block_with_offset(text: &str) -> (String, Option<usize>) {
+    if text.is_empty() {
+        return (String::new(), None);
+    }
+
+    let mut lines = Vec::new();
+    let mut starts = Vec::new();
+    let mut offset = 0usize;
+    for segment in text.split_inclusive('\n') {
+        let mut line = segment.strip_suffix('\n').unwrap_or(segment);
+        line = line.strip_suffix('\r').unwrap_or(line);
+        lines.push(line);
+        starts.push(offset);
+        offset += segment.len();
+    }
+
+    if lines.is_empty() {
+        return (String::new(), None);
+    }
+
     let first_non_empty = lines.iter().position(|l| !l.trim().is_empty());
     let last_non_empty = lines.iter().rposition(|l| !l.trim().is_empty());
     let (Some(start), Some(end)) = (first_non_empty, last_non_empty) else {
-        return String::new();
+        return (String::new(), None);
     };
 
     let block = &lines[start..=end];
@@ -16,7 +35,7 @@ pub fn dedent_block(text: &str) -> String {
         .min()
         .unwrap_or(0);
 
-    block
+    let dedented = block
         .iter()
         .map(|l| {
             if l.trim().is_empty() {
@@ -27,7 +46,16 @@ pub fn dedent_block(text: &str) -> String {
             }
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+
+    let line_start = starts[start];
+    let skip: usize = lines[start]
+        .chars()
+        .take(min_indent)
+        .map(char::len_utf8)
+        .sum();
+    let content_offset = line_start + skip;
+    (dedented, Some(content_offset))
 }
 
 /// Collapse runs of whitespace into single spaces and trim.
