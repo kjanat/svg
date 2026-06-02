@@ -49,13 +49,103 @@ exists).
 | `bd0b7819`              | the then-checked-out clone HEAD; used by `spec_removals.json` + orphaned `build/spec.rs:11`                                                                   |
 
 **Decision (Q-PIN):** the clone is throwaway — the build may `git clone` svgwg
-freely during discovery. Because we **vendor** (Q-VENDOR), the pin's only job is to
-record *which commit the vendored artifacts were captured at*. There is no reason
+freely during discovery. Because we **vendor** (Q-VENDOR), the pin's only job is
+to record *which commit the vendored artifacts were captured at*. There is no reason
 to stay on `19482daf` specifically; it's just the existing dated snapshot.
-Re-capturing at a newer commit is a deliberate, separate data refresh (date the new
-snapshot accordingly). What must hold: the vendored artifacts and the recorded
-source SHA move together, and `spec_removals.json` / `spec.rs` get re-pinned to the
-**same** captured commit so the two stop disagreeing.
+Re-capturing at a newer commit is a deliberate, separate data refresh (date the
+new snapshot accordingly). What must hold: the vendored artifacts and the recorded
+source SHA move together, and `spec_removals.json` / `spec.rs` get re-pinned to
+the **same** captured commit so the two stop disagreeing.
+
+---
+
+## A. Edition catalog & versioning model (frozen vs rolling + freshness)
+
+**Requirement:** the SVG 2 Editor's Draft must **not** be a dated Rust enum variant
+that has to be bumped on every refresh. Only **frozen, immutable** editions are
+hard-set in Rust; the ED is a **single undated** variant whose captured commit/date
+is **data**, and the LSP reports whether its baked compat data is still current.
+
+### Frozen editions — hard-set Rust variants, vendored once, never touched
+
+All immutable (dated TR URLs); SVG 1.x is final forever. Adding a variant per
+edition is a one-time cost.
+
+| Edition        | Date       | Frozen source URL                                         |
+| -------------- | ---------- | --------------------------------------------------------- |
+| SVG 1.0 REC    | 2001-09-04 | `https://www.w3.org/TR/2001/REC-SVG-20010904/`            |
+| SVG 1.1 FE REC | 2003-01-14 | `https://www.w3.org/TR/2003/REC-SVG11-20030114/` *(have)* |
+| SVG 1.1 SE PR  | 2011-06-09 | `https://www.w3.org/TR/2011/PR-SVG11-20110609/`           |
+| SVG 1.1 SE REC | 2011-08-16 | `https://www.w3.org/TR/2011/REC-SVG11-20110816/` *(have)* |
+| SVG 2 CR       | 2016-09-15 | `https://www.w3.org/TR/2016/CR-SVG2-20160915/`            |
+| SVG 2 CR       | 2018-08-07 | `https://www.w3.org/TR/2018/CR-SVG2-20180807/`            |
+| SVG 2 CR       | 2018-10-04 | `https://www.w3.org/TR/2018/CR-SVG2-20181004/` *(have)*   |
+
+### Rolling edition — one undated variant
+
+`Svg2EditorsDraft` (drop the `20250914` suffix).
+Captured svgwg commit + date live in `snapshot.json`
+(data) → refreshing the ED = regenerate its data, **no Rust edit**.\
+`SpecSnapshotId::LATEST = Svg2EditorsDraft`.\
+Sources: `https://svgwg.org/svg2-draft/`
+(+ `single-page.html`), repo `https://github.com/w3c/svgwg`.
+
+Today the enum (`src/types.rs:410`) has 4 dated variants with
+`LATEST = Svg2EditorsDraft20250914`, referenced in **37 places across 16 files**;
+renaming to an undated `Svg2EditorsDraft` (date → `snapshot.json` data) is the
+mechanical change that kills the date-bumping toil.
+
+### Freshness / usability signal (LSP feature — the point of capturing editions)
+
+- **Frozen editions**: never stale — report "final"; for SVG 2 link the
+  `https://www.w3.org/TR/SVG2/` "latest published" pointer for context.
+- **Rolling ED**: record captured commit/date at build time; the LSP compares it
+  against the live ED (`github.com/w3c/svgwg` HEAD / `svgwg.org/svg2-draft`) and
+  tells the user *"your SVG 2 ED compat data is from `<date>` (`<short-sha>`);
+  latest is `<date>` — N commits behind / current."* Network check stays opt-in
+  so offline use degrades gracefully.
+
+### Edition discovery & freshness via the W3C API
+
+Don't hardcode the edition list — the **W3C API** (`api.w3.org`, public, no auth,
+JSON, ISO-8601 dates, rate limit 6000/IP/10min) is the authoritative source:
+
+- `GET /specifications/{shortname}/versions?embed=1` → every published version with
+  `date`, `status`, `uri` (the dated TR URL). Shortnames: **`SVG`** (1.0),
+  **`SVG11`**, **`SVG2`**.
+- `GET /specifications/{shortname}/versions/latest` → redirect to the latest
+  published version — drives the "is there a newer published edition?" check.
+- For the rolling ED (not on `/TR/`), freshness compares against the svgwg git repo
+  HEAD (`github.com/w3c/svgwg`).
+
+Authoritative milestone inventory (REC/PR/CR — pulled live 2026-06-03; WDs omitted,
+available but low value):
+
+| shortname | date                    | status       | URI                                      |
+| --------- | ----------------------- | ------------ | ---------------------------------------- |
+| SVG       | 2001-09-04              | REC          | `…/TR/2001/REC-SVG-20010904/`            |
+| SVG       | 2001-07-19              | PR           | `…/TR/2001/PR-SVG-20010719/`             |
+| SVG       | 2000-11-02 / 2000-08-02 | CR           | `…/TR/2000/CR-SVG-2000{1102,0802}/`      |
+| SVG11     | 2011-08-16              | REC (SE)     | `…/TR/2011/REC-SVG11-20110816/` *(have)* |
+| SVG11     | 2011-06-09              | PR (SE)      | `…/TR/2011/PR-SVG11-20110609/`           |
+| SVG11     | 2003-01-14              | REC (FE)     | `…/TR/2003/REC-SVG11-20030114/` *(have)* |
+| SVG11     | 2002-11-15 / 2002-04-30 | PR / CR (FE) | `…/TR/2002/…`                            |
+| SVG2      | 2018-10-04              | CR           | `…/TR/2018/CR-SVG2-20181004/` *(have)*   |
+| SVG2      | 2018-08-07              | CR           | `…/TR/2018/CR-SVG2-20180807/`            |
+| SVG2      | 2016-09-15              | CR           | `…/TR/2016/CR-SVG2-20160915/`            |
+
+The user's requested editions map 1:1 to these REC/PR/CR milestones. **Capture
+priority = REC/PR/CR; WDs optional.** Build vs runtime split: the build derives
+from **vendored** dated artifacts (the API may be used offline-gated at *capture*
+time to resolve URLs + record `status`/`date` per snapshot); the **LSP** hits the
+API (opt-in) only for the runtime freshness signal.
+
+### How editions get populated
+
+Each frozen edition's snapshot data is **derived by the pipeline** (vendor the TR
+artifact → parse in `build.rs` → generate/audit) — **not hand-seeded**. "Capture
+these editions" therefore means *vendor their artifacts + run the derivers*, not
+transcribe more snapshots by hand (which is the toil issue #9 exists to kill).
 
 ---
 
@@ -105,6 +195,12 @@ pinned spec artifact.
 | **SVG 2 CR (2018-10-04)**        | TR `…/2018/CR-SVG2-20181004/propidx.html`                            | TR, rendered (verified)                                                         | TR, published table                                                               | removed in SVG2                                       | not pinned for CR                               | **dated TR URL**                        |
 | **SVG 2 ED (svgwg, 2025-09-14)** | `svgwg/master/propidx.html` (**inline-rendered, usable; to vendor**) | `svgwg/master/eltindex.html` = **`<edit:elementindex/>` placeholder — USELESS** | `svgwg/master/attindex.html` = **`<edit:attributetable/>` placeholder — USELESS** | removed                                               | `svgwg/master/definitions*.xml` (**to vendor**) | **git SHA — provenance pin (see §0)**   |
 
+> The table covers only the four editions inspected so far. The additional frozen
+> editions in §A (SVG 1.0 2001, SVG 1.1 PR 2011-06, SVG 2 CR 2016-09 / 2018-08)
+> follow the same dated-TR shape (propidx/eltindex/attindex + DTD for SVG 1.x; CR
+> HTML for SVG 2 CR) but their per-artifact availability must be **verified at
+> capture time**, not assumed.
+
 **Divergences that matter:**
 
 - **Indexes**: SVG1.1 ships pre-rendered eltindex/attindex on W3C TR (scrapeable).
@@ -116,8 +212,8 @@ pinned spec artifact.
   the only SVG2 index usable directly from the clone.
 - **Pinning**: SVG1.1 + SVG2-CR use immutable dated TR URLs (stable; vendor them
   per Q-VENDOR so the build is network-free). SVG2-ED uses a git SHA as a
-  **provenance pin** on the captured/vendored artifacts (§0) — not a constraint on
-  the throwaway discovery clone.
+  **provenance pin** on the captured/vendored artifacts (§0) — not a constraint
+  on the throwaway discovery clone.
 
 ---
 
@@ -172,8 +268,8 @@ const-gen grammars "later", hard heterogeneous matrix/categories "early"), point
 at wrong sources (MDN for descriptions, propidx for all enums, single
 `definitions.xml` for the whole matrix), and missed the two highest-leverage
 TS-removal wins (spec_scan port + BCD de-Deno) entirely. **P0 (de-Deno + spec_scan
-port) precedes everything; ED work (P1) just needs the vendor capture pinned to one
-agreed commit (§0) — provenance hygiene, not a blocker.**
+port) precedes everything; ED work (P1) just needs the vendor capture pinned to
+one agreed commit (§0) — provenance hygiene, not a blocker.**
 
 ---
 
@@ -199,6 +295,13 @@ entry + `added` + `upstream_ref` + self-prune-on-no-match pattern):
 
 ## 6. Decisions (resolved 2026-06-03)
 
+- **Q-EDITIONS → frozen are hard-set, ED is rolling/undated + freshness (see §A).**
+  Capture all reachable frozen editions (SVG 1.0 2001, SVG 1.1 FE 2003, SVG 1.1
+  PR 2011-06, SVG 1.1 SE 2011-08, SVG 2 CR 2016-09 / 2018-08 / 2018-10) as hard-set
+  Rust variants, derived once from their dated TR artifacts. The Editor's Draft
+  becomes a single **undated** `Svg2EditorsDraft` variant whose captured commit/date
+  is data (no Rust bump on refresh). The LSP surfaces a freshness signal:
+  frozen = "final"; ED = baked-capture vs live, "N commits behind / current."
 - **Q-PIN → provenance, not a constraint.** `svgwg/` is a gitignored throwaway
   discovery clone; the build may `git clone` it freely. The pin only records which
   commit the vendored artifacts were captured at. No need to stay on `19482daf`;
