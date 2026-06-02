@@ -16,30 +16,34 @@ pub fn functional(text: &str) -> Option<(f32, f32, f32, f32)> {
     let text = text.trim();
 
     let paren_open = text.find('(')?;
-    let func = text[..paren_open].trim().to_ascii_lowercase();
+    let func = text[..paren_open].trim();
     let rest = text[paren_open + 1..].strip_suffix(')')?.trim();
 
-    match func.as_str() {
-        "rgb" | "rgba" => {
-            if rest.contains(',') {
-                rgb_hsl::parse_legacy_rgb(rest)
-            } else {
-                rgb_hsl::parse_modern_rgb(rest)
-            }
+    let eq = |name: &str| func.eq_ignore_ascii_case(name);
+    if eq("rgb") || eq("rgba") {
+        if rest.contains(',') {
+            rgb_hsl::parse_legacy_rgb(rest)
+        } else {
+            rgb_hsl::parse_modern_rgb(rest)
         }
-        "hsl" | "hsla" => {
-            if rest.contains(',') {
-                rgb_hsl::parse_legacy_hsl(rest)
-            } else {
-                rgb_hsl::parse_modern_hsl(rest)
-            }
+    } else if eq("hsl") || eq("hsla") {
+        if rest.contains(',') {
+            rgb_hsl::parse_legacy_hsl(rest)
+        } else {
+            rgb_hsl::parse_modern_hsl(rest)
         }
-        "hwb" => rgb_hsl::parse_hwb(rest),
-        "lab" => lab_lch::parse_lab(rest),
-        "lch" => lab_lch::parse_lch(rest),
-        "oklab" => oklab_oklch::parse_oklab(rest),
-        "oklch" => oklab_oklch::parse_oklch(rest),
-        _ => None,
+    } else if eq("hwb") {
+        rgb_hsl::parse_hwb(rest)
+    } else if eq("lab") {
+        lab_lch::parse_lab(rest)
+    } else if eq("lch") {
+        lab_lch::parse_lch(rest)
+    } else if eq("oklab") {
+        oklab_oklch::parse_oklab(rest)
+    } else if eq("oklch") {
+        oklab_oklch::parse_oklch(rest)
+    } else {
+        None
     }
 }
 
@@ -63,11 +67,15 @@ pub fn mix_colors(
         return None;
     }
 
-    match space.trim().to_ascii_lowercase().as_str() {
-        "srgb" => Some(mix::mix_srgb(left, left_weight, right, right_weight)),
-        "oklab" => mix::mix_oklab(left, left_weight, right, right_weight),
-        "oklch" => mix::mix_oklch(left, left_weight, right, right_weight),
-        _ => None,
+    let space = space.trim();
+    if space.eq_ignore_ascii_case("srgb") {
+        Some(mix::mix_srgb(left, left_weight, right, right_weight))
+    } else if space.eq_ignore_ascii_case("oklab") {
+        mix::mix_oklab(left, left_weight, right, right_weight)
+    } else if space.eq_ignore_ascii_case("oklch") {
+        mix::mix_oklch(left, left_weight, right, right_weight)
+    } else {
+        None
     }
 }
 

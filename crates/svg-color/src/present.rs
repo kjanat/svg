@@ -43,15 +43,15 @@ fn reverse_named_lookup(ri: u8, gi: u8, bi: u8) -> Option<&'static str> {
 
 /// Format alpha as a minimal decimal string (no trailing zeros beyond one decimal place).
 fn fmt_alpha(a: f32) -> String {
-    // Use up to 4 significant decimal digits, then strip trailing zeros.
-    let s = format!("{a:.4}");
-    let s = s.trim_end_matches('0');
+    // Use up to 4 significant decimal digits, then strip trailing zeros in
+    // place so only one buffer is allocated.
+    let mut s = format!("{a:.4}");
+    s.truncate(s.trim_end_matches('0').len());
     // Always keep at least one decimal place (e.g. "0.5" not "0.").
     if s.ends_with('.') {
-        format!("{s}0")
-    } else {
-        s.to_owned()
+        s.push('0');
     }
+    s
 }
 
 fn round_channel_to_u8(value: f32) -> u8 {
@@ -143,28 +143,26 @@ pub fn color_presentations(r: f32, g: f32, b: f32, a: f32, original: ColorKind) 
 
     // Collect all applicable formats in canonical order: hex, rgb, hsl, named.
     let mut all: Vec<String> = Vec::with_capacity(4);
-    all.push(hex.clone());
-    all.push(rgb_str.clone());
+    all.push(hex);
+    all.push(rgb_str);
     all.push(hsl_str);
     if let Some(n) = named {
         all.push(n.to_owned());
     }
 
-    // Determine which entry corresponds to the original format.
-    let original_str: String = match original {
-        ColorKind::Hex => hex,
-        ColorKind::Functional => rgb_str,
-        ColorKind::Named => named.map_or(rgb_str, str::to_owned),
+    // Index of the entry matching the original format in canonical order. A
+    // `Named` original with no exact match falls back to the rgb form (index 1).
+    let original_idx = match original {
+        ColorKind::Hex => 0,
+        ColorKind::Named if named.is_some() => 3,
+        ColorKind::Functional | ColorKind::Named => 1,
     };
 
-    // Put the original format first; keep the rest in stable order.
+    // Pull the original to the front, leaving the rest in canonical order. No
+    // string is cloned: each format is built once and moved into place.
     let mut result: Vec<String> = Vec::with_capacity(all.len());
-    result.push(original_str.clone());
-    for s in all {
-        if s != original_str {
-            result.push(s);
-        }
-    }
+    result.push(all.remove(original_idx));
+    result.extend(all);
 
     result
 }

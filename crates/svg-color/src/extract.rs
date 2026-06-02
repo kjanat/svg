@@ -212,6 +212,12 @@ fn walk_css(
     }
 }
 
+/// CSS color-producing functions recognized in `<style>` leaf values. Compared
+/// case-insensitively, so no per-node lowercase allocation is needed.
+const COLOR_FUNCTIONS: [&str; 9] = [
+    "rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch",
+];
+
 fn try_extract_css_leaf(
     node: tree_sitter::Node<'_>,
     css_source: &[u8],
@@ -228,10 +234,10 @@ fn try_extract_css_leaf(
         }
         "call_expression" => {
             let function = property::css_function_name(node, css_source)?;
-            if !matches!(
-                function.to_ascii_lowercase().as_str(),
-                "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "lab" | "lch" | "oklab" | "oklch"
-            ) {
+            if !COLOR_FUNCTIONS
+                .iter()
+                .any(|name| function.eq_ignore_ascii_case(name))
+            {
                 return None;
             }
             let (r, g, b, a) = parse::functional(text)?;
@@ -316,13 +322,16 @@ fn collect_css_custom_properties(css_source: &[u8], tree: &Tree) -> CustomProper
         let Some(value_text) = property::declaration_value_text(node, css_source) else {
             return;
         };
-        let scope = css_scope_key(node);
+        let scope_block = css_scope_block(node);
+        let scope = scope_block.map_or(CssScopeKey::Root, |block| {
+            CssScopeKey::Block(block.start_byte())
+        });
         properties
             .entry(scope)
             .or_insert_with(CustomProperties::new)
             .insert(prop_name.to_owned(), value_text.to_owned());
         if scope != CssScopeKey::Root
-            && let Some(block) = css_scope_block(node)
+            && let Some(block) = scope_block
             && block_is_root(block, css_source)
         {
             properties
