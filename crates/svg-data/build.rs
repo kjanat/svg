@@ -17,6 +17,8 @@ mod codegen;
 mod provenance_gate;
 #[path = "build/reconcile.rs"]
 mod reconcile;
+#[path = "build/spec_scan.rs"]
+mod spec_scan;
 #[path = "src/types.rs"]
 mod types;
 #[path = "build/verdict.rs"]

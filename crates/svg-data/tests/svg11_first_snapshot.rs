@@ -520,10 +520,7 @@ fn enum_display_grammar_carries_full_css_set_in_every_snapshot() {
         (SpecSnapshotId::Svg11Rec20030114, SVG11_DISPLAY_VALUES),
         (SpecSnapshotId::Svg11Rec20110816, SVG11_DISPLAY_VALUES),
         (SpecSnapshotId::Svg2Cr20181004, SVG2_DISPLAY_VALUES),
-        (
-            SpecSnapshotId::Svg2EditorsDraft,
-            SVG2_DISPLAY_VALUES,
-        ),
+        (SpecSnapshotId::Svg2EditorsDraft, SVG2_DISPLAY_VALUES),
     ] {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("data/specs")
