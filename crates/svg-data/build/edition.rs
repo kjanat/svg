@@ -67,6 +67,79 @@ struct RawVersion {
     shortlink: String,
 }
 
+/// Minimal view of an editor's-draft `snapshot.json`, read only to recover the
+/// rolling git pin baked into `ROLLING_PIN`.
+#[derive(Deserialize)]
+struct SnapshotPinFile {
+    date: String,
+    pinned_sources: Vec<SnapshotPinnedSource>,
+}
+
+#[derive(Deserialize)]
+struct SnapshotPinnedSource {
+    pin: SnapshotPin,
+}
+
+/// A `pinned_sources[].pin` entry. Only `git_commit` pins carry the fields the
+/// rolling freshness check needs; other pin kinds are skipped.
+#[derive(Deserialize)]
+struct SnapshotPin {
+    kind: String,
+    repository: Option<String>,
+    commit: Option<String>,
+}
+
+/// Emit the `ROLLING_PIN_*` string consts that back `crate::edition::ROLLING_PIN`.
+///
+/// Reads the editor's-draft snapshot, takes the first `git_commit` pin (all
+/// inputs in that snapshot share one commit), and bakes its repository/commit
+/// plus the snapshot capture date.
+///
+/// # Errors
+///
+/// Returns an error if the snapshot is missing/unreadable, is not valid JSON, or
+/// carries no `git_commit` pin with both `repository` and `commit`.
+fn generate_rolling_pin(manifest_dir: &Path) -> Result<String, String> {
+    let path = manifest_dir.join("data/specs/Svg2EditorsDraft/snapshot.json");
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|e| format!("edition: read {}: {e}", path.display()))?;
+    let snapshot: SnapshotPinFile = serde_json::from_str(&raw)
+        .map_err(|e| format!("edition: parse {}: {e}", path.display()))?;
+
+    let pin = snapshot
+        .pinned_sources
+        .iter()
+        .map(|source| &source.pin)
+        .find(|pin| pin.kind == "git_commit")
+        .ok_or_else(|| format!("edition: {} has no git_commit pin", path.display()))?;
+    let repository = pin.repository.as_deref().ok_or_else(|| {
+        format!(
+            "edition: {} git_commit pin lacks repository",
+            path.display()
+        )
+    })?;
+    let commit = pin
+        .commit
+        .as_deref()
+        .ok_or_else(|| format!("edition: {} git_commit pin lacks commit", path.display()))?;
+
+    let mut body = String::with_capacity(512);
+    writeln!(
+        body,
+        "/// svgwg repository the baked editor's-draft data was derived from.\n\
+         static ROLLING_PIN_REPOSITORY: &str = \"{}\";\n\
+         /// svgwg `master` commit the baked editor's-draft data was derived from.\n\
+         static ROLLING_PIN_COMMIT: &str = \"{}\";\n\
+         /// Capture date recorded in the editor's-draft snapshot.\n\
+         static ROLLING_PIN_CAPTURED_DATE: &str = \"{}\";",
+        escape(repository),
+        escape(commit),
+        escape(&snapshot.date),
+    )
+    .map_err(|e| format!("edition: format rolling pin: {e}"))?;
+    Ok(body)
+}
+
 /// Map an API `status` string to a `crate::edition::Status` variant name.
 ///
 /// Returns `Err` for an unrecognised status so a future API vocabulary change
@@ -146,6 +219,8 @@ pub fn generate(manifest_dir: &Path) -> Result<String, String> {
         }
     }
 
-    body.push_str("];\n");
+    body.push_str("];\n\n");
+    body.push_str(&generate_rolling_pin(manifest_dir)?);
+    body.push('\n');
     Ok(body)
 }

@@ -1,0 +1,102 @@
+name: Spec freshness
+
+# Detects when the baked SVG spec catalog has drifted from upstream:
+#   * a new W3C `/TR/` edition was published (vs the baked EDITION_INDEX), or
+#   * the svgwg editor's-draft `master` advanced past the baked ROLLING_PIN.
+#
+# Runs the `spec-freshness` sentinel (crates/svg-data, `freshness-cli` feature).
+# Exit 0 = fresh, 1 = drift (file/update a tracking issue), 2 = check errored
+# (fail the job loudly). The pure decision logic is unit-tested offline; this
+# workflow is just the scheduled network trigger + issue plumbing.
+
+on:
+  # Mondays 06:00 UTC — weekly is plenty for a spec that moves in months.
+  schedule: [cron: "0 6 * * 1"]
+  workflow_dispatch: {}
+
+permissions: { contents: read, issues: write }
+concurrency: { group: spec-freshness, cancel-in-progress: false }
+env: { ISSUE_LABEL: spec-freshness }
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run freshness sentinel
+        id: sentinel
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+        run: |
+          set +e
+          cargo run --quiet --package svg-data \
+            --features freshness-cli --bin spec-freshness -- --json > report.json
+          code=$?
+          set -e
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          echo "Sentinel exit code: ${code}"
+          cat report.json || true
+          # 0 = fresh, 1 = stale (handled below). Anything else (2 = sentinel
+          # network/parse error, 101 = cargo build/run failure, …) is a real
+          # failure — fail the job loudly rather than silently passing.
+          if [ "${code}" != 0 ] && [ "${code}" != 1 ]; then
+            echo "::error::spec-freshness check failed to run (exit ${code})"
+            exit 1
+          fi
+
+      - name: Ensure label exists
+        if: steps.sentinel.outputs.exit_code == '1'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh label create "$ISSUE_LABEL" \
+            --description "Baked SVG spec data has drifted from upstream" \
+            --color FBCA04 2>/dev/null || true
+
+      - name: Open or update tracking issue
+        if: steps.sentinel.outputs.exit_code == '1'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          title="spec-data is stale — upstream SVG spec has moved"
+          cat > issue-body.md <<'EOF'
+          The `spec-freshness` sentinel detected drift between the baked
+          spec catalog and upstream. Refresh the vendored sources:
+
+          - `just refresh-editions` — re-vendor the W3C version-history JSON
+          - `just refresh-svgwg <commit>` — re-vendor svgwg sources at a new pin
+
+          Then rebuild and review the catalog diff; the repro tests gate correctness.
+
+          <details><summary>Sentinel report</summary>
+
+          ```json
+          EOF
+          cat report.json >> issue-body.md
+          cat >> issue-body.md <<'EOF'
+          ```
+
+          </details>
+          EOF
+
+          existing="$(gh issue list --state open --label "$ISSUE_LABEL" \
+            --json number --jq '.[0].number')"
+          if [ -n "${existing}" ]; then
+            echo "Updating existing issue #${existing}"
+            gh issue comment "${existing}" --body-file issue-body.md
+          else
+            echo "Opening new tracking issue"
+            gh issue create --title "${title}" \
+              --label "$ISSUE_LABEL" --body-file issue-body.md
+          fi
+
+      - name: Close tracking issue when fresh
+        if: steps.sentinel.outputs.exit_code == '0'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          for number in $(gh issue list --state open --label "$ISSUE_LABEL" \
+            --json number --jq '.[].number'); do
+            echo "Spec data is fresh again — closing #${number}"
+            gh issue close "${number}" \
+              --comment "Resolved: \`spec-freshness\` now reports the baked data up to date."
+          done

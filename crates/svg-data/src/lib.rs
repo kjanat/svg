@@ -458,7 +458,7 @@ pub fn spec_inventory(snapshot: SpecSnapshotId) -> Option<&'static inventory::In
 /// `for_snapshot` API is unchanged.
 #[must_use]
 pub fn inventory_for_edition(id: &inventory::EditionId) -> Option<&'static inventory::Inventory> {
-    inventory::inventory_for_edition(id)
+    inventory::for_edition(id)
 }
 
 /// Every classified attribute in `snapshot`'s full-spec inventory, sorted by

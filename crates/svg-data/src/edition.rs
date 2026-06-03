@@ -201,6 +201,33 @@ pub static EDITION_INDEX: &[PublishedVersion] = EDITION_INDEX_ENTRIES;
 
 include!(concat!(env!("OUT_DIR"), "/edition_index.rs"));
 
+/// Git provenance pin for the rolling SVG 2 editor's-draft capture.
+///
+/// The editor's draft has no dated `/TR/` URL — it tracks `svgwg` git `master`.
+/// This is the exact commit the baked SVG2-ED inventory was derived from, baked
+/// from `data/specs/Svg2EditorsDraft/snapshot.json` at build time so the
+/// runtime freshness check can compare it against live `svgwg` HEAD without the
+/// data directory present.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RollingPin {
+    /// The upstream git repository the draft is tracked from.
+    pub repository: &'static str,
+    /// The pinned `master` commit the baked data was derived from.
+    pub commit: &'static str,
+    /// The capture date recorded in the snapshot (`YYYY-MM-DD`).
+    pub captured_date: &'static str,
+}
+
+/// The `svgwg` git pin the baked SVG 2 editor's-draft data was derived from.
+///
+/// Generated alongside [`EDITION_INDEX`] from the editor's-draft snapshot's
+/// `pinned_sources[].pin` block.
+pub static ROLLING_PIN: RollingPin = RollingPin {
+    repository: ROLLING_PIN_REPOSITORY,
+    commit: ROLLING_PIN_COMMIT,
+    captured_date: ROLLING_PIN_CAPTURED_DATE,
+};
+
 /// Every published version of `series`, newest publication first.
 #[must_use]
 pub fn published_versions(series: Series) -> Vec<&'static PublishedVersion> {
@@ -226,6 +253,29 @@ pub fn latest_published(series: Series) -> Option<&'static PublishedVersion> {
                 .cmp(&b.date)
                 .then_with(|| a.status.maturity_rank().cmp(&b.status.maturity_rank()))
         })
+}
+
+/// Live versions of `series` that are **not** in the baked [`EDITION_INDEX`].
+///
+/// This is the pure half of the *published-edition* freshness check: feed it the
+/// `version-history` the W3C API returns *now* and it yields every entry whose
+/// dated `/TR/` `uri` the crate has not yet vendored. A non-empty result means
+/// W3C published something the baked catalog has not caught up to.
+///
+/// Matching is by `uri` — the dated `/TR/` URL is the stable identity of a
+/// publication. Returns owned clones so callers can render them without holding
+/// a borrow on `live`.
+#[must_use]
+pub fn unseen_versions(series: Series, live: &[PublishedVersion]) -> Vec<PublishedVersion> {
+    live.iter()
+        .filter(|candidate| {
+            candidate.series == series
+                && !EDITION_INDEX
+                    .iter()
+                    .any(|known| known.series == series && known.uri == candidate.uri)
+        })
+        .cloned()
+        .collect()
 }
 
 /// Freshness classification of a captured edition against the live index.

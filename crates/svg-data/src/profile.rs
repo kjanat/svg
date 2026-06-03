@@ -6,7 +6,7 @@
 //! Group as a set of reductive differences from SVG 2's *Secure Static Mode*.
 //!
 //! This module only carries the **data model**. The deterministic extractor
-//! that parses the vendored Bikeshed spec source into a [`SvgNativeProfile`]
+//! that parses the vendored Bikeshed spec source into a [`SvgNative`]
 //! lives in the build tree (`build/svg_native.rs`) and is exercised by the
 //! `svg_native_profile` reproduction/faithfulness test. The extracted dataset
 //! is committed at `data/profiles/svg-native.json`.
@@ -18,7 +18,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// What kind of SVG construct a single [`ProfileConstraint`] talks about.
+/// What kind of SVG construct a single [`Constraint`] talks about.
 ///
 /// The SVG Native spec phrases its reductive differences against four distinct
 /// vocabularies — elements, attributes, presentation properties, and value
@@ -89,7 +89,7 @@ pub enum ConstraintScope {
     },
 }
 
-/// The rule a [`ProfileConstraint`] imposes on its named construct.
+/// The rule a [`Constraint`] imposes on its named construct.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "rule", rename_all = "kebab-case")]
 pub enum ConstraintRule {
@@ -108,7 +108,7 @@ pub enum ConstraintRule {
 /// A single typed constraint the SVG Native profile imposes, with the spec
 /// section it was extracted from for provenance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct ProfileConstraint {
+pub struct Constraint {
     /// Which vocabulary `name` belongs to.
     pub kind: ConstraintKind,
     /// The normalised construct name (backticks / link markup / Bikeshed
@@ -129,7 +129,7 @@ pub struct ProfileConstraint {
 /// rolling Editor's Draft with no immutable dated URL, so the pin is a git
 /// commit + capture date rather than a `/TR/` URL.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct ProfileSourcePin {
+pub struct ProvenancePin {
     /// Upstream repository the Bikeshed source was captured from.
     pub repository: String,
     /// The svgwg commit the source was captured at.
@@ -156,26 +156,26 @@ pub struct CoverageGap {
 /// This is the root of the committed `data/profiles/svg-native.json` file and
 /// the in-memory product of the build extractor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct SvgNativeProfile {
+pub struct SvgNative {
     /// Schema version for forward-compatible evolution of this file shape.
     pub schema_version: u32,
     /// The profile slug, always `SvgNative` for this file.
     pub profile: String,
     /// Provenance of the vendored spec source.
-    pub source_pin: ProfileSourcePin,
+    pub source_pin: ProvenancePin,
     /// Every extracted constraint, ordered deterministically by
     /// `(kind, name, section)`.
-    pub constraints: Vec<ProfileConstraint>,
+    pub constraints: Vec<Constraint>,
     /// Sections (or known facts) the heuristic prose extractor could not turn
     /// into structured constraints with confidence. Never empty silently — a
     /// gap recorded here is honest about coverage.
     pub coverage_gaps: Vec<CoverageGap>,
 }
 
-impl SvgNativeProfile {
+impl SvgNative {
     /// All constraints of a given [`ConstraintKind`].
     #[must_use]
-    pub fn of_kind(&self, kind: ConstraintKind) -> Vec<&ProfileConstraint> {
+    pub fn of_kind(&self, kind: ConstraintKind) -> Vec<&Constraint> {
         self.constraints.iter().filter(|c| c.kind == kind).collect()
     }
 

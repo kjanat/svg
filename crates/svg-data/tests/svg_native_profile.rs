@@ -28,9 +28,7 @@ mod svg_native;
 
 use std::{collections::BTreeSet, path::PathBuf};
 
-use profile::{
-    ConstraintKind, ConstraintRule, ConstraintScope, ProfileSourcePin, SvgNativeProfile,
-};
+use profile::{ConstraintKind, ConstraintRule, ConstraintScope, ProvenancePin, SvgNative};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -57,7 +55,7 @@ struct ProfileMeta {
 }
 
 /// Run the extractor over the vendored source with the committed provenance.
-fn extract() -> SvgNativeProfile {
+fn extract() -> SvgNative {
     let source_dir = manifest_dir().join("data/sources/svg-native");
     let bikeshed = match std::fs::read_to_string(source_dir.join("index.bs")) {
         Ok(text) => text,
@@ -71,7 +69,7 @@ fn extract() -> SvgNativeProfile {
         Ok(value) => value,
         Err(error) => panic!("PROVENANCE.toml malformed: {error}"),
     };
-    let pin = ProfileSourcePin {
+    let pin = ProvenancePin {
         repository: provenance.pin.repo,
         commit: provenance.pin.commit,
         capture_date: provenance.pin.date,
@@ -117,7 +115,7 @@ fn extractor_reproduces_committed_dataset() {
 }
 
 /// Helper: is `(kind, name)` recorded as fully unsupported?
-fn assert_unsupported(profile: &SvgNativeProfile, kind: ConstraintKind, name: &str) {
+fn assert_unsupported(profile: &SvgNative, kind: ConstraintKind, name: &str) {
     assert!(
         profile.is_unsupported(kind, name),
         "expected {kind:?} `{name}` to be recorded Unsupported"

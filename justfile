@@ -139,3 +139,18 @@ release-local VERSION:
 generate-schemas:
     cargo run -p svg-data --example generate_schemas
     dprint fmt 'crates/svg-data/**/*.json'
+
+# check baked spec data vs live W3C + svgwg (exit 1 = stale)
+[group('spec-data')]
+spec-freshness *ARGS:
+    cargo run -q -p svg-data --features freshness-cli --bin spec-freshness -- {{ ARGS }}
+
+# re-vendor W3C version-history JSON (metadata only; safe) + update provenance
+[group('spec-data')]
+refresh-editions:
+    bun scripts/refresh-editions.ts
+
+# re-vendor svgwg sources at a new commit; pass --activate to flip the pin
+[group('spec-data')]
+refresh-svgwg COMMIT *FLAGS:
+    bun scripts/refresh-svgwg.ts {{ COMMIT }} {{ FLAGS }}

@@ -5,7 +5,7 @@
 //! inventories — plus the two older SVG 2 Candidate Recommendations that have no
 //! `SpecSnapshotId` (2016-09-15, 2018-08-07) — by their natural
 //! [`EditionId`] (`(Series, date)`), through one uniform
-//! [`svg_data::inventory_for_edition`] entry point. This test pins:
+//! [`svg_data::for_edition`] entry point. This test pins:
 //!
 //! 1. **resolution** — every registered edition (the four curated snapshots
 //!    *and* the two extra CRs) resolves to a baked inventory through the
@@ -27,8 +27,7 @@ use svg_data::{
     SpecSnapshotId,
     edition::Series,
     inventory::{
-        Classification, EditionDate, EditionId, Inventory, inventory_for_edition,
-        registered_editions,
+        Classification, EditionDate, EditionId, Inventory, for_edition, registered_editions,
     },
     spec_inventory,
 };
@@ -36,7 +35,7 @@ use svg_data::{
 /// Resolve an edition or panic with a clear message (avoids `.expect()`, which
 /// the workspace `expect_used` lint denies).
 fn require_edition(id: &EditionId) -> &'static Inventory {
-    let Some(inventory) = inventory_for_edition(id) else {
+    let Some(inventory) = for_edition(id) else {
         panic!("edition {id:?} should have a baked inventory")
     };
     inventory
@@ -83,7 +82,7 @@ fn every_registered_edition_resolves() {
     ] {
         let id = EditionId::for_snapshot(snapshot);
         assert!(
-            inventory_for_edition(&id).is_some(),
+            for_edition(&id).is_some(),
             "snapshot {snapshot:?} should resolve through its edition key {id:?}"
         );
     }
@@ -93,7 +92,7 @@ fn every_registered_edition_resolves() {
     for date in ["2016-09-15", "2018-08-07"] {
         let id = EditionId::dated(Series::Svg2, date);
         assert!(
-            inventory_for_edition(&id).is_some(),
+            for_edition(&id).is_some(),
             "non-snapshot SVG2 CR {date} should resolve through its edition key"
         );
     }
@@ -101,28 +100,28 @@ fn every_registered_edition_resolves() {
     // The SVG 1.0 REC and the SVG 1.1 PR — additive editions with no
     // `SpecSnapshotId`, baked from their vendored flat DTDs.
     assert!(
-        inventory_for_edition(&EditionId::dated(Series::Svg10, "2001-09-04")).is_some(),
+        for_edition(&EditionId::dated(Series::Svg10, "2001-09-04")).is_some(),
         "SVG 1.0 REC should resolve through its edition key"
     );
     assert!(
-        inventory_for_edition(&EditionId::dated(Series::Svg11, "2011-06-09")).is_some(),
+        for_edition(&EditionId::dated(Series::Svg11, "2011-06-09")).is_some(),
         "SVG 1.1 PR should resolve through its edition key"
     );
 
     // The SVG 1.1 RECs and the editor's draft resolve through their keys too.
-    assert!(inventory_for_edition(&EditionId::dated(Series::Svg11, "2003-01-14")).is_some());
-    assert!(inventory_for_edition(&EditionId::dated(Series::Svg11, "2011-08-16")).is_some());
-    assert!(inventory_for_edition(&EditionId::editors_draft(Series::Svg2)).is_some());
+    assert!(for_edition(&EditionId::dated(Series::Svg11, "2003-01-14")).is_some());
+    assert!(for_edition(&EditionId::dated(Series::Svg11, "2011-08-16")).is_some());
+    assert!(for_edition(&EditionId::editors_draft(Series::Svg2)).is_some());
 }
 
 #[test]
 fn unregistered_edition_resolves_to_none() {
     // A date with no vendored inventory.
-    assert!(inventory_for_edition(&EditionId::dated(Series::Svg2, "1999-01-01")).is_none());
+    assert!(for_edition(&EditionId::dated(Series::Svg2, "1999-01-01")).is_none());
     // A series/date pair that exists in another series but not this one.
-    assert!(inventory_for_edition(&EditionId::dated(Series::Svg10, "2003-01-14")).is_none());
+    assert!(for_edition(&EditionId::dated(Series::Svg10, "2003-01-14")).is_none());
     // SVG 1.1 has no rolling editor's draft.
-    assert!(inventory_for_edition(&EditionId::editors_draft(Series::Svg11)).is_none());
+    assert!(for_edition(&EditionId::editors_draft(Series::Svg11)).is_none());
 }
 
 #[test]
@@ -150,7 +149,7 @@ fn registered_editions_lists_all_editions() {
     // Every listed edition resolves (no dangling registration).
     for id in &expected {
         assert!(
-            inventory_for_edition(id).is_some(),
+            for_edition(id).is_some(),
             "registered edition {id:?} should resolve"
         );
     }

@@ -25,10 +25,17 @@ mod svg_native;
 
 use std::{error::Error, fs, path::Path};
 
-use profile::ProfileSourcePin;
+use profile::ProvenancePin;
 use serde::Deserialize;
 
-const SCHEMA_URL: &str = "https://raw.githubusercontent.com/kjanat/svg-language-server/master/crates/svg-data/data/schemas/svg-native-profile.schema.json";
+// `SVG_SCHEMA_REF` is set by `build.rs`: the release tag on a tagged build,
+// `master` otherwise. Keeps the committed `$schema` link pinned to the matching
+// ref instead of always `master`.
+const SCHEMA_URL: &str = concat!(
+    "https://raw.githubusercontent.com/kjanat/svg-language-server/",
+    env!("SVG_SCHEMA_REF"),
+    "/crates/svg-data/data/schemas/svg-native-profile.schema.json"
+);
 
 #[derive(Deserialize)]
 struct Provenance {
@@ -56,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let provenance: Provenance =
         toml::from_str(&fs::read_to_string(source_dir.join("PROVENANCE.toml"))?)?;
 
-    let pin = ProfileSourcePin {
+    let pin = ProvenancePin {
         repository: provenance.pin.repo,
         commit: provenance.pin.commit,
         capture_date: provenance.pin.date,

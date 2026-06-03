@@ -34,6 +34,7 @@ mod compat;
 mod completion;
 mod definition;
 mod diagnostics;
+mod freshness;
 mod hover;
 mod logging;
 mod positions;
@@ -136,6 +137,18 @@ fn configured_force_profile(config: &Value) -> bool {
         .get("svg")
         .and_then(Value::as_object)
         .and_then(|svg| svg.get("force_profile"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+/// Whether the client opted into the runtime spec-freshness check
+/// (`svg.spec_freshness_check`). Off by default: it contacts `api.w3.org` and
+/// `api.github.com`, which users must consent to.
+fn configured_spec_freshness(config: &Value) -> bool {
+    config
+        .get("svg")
+        .and_then(Value::as_object)
+        .and_then(|svg| svg.get("spec_freshness_check"))
         .and_then(Value::as_bool)
         .unwrap_or(false)
 }
@@ -643,8 +656,32 @@ impl LanguageServer for SvgLanguageServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("initialize");
 
+        let spec_freshness_enabled = params
+            .initialization_options
+            .as_ref()
+            .is_some_and(configured_spec_freshness);
+
         if let Some(config) = params.initialization_options.as_ref() {
             self.apply_profile_config(config).await;
+        }
+
+        // Opt-in background spec-freshness probe: warn once if the baked spec
+        // catalog has drifted from live W3C / svgwg. Best-effort and silent when
+        // offline or up to date (see `freshness`).
+        if spec_freshness_enabled {
+            let server = self.clone();
+            tokio::spawn(async move {
+                match tokio::task::spawn_blocking(freshness::fetch_spec_freshness).await {
+                    Ok(Some(report)) if report.is_stale() => {
+                        server
+                            .client
+                            .show_message(MessageType::WARNING, report.message())
+                            .await;
+                    }
+                    Ok(_) => tracing::info!("spec freshness: up to date or undetermined"),
+                    Err(error) => tracing::warn!(%error, "spec freshness task panicked"),
+                }
+            });
         }
 
         // Spawn background compat data refresh

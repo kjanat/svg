@@ -449,15 +449,35 @@ fn emit_rerun_directives() {
     println!("cargo::rerun-if-changed=data/sources/svg2-cr-20160915");
     println!("cargo::rerun-if-changed=data/sources/svg2-cr-20180807");
     println!("cargo::rerun-if-changed=data/sources/svg2-cr-20181004");
+    // Editor's-draft snapshot pin backs the baked `ROLLING_PIN`.
+    println!("cargo::rerun-if-changed=data/specs/Svg2EditorsDraft/snapshot.json");
     println!("cargo::rerun-if-env-changed=SVG_DATA_OFFLINE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_FILE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_URL");
+}
+
+/// Emit `SVG_SCHEMA_REF` for the schema-generating examples to bake into the
+/// `$schema`/`$id` links in `data/schemas/*.json`.
+///
+/// A tagged release exports `SVG_SCHEMA_REF` (e.g. `v2.0.0`) before regenerating
+/// schemas, so the committed links point at that immutable tagged path; every
+/// other build (dev, CI, local) falls back to `master`. Surfaced as a
+/// `rustc-env` so the examples resolve it at compile time via
+/// `concat!(.., env!("SVG_SCHEMA_REF"), ..)`.
+fn emit_schema_ref() {
+    let schema_ref = std::env::var("SVG_SCHEMA_REF")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "master".to_string());
+    println!("cargo::rustc-env=SVG_SCHEMA_REF={schema_ref}");
+    println!("cargo::rerun-if-env-changed=SVG_SCHEMA_REF");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
 
     emit_rerun_directives();
+    emit_schema_ref();
 
     // Provenance referential-integrity gate: fail the build early if any
     // `source_id` in the checked-in snapshot data doesn't resolve to a
@@ -565,7 +585,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // dated CR's vendored published index tables (`eltindex.html` +
     // `attindex.html`) and bake one `static …_INVENTORY` per edition. Additive,
     // exposed via `inventory::for_snapshot` (the 2018-10-04 edition) and the
-    // edition-keyed `inventory::inventory_for_edition` (all three CRs).
+    // edition-keyed `inventory::for_edition` (all three CRs).
     // Hermetic — parses only the vendored CR index pages pinned for each
     // edition. The CR index carries no attribute categories, so its attributes
     // are faithfully unclassified (animatable flag retained as provenance) —

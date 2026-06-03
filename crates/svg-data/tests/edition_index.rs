@@ -2,9 +2,12 @@
 //! and the `SpecSnapshotId` -> index entry mapping.
 
 use svg_data::edition::{
-    self, CapturedEditionIdentity, Freshness, Series, Status, VersionsEnvelope,
+    self, CapturedEditionIdentity, EDITION_INDEX, Freshness, PublishedVersion, ROLLING_PIN, Series,
+    Status, VersionsEnvelope,
 };
 use svg_data::types::SpecSnapshotId;
+
+use std::borrow::Cow;
 
 #[test]
 fn svg2_has_the_three_candidate_recommendations() {
@@ -214,4 +217,79 @@ fn freshness_classifies_dated_and_rolling_editions() {
         }
         other => panic!("stale rolling capture expected, got {other:?}"),
     }
+}
+
+/// Build a `PublishedVersion` standing in for one live W3C API record.
+fn live_version(series: Series, uri: &str) -> PublishedVersion {
+    PublishedVersion {
+        series,
+        date: Cow::Owned("2099-01-01".to_string()),
+        status: Status::CandidateRecommendation,
+        uri: Cow::Owned(uri.to_string()),
+        rec_track: true,
+        editor_draft: None,
+        shortlink: Cow::Owned("https://www.w3.org/TR/SVG2/".to_string()),
+    }
+}
+
+#[test]
+fn unseen_versions_flags_only_unvendored_uris() {
+    // A URI already in the baked index is NOT drift; a fabricated one IS. The
+    // known URI is a baked SVG2 CR (asserted present, so the test fails loudly
+    // if the index ever drops it rather than silently passing).
+    let known = "https://www.w3.org/TR/2018/CR-SVG2-20181004/";
+    let novel = "https://www.w3.org/TR/2099/CR-SVG2-20990101/";
+    assert!(
+        EDITION_INDEX.iter().any(|version| version.uri == known),
+        "fixture URI must be in the baked index"
+    );
+
+    let live = vec![
+        live_version(Series::Svg2, known),
+        live_version(Series::Svg2, novel),
+    ];
+
+    let drift = edition::unseen_versions(Series::Svg2, &live);
+    assert_eq!(drift.len(), 1, "only the unvendored URI should be drift");
+    assert_eq!(drift[0].uri, novel);
+}
+
+#[test]
+fn unseen_versions_is_empty_when_live_matches_baked() {
+    // Feeding the baked index back in as the "live" set yields zero drift —
+    // the steady state the freshness sentinel reports as up to date.
+    let live: Vec<PublishedVersion> = edition::published_versions(Series::Svg2)
+        .into_iter()
+        .cloned()
+        .collect();
+    assert!(edition::unseen_versions(Series::Svg2, &live).is_empty());
+}
+
+#[test]
+fn unseen_versions_respects_series_boundaries() {
+    // An SVG1.1 URI offered under the SVG2 series is not an SVG2 match, but it
+    // also must not be reported as SVG2 drift (wrong series is filtered out).
+    let svg11_uri = "https://www.w3.org/TR/2011/REC-SVG11-20110816/";
+    let live = vec![live_version(Series::Svg11, svg11_uri)];
+    assert!(edition::unseen_versions(Series::Svg2, &live).is_empty());
+}
+
+#[test]
+fn rolling_pin_matches_the_editors_draft_snapshot() {
+    // The baked pin must reflect the editor's-draft snapshot it was generated
+    // from: the svgwg repo, a 40-hex commit, and an ISO capture date.
+    assert_eq!(ROLLING_PIN.repository, "https://github.com/w3c/svgwg");
+    assert_eq!(ROLLING_PIN.commit.len(), 40);
+    assert!(ROLLING_PIN.commit.chars().all(|c| c.is_ascii_hexdigit()));
+    assert_eq!(ROLLING_PIN.captured_date.len(), "YYYY-MM-DD".len());
+
+    // And it must be the identity the rolling freshness check compares against:
+    // HEAD == pin => current.
+    let captured = CapturedEditionIdentity::Rolling {
+        commit: ROLLING_PIN.commit,
+    };
+    assert_eq!(
+        edition::classify_freshness(&captured, Some(ROLLING_PIN.commit)),
+        Freshness::RollingCurrent,
+    );
 }

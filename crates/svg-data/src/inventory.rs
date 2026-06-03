@@ -303,7 +303,7 @@ pub enum EditionDate {
 /// including the two older SVG 2 CRs (2016-09-15, 2018-08-07) that are not
 /// curated snapshots — through one uniform key. Every curated snapshot also has
 /// an `EditionId` (see [`EditionId::for_snapshot`]), so all registered editions
-/// are queryable through the same [`inventory_for_edition`] entry point.
+/// are queryable through the same [`for_edition`] entry point.
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
@@ -357,7 +357,7 @@ impl EditionId {
 ///
 /// Every entry pairs an [`EditionId`] with the `&'static` [`Inventory`] derived
 /// from that edition's vendored machine-readable artifact. This is the single
-/// uniform table behind [`inventory_for_edition`] and [`registered_editions`];
+/// uniform table behind [`for_edition`] and [`registered_editions`];
 /// it is a superset of the four [`for_snapshot`] inventories — it *additionally*
 /// registers editions that have no [`SpecSnapshotId`]: the SVG 1.0 REC
 /// (2001-09-04), the SVG 1.1 Proposed Recommendation (2011-06-09), and the two
@@ -469,7 +469,7 @@ impl EditionEntry {
 /// two older SVG 2 CRs that have no [`SpecSnapshotId`] — through one uniform key.
 /// Returns [`None`] for an edition with no baked inventory.
 #[must_use]
-pub fn inventory_for_edition(id: &EditionId) -> Option<&'static Inventory> {
+pub fn for_edition(id: &EditionId) -> Option<&'static Inventory> {
     EDITION_INVENTORIES
         .iter()
         .find(|(entry, _)| entry.matches(id))
@@ -483,7 +483,7 @@ pub fn inventory_for_edition(id: &EditionId) -> Option<&'static Inventory> {
 /// the SVG 2 CRs oldest-first, then the rolling editor's draft. Lets a consumer
 /// enumerate the complete editioned universe — including the non-snapshot
 /// SVG 1.0 REC, SVG 1.1 PR, and SVG 2 CRs — and pair each [`EditionId`] with its
-/// [`Inventory`] via [`inventory_for_edition`] for cross-edition comparison.
+/// [`Inventory`] via [`for_edition`] for cross-edition comparison.
 #[must_use]
 pub fn registered_editions() -> Vec<EditionId> {
     EDITION_INVENTORIES

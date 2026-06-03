@@ -2,7 +2,7 @@
 //!
 //! Parses the vendored Bikeshed spec source
 //! (`data/sources/svg-native/index.bs`) into the typed
-//! [`SvgNativeProfile`](crate::profile::SvgNativeProfile) constraint dataset
+//! [`SvgNative`](crate::profile::SvgNative) constraint dataset
 //! committed at `data/profiles/svg-native.json`.
 //!
 //! SVG Native is a **profile** (a reductive subset of SVG 2's Secure Static
@@ -45,8 +45,8 @@
 use regex::Regex;
 
 use crate::profile::{
-    ConstraintKind, ConstraintRule, ConstraintScope, CoverageGap, ProfileConstraint,
-    ProfileSourcePin, SvgNativeProfile,
+    Constraint, ConstraintKind, ConstraintRule, ConstraintScope, CoverageGap, ProvenancePin,
+    SvgNative,
 };
 
 /// Errors from compiling the extractor's static regex set.
@@ -214,11 +214,7 @@ fn asserts_unsupported(line: &str) -> bool {
 
 /// Extract every `not supported` constraint from a section body, classifying
 /// each referenced name by its Bikeshed markup.
-fn unsupported_from_section(
-    re: &ExtractRegexes,
-    section: &Section,
-    out: &mut Vec<ProfileConstraint>,
-) {
+fn unsupported_from_section(re: &ExtractRegexes, section: &Section, out: &mut Vec<Constraint>) {
     for line in strip_underline(&section.body).lines() {
         if is_skippable(re, line) || !asserts_unsupported(line) {
             continue;
@@ -233,11 +229,11 @@ fn collect_unsupported_refs(
     re: &ExtractRegexes,
     line: &str,
     section: &str,
-    out: &mut Vec<ProfileConstraint>,
+    out: &mut Vec<Constraint>,
 ) {
     for caps in re.element_ref.captures_iter(line) {
         if let Some(name) = caps.get(1) {
-            out.push(ProfileConstraint {
+            out.push(Constraint {
                 kind: classify_element_ref(name.as_str(), line),
                 name: name.as_str().to_string(),
                 rule: ConstraintRule::Unsupported,
@@ -247,7 +243,7 @@ fn collect_unsupported_refs(
     }
     for caps in re.value_ref.captures_iter(line) {
         if let Some(name) = caps.get(1) {
-            out.push(ProfileConstraint {
+            out.push(Constraint {
                 kind: ConstraintKind::Value,
                 name: name.as_str().to_string(),
                 rule: ConstraintRule::Unsupported,
@@ -257,7 +253,7 @@ fn collect_unsupported_refs(
     }
     for caps in re.attr_ref.captures_iter(line) {
         if let Some(name) = caps.get(1) {
-            out.push(ProfileConstraint {
+            out.push(Constraint {
                 kind: classify_attr(name.as_str()),
                 name: name.as_str().to_string(),
                 rule: ConstraintRule::Unsupported,
@@ -363,11 +359,7 @@ fn classify_element_ref(name: &str, line: &str) -> ConstraintKind {
 
 /// Build the four supported-only allowlists plus the per-section enumerated
 /// removals that flat `not supported` matching misses.
-fn supported_only_and_lists(
-    re: &ExtractRegexes,
-    sections: &[Section],
-    out: &mut Vec<ProfileConstraint>,
-) {
+fn supported_only_and_lists(re: &ExtractRegexes, sections: &[Section], out: &mut Vec<Constraint>) {
     for section in sections {
         let body = strip_underline(&section.body);
 
@@ -382,7 +374,7 @@ fn supported_only_and_lists(
             units.sort();
             units.dedup();
             if !units.is_empty() {
-                out.push(ProfileConstraint {
+                out.push(Constraint {
                     kind: ConstraintKind::Feature,
                     name: "length-unit".to_string(),
                     rule: ConstraintRule::SupportedOnly {
@@ -402,7 +394,7 @@ fn supported_only_and_lists(
             names.sort();
             names.dedup();
             if !names.is_empty() {
-                out.push(ProfileConstraint {
+                out.push(Constraint {
                     kind: ConstraintKind::Property,
                     name: "transform".to_string(),
                     rule: ConstraintRule::SupportedOnly {
@@ -422,7 +414,7 @@ fn supported_only_and_lists(
             names.sort();
             names.dedup();
             if !names.is_empty() {
-                out.push(ProfileConstraint {
+                out.push(Constraint {
                     kind: ConstraintKind::Attribute,
                     name: "preserveAspectRatio".to_string(),
                     rule: ConstraintRule::SupportedOnly {
@@ -449,7 +441,7 @@ fn unit_token(re: &ExtractRegexes, item: &str) -> Option<String> {
 /// Add the manually-phrased supported-only rules that aren't bullet lists:
 /// `gradientUnits` (only `userSpaceOnUse`), `viewBox` (only on `svg`), and the
 /// image-format allowlist (`JPEG`/`PNG`, APNG rendered static).
-fn singleton_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
+fn singleton_rules(sections: &[Section], out: &mut Vec<Constraint>) {
     let section_of = |needle: &str| -> Option<&str> {
         sections
             .iter()
@@ -459,7 +451,7 @@ fn singleton_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
 
     // gradientUnits — only userSpaceOnUse.
     if let Some(anchor) = section_of("userSpaceOnUse") {
-        out.push(ProfileConstraint {
+        out.push(Constraint {
             kind: ConstraintKind::Attribute,
             name: "gradientUnits".to_string(),
             rule: ConstraintRule::SupportedOnly {
@@ -473,7 +465,7 @@ fn singleton_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
 
     // viewBox — only on svg.
     if let Some(anchor) = section_of("'viewBox' attribute is only supported") {
-        out.push(ProfileConstraint {
+        out.push(Constraint {
             kind: ConstraintKind::Attribute,
             name: "viewBox".to_string(),
             rule: ConstraintRule::SupportedOnly {
@@ -487,7 +479,7 @@ fn singleton_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
 
     // image formats — JPEG / PNG (APNG rendered static).
     if let Some(anchor) = section_of("base64-encoded") {
-        out.push(ProfileConstraint {
+        out.push(Constraint {
             kind: ConstraintKind::Feature,
             name: "image-format".to_string(),
             rule: ConstraintRule::SupportedOnly {
@@ -504,7 +496,7 @@ fn singleton_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
 /// phrased as bare prose ("SVG Native does not support masking", "All external
 /// resource loading is forbidden", "must not contain any … XML DTD subset",
 /// "XSL Processing is not supported", percentage / relative lengths).
-fn feature_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
+fn feature_rules(sections: &[Section], out: &mut Vec<Constraint>) {
     // (needle, feature-slug)
     const PROSE_FEATURES: &[(&str, &str)] = &[
         ("does not support masking", "masking"),
@@ -550,7 +542,7 @@ fn feature_rules(sections: &[Section], out: &mut Vec<ProfileConstraint>) {
             .find(|s| s.body.contains(needle))
             .map(|s| s.anchor.as_str())
         {
-            out.push(ProfileConstraint {
+            out.push(Constraint {
                 kind: ConstraintKind::Feature,
                 name: (*slug).to_string(),
                 rule: ConstraintRule::Unsupported,
@@ -605,12 +597,12 @@ fn coverage_gaps(sections: &[Section]) -> Vec<CoverageGap> {
 /// The `pin` carries provenance copied from the vendored `PROVENANCE.toml`.
 pub fn extract_svg_native(
     bikeshed_source: &str,
-    pin: ProfileSourcePin,
-) -> Result<SvgNativeProfile, ExtractError> {
+    pin: ProvenancePin,
+) -> Result<SvgNative, ExtractError> {
     let re = ExtractRegexes::new()?;
     let sections = split_sections(&re, bikeshed_source);
 
-    let mut constraints: Vec<ProfileConstraint> = Vec::new();
+    let mut constraints: Vec<Constraint> = Vec::new();
 
     for section in &sections {
         unsupported_from_section(&re, section, &mut constraints);
@@ -629,7 +621,7 @@ pub fn extract_svg_native(
     });
     constraints.dedup();
 
-    Ok(SvgNativeProfile {
+    Ok(SvgNative {
         schema_version: 1,
         profile: "SvgNative".to_string(),
         source_pin: pin,
