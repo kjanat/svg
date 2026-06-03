@@ -42,7 +42,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::spec_xml::Classification;
+use super::classification::Classification;
 
 /// Map one raw SVG 1.1 DTD attribute-collection group name (e.g.
 /// `SVG.Core.attrib`, `SVG.Presentation.attrib`) onto the shared

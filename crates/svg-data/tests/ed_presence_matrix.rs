@@ -36,6 +36,8 @@
 //! forces a human re-audit. The raw extractor inventory is exercised for
 //! internal consistency so the deriver itself stays correct.
 
+#[path = "../build/classification.rs"]
+mod classification;
 #[path = "../build/spec_xml.rs"]
 mod spec_xml;
 

@@ -11,6 +11,8 @@
 
 #[path = "build/bcd.rs"]
 mod bcd;
+#[path = "build/classification.rs"]
+mod classification;
 #[path = "build/codegen.rs"]
 mod codegen;
 #[path = "build/dtd.rs"]

@@ -16,9 +16,10 @@
 
 use std::{collections::BTreeSet, fmt::Write as _, path::Path};
 
+use super::classification::Classification;
 use super::codegen::escape;
 use super::dtd::{self, DtdInventory};
-use super::spec_xml::{self, Classification, SpecInventory, SpecXmlError};
+use super::spec_xml::{self, SpecInventory, SpecXmlError};
 
 /// Render the `static SPEC_INVENTORY` source for the inventory derived from
 /// the vendored ED `master/` directory.

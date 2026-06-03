@@ -24,12 +24,12 @@
 //! modules the codegen uses, so a drift between the live extractor and the
 //! baked statics fails loudly here.
 
+#[path = "../build/classification.rs"]
+mod classification;
 #[path = "../build/dtd.rs"]
 mod dtd;
 #[path = "../build/propidx.rs"]
 mod propidx;
-#[path = "../build/spec_xml.rs"]
-mod spec_xml;
 #[path = "../build/value_syntax.rs"]
 mod value_syntax;
 
@@ -161,6 +161,115 @@ fn classification_buckets_are_locked() {
             aria,
             "{snapshot:?} Aria bucket"
         );
+    }
+}
+
+#[test]
+fn live_extractor_matches_baked_classification_and_edges() {
+    // The baked inventory derives every attribute's classification by mapping
+    // its `%…attrib;` DTD groups through `dtd::classify_group` (see
+    // `inventory_codegen::render_dtd_inventory`). Re-derive the same buckets
+    // *live* from the DTD here and assert they match the baked
+    // `count_with_classification`, so a drift between the live extractor and the
+    // statics fails loudly rather than silently baking a stale classification.
+    // The live `DtdInventory::edges()` count is locked against the baked edges
+    // for the same reason.
+    for (snapshot, dtd_path) in [
+        (
+            SpecSnapshotId::Svg11Rec20030114,
+            "data/sources/svg11-rec-20030114/svg11-flat-20030114.dtd",
+        ),
+        (
+            SpecSnapshotId::Svg11Rec20110816,
+            "data/sources/svg11-rec-20110816/svg11-flat-20110816.dtd",
+        ),
+    ] {
+        let parsed = dtd::parse(&read(dtd_path));
+        let baked = require_inventory(snapshot);
+
+        // Edge count: live matrix vs baked statics.
+        assert_eq!(
+            parsed.edges().len(),
+            baked.edges.len(),
+            "{snapshot:?}: live edge count diverged from baked"
+        );
+
+        // Live classification tally: for every distinct attribute name, map its
+        // `%…attrib;` groups through `dtd::classify_group` (the build-side
+        // taxonomy) and count the names whose normalized set carries each
+        // bucket. The build-side `classification::Classification` and the public
+        // `svg_data::inventory::Classification` are distinct types with the same
+        // named buckets, so the comparison pairs them explicitly.
+        let live_count = |bucket: &classification::Classification| -> usize {
+            parsed
+                .attribute_names()
+                .iter()
+                .filter(|name| {
+                    parsed.attribute_groups.get(*name).is_some_and(|groups| {
+                        groups
+                            .iter()
+                            .any(|group| &dtd::classify_group(group) == bucket)
+                    })
+                })
+                .count()
+        };
+
+        // Lock the shared build-side `Classification::from_category` taxonomy
+        // (the SVG 2 ED normalization that the same `classification` module
+        // exposes to both editions): a representative name from each named
+        // bucket plus the verbatim-preserving `Other` fallback.
+        assert_eq!(
+            classification::Classification::from_category("core"),
+            classification::Classification::Core
+        );
+        assert_eq!(
+            classification::Classification::from_category("presentation"),
+            classification::Classification::Presentation
+        );
+        assert_eq!(
+            classification::Classification::from_category("aria"),
+            classification::Classification::Aria
+        );
+        assert_eq!(
+            classification::Classification::from_category("window event"),
+            classification::Classification::EventHandler
+        );
+        assert_eq!(
+            classification::Classification::from_category("deprecated xlink"),
+            classification::Classification::Xlink
+        );
+        assert_eq!(
+            classification::Classification::from_category("conditional processing"),
+            classification::Classification::ConditionalProcessing
+        );
+        assert_eq!(
+            classification::Classification::from_category("filter primitive"),
+            classification::Classification::Other("filter primitive".to_string())
+        );
+
+        for (build_bucket, baked_bucket) in [
+            (classification::Classification::Core, Classification::Core),
+            (
+                classification::Classification::Presentation,
+                Classification::Presentation,
+            ),
+            (
+                classification::Classification::ConditionalProcessing,
+                Classification::ConditionalProcessing,
+            ),
+            (classification::Classification::Xlink, Classification::Xlink),
+            (
+                classification::Classification::EventHandler,
+                Classification::EventHandler,
+            ),
+            (classification::Classification::Aria, Classification::Aria),
+        ] {
+            assert_eq!(
+                live_count(&build_bucket),
+                baked.count_with_classification(&baked_bucket),
+                "{snapshot:?}: live `{build_bucket:?}` tally diverged from baked"
+            );
+        }
     }
 }
 

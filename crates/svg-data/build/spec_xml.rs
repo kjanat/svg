@@ -51,6 +51,8 @@ use std::{
 
 use quick_xml::{Reader, events::Event};
 
+use super::classification::Classification;
+
 /// The five vendored definition files, in the order the snapshot pipeline
 /// treats them. The first four are the "core" SVG 2 inventory; the fifth
 /// supplies the SMIL animation elements (`animate`, `animateMotion`,
@@ -86,62 +88,6 @@ impl std::fmt::Display for SpecXmlError {
 }
 
 impl std::error::Error for SpecXmlError {}
-
-/// Spec-derived classification of an attribute, normalized from the upstream
-/// `attributecategory` group(s) it was declared under.
-///
-/// An attribute may carry **several** classifications (the SVG 2 ED lists
-/// `onunload`, for instance, under both the `document event` and `window
-/// event` groups). The mapping is derived purely from the upstream category
-/// name string by [`Classification::from_category`]; the raw string is kept
-/// alongside for provenance (see [`AttributeFacts::raw_categories`]).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Classification {
-    /// The `core` attributecategory (`id`, `class`, `style`, `lang`,
-    /// `tabindex`, `xml:space`, …).
-    Core,
-    /// The `presentation` attributecategory (the CSS-property-backed
-    /// presentation attributes such as `fill`, `stroke`, `opacity`).
-    Presentation,
-    /// The `aria` attributecategory (the `aria-*` family plus `role`).
-    Aria,
-    /// Any of the event-handler categories (`global event`, `document
-    /// event`, `window event`, `animation event`) — the `on*` handler
-    /// attributes.
-    EventHandler,
-    /// The `deprecated xlink` attributecategory (`xlink:href`,
-    /// `xlink:title`).
-    Xlink,
-    /// The `conditional processing` attributecategory
-    /// (`requiredExtensions`, `systemLanguage`).
-    ConditionalProcessing,
-    /// Any classification whose upstream category does not map to one of
-    /// the buckets above (e.g. `filter primitive`, `transfer function
-    /// element`, the non-event `animation *` categories). The wrapped
-    /// string is the raw upstream category name, preserved verbatim so no
-    /// spec datum is dropped.
-    Other(String),
-}
-
-impl Classification {
-    /// Normalize one raw upstream `attributecategory` name into a
-    /// [`Classification`]. Deterministic and total: every category string
-    /// maps to exactly one variant, with [`Classification::Other`] carrying
-    /// the verbatim name for anything outside the named buckets.
-    pub fn from_category(category: &str) -> Self {
-        match category {
-            "core" => Self::Core,
-            "presentation" => Self::Presentation,
-            "aria" => Self::Aria,
-            "global event" | "document event" | "window event" | "animation event" => {
-                Self::EventHandler
-            }
-            "deprecated xlink" => Self::Xlink,
-            "conditional processing" => Self::ConditionalProcessing,
-            other => Self::Other(other.to_string()),
-        }
-    }
-}
 
 /// The spec-faithful facts derived for a single attribute name: every
 /// upstream `attributecategory` it was declared under (raw, for provenance),
