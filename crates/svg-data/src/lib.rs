@@ -23,6 +23,8 @@ pub mod categories;
 pub mod compat_parse;
 /// Derived union membership and adjacent snapshot overlay artifacts.
 pub mod derived;
+/// Typed W3C edition index and freshness primitives.
+pub mod edition;
 /// Shared manifest, cache, provenance, and dataset emission helpers.
 pub mod extraction;
 /// Typed constraint model for SVG profiles (SVG Native).

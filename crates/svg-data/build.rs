@@ -13,6 +13,8 @@
 mod bcd;
 #[path = "build/codegen.rs"]
 mod codegen;
+#[path = "build/edition.rs"]
+mod edition;
 #[path = "build/propidx.rs"]
 mod propidx;
 #[path = "build/provenance_gate.rs"]
@@ -417,6 +419,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // the catalog when it (or the override env vars) change. No dependency on
     // the Deno worker source anymore.
     println!("cargo::rerun-if-changed=data/sources/svg-compat-data.json");
+    println!("cargo::rerun-if-changed=data/sources/w3c-api");
     println!("cargo::rerun-if-changed=data/sources/svg-native/index.bs");
     println!("cargo::rerun-if-changed=data/sources/svg-native/PROVENANCE.toml");
     println!("cargo::rerun-if-changed=data/profiles/svg-native.json");
@@ -495,6 +498,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     write_attribute_values_profile_lookup(&mut out, &inputs.attributes, &attribute_idents)?;
 
     fs::write(&inputs.out_path, out)?;
+
+    // W3C edition index: parse the vendored API metadata into a baked,
+    // typed index. Hermetic — no network at build time.
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR")?);
+    let edition_index = edition::generate(manifest_dir)?;
+    fs::write(out_dir.join("edition_index.rs"), edition_index)?;
+
     Ok(())
 }
 
