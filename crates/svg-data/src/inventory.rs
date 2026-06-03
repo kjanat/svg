@@ -28,6 +28,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::SpecSnapshotId;
+use crate::edition::Series;
 
 /// Normalized classification of an attribute, derived from the upstream
 /// `attributecategory` group it was declared under.
@@ -268,6 +269,210 @@ pub fn for_snapshot(snapshot: SpecSnapshotId) -> Option<&'static Inventory> {
         SpecSnapshotId::Svg11Rec20110816 => Some(&SVG11_REC_20110816_INVENTORY),
         SpecSnapshotId::Svg2Cr20181004 => Some(&SVG2_CR_20181004_INVENTORY),
     }
+}
+
+/// The point in an edition's lifecycle the [`EditionId`] addresses.
+///
+/// Frozen `/TR/` publications are pinned by their dated ISO-8601 publication
+/// date — the same `date` the [`crate::edition::PublishedVersion`] index keys
+/// on. The rolling editor's draft is undated by design (its commit pin lives in
+/// the snapshot data, not in a Rust constant), so it is addressed by the
+/// [`EditionDate::EditorsDraft`] sentinel instead of a fabricated date. Modeling
+/// the two as distinct variants keeps an undated edition from masquerading as a
+/// dated one.
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EditionDate {
+    /// A dated `/TR/` publication, keyed by its ISO-8601 `YYYY-MM-DD` date.
+    Dated {
+        /// ISO-8601 publication date, e.g. `2016-09-15`.
+        date: Cow<'static, str>,
+    },
+    /// The rolling SVG 2 editor's draft, which carries no `/TR/` date.
+    EditorsDraft,
+}
+
+/// The natural, edition-level key for an inventory: the spec [`Series`] plus the
+/// point in its lifecycle ([`EditionDate`]).
+///
+/// This is the **additive** counterpart to [`SpecSnapshotId`]. Where
+/// `SpecSnapshotId` is the curated catalog's fixed four-snapshot enum, an
+/// `EditionId` can address *any* edition that has a baked inventory —
+/// including the two older SVG 2 CRs (2016-09-15, 2018-08-07) that are not
+/// curated snapshots — through one uniform key. Every curated snapshot also has
+/// an `EditionId` (see [`EditionId::for_snapshot`]), so all registered editions
+/// are queryable through the same [`inventory_for_edition`] entry point.
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
+pub struct EditionId {
+    /// The spec series this edition belongs to.
+    pub series: Series,
+    /// The dated publication, or the undated editor's-draft sentinel.
+    pub date: EditionDate,
+}
+
+impl EditionId {
+    /// Construct a dated edition key from a series and ISO-8601 date.
+    #[must_use]
+    pub const fn dated(series: Series, date: &'static str) -> Self {
+        Self {
+            series,
+            date: EditionDate::Dated {
+                date: Cow::Borrowed(date),
+            },
+        }
+    }
+
+    /// Construct the undated SVG 2 editor's-draft edition key.
+    #[must_use]
+    pub const fn editors_draft(series: Series) -> Self {
+        Self {
+            series,
+            date: EditionDate::EditorsDraft,
+        }
+    }
+
+    /// The `EditionId` a curated [`SpecSnapshotId`] maps onto.
+    ///
+    /// Frozen snapshots map to their dated `/TR/` publication date; the rolling
+    /// [`SpecSnapshotId::Svg2EditorsDraft`] maps to the undated
+    /// [`EditionDate::EditorsDraft`] sentinel. This is the bridge that lets the
+    /// four curated snapshots be looked up through the same edition-keyed entry
+    /// point as the additive (non-snapshot) editions.
+    #[must_use]
+    pub const fn for_snapshot(snapshot: SpecSnapshotId) -> Self {
+        match snapshot {
+            SpecSnapshotId::Svg11Rec20030114 => Self::dated(Series::Svg11, "2003-01-14"),
+            SpecSnapshotId::Svg11Rec20110816 => Self::dated(Series::Svg11, "2011-08-16"),
+            SpecSnapshotId::Svg2Cr20181004 => Self::dated(Series::Svg2, "2018-10-04"),
+            SpecSnapshotId::Svg2EditorsDraft => Self::editors_draft(Series::Svg2),
+        }
+    }
+}
+
+/// The full registry of edition-keyed inventories, baked into the binary.
+///
+/// Every entry pairs an [`EditionId`] with the `&'static` [`Inventory`] derived
+/// from that edition's vendored machine-readable artifact. This is the single
+/// uniform table behind [`inventory_for_edition`] and [`registered_editions`];
+/// it is a superset of the four [`for_snapshot`] inventories — it *additionally*
+/// registers the two older SVG 2 CRs that have no [`SpecSnapshotId`].
+///
+/// Held as a plain slice of borrowing entries (no allocation, no `OnceLock`):
+/// every referenced `Inventory` is itself a `'static` baked literal.
+static EDITION_INVENTORIES: &[(EditionEntry, &Inventory)] = &[
+    (
+        EditionEntry {
+            series: Series::Svg11,
+            date: EditionDateKey::Dated("2003-01-14"),
+        },
+        &SVG11_REC_20030114_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg11,
+            date: EditionDateKey::Dated("2011-08-16"),
+        },
+        &SVG11_REC_20110816_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg2,
+            date: EditionDateKey::Dated("2016-09-15"),
+        },
+        &SVG2_CR_20160915_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg2,
+            date: EditionDateKey::Dated("2018-08-07"),
+        },
+        &SVG2_CR_20180807_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg2,
+            date: EditionDateKey::Dated("2018-10-04"),
+        },
+        &SVG2_CR_20181004_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg2,
+            date: EditionDateKey::EditorsDraft,
+        },
+        &SPEC_INVENTORY,
+    ),
+];
+
+/// `const`-friendly mirror of [`EditionDate`] using a borrowed `&'static str`,
+/// so the [`EDITION_INVENTORIES`] table is a plain `static` (no allocation).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EditionDateKey {
+    Dated(&'static str),
+    EditorsDraft,
+}
+
+/// `const`-friendly mirror of [`EditionId`] for the baked [`EDITION_INVENTORIES`]
+/// table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EditionEntry {
+    series: Series,
+    date: EditionDateKey,
+}
+
+impl EditionEntry {
+    /// Whether this baked key denotes the same edition as a runtime [`EditionId`].
+    fn matches(&self, id: &EditionId) -> bool {
+        if self.series != id.series {
+            return false;
+        }
+        match (&self.date, &id.date) {
+            (EditionDateKey::Dated(baked), EditionDate::Dated { date }) => *baked == date.as_ref(),
+            (EditionDateKey::EditorsDraft, EditionDate::EditorsDraft) => true,
+            _ => false,
+        }
+    }
+
+    /// Reconstruct the owning [`EditionId`] from this baked key.
+    const fn to_id(self) -> EditionId {
+        match self.date {
+            EditionDateKey::Dated(date) => EditionId::dated(self.series, date),
+            EditionDateKey::EditorsDraft => EditionId::editors_draft(self.series),
+        }
+    }
+}
+
+/// Return the baked inventory registered under `id`, if any.
+///
+/// This is the additive, edition-keyed companion to [`for_snapshot`]: it
+/// resolves *every* registered edition — the four curated snapshots **and** the
+/// two older SVG 2 CRs that have no [`SpecSnapshotId`] — through one uniform key.
+/// Returns [`None`] for an edition with no baked inventory.
+#[must_use]
+pub fn inventory_for_edition(id: &EditionId) -> Option<&'static Inventory> {
+    EDITION_INVENTORIES
+        .iter()
+        .find(|(entry, _)| entry.matches(id))
+        .map(|(_, inventory)| *inventory)
+}
+
+/// Every edition that has a baked, edition-keyed inventory, in registration
+/// order (SVG 1.1 RECs, then the SVG 2 CRs oldest-first, then the rolling
+/// editor's draft).
+///
+/// Lets a consumer enumerate the complete editioned universe — including the
+/// non-snapshot CRs — and pair each [`EditionId`] with its [`Inventory`] via
+/// [`inventory_for_edition`] for cross-edition comparison.
+#[must_use]
+pub fn registered_editions() -> Vec<EditionId> {
+    EDITION_INVENTORIES
+        .iter()
+        .map(|(entry, _)| entry.to_id())
+        .collect()
 }
 
 #[cfg(test)]

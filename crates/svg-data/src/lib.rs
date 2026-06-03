@@ -445,6 +445,22 @@ pub fn spec_inventory(snapshot: SpecSnapshotId) -> Option<&'static inventory::In
     inventory::for_snapshot(snapshot)
 }
 
+/// Return the baked full-spec inventory for an arbitrary edition `id`, if one
+/// exists.
+///
+/// This is the additive, edition-keyed companion to [`spec_inventory`]: where
+/// [`spec_inventory`] is limited to the four curated [`SpecSnapshotId`]s, this
+/// resolves *every* registered edition through one uniform key — including the
+/// two older SVG 2 CRs (2016-09-15, 2018-08-07) that have no `SpecSnapshotId`.
+/// Build an [`inventory::EditionId`] directly, or from a snapshot via
+/// [`inventory::EditionId::for_snapshot`]; enumerate the full set with
+/// [`inventory::registered_editions`]. The curated `spec_inventory` /
+/// `for_snapshot` API is unchanged.
+#[must_use]
+pub fn inventory_for_edition(id: &inventory::EditionId) -> Option<&'static inventory::Inventory> {
+    inventory::inventory_for_edition(id)
+}
+
 /// Every classified attribute in `snapshot`'s full-spec inventory, sorted by
 /// name; empty for snapshots without a baked inventory.
 ///

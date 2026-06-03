@@ -440,6 +440,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Vendored SVG 1.1 flat DTDs feed the baked per-edition inventories.
     println!("cargo::rerun-if-changed=data/sources/svg11-rec-20030114/svg11-flat-20030114.dtd");
     println!("cargo::rerun-if-changed=data/sources/svg11-rec-20110816/svg11-flat-20110816.dtd");
+    // Vendored SVG 2 CR published index pages feed the baked CR inventories.
+    println!("cargo::rerun-if-changed=data/sources/svg2-cr-20160915");
+    println!("cargo::rerun-if-changed=data/sources/svg2-cr-20180807");
+    println!("cargo::rerun-if-changed=data/sources/svg2-cr-20181004");
     println!("cargo::rerun-if-env-changed=SVG_DATA_OFFLINE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_FILE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_URL");
@@ -546,16 +550,54 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     fs::write(out_dir.join("svg11_inventory.rs"), svg11)?;
 
-    // Full SVG 2 CR inventory: derive every element/attribute/edge from the
-    // vendored published index tables (`eltindex.html` + `attindex.html`) and
-    // bake a `static SVG2_CR_20181004_INVENTORY`. Additive, exposed via
-    // `inventory::for_snapshot`. Hermetic — parses only the vendored CR index
-    // pages pinned for the snapshot. The CR index carries no attribute
-    // categories, so its attributes are faithfully unclassified (animatable
-    // flag retained as provenance) — see `inventory_codegen::generate_cr`.
-    let cr_dir = manifest_dir.join(CR_INDEX_SOURCES);
-    let cr_inventory = inventory_codegen::generate_cr(
-        &cr_dir,
+    // Full SVG 2 CR inventories: derive every element/attribute/edge from each
+    // dated CR's vendored published index tables (`eltindex.html` +
+    // `attindex.html`) and bake one `static …_INVENTORY` per edition. Additive,
+    // exposed via `inventory::for_snapshot` (the 2018-10-04 edition) and the
+    // edition-keyed `inventory::inventory_for_edition` (all three CRs).
+    // Hermetic — parses only the vendored CR index pages pinned for each
+    // edition. The CR index carries no attribute categories, so its attributes
+    // are faithfully unclassified (animatable flag retained as provenance) —
+    // see `inventory_codegen::generate_cr`.
+    let mut cr = String::new();
+    for (relative, static_name, doc) in CR_INDEX_INVENTORIES {
+        let cr_dir = manifest_dir.join(relative);
+        let rendered = inventory_codegen::generate_cr(&cr_dir, static_name, doc)
+            .map_err(|e| -> Box<dyn Error> { e.into() })?;
+        cr.push_str(&rendered);
+        cr.push('\n');
+    }
+    fs::write(out_dir.join("cr_inventory.rs"), cr)?;
+
+    Ok(())
+}
+
+/// Vendored SVG 2 CR published-index inventories: the crate-relative source
+/// directory (holding `eltindex.html` / `attindex.html` / `propidx.html`), the
+/// emitted `static` identifier, and its rustdoc. One row per dated CR edition.
+const CR_INDEX_INVENTORIES: &[(&str, &str, &str)] = &[
+    (
+        "data/sources/svg2-cr-20160915",
+        "SVG2_CR_20160915_INVENTORY",
+        "/// The complete SVG 2 Candidate Recommendation (2016-09-15) inventory.\n\
+         ///\n\
+         /// Derived from the vendored published index tables (`eltindex.html` +\n\
+         /// `attindex.html`) at build time. Attributes carry no classification\n\
+         /// (the rendered CR index has no `attributecategory` groups); the\n\
+         /// animatable flag is retained as provenance. See [`Inventory`].",
+    ),
+    (
+        "data/sources/svg2-cr-20180807",
+        "SVG2_CR_20180807_INVENTORY",
+        "/// The complete SVG 2 Candidate Recommendation (2018-08-07) inventory.\n\
+         ///\n\
+         /// Derived from the vendored published index tables (`eltindex.html` +\n\
+         /// `attindex.html`) at build time. Attributes carry no classification\n\
+         /// (the rendered CR index has no `attributecategory` groups); the\n\
+         /// animatable flag is retained as provenance. See [`Inventory`].",
+    ),
+    (
+        "data/sources/svg2-cr-20181004",
         "SVG2_CR_20181004_INVENTORY",
         "/// The complete SVG 2 Candidate Recommendation (2018-10-04) inventory.\n\
          ///\n\
@@ -563,16 +605,8 @@ fn main() -> Result<(), Box<dyn Error>> {
          /// `attindex.html`) at build time. Attributes carry no classification\n\
          /// (the rendered CR index has no `attributecategory` groups); the\n\
          /// animatable flag is retained as provenance. See [`Inventory`].",
-    )
-    .map_err(|e| -> Box<dyn Error> { e.into() })?;
-    fs::write(out_dir.join("cr_inventory.rs"), cr_inventory)?;
-
-    Ok(())
-}
-
-/// Vendored SVG 2 CR published-index source directory (relative to the crate
-/// manifest), holding `eltindex.html` / `attindex.html` / `propidx.html`.
-const CR_INDEX_SOURCES: &str = "data/sources/svg2-cr-20181004";
+    ),
+];
 
 /// Vendored SVG 1.1 flat DTDs feeding the baked per-edition inventories: the
 /// crate-relative DTD path, the emitted `static` identifier, and its rustdoc.
