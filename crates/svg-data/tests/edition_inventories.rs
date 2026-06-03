@@ -26,7 +26,10 @@ use std::collections::BTreeSet;
 use svg_data::{
     SpecSnapshotId,
     edition::Series,
-    inventory::{EditionDate, EditionId, Inventory, inventory_for_edition, registered_editions},
+    inventory::{
+        Classification, EditionDate, EditionId, Inventory, inventory_for_edition,
+        registered_editions,
+    },
     spec_inventory,
 };
 
@@ -37,6 +40,18 @@ fn require_edition(id: &EditionId) -> &'static Inventory {
         panic!("edition {id:?} should have a baked inventory")
     };
     inventory
+}
+
+/// Look up an attribute by name or panic (avoids `.expect()`, which the
+/// workspace `expect_used` lint denies).
+fn require_named_attribute<'a>(
+    inventory: &'a Inventory,
+    name: &str,
+) -> &'a svg_data::inventory::Attribute {
+    let Some(attribute) = inventory.attribute(name) else {
+        panic!("`{name}` should be in the inventory")
+    };
+    attribute
 }
 
 /// The set of attribute names in an inventory.
@@ -83,6 +98,17 @@ fn every_registered_edition_resolves() {
         );
     }
 
+    // The SVG 1.0 REC and the SVG 1.1 PR — additive editions with no
+    // `SpecSnapshotId`, baked from their vendored flat DTDs.
+    assert!(
+        inventory_for_edition(&EditionId::dated(Series::Svg10, "2001-09-04")).is_some(),
+        "SVG 1.0 REC should resolve through its edition key"
+    );
+    assert!(
+        inventory_for_edition(&EditionId::dated(Series::Svg11, "2011-06-09")).is_some(),
+        "SVG 1.1 PR should resolve through its edition key"
+    );
+
     // The SVG 1.1 RECs and the editor's draft resolve through their keys too.
     assert!(inventory_for_edition(&EditionId::dated(Series::Svg11, "2003-01-14")).is_some());
     assert!(inventory_for_edition(&EditionId::dated(Series::Svg11, "2011-08-16")).is_some());
@@ -102,11 +128,14 @@ fn unregistered_edition_resolves_to_none() {
 #[test]
 fn registered_editions_lists_all_editions() {
     let editions = registered_editions();
-    // Six registered editions: 2 SVG 1.1 RECs + 3 SVG 2 CRs + 1 editor's draft.
-    assert_eq!(editions.len(), 6, "registered edition count drifted");
+    // Eight registered editions: 1 SVG 1.0 REC + 1 SVG 1.1 PR + 2 SVG 1.1 RECs
+    // + 3 SVG 2 CRs + 1 editor's draft.
+    assert_eq!(editions.len(), 8, "registered edition count drifted");
 
     let expected: BTreeSet<EditionId> = [
+        EditionId::dated(Series::Svg10, "2001-09-04"),
         EditionId::dated(Series::Svg11, "2003-01-14"),
+        EditionId::dated(Series::Svg11, "2011-06-09"),
         EditionId::dated(Series::Svg11, "2011-08-16"),
         EditionId::dated(Series::Svg2, "2016-09-15"),
         EditionId::dated(Series::Svg2, "2018-08-07"),
@@ -265,5 +294,144 @@ fn cross_edition_comparison_works() {
     assert!(
         attrs201808.difference(&attrs201810).next().is_none(),
         "2018-08 should carry no attribute 2018-10 dropped"
+    );
+}
+
+#[test]
+fn svg10_and_svg11_pr_editions_are_locked() {
+    // SVG 1.0 (2001-09-04): the pre-modular REC, baked from its flat DTD through
+    // the same `build/dtd.rs` reader as the SVG 1.1 editions (SVG 1.0's flat
+    // attribute-collection naming is handled by the parser's allowlist).
+    let svg10 = require_edition(&EditionId::dated(Series::Svg10, "2001-09-04"));
+    assert_eq!(svg10.elements.len(), 81, "SVG 1.0 element count drifted");
+    assert_eq!(
+        svg10.attributes.len(),
+        268,
+        "SVG 1.0 attribute count drifted"
+    );
+    assert_eq!(svg10.edges.len(), 2822, "SVG 1.0 edge count drifted");
+
+    // `rect` carries its geometry attributes, resolved through the edges.
+    let svg10_rect: BTreeSet<&str> = svg10
+        .attributes_for_element("rect")
+        .map(|attribute| attribute.name.as_ref())
+        .collect();
+    for geometry in ["x", "y", "width", "height", "rx", "ry"] {
+        assert!(
+            svg10_rect.contains(geometry),
+            "SVG 1.0 rect should carry `{geometry}`: {svg10_rect:?}"
+        );
+    }
+    assert!(
+        svg10_rect.contains("transform"),
+        "SVG 1.0 rect should carry `transform`"
+    );
+
+    // SVG 1.0's pre-modular collections classify through the shared taxonomy:
+    // `id` (from `stdAttrs`) is Core, `fill` (from a `PresentationAttributes-*`
+    // collection) is Presentation, `requiredFeatures` (from `testAttrs`) is
+    // ConditionalProcessing — none are fabricated, all derive from the DTD group.
+    let id = require_named_attribute(svg10, "id");
+    assert!(
+        id.classifications.contains(&Classification::Core),
+        "SVG 1.0 `id` should be Core: {:?}",
+        id.classifications
+    );
+    let fill = require_named_attribute(svg10, "fill");
+    assert!(
+        fill.classifications.contains(&Classification::Presentation),
+        "SVG 1.0 `fill` should be Presentation"
+    );
+    let required_features = require_named_attribute(svg10, "requiredFeatures");
+    assert!(
+        required_features
+            .classifications
+            .contains(&Classification::ConditionalProcessing),
+        "SVG 1.0 `requiredFeatures` should be ConditionalProcessing"
+    );
+    // The verbatim DTD group name survives as provenance (no datum dropped).
+    assert!(
+        id.raw_categories
+            .iter()
+            .any(|category| category.as_ref() == "stdAttrs"),
+        "SVG 1.0 `id` provenance should name `stdAttrs`: {:?}",
+        id.raw_categories
+    );
+
+    // SVG 1.1 PR (2011-06-09): the Proposed Recommendation DTD is identical to
+    // the 2011-08-16 Second Edition REC DTD, so its inventory must match the
+    // 2011-08-16 REC inventory exactly (same counts and members).
+    let svg11_pr = require_edition(&EditionId::dated(Series::Svg11, "2011-06-09"));
+    assert_eq!(
+        svg11_pr.elements.len(),
+        80,
+        "SVG 1.1 PR element count drifted"
+    );
+    assert_eq!(
+        svg11_pr.attributes.len(),
+        268,
+        "SVG 1.1 PR attribute count drifted"
+    );
+    assert_eq!(svg11_pr.edges.len(), 4352, "SVG 1.1 PR edge count drifted");
+
+    let svg11_se = require_edition(&EditionId::dated(Series::Svg11, "2011-08-16"));
+    assert_eq!(
+        element_names(svg11_pr),
+        element_names(svg11_se),
+        "SVG 1.1 PR element set should equal the 2011-08-16 REC"
+    );
+    assert_eq!(
+        attribute_names(svg11_pr),
+        attribute_names(svg11_se),
+        "SVG 1.1 PR attribute set should equal the 2011-08-16 REC"
+    );
+
+    let svg11_pr_rect: BTreeSet<&str> = svg11_pr
+        .attributes_for_element("rect")
+        .map(|attribute| attribute.name.as_ref())
+        .collect();
+    for geometry in ["x", "y", "width", "height", "rx", "ry"] {
+        assert!(
+            svg11_pr_rect.contains(geometry),
+            "SVG 1.1 PR rect should carry `{geometry}`"
+        );
+    }
+}
+
+#[test]
+fn svg11_rec_inventories_are_unchanged_by_new_editions() {
+    // Registering the SVG 1.0 REC and SVG 1.1 PR is purely additive: the two
+    // frozen SVG 1.1 REC inventories must keep their locked counts. (The full
+    // bucket/edge audit lives in `tests/svg11_inventory.rs`; this guards the
+    // edition-keyed view specifically.)
+    let first = require_edition(&EditionId::dated(Series::Svg11, "2003-01-14"));
+    assert_eq!(first.elements.len(), 81, "SVG 1.1 FE element count drifted");
+    assert_eq!(
+        first.attributes.len(),
+        268,
+        "SVG 1.1 FE attribute count drifted"
+    );
+    assert_eq!(first.edges.len(), 2930, "SVG 1.1 FE edge count drifted");
+
+    let second = require_edition(&EditionId::dated(Series::Svg11, "2011-08-16"));
+    assert_eq!(
+        second.elements.len(),
+        80,
+        "SVG 1.1 SE element count drifted"
+    );
+    assert_eq!(
+        second.attributes.len(),
+        268,
+        "SVG 1.1 SE attribute count drifted"
+    );
+    assert_eq!(second.edges.len(), 4352, "SVG 1.1 SE edge count drifted");
+
+    // The edition-keyed lookup returns the *same* static the snapshot API does.
+    let Some(via_snapshot) = spec_inventory(SpecSnapshotId::Svg11Rec20110816) else {
+        panic!("Svg11Rec20110816 should have a curated inventory")
+    };
+    assert!(
+        std::ptr::eq(via_snapshot, second),
+        "SVG 1.1 SE edition key should resolve to the same inventory as the snapshot API"
     );
 }

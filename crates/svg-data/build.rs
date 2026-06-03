@@ -420,9 +420,12 @@ fn ensure_cached(url: &str, dest: &Path, offline: bool) -> Result<bool, String> 
     Ok(true)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-
+/// Emit every `cargo::rerun-if-changed` / `cargo::rerun-if-env-changed`
+/// directive for the vendored inputs the build script consumes.
+///
+/// Kept out of [`main`] so the directive list (which grows as new vendored
+/// editions are added) does not bloat the orchestration body.
+fn emit_rerun_directives() {
     println!("cargo::rerun-if-changed=data/specs");
     println!("cargo::rerun-if-changed=data/derived");
     println!("cargo::rerun-if-changed=data/elements.json");
@@ -437,8 +440,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=data/profiles/svg-native.json");
     // Vendored SVG 2 ED definitions feed the baked full-spec inventory.
     println!("cargo::rerun-if-changed=data/sources/svgwg-19482daf/master");
-    // Vendored SVG 1.1 flat DTDs feed the baked per-edition inventories.
+    // Vendored SVG 1.0 + SVG 1.1 flat DTDs feed the baked per-edition inventories.
+    println!("cargo::rerun-if-changed=data/sources/svg10-rec-20010904/svg10.dtd");
     println!("cargo::rerun-if-changed=data/sources/svg11-rec-20030114/svg11-flat-20030114.dtd");
+    println!("cargo::rerun-if-changed=data/sources/svg11-pr-20110609/svg11-flat-20110609.dtd");
     println!("cargo::rerun-if-changed=data/sources/svg11-rec-20110816/svg11-flat-20110816.dtd");
     // Vendored SVG 2 CR published index pages feed the baked CR inventories.
     println!("cargo::rerun-if-changed=data/sources/svg2-cr-20160915");
@@ -447,6 +452,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-env-changed=SVG_DATA_OFFLINE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_FILE");
     println!("cargo::rerun-if-env-changed=SVG_COMPAT_URL");
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    emit_rerun_directives();
 
     // Provenance referential-integrity gate: fail the build early if any
     // `source_id` in the checked-in snapshot data doesn't resolve to a
@@ -608,14 +619,39 @@ const CR_INDEX_INVENTORIES: &[(&str, &str, &str)] = &[
     ),
 ];
 
-/// Vendored SVG 1.1 flat DTDs feeding the baked per-edition inventories: the
+/// Vendored flat DTDs feeding the baked per-edition inventories: the
 /// crate-relative DTD path, the emitted `static` identifier, and its rustdoc.
+///
+/// Covers the SVG 1.0 (2001-09-04) REC and every SVG 1.1 flat DTD (the two
+/// frozen RECs plus the 2011-06-09 PR). All parse through the one
+/// [`dtd`](inventory_codegen::generate_svg11) reader; SVG 1.0's pre-modular
+/// collection-naming is handled by `build/dtd.rs` (`SVG10_ATTRIB_GROUPS`).
 const SVG11_DTD_INVENTORIES: &[(&str, &str, &str)] = &[
+    (
+        "data/sources/svg10-rec-20010904/svg10.dtd",
+        "SVG10_REC_20010904_INVENTORY",
+        "/// The complete SVG 1.0 (REC, 2001-09-04) spec inventory.\n\
+         ///\n\
+         /// Derived from the vendored DTD at build time. SVG 1.0 predates the\n\
+         /// SVG 1.1 modular DTD, so its flat attribute-collection entities\n\
+         /// (`stdAttrs`, `PresentationAttributes-*`, …) are classified via the\n\
+         /// same shared taxonomy. See [`Inventory`].",
+    ),
     (
         "data/sources/svg11-rec-20030114/svg11-flat-20030114.dtd",
         "SVG11_REC_20030114_INVENTORY",
         "/// The complete SVG 1.1 (First Edition, 2003-01-14) spec inventory,\n\
          /// derived from the vendored flat DTD at build time. See [`Inventory`].",
+    ),
+    (
+        "data/sources/svg11-pr-20110609/svg11-flat-20110609.dtd",
+        "SVG11_PR_20110609_INVENTORY",
+        "/// The complete SVG 1.1 (Proposed Recommendation, 2011-06-09) spec\n\
+         /// inventory.\n\
+         ///\n\
+         /// Derived from the vendored flat DTD at build time. The PR DTD is\n\
+         /// identical to the 2011-08-16 Second Edition REC DTD. See\n\
+         /// [`Inventory`].",
     ),
     (
         "data/sources/svg11-rec-20110816/svg11-flat-20110816.dtd",

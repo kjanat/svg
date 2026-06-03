@@ -44,13 +44,27 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::classification::Classification;
 
-/// Map one raw SVG 1.1 DTD attribute-collection group name (e.g.
-/// `SVG.Core.attrib`, `SVG.Presentation.attrib`) onto the shared
-/// [`Classification`] taxonomy used by the SVG 2 ED inventory, so both editions
+/// Map one raw DTD attribute-collection group name (e.g. `SVG.Core.attrib`,
+/// `SVG.Presentation.attrib` for SVG 1.1, or `stdAttrs`,
+/// `PresentationAttributes-Color` for SVG 1.0) onto the shared
+/// [`Classification`] taxonomy used by the SVG 2 ED inventory, so all editions
 /// expose attributes under one normalized bucket set.
 ///
-/// The mapping is derived purely from the SVG 1.1 modular-DTD group names, which
-/// are stable and well-documented:
+/// ## SVG 1.0 collections
+///
+/// SVG 1.0 (2001-09-04) predates the SVG 1.1 modular-DTD `%…attrib;` naming
+/// scheme: its attribute-collection parameter entities use a flat,
+/// non-namespaced convention (`stdAttrs`, `langSpaceAttrs`, `testAttrs`, the
+/// `xlinkRefAttrs*`, the `*Events`, and the `PresentationAttributes-*` family).
+/// They are mapped here onto the **same** buckets as their SVG 1.1
+/// counterparts, so the SVG 1.0 inventory is classified just like the later
+/// editions. The non-presentation, non-event SVG 1.0 collections (the `anim*`
+/// and `filter_primitive*`/`component_transfer_function` collections) keep
+/// their raw name in [`Classification::Other`], matching how SVG 1.1's
+/// `Animation*`/`FilterPrimitive*` collections are handled.
+///
+/// The mapping is derived purely from the (stable, well-documented) modular-DTD
+/// group names:
 ///
 /// - the `core` collection plus its `id`/`base`/`lang`/`xmlns` leaves, and the
 ///   `Style` collection (`style`/`class`) → [`Classification::Core`];
@@ -73,17 +87,34 @@ use super::classification::Classification;
 /// arises here; that is faithful to the edition.
 #[must_use]
 pub fn classify_group(group: &str) -> Classification {
+    // Each arm carries both the SVG 1.1 modular-DTD `%…attrib;` collections and
+    // their SVG 1.0 (2001-09-04) flat-naming counterparts (see
+    // [`SVG10_ATTRIB_GROUPS`]), so one taxonomy classifies every edition.
     match group {
+        // Core: SVG 1.1 core/id/base/lang/xmlns/Style; SVG 1.0 `stdAttrs`
+        // (`id`/`xml:base`) and `langSpaceAttrs` (`xml:lang`/`xml:space`).
         "SVG.Core.attrib" | "SVG.id.attrib" | "SVG.base.attrib" | "SVG.lang.attrib"
-        | "SVG.xmlns.attrib" | "SVG.Style.attrib" => Classification::Core,
-        "SVG.Conditional.attrib" => Classification::ConditionalProcessing,
+        | "SVG.xmlns.attrib" | "SVG.Style.attrib" | "stdAttrs" | "langSpaceAttrs" => {
+            Classification::Core
+        }
+        // Conditional processing: SVG 1.1 `Conditional`; SVG 1.0 `testAttrs`.
+        "SVG.Conditional.attrib" | "testAttrs" => Classification::ConditionalProcessing,
+        // XLink: SVG 1.1 `XLink*`; SVG 1.0 `xlinkRefAttrs*`.
         "SVG.XLink.attrib"
         | "SVG.XLinkEmbed.attrib"
         | "SVG.XLinkReplace.attrib"
-        | "SVG.XLinkRequired.attrib" => Classification::Xlink,
+        | "SVG.XLinkRequired.attrib"
+        | "xlinkRefAttrs"
+        | "xlinkRefAttrsEmbed" => Classification::Xlink,
+        // Event handlers: SVG 1.1 `*Events`; SVG 1.0 `*Events`.
         "SVG.GraphicalEvents.attrib"
         | "SVG.DocumentEvents.attrib"
-        | "SVG.AnimationEvents.attrib" => Classification::EventHandler,
+        | "SVG.AnimationEvents.attrib"
+        | "graphicsElementEvents"
+        | "documentEvents"
+        | "animationEvents" => Classification::EventHandler,
+        // Presentation: SVG 1.1 `Presentation` umbrella + leaf collections;
+        // SVG 1.0 `PresentationAttributes-*` family.
         "SVG.Presentation.attrib"
         | "SVG.Container.attrib"
         | "SVG.Viewport.attrib"
@@ -101,7 +132,25 @@ pub fn classify_group(group: &str) -> Classification {
         | "SVG.Mask.attrib"
         | "SVG.Filter.attrib"
         | "SVG.FilterColor.attrib"
-        | "SVG.Cursor.attrib" => Classification::Presentation,
+        | "SVG.Cursor.attrib"
+        | "PresentationAttributes-All"
+        | "PresentationAttributes-Color"
+        | "PresentationAttributes-FillStroke"
+        | "PresentationAttributes-Graphics"
+        | "PresentationAttributes-Viewports"
+        | "PresentationAttributes-TextElements"
+        | "PresentationAttributes-TextContentElements"
+        | "PresentationAttributes-FontSpecification"
+        | "PresentationAttributes-Markers"
+        | "PresentationAttributes-Gradients"
+        | "PresentationAttributes-Images"
+        | "PresentationAttributes-LightingEffects"
+        | "PresentationAttributes-feFlood"
+        | "PresentationAttributes-FilterPrimitives"
+        | "PresentationAttributes-Containers" => Classification::Presentation,
+        // Everything else keeps its raw name verbatim (SVG 1.0 `anim*`,
+        // `filter_primitive*`, `component_transfer_function_attributes`;
+        // SVG 1.1 `Animation*`/`FilterPrimitive*`/`External`).
         other => Classification::Other(other.to_string()),
     }
 }
@@ -644,14 +693,71 @@ fn expand_with_groups(raw: &str, entities: &Entities) -> Vec<GroupedSegment> {
     segments
 }
 
+/// The SVG 1.0 (2001-09-04) attribute-collection parameter entities, which
+/// predate the SVG 1.1 `%…attrib;` naming convention and so must be recognized
+/// by an explicit allowlist instead of a suffix test.
+///
+/// Each of these expands to one or more whole `attr TYPE default` triples (a
+/// *collection* of attributes), exactly like an SVG 1.1 `%…attrib;` group — so
+/// the parser attributes the triples they produce to the group for provenance.
+/// Every **other** parameter entity referenced inside an SVG 1.0 `<!ATTLIST>`
+/// body is a *datatype* (`%Coordinate;`, `%Length;`, `%Boolean;`, `%URI;`, …)
+/// that expands to a single TYPE token belonging inside the current triple, so
+/// it is deliberately excluded here. This split is what lets the same flat-DTD
+/// reader bake the SVG 1.0 inventory with the same group classification it gives
+/// SVG 1.1. The names are stable (frozen REC) and taken verbatim from the
+/// vendored `svg10.dtd`.
+const SVG10_ATTRIB_GROUPS: &[&str] = &[
+    "stdAttrs",
+    "langSpaceAttrs",
+    "testAttrs",
+    "xlinkRefAttrs",
+    "xlinkRefAttrsEmbed",
+    "graphicsElementEvents",
+    "documentEvents",
+    "animationEvents",
+    "animElementAttrs",
+    "animAttributeAttrs",
+    "animTimingAttrs",
+    "animValueAttrs",
+    "animAdditionAttrs",
+    "filter_primitive_attributes",
+    "filter_primitive_attributes_with_in",
+    "component_transfer_function_attributes",
+    "PresentationAttributes-All",
+    "PresentationAttributes-Color",
+    "PresentationAttributes-FillStroke",
+    "PresentationAttributes-Graphics",
+    "PresentationAttributes-Viewports",
+    "PresentationAttributes-TextElements",
+    "PresentationAttributes-TextContentElements",
+    "PresentationAttributes-FontSpecification",
+    "PresentationAttributes-Markers",
+    "PresentationAttributes-Gradients",
+    "PresentationAttributes-Images",
+    "PresentationAttributes-LightingEffects",
+    "PresentationAttributes-feFlood",
+    "PresentationAttributes-FilterPrimitives",
+    "PresentationAttributes-Containers",
+];
+
 /// `true` if a parameter-entity name designates an SVG attribute-collection
-/// group (the `%…attrib;` naming convention used throughout the SVG DTD, e.g.
-/// `SVG.Core.attrib`, `SVG.Presentation.attrib`). Non-`.attrib` references in
-/// an `<!ATTLIST>` body are datatype expansions (`%Coordinate.datatype;`) that
-/// belong inside the current `attr TYPE default` triple, not a group of their
-/// own.
+/// group.
+///
+/// Two naming conventions are recognized so one reader serves every vendored
+/// edition:
+///
+/// - **SVG 1.1 / SVG 1.1 PR** use the modular-DTD `%…attrib;` convention
+///   (`SVG.Core.attrib`, `SVG.Presentation.attrib`), matched by suffix.
+/// - **SVG 1.0** predates that scheme and names its collections flatly
+///   (`stdAttrs`, `PresentationAttributes-Color`, …), matched against the
+///   explicit [`SVG10_ATTRIB_GROUPS`] allowlist.
+///
+/// Every other `<!ATTLIST>`-body reference is a datatype expansion
+/// (`%Coordinate.datatype;`, `%Length;`) that belongs inside the current
+/// `attr TYPE default` triple, not a group of its own.
 fn is_attribute_group(name: &str) -> bool {
-    name.ends_with(".attrib")
+    name.ends_with(".attrib") || SVG10_ATTRIB_GROUPS.contains(&name)
 }
 
 /// Tokenize one fully-expanded attribute-list fragment into [`AttlistEntry`]s.

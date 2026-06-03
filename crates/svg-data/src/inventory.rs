@@ -359,17 +359,33 @@ impl EditionId {
 /// from that edition's vendored machine-readable artifact. This is the single
 /// uniform table behind [`inventory_for_edition`] and [`registered_editions`];
 /// it is a superset of the four [`for_snapshot`] inventories — it *additionally*
-/// registers the two older SVG 2 CRs that have no [`SpecSnapshotId`].
+/// registers editions that have no [`SpecSnapshotId`]: the SVG 1.0 REC
+/// (2001-09-04), the SVG 1.1 Proposed Recommendation (2011-06-09), and the two
+/// older SVG 2 CRs (2016-09-15, 2018-08-07).
 ///
 /// Held as a plain slice of borrowing entries (no allocation, no `OnceLock`):
 /// every referenced `Inventory` is itself a `'static` baked literal.
 static EDITION_INVENTORIES: &[(EditionEntry, &Inventory)] = &[
     (
         EditionEntry {
+            series: Series::Svg10,
+            date: EditionDateKey::Dated("2001-09-04"),
+        },
+        &SVG10_REC_20010904_INVENTORY,
+    ),
+    (
+        EditionEntry {
             series: Series::Svg11,
             date: EditionDateKey::Dated("2003-01-14"),
         },
         &SVG11_REC_20030114_INVENTORY,
+    ),
+    (
+        EditionEntry {
+            series: Series::Svg11,
+            date: EditionDateKey::Dated("2011-06-09"),
+        },
+        &SVG11_PR_20110609_INVENTORY,
     ),
     (
         EditionEntry {
@@ -461,12 +477,13 @@ pub fn inventory_for_edition(id: &EditionId) -> Option<&'static Inventory> {
 }
 
 /// Every edition that has a baked, edition-keyed inventory, in registration
-/// order (SVG 1.1 RECs, then the SVG 2 CRs oldest-first, then the rolling
-/// editor's draft).
+/// order.
 ///
-/// Lets a consumer enumerate the complete editioned universe — including the
-/// non-snapshot CRs — and pair each [`EditionId`] with its [`Inventory`] via
-/// [`inventory_for_edition`] for cross-edition comparison.
+/// The order is: the SVG 1.0 REC, then the SVG 1.1 editions oldest-first, then
+/// the SVG 2 CRs oldest-first, then the rolling editor's draft. Lets a consumer
+/// enumerate the complete editioned universe — including the non-snapshot
+/// SVG 1.0 REC, SVG 1.1 PR, and SVG 2 CRs — and pair each [`EditionId`] with its
+/// [`Inventory`] via [`inventory_for_edition`] for cross-edition comparison.
 #[must_use]
 pub fn registered_editions() -> Vec<EditionId> {
     EDITION_INVENTORIES
