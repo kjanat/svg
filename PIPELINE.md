@@ -28,7 +28,7 @@ flowchart TD
     end
 
     subgraph proc["② Processing"]
-        worker["workers/svg-compat/<br/>Deno: spec_scan.ts + cli.ts emit data"]
+        worker["build/spec_scan.rs + build/bcd.rs<br/>Rust, hermetic: vendored compat slice + svgwg scan"]
         seed["examples/generate_snapshot_seed.rs<br/>(regenerates data/specs/)"]
         build["build.rs + build/*.rs<br/>provenance_gate → reconcile → verdict → enum extraction → codegen"]
     end
@@ -68,20 +68,20 @@ flowchart TD
 All checked into the repo **except** browser-compat data, which is fetched (or
 cached) at build time.
 
-| Path                                                                                               | Format      | Authority                  | Holds                                                                                                                                 |
-| -------------------------------------------------------------------------------------------------- | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `crates/svg-data/data/specs/`: `Svg{11Rec{20030114,20110816},2{Cr20181004,EditorsDraft20250914}}/` | JSON        | W3C SVGWG (pinned commits) | Per-snapshot `elements.json`, `attributes.json`, `grammars.json`, `element_attribute_matrix.json`, `categories.json`, `snapshot.json` |
-| `crates/svg-data/data/sources/*.toml`                                                              | TOML        | manual curation            | Fetch manifests: upstream URLs, git refs, cache policy. Includes the **propidx declaration** (see gap below)                          |
-| `crates/svg-data/data/sources/foreign-references.toml`                                             | TOML        | manual                     | External spec refs (ARIA, CSS, FXTF) — provenance only, not fetched                                                                   |
-| `crates/svg-data/data/derived/overlays/*.json`                                                     | JSON        | computed                   | Element/attribute deltas between adjacent snapshots                                                                                   |
-| `crates/svg-data/data/derived/union/*.json`                                                        | JSON        | computed                   | Feature-membership union across all snapshots                                                                                         |
-| `crates/svg-data/data/reviewed/spec_removals.json`                                                 | JSON        | extracted (svgwg)          | Audit of defined/removed/obsoleted elements & attributes w/ provenance                                                                |
-| `crates/svg-data/data/reviewed/bcd_spec_exceptions.toml`                                           | TOML        | manual audit               | Allowlist of tolerated BCD ↔ spec disagreements                                                                                       |
-| `crates/svg-data/data/elements.json`, `data/attributes.json`                                       | JSON        | manual curation            | Curated element/attribute catalog overrides (descriptions, MDN URLs)                                                                  |
-| `crates/svg-data/data/placeholder_attribute_names.txt`                                             | text        | manual blocklist           | BCD/web-features IDs that aren't real SVG attribute names                                                                             |
-| `crates/svg-data/data/schemas/*.schema.json`                                                       | JSON Schema | manual                     | Validation shapes for all snapshot data                                                                                               |
-| `@mdn/browser-compat-data` + `web-features`                                                        | JSON (npm)  | MDN / web-features         | Browser support tables, baseline status — fetched via the svg-compat worker                                                           |
-| `svgwg/` gitignored local clone (incl. `master/propidx.html`)                                      | HTML/XML    | W3C SVGWG                  | Upstream spec source; **untracked discovery clone**, not committed (scanned for descriptions/removals, see notes)                     |
+| Path                                                                                       | Format      | Authority                  | Holds                                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `crates/svg-data/data/specs/`: `Svg{11Rec{20030114,20110816},2{Cr20181004,EditorsDraft}}/` | JSON        | W3C SVGWG (pinned commits) | Per-snapshot `elements.json`, `attributes.json`, `grammars.json`, `element_attribute_matrix.json`, `categories.json`, `snapshot.json` |
+| `crates/svg-data/data/sources/*.toml`                                                      | TOML        | manual curation            | Fetch manifests: upstream URLs, git refs, cache policy. Includes the **propidx declaration** (see gap below)                          |
+| `crates/svg-data/data/sources/foreign-references.toml`                                     | TOML        | manual                     | External spec refs (ARIA, CSS, FXTF) — provenance only, not fetched                                                                   |
+| `crates/svg-data/data/derived/overlays/*.json`                                             | JSON        | computed                   | Element/attribute deltas between adjacent snapshots                                                                                   |
+| `crates/svg-data/data/derived/union/*.json`                                                | JSON        | computed                   | Feature-membership union across all snapshots                                                                                         |
+| `crates/svg-data/data/reviewed/spec_removals.json`                                         | JSON        | extracted (svgwg)          | Audit of defined/removed/obsoleted elements & attributes w/ provenance                                                                |
+| `crates/svg-data/data/reviewed/bcd_spec_exceptions.toml`                                   | TOML        | manual audit               | Allowlist of tolerated BCD ↔ spec disagreements                                                                                       |
+| `crates/svg-data/data/elements.json`, `data/attributes.json`                               | JSON        | manual curation            | Curated element/attribute catalog overrides (descriptions, MDN URLs)                                                                  |
+| `crates/svg-data/data/placeholder_attribute_names.txt`                                     | text        | manual blocklist           | BCD/web-features IDs that aren't real SVG attribute names                                                                             |
+| `crates/svg-data/data/schemas/*.schema.json`                                               | JSON Schema | manual                     | Validation shapes for all snapshot data                                                                                               |
+| `@mdn/browser-compat-data` + `web-features`                                                | JSON (npm)  | MDN / web-features         | Browser support tables, baseline status — fetched via the svg-compat worker                                                           |
+| `svgwg/` gitignored local clone (incl. `master/propidx.html`)                              | HTML/XML    | W3C SVGWG                  | Upstream spec source; **untracked discovery clone**, not committed (scanned for descriptions/removals, see notes)                     |
 
 ---
 
@@ -89,25 +89,24 @@ cached) at build time.
 
 Ordered by stage — input → mechanism → output.
 
-### Spec scan (Deno worker)
+### Spec scan (Rust, hermetic)
 
-- **In**: `definitions*.xml`, `text.html`, `changes.html` from the svgwg spec.
-- **Mechanism**: regex tag/prose parsing in
-  `workers/svg-compat/src/spec_scan.ts`.
+- **In**: vendored `definitions*.xml`, `text.html`, `changes.html` under
+  `data/sources/svgwg-<sha>/master/`.
+- **Mechanism**: regex tag/prose parsing in `build/spec_scan.rs` (ported from
+  the former Deno worker; no network, no Deno toolchain).
 - **Out**: `crates/svg-data/data/reviewed/spec_removals.json`.
 
-### BCD emit (Deno worker → build)
+### BCD load (Rust, hermetic)
 
-- **In**: `@mdn/browser-compat-data` + `web-features` (unpkg, default; bundled
-  fallback in `deno.json`).
-- **Mechanism**: `build/bcd.rs` runs the local worker CLI —
-  `deno run -A src/cli.ts emit data`
-  ([`build/bcd.rs:178-194`](crates/svg-data/build/bcd.rs))\
-  — or reads `SVG_COMPAT_FILE`, or fetches `SVG_COMPAT_URL`
-  (default `https://svg-compat.kjanat.com/data.json`,
-  [`build/bcd.rs:13-15`](crates/svg-data/build/bcd.rs)).
-- **Cache/offline**: cached at `$OUT_DIR/svg-compat-data.json` (24 h TTL);
-  `SVG_DATA_OFFLINE` forces offline ([`build/bcd.rs:37`](crates/svg-data/build/bcd.rs)).
+- **In**: the **vendored compat slice** `data/sources/svg-compat-data.json`
+  (default, hermetic). A missing/unparseable slice is a hard build error.
+- **Mechanism**: `build/bcd.rs` reads the vendored slice directly. The
+  `SVG_COMPAT_FILE` (local file) and `SVG_COMPAT_URL` (network, default
+  `https://svg-compat.kjanat.com/data.json`) env vars are optional **refresh
+  overrides only** ([`build/bcd.rs:12-21`](crates/svg-data/build/bcd.rs)).
+- **Cache/offline**: override fetches cache at `$OUT_DIR/svg-compat-data.json`;
+  `SVG_DATA_OFFLINE` forces offline ([`build/bcd.rs:47-49`](crates/svg-data/build/bcd.rs)).
 - **Out**: parsed compat structures fed into the build.
 
 ### Snapshot seed regeneration (example binary)

@@ -76,6 +76,12 @@ pub fn keyword_enum(values: &str) -> Option<Vec<String>> {
 /// Decode the handful of HTML entities `tl`'s `inner_text` leaves encoded in the
 /// `Values` cells. `&lt;`/`&gt;` are load-bearing (they delimit datatype
 /// tokens); `&nbsp;`/`&amp;` appear as incidental text.
+///
+/// `&amp;` is decoded **last** on purpose: a single decode pass is correct for
+/// the single-layer-encoded spec source, and decoding `&amp;` first would
+/// re-expand its `&` into a following entity (e.g. `&amp;lt;` → `&lt;` → `<`),
+/// double-decoding text the spec meant literally. Multi-layer encoding is not
+/// expected in the property index.
 fn decode_entities(input: &str) -> String {
     input
         .replace("&lt;", "<")

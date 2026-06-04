@@ -20,7 +20,7 @@ use svg_data::edition::{
 
 /// Outcome of a runtime freshness probe.
 pub struct SpecFreshness {
-    /// `svgwg` `master` HEAD has advanced past the baked rolling pin.
+    /// `svgwg`'s default-branch HEAD has advanced past the baked rolling pin.
     rolling_stale: bool,
     /// Dated `/TR/` URIs W3C has published that the baked index does not carry.
     unseen_uris: Vec<String>,
@@ -59,7 +59,20 @@ fn short_commit(commit: &str) -> &str {
     commit.get(..8).unwrap_or(commit)
 }
 
-const GITHUB_HEAD_URL: &str = "https://api.github.com/repos/w3c/svgwg/commits/master";
+/// GitHub REST base for the svgwg repository.
+const SVGWG_REPO_API: &str = "https://api.github.com/repos/w3c/svgwg";
+
+/// Resolve svgwg's default-branch HEAD commit.
+///
+/// Resolves the default branch at runtime (`repos/.../` → `default_branch`)
+/// rather than hardcoding `master` (a stale legacy branch) or `main`, then reads
+/// that branch's HEAD sha.
+fn svgwg_head(agent: &ureq::Agent) -> Option<String> {
+    let repo_json = fetch_text(agent, SVGWG_REPO_API)?;
+    let branch = parse_default_branch(&repo_json)?;
+    let commit_json = fetch_text(agent, &format!("{SVGWG_REPO_API}/commits/{branch}"))?;
+    parse_head_sha(&commit_json)
+}
 
 fn w3c_versions_url(series: Series) -> String {
     format!(
@@ -80,7 +93,7 @@ pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
             .build(),
     );
 
-    let head = fetch_text(&agent, GITHUB_HEAD_URL).and_then(|json| parse_head_sha(&json));
+    let head = svgwg_head(&agent);
     let rolling_stale = head.as_deref().is_some_and(|head| {
         let captured = CapturedEditionIdentity::Rolling {
             commit: ROLLING_PIN.commit,
@@ -153,6 +166,16 @@ fn parse_head_sha(json: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+/// Extract the `default_branch` field from a GitHub repository JSON response.
+fn parse_default_branch(json: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(json)
+        .map_err(|err| tracing::warn!(error = %err, "parse svgwg repo metadata failed"))
+        .ok()?
+        .get("default_branch")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,6 +223,16 @@ mod tests {
         );
         assert_eq!(parse_head_sha("{}"), None);
         assert_eq!(parse_head_sha("not json"), None);
+    }
+
+    #[test]
+    fn parse_default_branch_reads_repo_object() {
+        assert_eq!(
+            parse_default_branch(r#"{"default_branch":"main","id":42}"#).as_deref(),
+            Some("main")
+        );
+        assert_eq!(parse_default_branch("{}"), None);
+        assert_eq!(parse_default_branch("not json"), None);
     }
 
     #[test]

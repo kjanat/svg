@@ -201,10 +201,9 @@ fn element_in(re: &ExtractRegexes, item: &str) -> Option<String> {
 /// editorial lines so their inline refs don't become spurious constraints.
 fn is_skippable(re: &ExtractRegexes, line: &str) -> bool {
     let trimmed = line.trim_start();
-    re.comment_line.is_match(line)
-        || trimmed.starts_with("Note:")
-        || trimmed.starts_with("ISSUE:")
-        || trimmed.starts_with("<!--")
+    // `comment_line` is `^\s*<!--`, so it already covers HTML comments; only the
+    // `Note:` / `ISSUE:` editorial leaders need the extra checks.
+    re.comment_line.is_match(line) || trimmed.starts_with("Note:") || trimmed.starts_with("ISSUE:")
 }
 
 /// Does this prose line assert non-support ("not supported")?
@@ -233,6 +232,9 @@ fn collect_unsupported_refs(
 ) {
     for caps in re.element_ref.captures_iter(line) {
         if let Some(name) = caps.get(1) {
+            if element_ref_is_contextual(name.as_str(), line) {
+                continue;
+            }
             out.push(Constraint {
                 kind: classify_element_ref(name.as_str(), line),
                 name: name.as_str().to_string(),
@@ -355,6 +357,29 @@ fn classify_element_ref(name: &str, line: &str) -> ConstraintKind {
     } else {
         ConstraintKind::Element
     }
+}
+
+/// `true` when a `<{name}>` reference on a "not supported" line is merely
+/// *contextual* — the host of an unsupported attribute, or a partial/positive
+/// qualification — rather than the element being declared unsupported itself.
+///
+/// Two spec phrasings otherwise trip the flat element matcher and emit a
+/// spurious unsupported *element*:
+/// - `The 'pathLength' attribute on the <{path}> element is not supported` — the
+///   attribute is unsupported; `path` is only its host and stays supported.
+/// - `The root element must be an <{svg}> element, and all other <{svg}>
+///   elements are not supported` — the root `<svg>` is supported; only nested
+///   `<svg>` are not. The flat model can't express "nested-only", so `svg` is
+///   left off the unsupported list rather than wrongly rejecting the root.
+fn element_ref_is_contextual(name: &str, line: &str) -> bool {
+    [
+        format!("attribute on the <{{{name}}}>"),
+        format!("all other <{{{name}}}>"),
+        format!("must be an <{{{name}}}>"),
+        format!("must be a <{{{name}}}>"),
+    ]
+    .iter()
+    .any(|phrase| line.contains(phrase))
 }
 
 /// Build the four supported-only allowlists plus the per-section enumerated

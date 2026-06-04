@@ -7,7 +7,7 @@
 //!   API `version-history` and flag any dated `/TR/` version the baked
 //!   [`EDITION_INDEX`](svg_data::edition::EDITION_INDEX) has not vendored yet
 //!   (via the pure [`unseen_versions`](svg_data::edition::unseen_versions)).
-//! * **Rolling editor's draft** — fetch `svgwg` git `master` HEAD and compare it
+//! * **Rolling editor's draft** — fetch `svgwg`'s default-branch HEAD and compare it
 //!   against the baked [`ROLLING_PIN`](svg_data::edition::ROLLING_PIN) commit
 //!   (via the pure [`classify_freshness`](svg_data::edition::classify_freshness)).
 //!
@@ -43,6 +43,9 @@ struct PublishedDrift {
 #[derive(Debug, Serialize)]
 struct RollingReport {
     repository: String,
+    /// The repository's default branch, resolved at runtime (not hardcoded) so
+    /// the check follows upstream even if it renames `master` → `main` etc.
+    branch: String,
     pinned_commit: String,
     head_commit: String,
     /// `"current"` when HEAD matches the pin, `"stale"` when it has advanced.
@@ -107,9 +110,26 @@ fn published_drift(series: Series, version: &PublishedVersion) -> PublishedDrift
     }
 }
 
-/// Compare the baked rolling pin against live `svgwg` `master` HEAD.
+/// GitHub REST base for the svgwg repository.
+const SVGWG_REPO_API: &str = "https://api.github.com/repos/w3c/svgwg";
+
+/// Resolve svgwg's default branch at runtime rather than hardcoding `master`
+/// (which is a stale legacy branch) or `main`.
+fn svgwg_default_branch() -> Result<String, String> {
+    let json = fetch(SVGWG_REPO_API)?;
+    let value: serde_json::Value =
+        serde_json::from_str(&json).map_err(|e| format!("parse svgwg repo metadata: {e}"))?;
+    value
+        .get("default_branch")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| "svgwg repo response had no `default_branch` field".to_string())
+}
+
+/// Compare the baked rolling pin against live `svgwg` default-branch HEAD.
 fn check_rolling() -> Result<RollingReport, String> {
-    let json = fetch("https://api.github.com/repos/w3c/svgwg/commits/master")?;
+    let branch = svgwg_default_branch()?;
+    let json = fetch(&format!("{SVGWG_REPO_API}/commits/{branch}"))?;
     let value: serde_json::Value =
         serde_json::from_str(&json).map_err(|e| format!("parse svgwg HEAD: {e}"))?;
     let head = value
@@ -126,6 +146,7 @@ fn check_rolling() -> Result<RollingReport, String> {
     };
     Ok(RollingReport {
         repository: ROLLING_PIN.repository.to_string(),
+        branch,
         pinned_commit: ROLLING_PIN.commit.to_string(),
         head_commit: head.to_string(),
         state,
@@ -164,13 +185,16 @@ fn print_human(report: &FreshnessReport) {
         }
     }
 
-    println!("\nRolling editor's draft (svgwg master HEAD vs baked pin):");
+    println!(
+        "\nRolling editor's draft (svgwg {} HEAD vs baked pin):",
+        report.rolling.branch
+    );
     println!("  · pinned: {}", report.rolling.pinned_commit);
     println!("  · head:   {}", report.rolling.head_commit);
     println!(
         "  · {}",
         if report.rolling.state == "stale" {
-            "STALE — svgwg master has advanced past the pin"
+            "STALE — svgwg default branch has advanced past the pin"
         } else {
             "current"
         }

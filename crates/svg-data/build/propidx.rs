@@ -196,8 +196,11 @@ fn strip_br_tags(html: &str) -> String {
                 break;
             }
         } else {
-            // Push one full UTF-8 char so multibyte content stays intact.
-            let ch = html[idx..].chars().next().unwrap_or('<');
+            // Push one full UTF-8 char so multibyte content stays intact. `idx`
+            // is always on a char boundary and `idx < bytes.len()`, so a char
+            // always exists; the fallback is unreachable and the replacement
+            // char makes any future invariant break visible instead of silent.
+            let ch = html[idx..].chars().next().unwrap_or('\u{FFFD}');
             out.push(ch);
             idx += ch.len_utf8();
         }
@@ -207,6 +210,12 @@ fn strip_br_tags(html: &str) -> String {
 
 /// `true` if a `<br` tag opens at `idx` (i.e. `<br` followed by `>`, `/`, or
 /// ASCII whitespace — so it is the `br` element, not `<break>` or similar).
+///
+/// Inspects raw bytes (`bytes`/`rest`) rather than chars: `bytes` is the
+/// UTF-8-validated source's `as_bytes()`, and every comparison here is against
+/// ASCII (`b'b'`, `b'r'`, delimiters). Multibyte UTF-8 lead/continuation bytes
+/// are all ≥ 0x80, so they can never match these ASCII checks — the byte-level
+/// scan is intentional and safe, not a latent multibyte bug.
 fn is_br_at(bytes: &[u8], idx: usize) -> bool {
     let rest = &bytes[idx..];
     if rest.len() < 3 {
@@ -246,6 +255,9 @@ mod tests {
             clean_property_name("\u{2018}pointer-events\u{2019}"),
             "pointer-events"
         );
+        // `tl::inner_text` leaves entities encoded, so a literal `&nbsp;` string
+        // (not a real U+00A0) has no quote/whitespace chars to trim and is
+        // preserved verbatim — only actual whitespace, incl. U+00A0, is stripped.
         assert_eq!(clean_property_name("&nbsp;"), "&nbsp;");
     }
 
