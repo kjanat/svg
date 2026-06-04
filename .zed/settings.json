@@ -3,7 +3,8 @@
 	"formatter": [{ "external": { "command": "dprint", "arguments": ["fmt", "--stdin", "{buffer_path}"] } }],
 	"languages": {
 		"Rust": { "wrap_guides": [100] },
-		"TypeScript": { "language_servers": ["deno", "!vtsls", "tsgo"] },
+		"TypeScript": { "language_servers": ["deno", "!typescript-language-server", "!vtsls", "!eslint", "!tsgo"] },
+		"TSX": { "language_servers": ["deno", "!typescript-language-server", "!vtsls", "!eslint", "!tsgo"] },
 		"SVG": { "language_servers": ["svg-language-server"] }
 	},
 	"lsp": {
@@ -44,6 +45,12 @@
 					}, {
 						"fileMatch": ["**/specs/*/review.json"],
 						"url": "./crates/svg-data/data/schemas/review.schema.json"
+					}, {
+						"fileMatch": ["deno.json", "deno.jsonc"],
+						"url": "https://raw.githubusercontent.com/denoland/deno/main/cli/schemas/config-file.v1.json"
+					}, {
+						"fileMatch": ["package.json"],
+						"url": "https://www.schemastore.org/package"
 					}]
 				}
 			}
@@ -52,7 +59,11 @@
 			"initialization_options": { "cargo": { "allTargets": true, "features": "all" } }
 		},
 		"deno": {
-			"settings": { "deno": { "enable": true, "enablePaths": [".", "./workers/**"], "config": "deno.json" } }
+			"settings": {
+				"deno": {
+					"enable": true
+				}
+			}
 		}
 	}
 }

@@ -1,16 +1,19 @@
 #!/usr/bin/env bun
-// Re-vendor the W3C specification-API version histories that back the baked
-// `EDITION_INDEX`. Metadata only (versions/dates/status/uri) — no spec content —
-// so this is safe to run unattended: it cannot change which elements/attributes
-// are valid, only which published editions the crate knows about.
-//
-// For each input in `w3c-api/PROVENANCE.toml` it re-fetches `source_url`, writes
-// the raw bytes back, and rewrites the recorded `sha256`/`bytes` plus the
-// `[capture] date` so the provenance stays truthful (the build verifies these).
-//
-// Usage: `bun scripts/refresh-editions.ts`  (or `just refresh-editions`)
-import { file, write } from "bun";
+/**
+ * Re-vendor the W3C specification-API version histories that back the baked
+ * `EDITION_INDEX`. Metadata only (versions/dates/status/uri) — no spec content —
+ * so this is safe to run unattended: it cannot change which elements/attributes
+ * are valid, only which published editions the crate knows about.
+ *
+ * For each input in `w3c-api/PROVENANCE.toml` it re-fetches `source_url`, writes
+ * the raw bytes back, and rewrites the recorded `sha256`/`bytes` plus the
+ * `[capture] date` so the provenance stays truthful (the build verifies these).
+ *
+ * Usage: `bun scripts/refresh-editions.ts`  (or `just refresh-editions`)
+ */
+import { error, log } from "node:console";
 import { normalize } from "node:path";
+import { exit, stdout } from "node:process";
 
 interface Input {
 	id: string;
@@ -29,36 +32,36 @@ async function main(): Promise<void> {
 	const provenanceDir = normalize(`${import.meta.dir}/../crates/svg-data/data/sources/w3c-api`);
 	const provenancePath = `${provenanceDir}/PROVENANCE.toml`;
 
-	const source = await file(provenancePath).text();
+	const source = await Bun.file(provenancePath).text();
 	const parsed = Bun.TOML.parse(source) as Provenance;
 	const inputs = parsed.inputs ?? [];
 	if (inputs.length === 0) {
-		console.error(`no [[inputs]] found in ${provenancePath}`);
-		process.exit(1);
+		error(`no [[inputs]] found in ${provenancePath}`);
+		exit(1);
 	}
 
 	const facts: ProvenanceFacts = new Map();
 	for (const input of inputs) {
-		process.stdout.write(`fetching ${input.id} … `);
+		stdout.write(`fetching ${input.id} … `);
 		const response = await fetch(input.source_url, {
 			headers: { "User-Agent": "svg-language-server-refresh-editions" },
 		});
 		if (!response.ok) {
-			console.error(`\nfetch ${input.source_url}: HTTP ${response.status}`);
-			process.exit(1);
+			error(`\nfetch ${input.source_url}: HTTP ${response.status}`);
+			exit(1);
 		}
 		const bytes = new Uint8Array(await response.arrayBuffer());
-		await write(`${provenanceDir}/${input.path}`, bytes);
+		await Bun.write(`${provenanceDir}/${input.path}`, bytes);
 		const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 		facts.set(input.path, { sha256, bytes: bytes.byteLength });
-		console.log(`${bytes.byteLength} bytes  sha256=${sha256.slice(0, 12)}…`);
+		log(`${bytes.byteLength} bytes  sha256=${sha256.slice(0, 12)}…`);
 	}
 
 	const today = new Date().toISOString().slice(0, 10);
-	await write(provenancePath, rewriteProvenance(source, facts, today));
+	await Bun.write(provenancePath, rewriteProvenance(source, facts, today));
 
-	console.log(`\nupdated ${provenancePath}`);
-	console.log("next: cargo test -p svg-data   # repro tests gate the new index");
+	log(`\nupdated ${provenancePath}`);
+	log("next: cargo test -p svg-data   # repro tests gate the new index");
 }
 
 /**
