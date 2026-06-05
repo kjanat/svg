@@ -76,12 +76,17 @@ pub struct SvgDiagnostic {
 pub struct LintOptions {
     /// Selected pinned SVG snapshot.
     pub profile: SpecSnapshotId,
+    /// Reductive profile constraints (SVG Native) to additionally enforce on top
+    /// of the snapshot. `None` for an ordinary snapshot/edition target, which
+    /// imposes no extra reductive constraint beyond its base catalog.
+    pub native: Option<&'static svg_data::profile::SvgNative>,
 }
 
 impl Default for LintOptions {
     fn default() -> Self {
         Self {
             profile: SpecSnapshotId::Svg2EditorsDraft,
+            native: None,
         }
     }
 }

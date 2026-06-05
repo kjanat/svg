@@ -355,6 +355,7 @@ pub fn format_element_hover_with_profile(
     profile: SpecSnapshotId,
     profile_lifecycle: Option<String>,
     rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
     let baseline = rt
         .and_then(|r| r.baseline.as_ref())
@@ -369,6 +370,11 @@ pub fn format_element_hover_with_profile(
         builder.headline(format_verdict_headline(v, el.name));
     }
     builder.description(el.description.to_owned());
+
+    if native.is_some_and(|n| n.is_unsupported(svg_data::profile::ConstraintKind::Element, el.name))
+    {
+        builder.status("⚠ Not supported by the SVG Native profile".to_owned());
+    }
 
     if let Some(status) = reconciled_status(verdict, profile_lifecycle, rt) {
         builder.status(status);
@@ -404,6 +410,7 @@ pub fn format_attribute_hover_with_profile(
     profile: SpecSnapshotId,
     profile_lifecycle: Option<String>,
     rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
     let baseline = rt
         .and_then(|r| r.baseline.as_ref())
@@ -416,6 +423,13 @@ pub fn format_attribute_hover_with_profile(
         builder.headline(format_verdict_headline(v, attr.name));
     }
     builder.description(attr.description.to_owned());
+
+    if native.is_some_and(|n| {
+        n.is_unsupported(svg_data::profile::ConstraintKind::Attribute, attr.name)
+            || n.is_unsupported(svg_data::profile::ConstraintKind::Property, attr.name)
+    }) {
+        builder.status("⚠ Not supported by the SVG Native profile".to_owned());
+    }
 
     if let Some(status) = reconciled_status(verdict, profile_lifecycle, rt) {
         builder.status(status);

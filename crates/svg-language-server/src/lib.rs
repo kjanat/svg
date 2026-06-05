@@ -251,6 +251,7 @@ impl ProfileConfig {
     fn lint_options_for(&self, doc: &DocumentState) -> svg_lint::LintOptions {
         svg_lint::LintOptions {
             profile: self.effective_profile_for(doc),
+            native: self.native_constraints(),
         }
     }
 
@@ -681,6 +682,7 @@ fn build_hover_context(
     doc: &DocumentState,
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
+    native: Option<&'static svg_data::profile::SvgNative>,
 ) -> HoverContext {
     let source = doc.source.as_bytes();
     let byte_offset = byte_offset_for_position(source, pos);
@@ -693,9 +695,10 @@ fn build_hover_context(
     let kind = node.kind().to_owned();
     let node_text = node.utf8_text(source).unwrap_or("").to_owned();
 
-    let element_markdown = build_element_hover_markdown(node, &node_text, profile, runtime_compat);
+    let element_markdown =
+        build_element_hover_markdown(node, &node_text, profile, runtime_compat, native);
     let attribute_markdown =
-        build_attribute_hover_markdown(&kind, &node_text, profile, runtime_compat);
+        build_attribute_hover_markdown(&kind, &node_text, profile, runtime_compat, native);
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
     let stylesheet_hrefs = svg_references::extract_xml_stylesheet_hrefs(source);
@@ -764,6 +767,7 @@ fn build_element_hover_markdown(
     node_text: &str,
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
+    native: Option<&'static svg_data::profile::SvgNative>,
 ) -> Option<String> {
     if node.kind() != "name" {
         return None;
@@ -784,6 +788,7 @@ fn build_element_hover_markdown(
                         profile,
                         profile_lifecycle,
                         runtime_override,
+                        native,
                     ))
                 }
                 svg_data::ProfileLookup::UnsupportedInProfile { .. } => {
@@ -793,6 +798,7 @@ fn build_element_hover_markdown(
                             profile,
                             profile_lifecycle,
                             runtime_override,
+                            native,
                         )
                     })
                 }
@@ -806,6 +812,7 @@ fn build_attribute_hover_markdown(
     node_text: &str,
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
+    native: Option<&'static svg_data::profile::SvgNative>,
 ) -> Option<String> {
     if !is_attribute_name_kind(kind) {
         return None;
@@ -822,6 +829,7 @@ fn build_attribute_hover_markdown(
                 profile,
                 profile_lifecycle,
                 runtime_override,
+                native,
             ))
         }
         svg_data::ProfileLookup::UnsupportedInProfile { .. } => {
@@ -831,6 +839,7 @@ fn build_attribute_hover_markdown(
                     profile,
                     profile_lifecycle,
                     runtime_override,
+                    native,
                 )
             })
         }
@@ -1271,8 +1280,11 @@ impl LanguageServer for SvgLanguageServer {
             property_hover,
         } = {
             let profile = self.effective_profile_for_doc(&doc).await;
+            // `native_constraints()` returns a `'static` reference, so it stays
+            // valid after the config guard is released.
+            let native = self.profile_config.read().await.native_constraints();
             let runtime_compat = self.runtime_compat.read().await;
-            build_hover_context(uri, pos, &doc, profile, runtime_compat.as_ref())
+            build_hover_context(uri, pos, &doc, profile, runtime_compat.as_ref(), native)
         };
 
         if let Some(markdown) = element_markdown {

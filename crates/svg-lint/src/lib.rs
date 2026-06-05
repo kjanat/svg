@@ -272,6 +272,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
 
@@ -297,6 +298,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2Cr20181004,
+                native: None,
             },
         );
 
@@ -502,6 +504,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
 
@@ -531,6 +534,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
 
@@ -697,6 +701,39 @@ mod tests {
     }
 
     #[test]
+    fn svg_native_flags_unsupported_element_and_attribute() -> Result<(), Box<dyn std::error::Error>>
+    {
+        // `clipPath` (element) and `clip-path` (attribute) are valid SVG 2 but
+        // unsupported by SVG Native; enabling the native constraint flags both
+        // as `UnsupportedInProfile`.
+        let src =
+            br#"<svg xmlns="http://www.w3.org/2000/svg"><clipPath id="c"/><rect clip-path="url(#c)"/></svg>"#;
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into()).ok();
+        let tree = parser.parse(src, None).ok_or("parse")?;
+
+        let options = LintOptions {
+            profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
+            native: Some(svg_data::profile::svg_native()),
+        };
+        let diags = lint_tree_with_options(src, &tree, options, None);
+        let messages: Vec<&str> = diags
+            .iter()
+            .filter(|d| d.code == DiagnosticCode::UnsupportedInProfile)
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            messages.iter().any(|m| m.contains("clipPath")),
+            "unsupported element flagged: {messages:?}"
+        );
+        assert!(
+            messages.iter().any(|m| m.contains("clip-path")),
+            "unsupported attribute flagged: {messages:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn baseprofile_in_svg2_fires_unsupported_not_obsolete() {
         // Post-Phase-1 data audit: baseProfile was removed from the SVG 2
         // snapshot membership entirely, so lookups against an SVG 2 profile
@@ -709,6 +746,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
+                native: None,
             },
         );
 
@@ -742,6 +780,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
         assert!(
@@ -766,6 +805,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
+                native: None,
             },
         );
 
@@ -787,6 +827,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
         assert!(
@@ -892,6 +933,7 @@ mod tests {
             src,
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                native: None,
             },
         );
         assert!(

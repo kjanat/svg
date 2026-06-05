@@ -197,7 +197,7 @@ jobs:
           EOF
 
           existing="$(gh issue list --state open --label "$ISSUE_LABEL" \
-            --json number --jq '.[0].number')"
+            --json number --jq '.[0].number // empty')"
           if [ -n "${existing}" ]; then
             echo "Updating existing issue #${existing}"
             gh issue comment "${existing}" --body-file issue-body.md

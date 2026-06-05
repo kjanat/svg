@@ -284,7 +284,15 @@ fn lint_bytes(
         return Vec::new();
     };
     let profile = svg_lint::effective_profile(&tree, bytes, configured, force_profile);
-    svg_lint::lint_tree_with_options(bytes, &tree, LintOptions { profile }, None)
+    svg_lint::lint_tree_with_options(
+        bytes,
+        &tree,
+        LintOptions {
+            profile,
+            native: None,
+        },
+        None,
+    )
 }
 
 /// Render the human-readable, file-grouped report.

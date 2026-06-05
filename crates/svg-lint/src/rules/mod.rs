@@ -139,6 +139,28 @@ fn check_element<'a>(
         return scope;
     }
 
+    // SVG Native reductive constraint: a construct can be a valid SVG 2 element
+    // yet unsupported by the SVG Native profile. Flag it, then continue the
+    // normal snapshot checks so the user still gets attribute/child diagnostics.
+    if let Some(native) = ctx.options.native
+        && native.is_unsupported(
+            svg_data::profile::ConstraintKind::Element,
+            expanded_name.local_name,
+        )
+    {
+        push_diag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            name_node,
+            Severity::Error,
+            DiagnosticCode::UnsupportedInProfile,
+            format!(
+                "SVG element <{}> is not supported by SVG Native",
+                expanded_name.local_name
+            ),
+        );
+    }
+
     let lookup = svg_data::element_for_profile(ctx.options.profile, expanded_name.local_name);
     let def = match lookup {
         ProfileLookup::Present { value, lifecycle } => {
@@ -237,6 +259,28 @@ fn check_attributes(ctx: &mut LintContext<'_>, tag: Node, scope: &NamespaceScope
         let Some(lookup_name) = lookup_name else {
             continue;
         };
+
+        // SVG Native reductive constraint: flag attributes/properties the profile
+        // does not support, independent of the snapshot lookup below.
+        if let Some(native) = ctx.options.native
+            && (native.is_unsupported(
+                svg_data::profile::ConstraintKind::Attribute,
+                lookup_name.as_ref(),
+            ) || native.is_unsupported(
+                svg_data::profile::ConstraintKind::Property,
+                lookup_name.as_ref(),
+            ))
+        {
+            push_diag_in_tag(
+                &mut ctx.diagnostics,
+                &mut ctx.suppressions,
+                name_node,
+                Some(tag_start),
+                Severity::Error,
+                DiagnosticCode::UnsupportedInProfile,
+                format!("SVG attribute {lookup_name} is not supported by SVG Native"),
+            );
+        }
 
         // Generic attribute names are a mixed bucket of valid SVG attributes and truly
         // unknown ones. Without a complete checked-in attribute catalog, treating a catalog
