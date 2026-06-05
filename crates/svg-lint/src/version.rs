@@ -313,11 +313,26 @@ mod tests {
     }
 
     #[test]
-    fn effective_profile_falls_back_on_unknown_version_string() -> TestResult {
-        // SVG Tiny 1.2 is not catalogued — fall through to configured.
+    fn effective_profile_resolves_uncatalogued_version_to_family_base() -> TestResult {
+        // SVG Tiny 1.2 is an SVG 1.x document: it resolves to the SVG 1.1 base
+        // edition, NOT the unrelated configured default (here SVG 2).
         let src = br#"<svg version="1.2"></svg>"#;
         let tree = parse(src)?;
         let configured = SpecSnapshotId::Svg2EditorsDraft;
+        assert_eq!(
+            effective_profile(&tree, src, configured, false),
+            SpecSnapshotId::Svg11Rec20110816
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn effective_profile_falls_back_on_unrecognised_major() -> TestResult {
+        // A version with no usable 1.x/2.x major carries no signal, so the
+        // configured profile wins.
+        let src = br#"<svg version="draft"></svg>"#;
+        let tree = parse(src)?;
+        let configured = SpecSnapshotId::Svg2Cr20181004;
         assert_eq!(effective_profile(&tree, src, configured, false), configured);
         Ok(())
     }

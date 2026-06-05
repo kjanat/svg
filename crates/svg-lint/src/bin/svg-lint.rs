@@ -290,6 +290,7 @@ fn lint_bytes(
         LintOptions {
             profile,
             native: None,
+            edition: None,
         },
         None,
     )

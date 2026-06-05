@@ -142,24 +142,16 @@ fn check_element<'a>(
     // SVG Native reductive constraint: a construct can be a valid SVG 2 element
     // yet unsupported by the SVG Native profile. Flag it, then continue the
     // normal snapshot checks so the user still gets attribute/child diagnostics.
-    if let Some(native) = ctx.options.native
-        && native.is_unsupported(
-            svg_data::profile::ConstraintKind::Element,
-            expanded_name.local_name,
-        )
-    {
-        push_diag(
-            &mut ctx.diagnostics,
-            &mut ctx.suppressions,
-            name_node,
-            Severity::Error,
-            DiagnosticCode::UnsupportedInProfile,
-            format!(
-                "SVG element <{}> is not supported by SVG Native",
-                expanded_name.local_name
-            ),
-        );
-    }
+    check_native_element(ctx, name_node, expanded_name.local_name);
+
+    // When an edition is selected it is the **authority** on membership: the
+    // base snapshot is only the nearest catalogued approximation. An element the
+    // edition declares is valid even if the base snapshot dropped it (e.g.
+    // `definition-src` exists in SVG 1.0 but not the SVG 1.1 snapshot 1.0
+    // collapses to); an element the snapshot defines but the edition never did
+    // is flagged.
+    let edition_has_element =
+        edition_declares_element(ctx.options.edition, expanded_name.local_name);
 
     let lookup = svg_data::element_for_profile(ctx.options.profile, expanded_name.local_name);
     let def = match lookup {
@@ -167,7 +159,16 @@ fn check_element<'a>(
             let lifecycle =
                 element_diagnostic_lifecycle(ctx, expanded_name.local_name, value, lifecycle);
             emit_element_compat_diags(ctx, name_node, value, lifecycle);
+            if ctx.options.edition.is_some() && !edition_has_element {
+                flag_element_not_in_edition(ctx, name_node, expanded_name.local_name);
+            }
             value
+        }
+        // The snapshot rejects it, but the selected edition declares it: valid.
+        ProfileLookup::UnsupportedInProfile { .. } | ProfileLookup::Unknown
+            if edition_has_element =>
+        {
+            return scope;
         }
         ProfileLookup::UnsupportedInProfile { .. } => {
             push_diag(
@@ -198,7 +199,7 @@ fn check_element<'a>(
     };
 
     // Check: Unknown/deprecated/experimental attributes
-    check_attributes(ctx, tag, &scope);
+    check_attributes(ctx, tag, expanded_name.local_name, &scope);
 
     // Check: Duplicate id
     check_duplicate_id(
@@ -238,7 +239,107 @@ fn is_xml_infrastructure(name: &str) -> bool {
     name == "xmlns" || name.starts_with("xmlns:") || name.starts_with("xml:")
 }
 
-fn check_attributes(ctx: &mut LintContext<'_>, tag: Node, scope: &NamespaceScope<'_>) {
+/// Whether the selected `edition` (if any) declares an element by `name`.
+fn edition_declares_element(edition: Option<&svg_data::inventory::Inventory>, name: &str) -> bool {
+    edition.is_some_and(|inventory| {
+        inventory
+            .elements
+            .iter()
+            .any(|element| element.name.as_ref() == name)
+    })
+}
+
+/// Flag a snapshot-defined element the selected edition never declared.
+fn flag_element_not_in_edition(ctx: &mut LintContext<'_>, name_node: Node, local_name: &str) {
+    push_diag(
+        &mut ctx.diagnostics,
+        &mut ctx.suppressions,
+        name_node,
+        Severity::Error,
+        DiagnosticCode::UnsupportedInProfile,
+        format!("SVG element <{local_name}> is not defined in the selected edition"),
+    );
+}
+
+/// Flag an element the SVG Native profile does not support.
+fn check_native_element(ctx: &mut LintContext<'_>, name_node: Node, local_name: &str) {
+    if let Some(native) = ctx.options.native
+        && native.is_unsupported(svg_data::profile::ConstraintKind::Element, local_name)
+    {
+        push_diag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            name_node,
+            Severity::Error,
+            DiagnosticCode::UnsupportedInProfile,
+            format!("SVG element <{local_name}> is not supported by SVG Native"),
+        );
+    }
+}
+
+/// Flag an attribute/property the SVG Native profile does not support.
+fn check_native_attribute(
+    ctx: &mut LintContext<'_>,
+    name_node: Node,
+    tag_start: usize,
+    lookup_name: &str,
+) {
+    if let Some(native) = ctx.options.native
+        && (native.is_unsupported(svg_data::profile::ConstraintKind::Attribute, lookup_name)
+            || native.is_unsupported(svg_data::profile::ConstraintKind::Property, lookup_name))
+    {
+        push_diag_in_tag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            name_node,
+            Some(tag_start),
+            Severity::Error,
+            DiagnosticCode::UnsupportedInProfile,
+            format!("SVG attribute {lookup_name} is not supported by SVG Native"),
+        );
+    }
+}
+
+/// Flag an attribute the selected edition does not list for `elem_name` — when
+/// the edition declares that element and any attributes for it at all.
+fn check_edition_attribute(
+    ctx: &mut LintContext<'_>,
+    name_node: Node,
+    tag_start: usize,
+    elem_name: &str,
+    lookup_name: &str,
+) {
+    let Some(edition) = ctx.options.edition else {
+        return;
+    };
+    if !edition_declares_element(Some(edition), elem_name) {
+        return;
+    }
+    let allowed: Vec<&str> = edition
+        .attributes_for_element(elem_name)
+        .map(|attribute| attribute.name.as_ref())
+        .collect();
+    if !allowed.is_empty() && !allowed.contains(&lookup_name) {
+        push_diag_in_tag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            name_node,
+            Some(tag_start),
+            Severity::Error,
+            DiagnosticCode::UnsupportedInProfile,
+            format!(
+                "SVG attribute {lookup_name} is not defined on <{elem_name}> in the selected edition"
+            ),
+        );
+    }
+}
+
+fn check_attributes(
+    ctx: &mut LintContext<'_>,
+    tag: Node,
+    elem_name: &str,
+    scope: &NamespaceScope<'_>,
+) {
     let tag_start = tag.start_position().row;
     let mut cursor = tag.walk();
     for attr_node in tag.children(&mut cursor) {
@@ -260,27 +361,10 @@ fn check_attributes(ctx: &mut LintContext<'_>, tag: Node, scope: &NamespaceScope
             continue;
         };
 
-        // SVG Native reductive constraint: flag attributes/properties the profile
-        // does not support, independent of the snapshot lookup below.
-        if let Some(native) = ctx.options.native
-            && (native.is_unsupported(
-                svg_data::profile::ConstraintKind::Attribute,
-                lookup_name.as_ref(),
-            ) || native.is_unsupported(
-                svg_data::profile::ConstraintKind::Property,
-                lookup_name.as_ref(),
-            ))
-        {
-            push_diag_in_tag(
-                &mut ctx.diagnostics,
-                &mut ctx.suppressions,
-                name_node,
-                Some(tag_start),
-                Severity::Error,
-                DiagnosticCode::UnsupportedInProfile,
-                format!("SVG attribute {lookup_name} is not supported by SVG Native"),
-            );
-        }
+        // Reductive-profile (SVG Native) and edition restrictions, independent
+        // of the snapshot lookup below.
+        check_native_attribute(ctx, name_node, tag_start, lookup_name.as_ref());
+        check_edition_attribute(ctx, name_node, tag_start, elem_name, lookup_name.as_ref());
 
         // Generic attribute names are a mixed bucket of valid SVG attributes and truly
         // unknown ones. Without a complete checked-in attribute catalog, treating a catalog

@@ -273,6 +273,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
 
@@ -299,6 +300,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2Cr20181004,
                 native: None,
+                edition: None,
             },
         );
 
@@ -505,6 +507,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
 
@@ -535,6 +538,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
 
@@ -715,6 +719,7 @@ mod tests {
         let options = LintOptions {
             profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
             native: Some(svg_data::profile::svg_native()),
+            edition: None,
         };
         let diags = lint_tree_with_options(src, &tree, options, None);
         let messages: Vec<&str> = diags
@@ -734,6 +739,71 @@ mod tests {
     }
 
     #[test]
+    fn svg_1_0_edition_accepts_element_the_svg_1_1_snapshot_dropped()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use svg_data::{edition::Series, inventory};
+
+        // `definition-src` is an SVG 1.0 font element that the SVG 1.1 snapshot
+        // (which `version="1.0"` collapses to) no longer carries. Linting it
+        // against the bare 1.1 snapshot wrongly flags it `UnknownElement`;
+        // routing through the SVG 1.0 edition must accept it.
+        let svg10 =
+            inventory::for_edition(&inventory::EditionId::dated(Series::Svg10, "2001-09-04"))
+                .ok_or("no SVG 1.0 edition inventory")?;
+        assert!(
+            svg10
+                .elements
+                .iter()
+                .any(|e| e.name.as_ref() == "definition-src"),
+            "fixture assumption: definition-src is an SVG 1.0 element"
+        );
+
+        let src = br#"<svg version="1.0"><definition-src/></svg>"#;
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into()).ok();
+        let tree = parser.parse(src, None).ok_or("parse")?;
+        let base = svg_data::SpecSnapshotId::Svg11Rec20110816;
+
+        // Without the edition, the 1.1 snapshot rejects it.
+        let snapshot_only = lint_tree_with_options(
+            src,
+            &tree,
+            LintOptions {
+                profile: base,
+                native: None,
+                edition: None,
+            },
+            None,
+        );
+        assert!(
+            snapshot_only
+                .iter()
+                .any(|d| d.code == DiagnosticCode::UnknownElement
+                    && d.message.contains("definition-src")),
+            "control: 1.1 snapshot alone rejects definition-src: {snapshot_only:?}"
+        );
+
+        // With the SVG 1.0 edition as authority, it is accepted.
+        let with_edition = lint_tree_with_options(
+            src,
+            &tree,
+            LintOptions {
+                profile: base,
+                native: None,
+                edition: Some(svg10),
+            },
+            None,
+        );
+        assert!(
+            !with_edition
+                .iter()
+                .any(|d| d.message.contains("definition-src")),
+            "SVG 1.0 edition must accept definition-src: {with_edition:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn baseprofile_in_svg2_fires_unsupported_not_obsolete() {
         // Post-Phase-1 data audit: baseProfile was removed from the SVG 2
         // snapshot membership entirely, so lookups against an SVG 2 profile
@@ -747,6 +817,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
                 native: None,
+                edition: None,
             },
         );
 
@@ -781,6 +852,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
         assert!(
@@ -806,6 +878,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg2EditorsDraft,
                 native: None,
+                edition: None,
             },
         );
 
@@ -828,6 +901,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
         assert!(
@@ -934,6 +1008,7 @@ mod tests {
             LintOptions {
                 profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
                 native: None,
+                edition: None,
             },
         );
         assert!(

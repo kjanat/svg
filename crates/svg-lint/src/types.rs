@@ -80,6 +80,11 @@ pub struct LintOptions {
     /// of the snapshot. `None` for an ordinary snapshot/edition target, which
     /// imposes no extra reductive constraint beyond its base catalog.
     pub native: Option<&'static svg_data::profile::SvgNative>,
+    /// The edition inventory to restrict to, for an edition that has no faithful
+    /// snapshot (e.g. SVG 1.0). The base `profile` is the nearest snapshot; this
+    /// inventory drops constructs the exact edition never declared. `None` for a
+    /// plain snapshot target.
+    pub edition: Option<&'static svg_data::inventory::Inventory>,
 }
 
 impl Default for LintOptions {
@@ -87,6 +92,7 @@ impl Default for LintOptions {
         Self {
             profile: SpecSnapshotId::Svg2EditorsDraft,
             native: None,
+            edition: None,
         }
     }
 }

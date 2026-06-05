@@ -195,12 +195,20 @@ pub fn resolve_profile_id(input: &str) -> Option<SpecSnapshotId> {
 }
 
 /// Map the literal string from an SVG root `version` attribute to the
-/// closest catalogued snapshot.
+/// closest catalogued snapshot, resolved by **major-version family**.
 ///
-/// `"1.0"` and `"1.1"` collapse to the SVG 1.1 Second Edition; `"2"` /
-/// `"2.0"` resolve to the current SVG 2 editor's draft. Any other value
-/// (including SVG Tiny `"1.2"`, empty, or garbage) returns `None` so
-/// callers fall back to the configured profile.
+/// Any SVG 1.x version (`"1.0"`, `"1.1"`, and crucially `"1.2"` — SVG Tiny 1.2)
+/// collapses to the SVG 1.1 Second Edition, the catalogued base of the 1.x
+/// family; any SVG 2.x version resolves to the current SVG 2 editor's draft.
+///
+/// Resolving by family — rather than an exact-string allowlist — is deliberate:
+/// a document that *declares* a version we do not catalogue exactly (e.g.
+/// `"1.2"`) must still lint against the right base edition, not silently fall
+/// through to whatever unrelated profile the user happened to configure (the
+/// old behaviour mis-linted an SVG 1.2 document as SVG 2). Only a value with no
+/// recognisable major (`""`, `"draft"`, a future `"3"`) returns `None`, leaving
+/// the caller to use the configured profile — which is correct, because such a
+/// document carries no usable version signal.
 ///
 /// Intentionally narrower than [`resolve_profile_id`]: version attribute
 /// values live in their own enumerated space, and treating bare `"1.1"`
@@ -208,9 +216,34 @@ pub fn resolve_profile_id(input: &str) -> Option<SpecSnapshotId> {
 /// as a config value.
 #[must_use]
 pub fn snapshot_for_svg_version_attr(value: &str) -> Option<SpecSnapshotId> {
+    // The major component is the run before the first '.'. `split` always
+    // yields at least one element, so the default is unreachable.
+    let major = value.trim().split('.').next().unwrap_or_default();
+    match major {
+        "1" => Some(SpecSnapshotId::Svg11Rec20110816),
+        "2" => Some(SpecSnapshotId::Svg2EditorsDraft),
+        _ => None,
+    }
+}
+
+/// The catalogued **edition** a root `version` attribute selects when no curated
+/// [`SpecSnapshotId`] represents it faithfully.
+///
+/// SVG 1.0 is the case that matters: it has a vendored edition inventory
+/// ([`inventory::for_edition`]) but **no** `SpecSnapshotId`, so
+/// [`snapshot_for_svg_version_attr`] necessarily collapses `"1.0"` onto the SVG
+/// 1.1 snapshot. Linting an SVG 1.0 document against SVG 1.1 is wrong — SVG 1.1
+/// adds constructs SVG 1.0 never defined — so a `version="1.0"` document targets
+/// the SVG 1.0 *edition* (its 1.1 snapshot is only the base the edition
+/// inventory restricts). Every other version has a faithful snapshot and returns
+/// `None`.
+#[must_use]
+pub fn edition_for_svg_version_attr(value: &str) -> Option<inventory::EditionId> {
     match value.trim() {
-        "1.0" | "1.1" => Some(SpecSnapshotId::Svg11Rec20110816),
-        "2" | "2.0" => Some(SpecSnapshotId::Svg2EditorsDraft),
+        "1.0" => Some(inventory::EditionId::dated(
+            edition::Series::Svg10,
+            "2001-09-04",
+        )),
         _ => None,
     }
 }
@@ -985,6 +1018,17 @@ mod tests {
             snapshot_for_svg_version_attr("2.0"),
             Some(SpecSnapshotId::Svg2EditorsDraft)
         );
+        // SVG Tiny 1.2 is an SVG 1.x document: it resolves to the 1.x base
+        // edition, never to an unrelated default.
+        assert_eq!(
+            snapshot_for_svg_version_attr("1.2"),
+            Some(SpecSnapshotId::Svg11Rec20110816)
+        );
+        // A future/unknown major carries no usable 1.x/2.x signal.
+        assert_eq!(
+            snapshot_for_svg_version_attr("2.1"),
+            Some(SpecSnapshotId::Svg2EditorsDraft)
+        );
     }
 
     #[test]
@@ -997,9 +1041,11 @@ mod tests {
 
     #[test]
     fn svg_version_attr_returns_none_for_unknown_values() {
+        // No usable major-version signal -> caller uses the configured profile.
         assert!(snapshot_for_svg_version_attr("").is_none());
-        assert!(snapshot_for_svg_version_attr("1.2").is_none());
         assert!(snapshot_for_svg_version_attr("garbage").is_none());
+        assert!(snapshot_for_svg_version_attr("draft").is_none());
+        // A future major (SVG 3) is genuinely uncatalogued.
         assert!(snapshot_for_svg_version_attr("3.0").is_none());
     }
 
@@ -1052,7 +1098,7 @@ mod tests {
         assert_eq!(detect_target(&RootProfileMarkers::default()), None);
         assert_eq!(
             detect_target(&RootProfileMarkers {
-                version: Some("1.2"),
+                version: Some("3"),
                 base_profile: Some("weird"),
                 svg_native: false,
             }),

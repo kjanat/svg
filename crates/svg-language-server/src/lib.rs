@@ -248,10 +248,33 @@ impl ProfileConfig {
         self.is_constrained().then(svg_data::profile::svg_native)
     }
 
+    /// The edition inventory to restrict against for this document.
+    ///
+    /// A document that declares a `version` resolving to an edition with no
+    /// faithful snapshot (SVG 1.0) is restricted to that edition's inventory on
+    /// top of its nearest-snapshot base — so an SVG 1.0 document is linted as
+    /// SVG 1.0, not the SVG 1.1 snapshot its version collapses to. Document
+    /// detection wins over the configured edition unless `force` is set; when
+    /// neither applies, the configured edition target (if any) is used.
+    fn active_edition_inventory(
+        &self,
+        doc: &DocumentState,
+    ) -> Option<&'static svg_data::inventory::Inventory> {
+        if !self.force
+            && let Some(version) =
+                svg_lint::extract_declared_version(&doc.tree, doc.source.as_bytes())
+            && let Some(edition) = svg_data::edition_for_svg_version_attr(version)
+        {
+            return svg_data::inventory::for_edition(&edition);
+        }
+        self.edition_inventory()
+    }
+
     fn lint_options_for(&self, doc: &DocumentState) -> svg_lint::LintOptions {
         svg_lint::LintOptions {
             profile: self.effective_profile_for(doc),
             native: self.native_constraints(),
+            edition: self.active_edition_inventory(doc),
         }
     }
 
@@ -1526,7 +1549,7 @@ impl LanguageServer for SvgLanguageServer {
                 &doc.tree,
                 node,
                 profile_config.effective_profile_for(&doc),
-                profile_config.edition_inventory(),
+                profile_config.active_edition_inventory(&doc),
                 profile_config.native_constraints(),
             )
         };
