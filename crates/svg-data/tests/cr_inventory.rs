@@ -65,7 +65,7 @@ fn live_cr_inventory() -> tr_index::CrInventory {
         .unwrap_or_else(|err| panic!("eltindex: {err}"));
     let rows = tr_index::parse_attindex(&read("data/sources/svg2-cr-20181004/attindex.html"))
         .unwrap_or_else(|err| panic!("attindex: {err}"));
-    tr_index::build_inventory(elements, &rows)
+    tr_index::build_inventory(elements, &rows).unwrap_or_else(|err| panic!("{err}"))
 }
 
 #[derive(Deserialize)]

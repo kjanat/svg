@@ -23,8 +23,8 @@ flowchart TD
         manifests["data/sources/*.toml<br/>fetch manifests + provenance"]
         reviewed["data/reviewed/<br/>spec_removals.json · bcd_spec_exceptions.toml"]
         curated["data/elements.json · data/attributes.json<br/>placeholder_attribute_names.txt"]
-        bcd_up["@mdn/browser-compat-data + web-features<br/>(npm, live)"]
-        svgwg["svgwg/ gitignored local clone<br/>incl. propidx.html"]
+        bcd_up["vendored compat slice<br/>data/sources/svg-compat-data.json"]
+        svgwg["vendored svgwg sources<br/>data/sources/svgwg-<sha>/"]
     end
 
     subgraph proc["② Processing"]
@@ -45,18 +45,17 @@ flowchart TD
     manifests --> build
     reviewed --> build
     curated --> build
-    bcd_up -->|unpkg| worker
-    svgwg -.->|scan| worker
+    bcd_up --> worker
+    svgwg -->|scan| worker
     worker -->|spec_removals.json| reviewed
-    worker -->|emit data → svg-compat-data.json| build
+    worker -->|compat structs| build
     seed -.regenerates.-> specs
     build --> catalog --> api --> comp & lint
 
-    propidx["propidx.html<br/>❓ declared, NOT consumed"]:::gap
-    spec_rs["build/spec.rs<br/>❓ present, NOT wired"]:::gap
-    svgwg -.-> propidx
-    propidx -.future.-> build
-    spec_rs -.-> build
+    propidx["propidx.html<br/>value enum source"]
+    spec_rs["build/spec.rs<br/>description extractor"]
+    svgwg --> propidx --> build
+    spec_rs --> build
 
     classDef gap stroke-dasharray: 5 5,stroke:#c0392b;
 ```
@@ -65,8 +64,8 @@ flowchart TD
 
 ## ① Sources (raw / upstream)
 
-All checked into the repo **except** browser-compat data, which is fetched (or
-cached) at build time.
+All default build inputs are checked into the repo. Network access is only used
+for explicit refresh overrides or runtime freshness checks.
 
 | Path                                                                                       | Format      | Authority                  | Holds                                                                                                                                 |
 | ------------------------------------------------------------------------------------------ | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -80,8 +79,8 @@ cached) at build time.
 | `crates/svg-data/data/elements.json`, `data/attributes.json`                               | JSON        | manual curation            | Curated element/attribute catalog overrides (descriptions, MDN URLs)                                                                  |
 | `crates/svg-data/data/placeholder_attribute_names.txt`                                     | text        | manual blocklist           | BCD/web-features IDs that aren't real SVG attribute names                                                                             |
 | `crates/svg-data/data/schemas/*.schema.json`                                               | JSON Schema | manual                     | Validation shapes for all snapshot data                                                                                               |
-| `@mdn/browser-compat-data` + `web-features`                                                | JSON (npm)  | MDN / web-features         | Browser support tables, baseline status — fetched via the svg-compat worker                                                           |
-| `svgwg/` gitignored local clone (incl. `master/propidx.html`)                              | HTML/XML    | W3C SVGWG                  | Upstream spec source; **untracked discovery clone**, not committed (scanned for descriptions/removals, see notes)                     |
+| `crates/svg-data/data/sources/svg-compat-data.json`                                        | JSON        | MDN / web-features         | Vendored browser support + baseline compat slice emitted by the svg-compat worker                                                     |
+| `crates/svg-data/data/sources/svgwg-*/`                                                    | HTML/XML    | W3C SVGWG                  | Vendored upstream spec source scanned for descriptions, removals, inventories, and value enums                                        |
 
 ---
 

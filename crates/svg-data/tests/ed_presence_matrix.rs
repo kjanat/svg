@@ -180,22 +180,22 @@ fn extracted_inventory_is_internally_consistent() {
     let edges = inventory.edges();
     for (element, attribute) in &edges {
         assert!(
-            inventory.elements.contains(element),
+            inventory.elements.contains(*element),
             "matrix edge names unknown element <{element}>",
         );
         assert!(
-            inventory.attributes.contains(attribute),
+            inventory.attributes.contains(*attribute),
             "matrix edge names unknown attribute `{attribute}`",
         );
     }
 
     // Every reported attribute must appear on at least one element.
-    let attributes_on_some_element: BTreeSet<&String> =
-        edges.iter().map(|(_, attribute)| attribute).collect();
+    let attributes_on_some_element: BTreeSet<&str> =
+        edges.iter().map(|(_, attribute)| *attribute).collect();
     let orphans: Vec<&String> = inventory
         .attributes
         .iter()
-        .filter(|attribute| !attributes_on_some_element.contains(attribute))
+        .filter(|attribute| !attributes_on_some_element.contains(attribute.as_str()))
         .collect();
     assert!(
         orphans.is_empty(),
@@ -250,7 +250,11 @@ fn attribute_and_matrix_divergence_is_pinned_for_human_review() {
     );
 
     // --- edge matrix divergence ---
-    let extracted_edges = inventory.edges();
+    let extracted_edges: BTreeSet<(String, String)> = inventory
+        .edges()
+        .into_iter()
+        .map(|(element, attribute)| (element.to_string(), attribute.to_string()))
+        .collect();
     let committed_edges = committed_edges();
     let spec_only_edges = extracted_edges.difference(&committed_edges).count();
     let snapshot_only_edges = committed_edges.difference(&extracted_edges).count();

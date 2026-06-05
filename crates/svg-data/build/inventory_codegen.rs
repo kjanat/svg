@@ -75,7 +75,7 @@ pub fn generate_cr(cr_dir: &Path, static_name: &str, doc: &str) -> Result<String
         .map_err(|err| format!("CR attindex.html: {err}"))?;
     let elements = super::tr_index::parse_eltindex(&eltindex)?;
     let rows = super::tr_index::parse_attindex(&attindex)?;
-    let inventory = super::tr_index::build_inventory(elements, &rows);
+    let inventory = super::tr_index::build_inventory(elements, &rows)?;
     Ok(render_cr_inventory(&inventory, static_name, doc))
 }
 
@@ -199,13 +199,18 @@ fn render_spec_inventory(inventory: &SpecInventory) -> String {
             }
         })
         .collect();
+    let edges: BTreeSet<(String, String)> = inventory
+        .edges()
+        .into_iter()
+        .map(|(element, attribute)| (element.to_string(), attribute.to_string()))
+        .collect();
     render_inventory(
         "SPEC_INVENTORY",
         "/// The complete SVG 2 Editor's Draft spec inventory, derived from the\n\
          /// vendored `definitions*.xml` at build time. See [`Inventory`].",
         &inventory.elements,
         &attributes,
-        &inventory.edges(),
+        &edges,
     )
 }
 

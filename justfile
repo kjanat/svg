@@ -93,10 +93,10 @@ build-release *ARGS:
 run-lsp *ARGS:
     cargo run -p svg-language-server -- {{ ARGS }}
 
-# typecheck the Bun scripts
+# typecheck the Deno-checked scripts (run under Bun, type-checked by Deno)
 [group('scripts')]
 typecheck:
-    bun --cwd=scripts typecheck
+    deno task --config scripts/deno.jsonc typecheck
 
 # run every local check; stop on first failure
 [group('verify')]

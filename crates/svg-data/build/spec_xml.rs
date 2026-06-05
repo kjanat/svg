@@ -129,11 +129,11 @@ pub struct SpecInventory {
 
 impl SpecInventory {
     /// The set of `(element, attribute)` edges, the matrix in flat form.
-    pub fn edges(&self) -> BTreeSet<(String, String)> {
+    pub fn edges(&self) -> BTreeSet<(&str, &str)> {
         let mut edges = BTreeSet::new();
         for (element, attributes) in &self.element_attributes {
             for attribute in attributes {
-                edges.insert((element.clone(), attribute.clone()));
+                edges.insert((element.as_str(), attribute.as_str()));
             }
         }
         edges

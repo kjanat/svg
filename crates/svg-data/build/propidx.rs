@@ -198,9 +198,9 @@ fn strip_br_tags(html: &str) -> String {
         } else {
             // Push one full UTF-8 char so multibyte content stays intact. `idx`
             // is always on a char boundary and `idx < bytes.len()`, so a char
-            // always exists; the fallback is unreachable and the replacement
-            // char makes any future invariant break visible instead of silent.
-            let ch = html[idx..].chars().next().unwrap_or('\u{FFFD}');
+            // always exists; `\0` is a neutral fallback if that invariant ever
+            // breaks.
+            let ch = html[idx..].chars().next().unwrap_or('\0');
             out.push(ch);
             idx += ch.len_utf8();
         }
@@ -249,7 +249,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn collapses_and_strips_quotes() {
+    fn preserves_encoded_entities_while_stripping_quotes() {
         assert_eq!(clean_property_name(" 'display' "), "display");
         assert_eq!(
             clean_property_name("\u{2018}pointer-events\u{2019}"),

@@ -94,15 +94,26 @@ pub fn parse_eltindex(html: &str) -> Result<BTreeSet<String>, String> {
     let parser = dom.parser();
 
     let mut elements = BTreeSet::new();
-    for handle in query_all(&dom, parser, "span") {
-        let Some(tag) = handle.get(parser).and_then(Node::as_tag) else {
+    for ul in query_all(&dom, parser, "ul") {
+        let Some(ul_tag) = ul.get(parser).and_then(Node::as_tag) else {
             continue;
         };
-        if !has_class(tag, "element-name") {
+        if !has_class(ul_tag, "element-index") {
             continue;
         }
-        if let Some(name) = inner_element_name(handle, parser) {
-            elements.insert(name);
+        let Some(spans) = ul_tag.query_selector(parser, "span") else {
+            continue;
+        };
+        for handle in spans {
+            let Some(tag) = handle.get(parser).and_then(Node::as_tag) else {
+                continue;
+            };
+            if !has_class(tag, "element-name") {
+                continue;
+            }
+            if let Some(name) = inner_element_name(handle, parser) {
+                elements.insert(name);
+            }
         }
     }
 
@@ -210,23 +221,31 @@ pub fn parse_propidx(html: &str) -> Result<Vec<PropIndexRow>, String> {
 /// edge. The returned [`CrInventory::elements`] is exactly the `eltindex.html`
 /// set; the attribute-index also references this same set (verified by the
 /// inventory test's no-dangling-edge assertion).
-#[must_use]
-pub fn build_inventory(elements: BTreeSet<String>, rows: &[AttIndexRow]) -> CrInventory {
+pub fn build_inventory(
+    elements: BTreeSet<String>,
+    rows: &[AttIndexRow],
+) -> Result<CrInventory, String> {
     let mut attributes: BTreeMap<String, AttrFacts> = BTreeMap::new();
     let mut edges: BTreeSet<(String, String)> = BTreeSet::new();
     for row in rows {
         let facts = attributes.entry(row.name.clone()).or_default();
         facts.animatable |= row.animatable;
         for element in &row.elements {
+            if !elements.contains(element) {
+                return Err(format!(
+                    "tr_index: attribute `{}` references unknown element `{element}`",
+                    row.name
+                ));
+            }
             facts.element_scope.insert(element.clone());
             edges.insert((element.clone(), row.name.clone()));
         }
     }
-    CrInventory {
+    Ok(CrInventory {
         elements,
         attributes,
         edges,
-    }
+    })
 }
 
 /// Recursively collect every element handle matching `selector`, in document
@@ -244,10 +263,17 @@ fn query_all<'dom>(
         .collect()
 }
 
-/// Collect every `<tr>` handle inside the page's first `<tbody>`, in document
-/// order. Returns `None` if the page has no `<tbody>`.
+/// Collect every `<tr>` handle inside the page's first index-table `<tbody>`, in
+/// document order. Returns `None` if the page has no matching index table.
 fn tbody_rows<'dom>(dom: &'dom VDom<'dom>, parser: &'dom Parser<'dom>) -> Option<Vec<NodeHandle>> {
-    let tbody = dom.query_selector("tbody")?.next()?;
+    let table = dom.query_selector("table")?.find(|handle| {
+        handle
+            .get(parser)
+            .and_then(Node::as_tag)
+            .is_some_and(|tag| has_class(tag, "attrtable") || has_class(tag, "proptable"))
+    })?;
+    let table_tag = table.get(parser)?.as_tag()?;
+    let tbody = table_tag.query_selector(parser, "tbody")?.next()?;
     let tag = tbody.get(parser)?.as_tag()?;
     Some(
         tag.query_selector(parser, "tr")?
@@ -414,7 +440,7 @@ mod tests {
 
     #[test]
     fn attindex_empty_animatable_cell_is_not_animatable() {
-        let html = "<table><tbody>\
+        let html = "<table class=\"attrtable\"><tbody>\
             <tr><th><span class=\"attr-name\"><a href=\"#\"><span>id</span></a></span></th>\
             <td><span class=\"element-name\"><a href=\"#\"><span>rect</span></a></span></td>\
             <td></td></tr>\
@@ -453,7 +479,7 @@ mod tests {
         let elements: BTreeSet<String> = ["circle".to_string(), "rect".to_string()]
             .into_iter()
             .collect();
-        let inventory = build_inventory(elements, &rows);
+        let inventory = build_inventory(elements, &rows).unwrap_or_else(|err| panic!("{err}"));
         let fill = inventory
             .attributes
             .get("fill")

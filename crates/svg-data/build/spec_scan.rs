@@ -257,6 +257,7 @@ fn collapse_ws(input: &str) -> String {
 fn parse_definitions_xml(re: &ScanRegexes, content: &str, relative_path: &str) -> Vec<SpecFact> {
     let line_index = LineIndex::new(content);
     let mut facts = Vec::new();
+    let mut skipped_events = 0_u32;
 
     let mut reader = Reader::from_str(content);
     loop {
@@ -297,11 +298,26 @@ fn parse_definitions_xml(re: &ScanRegexes, content: &str, relative_path: &str) -
                     },
                 });
             }
-            // Any other event, or malformed markup in the vendored
-            // prose-ish XML: skip and keep scanning rather than aborting
-            // the whole file.
-            Ok(_) | Err(_) => {}
+            Ok(event) => {
+                skipped_events = skipped_events.saturating_add(1);
+                println!(
+                    "cargo::warning=spec_scan: skipped XML event in {relative_path} at byte {}: {event:?}",
+                    reader.buffer_position()
+                );
+            }
+            Err(error) => {
+                skipped_events = skipped_events.saturating_add(1);
+                println!(
+                    "cargo::warning=spec_scan: malformed XML in {relative_path} at byte {}: {error}",
+                    reader.buffer_position()
+                );
+            }
         }
+    }
+    if skipped_events > 0 {
+        println!(
+            "cargo::warning=spec_scan: skipped {skipped_events} XML event(s) in {relative_path}"
+        );
     }
 
     facts

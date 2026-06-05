@@ -53,6 +53,13 @@ pub enum Expr {
 /// pure keyword enumeration, return its ordered keyword set with any trailing
 /// `inherit` alternative stripped.
 ///
+/// `keyword_enum` parses with [`parse_expr`]/[`parse_group`], then flattens the
+/// AST through [`collect_keywords`] into an ordered `Vec<String>` of keyword
+/// leaves only. It intentionally does **not** preserve the semantic difference
+/// between [`Expr::Combine`] (`||`, order-insensitive multi-keyword groups) and
+/// [`Expr::Alt`] (`|`). Callers that need combinable semantics must inspect the
+/// AST from `parse_expr` directly instead of using this lossy helper.
+///
 /// Returns `None` when:
 /// - the syntax fails to parse, or
 /// - any alternative contains a `<datatype>` token (not a keyword enum), or
@@ -77,17 +84,15 @@ pub fn keyword_enum(values: &str) -> Option<Vec<String>> {
 /// `Values` cells. `&lt;`/`&gt;` are load-bearing (they delimit datatype
 /// tokens); `&nbsp;`/`&amp;` appear as incidental text.
 ///
-/// `&amp;` is decoded **last** on purpose: a single decode pass is correct for
-/// the single-layer-encoded spec source, and decoding `&amp;` first would
-/// re-expand its `&` into a following entity (e.g. `&amp;lt;` → `&lt;` → `<`),
-/// double-decoding text the spec meant literally. Multi-layer encoding is not
-/// expected in the property index.
+/// Decode `&amp;` first so one layer of encoding becomes visible to the normal
+/// entity replacements (`&amp;lt;` → `&lt;` → `<`). This assumes at most one extra
+/// encoding layer; triple/multi-encoded text is not recursively decoded.
 fn decode_entities(input: &str) -> String {
     input
+        .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&nbsp;", " ")
-        .replace("&amp;", "&")
 }
 
 /// `true` if the expression tree contains any datatype token at any depth.

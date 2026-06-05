@@ -200,7 +200,7 @@
 
   <element
       name='feMergeNode'
-      href='#feMergeElement'
+      href='#feMergeNode'
       contentmodel='anyof'
       elements='animate, script, set'
       attributecategories='core'

@@ -40,7 +40,7 @@ url   = "https://github.com/w3c/svgwg"
 [pin]
 kind  = "git-commit"
 value = "19482daf4094e72becde92b38c6a1c0d384b56a9"
-date  = "2025-09-14"
+date  = "2025-09-13"
 note  = "Matches Svg2EditorsDraft/snapshot.json pinned_sources commit."
 
 [checksum]
@@ -56,7 +56,7 @@ role     = "top-level SVG 2 inventory (elements, attributes, properties)"
 path     = "master/definitions.xml"
 upstream = "master/definitions.xml"
 git_blob = "04e0c585afec1e5e449934ebaec087649b258f95"
-sha256   = "d3f93dbf86e9804b9f13d2da6a4cf41f1b227b2f5199e53d2b824209cd6236b0"
+sha256   = "9ae739c4ba367c5f5afe64b81df56ec950199228b5b14f9ca987186a26e91170"
 
 [[inputs]]
 id       = "definitions-filters"
@@ -65,7 +65,7 @@ role     = "Filter Effects module inventory"
 path     = "master/definitions-filters.xml"
 upstream = "master/definitions-filters.xml"
 git_blob = "eb52ccc7bcb8d8a10f31a715fbb2de8e13f88bac"
-sha256   = "f96968584136839df0770a6f09049f780b066f1a4b0821dd6664dc50992c696c"
+sha256   = "c857755b7f01ad81f3ec76ce6af91a13c26af9d6a8e0d9429db5bccbfd8868eb"
 
 [[inputs]]
 id       = "definitions-masking"
