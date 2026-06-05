@@ -12,7 +12,10 @@ use tree_sitter::{Node, Tree};
 
 use crate::{
     namespaces::{self, NamespaceScope, SVG_NAMESPACE_URI, XLINK_NAMESPACE_URI},
-    types::{CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic},
+    types::{
+        CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic,
+        VerdictOverrides,
+    },
 };
 
 /// Element-vs-attribute specific diagnostic codes for lifecycle-driven
@@ -60,14 +63,21 @@ struct LintContext<'a> {
     seen_ids: HashMap<String, usize>,
     options: LintOptions,
     overrides: Option<&'a LintOverrides>,
+    verdict_overrides: Option<&'a VerdictOverrides>,
 }
 
 /// Run all lint checks on a parsed SVG tree.
+///
+/// `verdict_overrides` replaces the baked [`CompatVerdict`] for named
+/// elements/attributes (e.g. from a newer BCD load) so the advisory
+/// diagnostics track current data. `None` — or any name absent from the
+/// supplied maps — keeps baked behaviour.
 pub fn check_all(
     source: &[u8],
     tree: &Tree,
     options: LintOptions,
     overrides: Option<&LintOverrides>,
+    verdict_overrides: Option<&VerdictOverrides>,
 ) -> Vec<SvgDiagnostic> {
     let mut ctx = LintContext {
         source,
@@ -77,6 +87,7 @@ pub fn check_all(
         seen_ids: HashMap::new(),
         options,
         overrides,
+        verdict_overrides,
     };
     walk_elements(&mut ctx, tree.root_node(), &NamespaceScope::default());
     ctx.diagnostics
@@ -234,7 +245,7 @@ fn check_attributes(ctx: &mut LintContext<'_>, tag: Node, scope: &NamespaceScope
             ProfileLookup::Present { value, lifecycle } => {
                 let lifecycle =
                     attribute_diagnostic_lifecycle(ctx, lookup_name.as_ref(), value, lifecycle);
-                let verdict = svg_data::compat_verdict_for_attribute(value, ctx.options.profile);
+                let verdict = attribute_compat_verdict(ctx, lookup_name.as_ref(), value);
                 emit_lifecycle_diag_in_tag(
                     &mut ctx.diagnostics,
                     &mut ctx.suppressions,
@@ -506,7 +517,7 @@ fn emit_element_compat_diags(
     value: &'static svg_data::ElementDef,
     lifecycle: SpecLifecycle,
 ) {
-    let verdict = svg_data::compat_verdict_for_element(value, ctx.options.profile);
+    let verdict = element_compat_verdict(ctx, value);
     let subject = format!("<{}>", value.name);
     emit_lifecycle_diag(
         &mut ctx.diagnostics,
@@ -555,6 +566,44 @@ fn attribute_diagnostic_lifecycle(
         ctx.overrides
             .and_then(|overrides| overrides.attributes.get(attribute_name)),
     )
+}
+
+/// Resolve the compat verdict driving an element's advisory diagnostics.
+///
+/// A runtime verdict override for this element name (e.g. from a newer
+/// BCD load threaded in via [`VerdictOverrides`]) replaces the baked
+/// verdict so the lint advisory tracks current data. Absent an override,
+/// the baked [`svg_data::compat_verdict_for_element`] verdict is used —
+/// preserving existing default behaviour.
+fn element_compat_verdict(
+    ctx: &LintContext<'_>,
+    value: &svg_data::ElementDef,
+) -> Option<CompatVerdict> {
+    runtime_verdict_override(ctx, |overrides| overrides.elements.get(value.name))
+        .or_else(|| svg_data::compat_verdict_for_element(value, ctx.options.profile))
+}
+
+/// Resolve the compat verdict driving an attribute's advisory diagnostics.
+///
+/// Mirrors [`element_compat_verdict`]: a runtime override keyed by the
+/// canonical attribute name wins, otherwise the baked verdict is used.
+fn attribute_compat_verdict(
+    ctx: &LintContext<'_>,
+    lookup_name: &str,
+    value: &svg_data::AttributeDef,
+) -> Option<CompatVerdict> {
+    runtime_verdict_override(ctx, |overrides| overrides.attributes.get(lookup_name))
+        .or_else(|| svg_data::compat_verdict_for_attribute(value, ctx.options.profile))
+}
+
+/// Pull a runtime verdict override out of the optional [`VerdictOverrides`],
+/// returning `None` when no overrides were supplied or the selector
+/// misses. Keeps the borrowed-override plumbing in one place.
+fn runtime_verdict_override(
+    ctx: &LintContext<'_>,
+    select: impl FnOnce(&VerdictOverrides) -> Option<&CompatVerdict>,
+) -> Option<CompatVerdict> {
+    ctx.verdict_overrides.and_then(select).copied()
 }
 
 /// The catalog's baked `deprecated` / `experimental` flags come from BCD,

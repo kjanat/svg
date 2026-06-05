@@ -19,6 +19,7 @@
 //! | `definitions-filters.xml` | Filter Effects inventory | same |
 //! | `definitions-masking.xml` | CSS Masking inventory | same |
 //! | `definitions-compositing.xml` | Compositing inventory | same |
+//! | `definitions-animations.xml` | SMIL animation inventory (`animate`, `animateMotion`, `animateTransform`, `set`, `mpath`) | same |
 //! | `text.html` | Per-property removed/obsoleted overrides | `regex` over h4 sections |
 //! | `changes.html` | Changelog removals | `regex` over `<li>Removed the …</li>` |
 //!
@@ -487,11 +488,21 @@ pub fn scan_svg2_spec(
     let mut defined_attributes = Vec::new();
     let mut defined_properties = Vec::new();
 
+    // The same FIVE definition files the snapshot inventory reads (see
+    // `spec_xml::DEFINITION_FILES`): the four core inventories plus
+    // `definitions-animations.xml`, which supplies the SMIL animation elements
+    // (`animate`, `animateMotion`, `animateTransform`, `set`, `mpath`). Kept as
+    // a literal here (not a `use super::spec_xml::…`) because the
+    // `tests/spec_scan_repro.rs` reproduction harness includes this file as a
+    // standalone `mod spec_scan;` with no sibling `spec_xml` to import from.
+    // `safe_read` skips any file a given vendored pin does not carry, so a scan
+    // pin without the animations file simply omits SMIL rather than erroring.
     for xml_file in [
         "definitions.xml",
         "definitions-filters.xml",
         "definitions-masking.xml",
         "definitions-compositing.xml",
+        "definitions-animations.xml",
     ] {
         let Some(content) = safe_read(&master.join(xml_file))? else {
             continue;

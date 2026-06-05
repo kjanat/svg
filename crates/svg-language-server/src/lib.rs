@@ -92,35 +92,167 @@ pub(crate) type StylesheetCache =
 const COPY_DATA_URI_COMMAND: &str = "svg.copyDataUri";
 const COPY_DATA_URI_ACTION_TITLE: &str = "Copy SVG as data URI";
 
-#[derive(Clone, Copy)]
+/// The compatibility target the workspace configured, modelled as a real ADT
+/// rather than a bare [`svg_data::SpecSnapshotId`].
+///
+/// This makes the configured target's *kind* explicit so each variant can carry
+/// its own resolution rules and (eventually) its own constraint application:
+///
+/// - [`Snapshot`](ConfiguredTarget::Snapshot) — one of the four curated
+///   snapshots, the historical default. Drives the snapshot-typed completion /
+///   hover / lint pipeline directly.
+/// - [`Edition`](ConfiguredTarget::Edition) — any edition-keyed inventory,
+///   including the SVG 1.0 REC, SVG 1.1 PR, and the older SVG 2 CRs that have no
+///   [`SpecSnapshotId`]. The existing pipeline is snapshot-typed, so an edition
+///   is *also* resolved to a base snapshot (its nearest curated equivalent) for
+///   the catalog lookups; the richer [`EditionId`] is retained so edition-keyed
+///   inventory wiring can consume it.
+/// - [`SvgNative`](ConfiguredTarget::SvgNative) — the SVG Native profile, an
+///   SVG 2 subset. Resolves to the SVG 2 editor's draft base snapshot, with
+///   profile constraints applied on top (see [`ProfileConfig::is_constrained`]).
+#[derive(Clone)]
+enum ConfiguredTarget {
+    /// One of the four curated catalog snapshots.
+    Snapshot(svg_data::SpecSnapshotId),
+    /// An edition-keyed inventory addressed by its [`EditionId`].
+    Edition(svg_data::inventory::EditionId),
+    /// The SVG Native profile (an SVG 2 subset).
+    SvgNative,
+}
+
+impl ConfiguredTarget {
+    /// The base [`SpecSnapshotId`] that drives the snapshot-typed catalog
+    /// pipeline (completion / hover / lint) for this target.
+    ///
+    /// Snapshots are themselves. Editions map to their nearest curated snapshot
+    /// (the editor's draft for any SVG 2 edition, SVG 1.1 SE for the 1.x
+    /// editions). SVG Native is an SVG 2 subset, so it bases on the SVG 2
+    /// editor's draft.
+    const fn base_snapshot(&self) -> svg_data::SpecSnapshotId {
+        match self {
+            Self::Snapshot(snapshot) => *snapshot,
+            Self::Edition(edition) => edition_base_snapshot(edition),
+            Self::SvgNative => svg_data::SpecSnapshotId::Svg2EditorsDraft,
+        }
+    }
+}
+
+/// A short, stable description of a configured target for tracing/logging.
+fn describe_target(target: &ConfiguredTarget) -> String {
+    match target {
+        ConfiguredTarget::Snapshot(snapshot) => format!("snapshot:{}", snapshot.as_str()),
+        ConfiguredTarget::Edition(edition) => match &edition.date {
+            svg_data::inventory::EditionDate::Dated { date } => {
+                format!("edition:{:?}:{date}", edition.series)
+            }
+            svg_data::inventory::EditionDate::EditorsDraft => {
+                format!("edition:{:?}:editors-draft", edition.series)
+            }
+        },
+        ConfiguredTarget::SvgNative => "profile:svg-native".to_owned(),
+    }
+}
+
+/// Whether `edition` is one of the four curated [`SpecSnapshotId`] editions
+/// (which the snapshot-typed catalog already models faithfully).
+fn edition_is_curated_snapshot(edition: &svg_data::inventory::EditionId) -> bool {
+    use svg_data::inventory::EditionId;
+    [
+        svg_data::SpecSnapshotId::Svg11Rec20030114,
+        svg_data::SpecSnapshotId::Svg11Rec20110816,
+        svg_data::SpecSnapshotId::Svg2Cr20181004,
+        svg_data::SpecSnapshotId::Svg2EditorsDraft,
+    ]
+    .iter()
+    .any(|snapshot| &EditionId::for_snapshot(*snapshot) == edition)
+}
+
+/// Map an [`EditionId`] onto the nearest curated [`SpecSnapshotId`] for the
+/// snapshot-typed pipeline. SVG 1.0/1.1 editions collapse to SVG 1.1 SE; SVG 2
+/// editions collapse to the editor's draft.
+const fn edition_base_snapshot(
+    edition: &svg_data::inventory::EditionId,
+) -> svg_data::SpecSnapshotId {
+    use svg_data::edition::Series;
+    match edition.series {
+        Series::Svg10 | Series::Svg11 => svg_data::SpecSnapshotId::Svg11Rec20110816,
+        Series::Svg2 => svg_data::SpecSnapshotId::Svg2EditorsDraft,
+    }
+}
+
+#[derive(Clone)]
 struct ProfileConfig {
-    requested: Option<&'static str>,
-    resolved: svg_data::SpecSnapshotId,
-    /// When true, `resolved` is used verbatim for every document; the
-    /// root `<svg version="X">` attribute is ignored. Lets users pin a
-    /// profile for workspaces that mix legacy and modern SVGs.
+    /// What the workspace asked for, in its native kind.
+    target: ConfiguredTarget,
+    /// When true, the resolved base snapshot is used verbatim for every
+    /// document; the root `<svg version="X">` attribute is ignored. Lets users
+    /// pin a profile for workspaces that mix legacy and modern SVGs.
     force: bool,
 }
 
 impl Default for ProfileConfig {
     fn default() -> Self {
         Self {
-            requested: None,
-            resolved: svg_lint::LintOptions::default().profile,
+            target: ConfiguredTarget::Snapshot(svg_lint::LintOptions::default().profile),
             force: false,
         }
     }
 }
 
 impl ProfileConfig {
-    fn lint_options_for(self, doc: &DocumentState) -> svg_lint::LintOptions {
+    /// The base snapshot the workspace resolved to (ignoring per-document root
+    /// `version`).
+    const fn resolved(&self) -> svg_data::SpecSnapshotId {
+        self.target.base_snapshot()
+    }
+
+    /// Whether this target additionally constrains the base snapshot (i.e. the
+    /// SVG Native profile, which restricts the SVG 2 element/attribute set).
+    /// Snapshots and editions impose no extra constraint beyond their base.
+    const fn is_constrained(&self) -> bool {
+        matches!(self.target, ConfiguredTarget::SvgNative)
+    }
+
+    /// The baked, spec-faithful [`Inventory`] for an [`Edition`] target, when
+    /// the configured edition is *not* one of the four curated snapshots.
+    ///
+    /// [`Snapshot`]/[`SvgNative`] targets, and editions that coincide with a
+    /// curated snapshot, return `None` — the curated catalog already models
+    /// them faithfully, so there is nothing to restrict. A returned inventory is
+    /// used as an *additive restriction* over the curated completion lists: only
+    /// names the edition's inventory actually declares survive (see
+    /// `restrict_attribute_items_to_inventory` /
+    /// `restrict_child_items_to_inventory`).
+    ///
+    /// [`Snapshot`]: ConfiguredTarget::Snapshot
+    /// [`Edition`]: ConfiguredTarget::Edition
+    /// [`SvgNative`]: ConfiguredTarget::SvgNative
+    fn edition_inventory(&self) -> Option<&'static svg_data::inventory::Inventory> {
+        let ConfiguredTarget::Edition(edition) = &self.target else {
+            return None;
+        };
+        // Editions that *are* a curated snapshot are already faithfully modelled
+        // by the snapshot pipeline; only the additive (non-snapshot) editions
+        // need an inventory restriction.
+        if edition_is_curated_snapshot(edition) {
+            return None;
+        }
+        svg_data::inventory::for_edition(edition)
+    }
+
+    fn lint_options_for(&self, doc: &DocumentState) -> svg_lint::LintOptions {
         svg_lint::LintOptions {
             profile: self.effective_profile_for(doc),
         }
     }
 
-    fn effective_profile_for(self, doc: &DocumentState) -> svg_data::SpecSnapshotId {
-        svg_lint::effective_profile(&doc.tree, doc.source.as_bytes(), self.resolved, self.force)
+    fn effective_profile_for(&self, doc: &DocumentState) -> svg_data::SpecSnapshotId {
+        svg_lint::effective_profile(
+            &doc.tree,
+            doc.source.as_bytes(),
+            self.resolved(),
+            self.force,
+        )
     }
 }
 
@@ -153,8 +285,91 @@ fn configured_spec_freshness(config: &Value) -> bool {
         .unwrap_or(false)
 }
 
+/// Whether the client allows the runtime browser-compat refresh
+/// (`svg.runtime_compat`). On by default: it fetches MDN BCD + web-features from
+/// `unpkg.com` to overlay fresher support/baseline data onto the baked catalog.
+/// Offline or privacy-sensitive sessions can set this to `false` to keep the
+/// server fully local — hover and lint then use the baked compat data only.
+fn configured_runtime_compat(config: &Value) -> bool {
+    config
+        .get("svg")
+        .and_then(Value::as_object)
+        .and_then(|svg| svg.get("runtime_compat"))
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+/// Match a config string against the SVG Native profile aliases.
+fn is_svg_native_profile(requested: &str) -> bool {
+    let normalized = requested
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['_', ' '], "-");
+    matches!(normalized.as_str(), "svg-native" | "svgnative" | "native")
+}
+
+/// Resolve an `svg.edition` config block into an [`EditionId`] with a baked
+/// inventory.
+///
+/// Accepts `{ "series": "svg2", "date": "2016-09-15" }` for a dated edition or
+/// `{ "series": "svg2", "editors_draft": true }` for the rolling editor's draft.
+/// Returns the parsed [`EditionId`] only when [`svg_data::inventory::for_edition`]
+/// has a baked inventory for it, so an unknown edition falls back rather than
+/// silently selecting an empty catalog.
+fn configured_edition(config: &Value) -> Option<svg_data::inventory::EditionId> {
+    use svg_data::edition::Series;
+    use svg_data::inventory::EditionId;
+
+    let edition = config
+        .get("svg")
+        .and_then(Value::as_object)
+        .and_then(|svg| svg.get("edition"))
+        .and_then(Value::as_object)?;
+
+    let series = match edition.get("series").and_then(Value::as_str)?.trim() {
+        "svg10" | "svg1.0" | "1.0" => Series::Svg10,
+        "svg11" | "svg1.1" | "1.1" => Series::Svg11,
+        "svg2" | "svg2.0" | "2" | "2.0" => Series::Svg2,
+        _ => return None,
+    };
+
+    let id = if edition
+        .get("editors_draft")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        EditionId::editors_draft(series)
+    } else {
+        let date = edition.get("date").and_then(Value::as_str)?.trim();
+        EditionId {
+            series,
+            date: svg_data::inventory::EditionDate::Dated {
+                date: std::borrow::Cow::Owned(date.to_owned()),
+            },
+        }
+    };
+
+    // Only accept editions that actually have a baked inventory.
+    svg_data::inventory::for_edition(&id)
+        .is_some()
+        .then_some(id)
+}
+
 fn resolve_profile_config(config: &Value) -> (ProfileConfig, Option<String>) {
     let force = configured_force_profile(config);
+
+    // Edition-keyed inventories (`svg.edition`) take precedence: they address
+    // the additive universe beyond the four curated snapshots.
+    if let Some(edition) = configured_edition(config) {
+        return (
+            ProfileConfig {
+                target: ConfiguredTarget::Edition(edition),
+                force,
+            },
+            None,
+        );
+    }
+
     let Some(requested) = configured_profile(config) else {
         return (
             ProfileConfig {
@@ -165,11 +380,20 @@ fn resolve_profile_config(config: &Value) -> (ProfileConfig, Option<String>) {
         );
     };
 
+    if is_svg_native_profile(requested) {
+        return (
+            ProfileConfig {
+                target: ConfiguredTarget::SvgNative,
+                force,
+            },
+            None,
+        );
+    }
+
     if let Some(resolved) = svg_data::resolve_profile_id(requested) {
         return (
             ProfileConfig {
-                requested: Some(resolved.as_str()),
-                resolved,
+                target: ConfiguredTarget::Snapshot(resolved),
                 force,
             },
             None,
@@ -239,11 +463,58 @@ fn completion_response(items: Vec<CompletionItem>) -> Option<CompletionResponse>
     (!items.is_empty()).then_some(CompletionResponse::Array(items))
 }
 
+/// Restrict attribute completion `items` to attributes the edition `inventory`
+/// attaches to `elem_name` via its `(element, attribute)` edges.
+///
+/// This is the additive inventory wiring for an edition target: the curated
+/// catalog may surface modern HTML/CSS attributes the older edition never
+/// defined, so we drop any item the edition's spec-faithful inventory does not
+/// declare for this element. When the inventory knows nothing about the element
+/// (no edges), the list is left as-is rather than emptied — an unknown element
+/// is not evidence that *no* attribute applies.
+fn restrict_attribute_items_to_inventory(
+    items: &mut Vec<CompletionItem>,
+    inventory: &svg_data::inventory::Inventory,
+    elem_name: &str,
+) {
+    let allowed: std::collections::HashSet<&str> = inventory
+        .attributes_for_element(elem_name)
+        .map(|attribute| attribute.name.as_ref())
+        .collect();
+    if allowed.is_empty() {
+        return;
+    }
+    items.retain(|item| allowed.contains(item.label.as_str()));
+}
+
+/// Restrict child-element completion `items` to elements the edition `inventory`
+/// declares. Mirrors [`restrict_attribute_items_to_inventory`]: an empty
+/// inventory element set leaves the list untouched.
+fn restrict_child_items_to_inventory(
+    items: &mut Vec<CompletionItem>,
+    inventory: &svg_data::inventory::Inventory,
+) {
+    let allowed: std::collections::HashSet<&str> = inventory
+        .elements
+        .iter()
+        .map(|element| element.name.as_ref())
+        .collect();
+    if allowed.is_empty() {
+        return;
+    }
+    items.retain(|item| allowed.contains(item.label.as_str()));
+}
+
 fn completion_from_context(
     source: &[u8],
     tree: &tree_sitter::Tree,
     node: tree_sitter::Node<'_>,
     profile: svg_data::SpecSnapshotId,
+    // Additive restriction for an edition target outside the four curated
+    // snapshots: completion lists are filtered to names the edition's
+    // spec-faithful inventory declares. `None` for snapshot/native targets keeps
+    // the curated catalog's behavior unchanged.
+    inventory: Option<&svg_data::inventory::Inventory>,
 ) -> Option<CompletionResponse> {
     let mut cursor = node;
     loop {
@@ -265,13 +536,21 @@ fn completion_from_context(
         if kind == "start_tag" || kind == "self_closing_tag" {
             let elem_name = tag_element_name(cursor, source).unwrap_or("");
             let existing = existing_attribute_names(cursor, source);
-            return completion_response(attribute_completion_items(elem_name, &existing, profile));
+            let mut items = attribute_completion_items(elem_name, &existing, profile);
+            if let Some(inventory) = inventory {
+                restrict_attribute_items_to_inventory(&mut items, inventory, elem_name);
+            }
+            return completion_response(items);
         }
 
         if kind == "element" || kind == "svg_root_element" {
             let elem_name = enclosing_element_name(cursor, source).unwrap_or("");
             svg_data::element(elem_name)?;
-            return completion_response(child_element_completion_items(elem_name, profile));
+            let mut items = child_element_completion_items(elem_name, profile);
+            if let Some(inventory) = inventory {
+                restrict_child_items_to_inventory(&mut items, inventory);
+            }
+            return completion_response(items);
         }
 
         if kind == "document" {
@@ -520,7 +799,7 @@ impl SvgLanguageServer {
         &self,
         doc: &DocumentState,
     ) -> (svg_lint::LintOptions, Option<svg_lint::LintOverrides>) {
-        let profile = *self.profile_config.read().await;
+        let profile = self.profile_config.read().await;
         let overrides = self
             .runtime_compat
             .read()
@@ -535,7 +814,7 @@ impl SvgLanguageServer {
     }
 
     async fn relint_open_documents(&self) {
-        let profile_config = *self.profile_config.read().await;
+        let profile_config = self.profile_config.read().await.clone();
         let overrides = self
             .runtime_compat
             .read()
@@ -583,8 +862,9 @@ impl SvgLanguageServer {
     async fn apply_profile_config(&self, config: &Value) {
         let (resolved, warning) = resolve_profile_config(config);
         tracing::debug!(
-            requested_profile = resolved.requested.unwrap_or(resolved.resolved.as_str()),
-            resolved_profile = resolved.resolved.as_str(),
+            target = describe_target(&resolved.target),
+            resolved_profile = resolved.resolved().as_str(),
+            constrained = resolved.is_constrained(),
             "applied SVG profile config"
         );
         *self.profile_config.write().await = resolved;
@@ -661,6 +941,13 @@ impl LanguageServer for SvgLanguageServer {
             .as_ref()
             .is_some_and(configured_spec_freshness);
 
+        // Runtime compat refresh is opt-out (default on). Absent options keep the
+        // default so a client that sends no config still gets fresh BCD.
+        let runtime_compat_enabled = params
+            .initialization_options
+            .as_ref()
+            .is_none_or(configured_runtime_compat);
+
         if let Some(config) = params.initialization_options.as_ref() {
             self.apply_profile_config(config).await;
         }
@@ -684,31 +971,36 @@ impl LanguageServer for SvgLanguageServer {
             });
         }
 
-        // Spawn background compat data refresh
-        let compat = self.runtime_compat.clone();
-        let server = self.clone();
-        tokio::spawn(async move {
-            let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
-            match result {
-                Ok(Some(data)) => {
-                    let el_count = data.elements.len();
-                    let attr_count = data.attributes.len();
-                    *compat.write().await = Some(data);
-                    tracing::info!(
-                        elements = el_count,
-                        attributes = attr_count,
-                        "runtime compat data loaded"
-                    );
-                    server.relint_open_documents().await;
+        // Spawn background compat data refresh, unless the client opted out
+        // (`svg.runtime_compat: false`) to keep the session offline/private.
+        if runtime_compat_enabled {
+            let compat = self.runtime_compat.clone();
+            let server = self.clone();
+            tokio::spawn(async move {
+                let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
+                match result {
+                    Ok(Some(data)) => {
+                        let el_count = data.elements.len();
+                        let attr_count = data.attributes.len();
+                        *compat.write().await = Some(data);
+                        tracing::info!(
+                            elements = el_count,
+                            attributes = attr_count,
+                            "runtime compat data loaded"
+                        );
+                        server.relint_open_documents().await;
+                    }
+                    Ok(None) => {
+                        tracing::info!("runtime compat fetch returned no data (offline?)");
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "runtime compat fetch failed");
+                    }
                 }
-                Ok(None) => {
-                    tracing::info!("runtime compat fetch returned no data (offline?)");
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "runtime compat fetch failed");
-                }
-            }
-        });
+            });
+        } else {
+            tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
+        }
 
         Ok(InitializeResult {
             capabilities: server_capabilities(),
@@ -1124,8 +1416,14 @@ impl LanguageServer for SvgLanguageServer {
         }
 
         let response = {
-            let profile = self.effective_profile_for_doc(&doc).await;
-            completion_from_context(source, &doc.tree, node, profile)
+            let profile_config = self.profile_config.read().await;
+            completion_from_context(
+                source,
+                &doc.tree,
+                node,
+                profile_config.effective_profile_for(&doc),
+                profile_config.edition_inventory(),
+            )
         };
         Ok(response)
     }
@@ -1295,5 +1593,68 @@ mod tests {
             .set_language(&tree_sitter_svg::LANGUAGE.into())
             .map_err(|_| "SVG grammar")?;
         parser.parse(source, None).ok_or("tree")
+    }
+
+    #[test]
+    fn config_without_target_defaults_to_snapshot() {
+        let (config, warning) = resolve_profile_config(&serde_json::json!({}));
+        assert!(matches!(config.target, ConfiguredTarget::Snapshot(_)));
+        assert!(!config.is_constrained());
+        assert!(config.edition_inventory().is_none());
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn config_svg_native_profile_is_constrained_target() {
+        let (config, warning) =
+            resolve_profile_config(&serde_json::json!({ "svg": { "profile": "svg-native" } }));
+        assert!(matches!(config.target, ConfiguredTarget::SvgNative));
+        assert!(config.is_constrained());
+        // SVG Native bases on the SVG 2 editor's draft.
+        assert_eq!(
+            config.resolved(),
+            svg_data::SpecSnapshotId::Svg2EditorsDraft
+        );
+        // No edition inventory restriction for a profile target.
+        assert!(config.edition_inventory().is_none());
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn config_dated_edition_resolves_when_inventory_baked() {
+        // The 2016-09-15 SVG 2 CR has a baked inventory but is *not* a curated
+        // snapshot, so it must surface an edition inventory restriction.
+        let (config, warning) = resolve_profile_config(&serde_json::json!({
+            "svg": { "edition": { "series": "svg2", "date": "2016-09-15" } }
+        }));
+        assert!(matches!(config.target, ConfiguredTarget::Edition(_)));
+        assert!(config.edition_inventory().is_some());
+        // Any SVG 2 edition bases on the editor's draft for the snapshot pipeline.
+        assert_eq!(
+            config.resolved(),
+            svg_data::SpecSnapshotId::Svg2EditorsDraft
+        );
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn config_editors_draft_edition_has_no_inventory_restriction() {
+        // The editor's-draft edition *is* a curated snapshot, so it imposes no
+        // additive inventory restriction even though it parses as an edition.
+        let (config, _) = resolve_profile_config(&serde_json::json!({
+            "svg": { "edition": { "series": "svg2", "editors_draft": true } }
+        }));
+        assert!(matches!(config.target, ConfiguredTarget::Edition(_)));
+        assert!(config.edition_inventory().is_none());
+    }
+
+    #[test]
+    fn config_unknown_edition_falls_back_to_profile() {
+        // A series/date with no baked inventory is rejected and falls through to
+        // the (absent) profile, i.e. the default snapshot.
+        let (config, _) = resolve_profile_config(&serde_json::json!({
+            "svg": { "edition": { "series": "svg2", "date": "1999-01-01" } }
+        }));
+        assert!(matches!(config.target, ConfiguredTarget::Snapshot(_)));
     }
 }

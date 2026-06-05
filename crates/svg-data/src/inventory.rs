@@ -476,6 +476,72 @@ pub fn for_edition(id: &EditionId) -> Option<&'static Inventory> {
         .map(|(_, inventory)| *inventory)
 }
 
+/// The series token used in an edition's canonical config key.
+const fn series_token(series: Series) -> &'static str {
+    match series {
+        Series::Svg10 => "svg10",
+        Series::Svg11 => "svg11",
+        Series::Svg2 => "svg2",
+    }
+}
+
+impl EditionId {
+    /// The canonical, user-facing config key for this edition.
+    ///
+    /// Dated editions render as `<series>-<date>` (e.g. `svg2-2016-09-15`); the
+    /// rolling editor's draft renders as `<series>-editors-draft` (e.g.
+    /// `svg2-editors-draft`). This is the stable token an LSP config or
+    /// diagnostic uses to name an edition — including the three editions that
+    /// have no [`SpecSnapshotId`] — and the canonical form
+    /// [`resolve_edition_id`] resolves against.
+    #[must_use]
+    pub fn config_key(&self) -> String {
+        match &self.date {
+            EditionDate::Dated { date } => format!("{}-{date}", series_token(self.series)),
+            EditionDate::EditorsDraft => format!("{}-editors-draft", series_token(self.series)),
+        }
+    }
+}
+
+/// Resolve a user-facing edition config string to a registered [`EditionId`].
+///
+/// This is the edition-keyed analogue of
+/// [`resolve_profile_id`](crate::resolve_profile_id): where `resolve_profile_id`
+/// resolves the four curated [`SpecSnapshotId`] snapshots, this resolves *every*
+/// registered edition — including the SVG 1.0 REC, the SVG 1.1 PR, and the two
+/// older SVG 2 CRs that carry no `SpecSnapshotId` — so an LSP can target those
+/// inventories from config.
+///
+/// Matching is normalized: ASCII case and every non-alphanumeric character are
+/// folded away on both sides, so `svg2-2016-09-15`, `SVG2 20160915`, and
+/// `svg2_2016_09_15` all resolve to the same edition, and `svg2-editors-draft`,
+/// `Svg2EditorsDraft`, and `svg2 editor's draft` all resolve to the rolling
+/// draft. Returns the matching [`EditionId`] (which [`for_edition`] then maps to
+/// its baked [`Inventory`]), or [`None`] when nothing registered matches.
+///
+/// Only registered editions resolve; an input that does not match one returns
+/// [`None`] rather than fabricating an edition key.
+#[must_use]
+pub fn resolve_edition_id(input: &str) -> Option<EditionId> {
+    let normalized_input = normalize_edition_key(input);
+    if normalized_input.is_empty() {
+        return None;
+    }
+    registered_editions()
+        .into_iter()
+        .find(|edition| normalize_edition_key(&edition.config_key()) == normalized_input)
+}
+
+/// Fold ASCII case and strip every non-alphanumeric character, so punctuation
+/// and separator differences between edition config strings do not matter.
+fn normalize_edition_key(input: &str) -> String {
+    input
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect()
+}
+
 /// Every edition that has a baked, edition-keyed inventory, in registration
 /// order.
 ///
@@ -574,6 +640,58 @@ mod tests {
             .map(std::convert::AsRef::as_ref)
             .collect();
         assert!(scope.contains(&"tspan"), "element scope: {scope:?}");
+    }
+
+    #[test]
+    fn resolve_edition_id_resolves_canonical_keys_for_every_registered_edition() {
+        // Round-trip: every registered edition resolves from its own canonical
+        // config key, and the resolved id maps back to a baked inventory.
+        for edition in registered_editions() {
+            let key = edition.config_key();
+            assert_eq!(
+                resolve_edition_id(&key),
+                Some(edition.clone()),
+                "edition {key} should resolve from its canonical key"
+            );
+            assert!(
+                for_edition(&edition).is_some(),
+                "edition {key} should have a baked inventory"
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_edition_id_resolves_non_snapshot_editions() {
+        // The two older SVG 2 CRs carry no SpecSnapshotId, but are reachable
+        // through the edition-keyed resolver.
+        assert_eq!(
+            resolve_edition_id("svg2-2016-09-15"),
+            Some(EditionId::dated(Series::Svg2, "2016-09-15"))
+        );
+        assert_eq!(
+            resolve_edition_id("svg10-2001-09-04"),
+            Some(EditionId::dated(Series::Svg10, "2001-09-04"))
+        );
+    }
+
+    #[test]
+    fn resolve_edition_id_ignores_case_and_punctuation() {
+        let expected = EditionId::dated(Series::Svg2, "2018-08-07");
+        for input in ["svg2-2018-08-07", "SVG2 20180807", "svg2_2018_08_07"] {
+            assert_eq!(resolve_edition_id(input), Some(expected.clone()), "{input}");
+        }
+        assert_eq!(
+            resolve_edition_id("Svg2 Editor's Draft"),
+            Some(EditionId::editors_draft(Series::Svg2))
+        );
+    }
+
+    #[test]
+    fn resolve_edition_id_rejects_unregistered_and_empty_input() {
+        assert_eq!(resolve_edition_id(""), None);
+        assert_eq!(resolve_edition_id("   "), None);
+        // A plausible-but-unregistered date.
+        assert_eq!(resolve_edition_id("svg2-1999-01-01"), None);
     }
 
     #[test]

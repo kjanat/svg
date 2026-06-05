@@ -215,6 +215,122 @@ pub fn snapshot_for_svg_version_attr(value: &str) -> Option<SpecSnapshotId> {
     }
 }
 
+/// The reductive SVG **profile** a root `baseProfile` attribute selects.
+///
+/// SVG 1.1 defines two reductive mobile profiles (`tiny`, `basic`) layered on
+/// the SVG 1.1 base, plus `full` (the unreduced base). They are *profiles* in
+/// the [`profile`](crate::profile) sense — reductive subsets of a base edition —
+/// not point-in-time [`SpecSnapshotId`] snapshots, so they live in their own
+/// enumerated space rather than being smuggled into the snapshot enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BaseProfile {
+    /// `baseProfile="tiny"` — SVG Tiny, the most reduced SVG 1.1 mobile profile.
+    Tiny,
+    /// `baseProfile="basic"` — SVG Basic, the intermediate SVG 1.1 mobile profile.
+    Basic,
+    /// `baseProfile="full"` — the unreduced SVG 1.1 base.
+    Full,
+}
+
+impl BaseProfile {
+    /// Parse the literal value of a root `baseProfile` attribute.
+    ///
+    /// Returns `None` for any value outside the spec-defined `tiny` / `basic` /
+    /// `full` set (including the empty string), so callers fall back to other
+    /// markers or the configured profile.
+    #[must_use]
+    pub fn from_attr(value: &str) -> Option<Self> {
+        match value.trim() {
+            "tiny" => Some(Self::Tiny),
+            "basic" => Some(Self::Basic),
+            "full" => Some(Self::Full),
+            _ => None,
+        }
+    }
+
+    /// The catalogued [`SpecSnapshotId`] this profile is a reductive subset of.
+    ///
+    /// All three SVG 1.1 base profiles reduce the SVG 1.1 Second Edition base;
+    /// the reductive constraints themselves (which elements/attributes a profile
+    /// drops) are a separate axis the lint crate layers on top, but the base
+    /// snapshot is the catalog membership a feature is checked against.
+    #[must_use]
+    pub const fn base_snapshot(self) -> SpecSnapshotId {
+        match self {
+            Self::Tiny | Self::Basic | Self::Full => SpecSnapshotId::Svg11Rec20110816,
+        }
+    }
+}
+
+/// The profile/snapshot target autodetected from an SVG root element's markers.
+///
+/// The lint crate needs to pick a target edition from the document itself,
+/// looking past the bare root `version` attribute (handled by
+/// [`snapshot_for_svg_version_attr`]) to the `baseProfile` mobile profiles and
+/// the SVG Native marker. Modeling the outcome as an ADT keeps the three
+/// distinct targets — a catalogued snapshot, a reductive SVG 1.1 base profile,
+/// and the SVG Native profile — from collapsing into one another, so a caller
+/// can route each to the right checker ([`spec_snapshots`] membership, the
+/// reductive [`BaseProfile`] constraints, or the
+/// [`profile::SvgNative`](crate::profile::SvgNative) constraint dataset).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetectedTarget {
+    /// A catalogued spec snapshot, resolved from the root `version` attribute.
+    Snapshot(SpecSnapshotId),
+    /// An SVG 1.1 reductive base profile, resolved from `baseProfile`. Carries
+    /// the [`BaseProfile`]; its catalog base is [`BaseProfile::base_snapshot`].
+    BaseProfile(BaseProfile),
+    /// The SVG Native profile, detected from an explicit SVG Native marker.
+    SvgNative,
+}
+
+/// The relevant markers read off an SVG root `<svg>` element for autodetection.
+///
+/// Parse the document's root attributes into this at the boundary, then call
+/// [`detect_target`] — keeping the resolution logic pure and the raw attribute
+/// soup at the edge. All fields are optional because any given document may
+/// carry none, some, or all of them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RootProfileMarkers<'a> {
+    /// The root `version` attribute value, if present.
+    pub version: Option<&'a str>,
+    /// The root `baseProfile` attribute value, if present.
+    pub base_profile: Option<&'a str>,
+    /// Whether an explicit SVG Native marker is present on the root (e.g. the
+    /// `baseProfile="SVG-static"` / SVG-Native authoring marker). The caller
+    /// decides what constitutes the marker for its document model; this flag is
+    /// the typed signal that one was found.
+    pub svg_native: bool,
+}
+
+/// Autodetect the [`DetectedTarget`] from an SVG root element's markers.
+///
+/// Resolution order, most specific first:
+///
+/// 1. an explicit SVG Native marker wins outright — it is the most reductive,
+///    deliberately-authored target;
+/// 2. otherwise a recognized `baseProfile` (`tiny` / `basic` / `full`) selects
+///    the matching [`BaseProfile`];
+/// 3. otherwise a recognized `version` (`1.0` / `1.1` / `2` / `2.0`) selects the
+///    catalogued [`SpecSnapshotId`] via [`snapshot_for_svg_version_attr`];
+/// 4. otherwise `None`, so the caller falls back to its configured profile.
+///
+/// This is the additive, typed entry point the lint crate's autodetection reads;
+/// it never panics and consults only the markers handed to it.
+#[must_use]
+pub fn detect_target(markers: &RootProfileMarkers<'_>) -> Option<DetectedTarget> {
+    if markers.svg_native {
+        return Some(DetectedTarget::SvgNative);
+    }
+    if let Some(profile) = markers.base_profile.and_then(BaseProfile::from_attr) {
+        return Some(DetectedTarget::BaseProfile(profile));
+    }
+    markers
+        .version
+        .and_then(snapshot_for_svg_version_attr)
+        .map(DetectedTarget::Snapshot)
+}
+
 /// Return the full generated SVG element catalog.
 #[must_use]
 pub fn elements() -> &'static [ElementDef] {
@@ -435,11 +551,15 @@ pub const fn elements_in_category(cat: ElementCategory) -> &'static [&'static st
 
 /// Return the baked full-spec inventory for `snapshot`, if one exists.
 ///
-/// Only [`SpecSnapshotId::Svg2EditorsDraft`] carries a baked inventory; older
-/// snapshots return [`None`] (see [`inventory::for_snapshot`] for the
-/// rationale). This is the entry point to the full-exposure layer; from the
-/// returned [`inventory::Inventory`] a caller can enumerate every element,
-/// attribute and edge, and filter by classification.
+/// All four snapshots now carry a baked, spec-faithful inventory, each derived
+/// from the machine-readable artifact pinned for it (the SVG 2 ED
+/// `definitions*.xml`, the SVG 1.1 DTDs, and the SVG 2 CR published index
+/// tables) — so this returns [`Some`] for every [`SpecSnapshotId`]. The
+/// signature stays [`Option`] only so a future un-inventoried snapshot cannot
+/// silently fabricate an attribute universe (see [`inventory::for_snapshot`]).
+/// This is the entry point to the full-exposure layer; from the returned
+/// [`inventory::Inventory`] a caller can enumerate every element, attribute and
+/// edge, and filter by classification.
 #[must_use]
 pub fn spec_inventory(snapshot: SpecSnapshotId) -> Option<&'static inventory::Inventory> {
     inventory::for_snapshot(snapshot)
@@ -459,6 +579,21 @@ pub fn spec_inventory(snapshot: SpecSnapshotId) -> Option<&'static inventory::In
 #[must_use]
 pub fn inventory_for_edition(id: &inventory::EditionId) -> Option<&'static inventory::Inventory> {
     inventory::for_edition(id)
+}
+
+/// Resolve a user-facing edition config string to a registered
+/// [`inventory::EditionId`].
+///
+/// This is the edition-keyed analogue of [`resolve_profile_id`]: where
+/// `resolve_profile_id` resolves the four curated [`SpecSnapshotId`]s, this
+/// resolves *every* registered edition — including the SVG 1.0 REC, SVG 1.1 PR,
+/// and the two older SVG 2 CRs that carry no `SpecSnapshotId` — so an LSP can
+/// target those inventories from config. Pair the result with
+/// [`inventory_for_edition`] to read the baked inventory. See
+/// [`inventory::resolve_edition_id`] for the matching rules.
+#[must_use]
+pub fn resolve_edition_id(input: &str) -> Option<inventory::EditionId> {
+    inventory::resolve_edition_id(input)
 }
 
 /// Every classified attribute in `snapshot`'s full-spec inventory, sorted by
@@ -866,6 +1001,63 @@ mod tests {
         assert!(snapshot_for_svg_version_attr("1.2").is_none());
         assert!(snapshot_for_svg_version_attr("garbage").is_none());
         assert!(snapshot_for_svg_version_attr("3.0").is_none());
+    }
+
+    #[test]
+    fn base_profile_parses_known_values_and_maps_to_svg11() {
+        assert_eq!(BaseProfile::from_attr("tiny"), Some(BaseProfile::Tiny));
+        assert_eq!(BaseProfile::from_attr(" basic "), Some(BaseProfile::Basic));
+        assert_eq!(BaseProfile::from_attr("full"), Some(BaseProfile::Full));
+        assert_eq!(BaseProfile::from_attr("none"), None);
+        assert_eq!(BaseProfile::from_attr(""), None);
+        assert_eq!(
+            BaseProfile::Tiny.base_snapshot(),
+            SpecSnapshotId::Svg11Rec20110816
+        );
+    }
+
+    #[test]
+    fn detect_target_prefers_svg_native_then_base_profile_then_version() {
+        // SVG Native wins even when version/baseProfile are also present.
+        assert_eq!(
+            detect_target(&RootProfileMarkers {
+                version: Some("1.1"),
+                base_profile: Some("tiny"),
+                svg_native: true,
+            }),
+            Some(DetectedTarget::SvgNative)
+        );
+        // baseProfile beats version.
+        assert_eq!(
+            detect_target(&RootProfileMarkers {
+                version: Some("1.1"),
+                base_profile: Some("basic"),
+                svg_native: false,
+            }),
+            Some(DetectedTarget::BaseProfile(BaseProfile::Basic))
+        );
+        // version alone resolves to the snapshot.
+        assert_eq!(
+            detect_target(&RootProfileMarkers {
+                version: Some("2"),
+                base_profile: None,
+                svg_native: false,
+            }),
+            Some(DetectedTarget::Snapshot(SpecSnapshotId::Svg2EditorsDraft))
+        );
+    }
+
+    #[test]
+    fn detect_target_returns_none_without_recognized_markers() {
+        assert_eq!(detect_target(&RootProfileMarkers::default()), None);
+        assert_eq!(
+            detect_target(&RootProfileMarkers {
+                version: Some("1.2"),
+                base_profile: Some("weird"),
+                svg_native: false,
+            }),
+            None
+        );
     }
 
     #[test]

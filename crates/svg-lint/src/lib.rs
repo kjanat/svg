@@ -18,7 +18,10 @@ pub mod types;
 mod version;
 
 use tree_sitter::Parser;
-pub use types::{CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic};
+pub use types::{
+    CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic,
+    VerdictOverrides,
+};
 pub use version::{effective_profile, extract_declared_version};
 
 /// Parse source and lint.
@@ -69,7 +72,27 @@ pub fn lint_tree_with_options(
     options: LintOptions,
     overrides: Option<&LintOverrides>,
 ) -> Vec<SvgDiagnostic> {
-    rules::check_all(source, tree, options, overrides)
+    rules::check_all(source, tree, options, overrides, None)
+}
+
+/// Lint an already-parsed tree with explicit profile options, flag
+/// overrides, and runtime [`CompatVerdict`](svg_data::CompatVerdict)
+/// overrides.
+///
+/// `verdict_overrides` lets a caller replace the baked compat verdict for
+/// named elements/attributes (e.g. from a freshly loaded BCD table) so the
+/// advisory diagnostics — deprecation phrasing and the partial / prefix /
+/// behind-flag hints — track current data. Passing `None` (or an empty
+/// map) is exactly the baked behaviour of [`lint_tree_with_options`].
+#[must_use]
+pub fn lint_tree_with_compat(
+    source: &[u8],
+    tree: &tree_sitter::Tree,
+    options: LintOptions,
+    overrides: Option<&LintOverrides>,
+    verdict_overrides: Option<&VerdictOverrides>,
+) -> Vec<SvgDiagnostic> {
+    rules::check_all(source, tree, options, overrides, verdict_overrides)
 }
 
 #[cfg(test)]
@@ -619,6 +642,56 @@ mod tests {
                 .iter()
                 .any(|d| d.code == DiagnosticCode::DeprecatedAttribute),
             "runtime overrides should replace compat deprecation flags: {diags:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verdict_override_changes_attribute_advisory() -> Result<(), Box<dyn std::error::Error>> {
+        // `width` on `<rect>` carries no behind-flag hint by default. A
+        // runtime verdict override (standing in for a newer BCD load)
+        // injects a `BehindFlagIn` reason, which must surface as a
+        // `BehindFlag` advisory — proving the override reaches the hint
+        // path, not just the deprecation-flag path.
+        let src = br#"<svg><rect width="10" height="10"/></svg>"#;
+
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into()).ok();
+        let tree = parser.parse(src, None).ok_or("parse")?;
+
+        let baseline = lint_tree_with_compat(src, &tree, LintOptions::default(), None, None);
+        assert!(
+            !baseline
+                .iter()
+                .any(|d| d.code == DiagnosticCode::BehindFlag),
+            "baseline must not flag a behind-flag hint on rect@width: {baseline:?}"
+        );
+
+        let verdict = svg_data::CompatVerdict {
+            recommendation: svg_data::VerdictRecommendation::Caution,
+            headline_template: "behind a flag",
+            reasons: &[svg_data::VerdictReason::BehindFlagIn("chrome")],
+        };
+
+        let mut attributes = std::collections::HashMap::new();
+        attributes.insert("width".to_string(), verdict);
+        let verdict_overrides = VerdictOverrides {
+            elements: std::collections::HashMap::new(),
+            attributes,
+        };
+
+        let diags = lint_tree_with_compat(
+            src,
+            &tree,
+            LintOptions::default(),
+            None,
+            Some(&verdict_overrides),
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::BehindFlag && d.message.contains("chrome")),
+            "verdict override must surface the injected behind-flag hint: {diags:?}"
         );
         Ok(())
     }

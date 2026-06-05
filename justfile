@@ -4,6 +4,7 @@ alias c := format-check
 alias f := format
 alias i := install-lsp
 alias if := install-svg-format
+alias il := install-svg-lint
 alias l := lint
 alias fmt := format
 alias t := test
@@ -40,6 +41,11 @@ install-lsp profile="release":
 [group('install')]
 install-svg-format profile="release":
     cargo install --path crates/svg-format --bin svg-format --features="cli" --profile={{ profile }}
+
+# install svg-lint CLI to cargo bin
+[group('install')]
+install-svg-lint profile="release":
+    cargo install --path crates/svg-lint --bin svg-lint --features="cli" --profile={{ profile }}
 
 # clippy the workspace; warnings are errors
 [arg("allow-dirty", long="allow-dirty", short="a", value=" --allow-dirty")]
@@ -78,6 +84,11 @@ test *ARGS:
 test-svg-format:
     cargo test -p svg-format
 
+# test svg-lint only (fast loop)
+[group('rust')]
+test-svg-lint:
+    cargo test -p svg-lint
+
 # debug build, whole workspace
 [group('rust')]
 build-debug *ARGS:
@@ -98,6 +109,11 @@ run-lsp *ARGS:
 typecheck:
     deno task --config scripts/deno.jsonc typecheck
 
+# run the svg-compat worker's Deno test suite
+[group('scripts')]
+test-deno *ARGS:
+    deno task --config workers/svg-compat/deno.jsonc test {{ ARGS }}
+
 # run every local check; stop on first failure
 [group('verify')]
 verify:
@@ -106,6 +122,7 @@ verify:
     just release-config-check
     just lint
     just test
+    just test-deno
 
 # commit with an AI-written message
 [arg("model", long="model", short="m")]
