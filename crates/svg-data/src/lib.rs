@@ -231,3 +231,30 @@ const fn elements_in_category(category: ElementCategory) -> &'static [&'static s
     // Category membership is part of the extracted data; empty until it lands.
     &[]
 }
+
+#[cfg(test)]
+mod catalog_tests {
+    use super::*;
+
+    #[test]
+    fn circle_is_catalogued_with_real_content_model() {
+        let Some(circle) = element("circle") else {
+            panic!("circle missing from catalog");
+        };
+        assert!(circle.global_attrs, "circle carries core attributes");
+        assert!(circle.attrs.contains(&"pathLength"), "circle has pathLength");
+        assert!(circle.spec_url.is_some(), "circle has a spec permalink");
+
+        // The flattened content model resolves to real child elements.
+        let children = allowed_children_with_profile(SpecSnapshotId::LATEST, "circle");
+        let names: Vec<&str> = children.iter().map(|child| child.element.name).collect();
+        assert!(names.contains(&"animate"), "animation members are allowed");
+        assert!(names.contains(&"desc"), "descriptive members are allowed");
+        assert!(names.contains(&"clipPath"), "explicit children are allowed");
+    }
+
+    #[test]
+    fn catalog_is_non_empty() {
+        assert!(elements().len() >= 60, "the element catalog is populated");
+    }
+}

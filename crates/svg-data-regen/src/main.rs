@@ -13,11 +13,14 @@
 //! submodules: [`fetch`] (network), [`discover`] (manifest parse), and
 //! [`provenance`] (typed run identity).
 
+mod catalog;
 mod chapter;
 mod discover;
 mod extract;
 mod fetch;
 mod provenance;
+
+use std::path::{Path, PathBuf};
 
 use std::process::ExitCode;
 
@@ -114,6 +117,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     let mut totals = Totals::default();
     let mut sample: Option<extract::ElementDef> = None;
     let mut macros = chapter::MacroIndex::default();
+    let mut all_defs: Vec<extract::Definitions> = Vec::new();
     for module in &graph.definitions {
         let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href);
         let xml = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
@@ -134,6 +138,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
                 None => defs.elements.first().cloned(),
             };
         }
+        all_defs.push(defs);
     }
     println!(
         "  {:-<44} {:>3} el  {:>3} attr  {:>3} prop  {:>2} elcat  {:>2} attrcat",
@@ -150,7 +155,32 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
+    let editors_draft = provenance
+        .base_urls
+        .editors_draft
+        .as_deref()
+        .unwrap_or_default();
+    let built = catalog::build_catalog(&all_defs, editors_draft, &provenance.commit_sha);
+    let path = write_catalog(&built)?;
+    println!(
+        "\n## catalog written: {} elements -> {}",
+        built.elements.len(),
+        path.display()
+    );
+
     report_chapters(provenance, graph, &macros, want_sample.as_deref())
+}
+
+/// Write the derived catalog as deterministic pretty JSON into `svg-data`'s
+/// `data/` directory, returning the path written.
+fn write_catalog(built: &catalog::Catalog) -> Fallible<PathBuf> {
+    let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../svg-data/data");
+    std::fs::create_dir_all(&data_dir)?;
+    let path = data_dir.join("catalog.json");
+    let mut json = serde_json::to_string_pretty(built)?;
+    json.push('\n');
+    std::fs::write(&path, json)?;
+    Ok(path)
 }
 
 /// Record one module's element/attribute category membership for macro

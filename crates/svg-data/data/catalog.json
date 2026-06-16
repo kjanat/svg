@@ -1,0 +1,1516 @@
+{
+  "commit": "3c69f0f79087ec4ac37a7653e25dbe2ebc7f04d1",
+  "elements": [
+    {
+      "name": "a",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [
+        "download",
+        "href",
+        "hreflang",
+        "ping",
+        "referrerpolicy",
+        "rel",
+        "target",
+        "type"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "animate",
+      "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AnimateElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "animateMotion",
+      "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AnimateMotionElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [
+        "keyPoints",
+        "origin",
+        "path",
+        "rotate"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "animateTransform",
+      "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AnimateTransformElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
+      },
+      "attrs": [
+        "type"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "circle",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#CircleElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "clipPath",
+      "spec_url": "https://drafts.csswg.org/css-masking-1/#ClipPathElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "desc",
+          "ellipse",
+          "line",
+          "metadata",
+          "path",
+          "polygon",
+          "polyline",
+          "rect",
+          "script",
+          "set",
+          "text",
+          "title",
+          "use"
+        ]
+      },
+      "attrs": [
+        "clipPathUnits",
+        "externalResourcesRequired",
+        "transform"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "defs",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#DefsElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "desc",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#DescElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "ellipse",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#EllipseElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feBlend",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feBlendElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in",
+        "in2",
+        "mode"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feColorMatrix",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feColorMatrixElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in",
+        "type",
+        "values"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feComponentTransfer",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feComponentTransferElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "feFuncA",
+          "feFuncB",
+          "feFuncG",
+          "feFuncR",
+          "script"
+        ]
+      },
+      "attrs": [
+        "in"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feComposite",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feCompositeElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in",
+        "in2",
+        "k1",
+        "k2",
+        "k3",
+        "k4",
+        "operator"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feConvolveMatrix",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feConvolveMatrixElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "bias",
+        "divisor",
+        "edgeMode",
+        "in",
+        "kernelMatrix",
+        "kernelUnitLength",
+        "order",
+        "preserveAlpha",
+        "targetX",
+        "targetY"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feDiffuseLighting",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feDiffuseLightingElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [
+        "diffuseConstant",
+        "in",
+        "kernelUnitLength",
+        "surfaceScale"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feDisplacementMap",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feDisplacementMapElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in",
+        "in2",
+        "scale",
+        "xChannelSelector",
+        "yChannelSelector"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feDistantLight",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feDistantLightElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "azimuth",
+        "elevation"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feDropShadow",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feDropShadowElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "dx",
+        "dy",
+        "in",
+        "stdDeviation"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feFlood",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feFloodElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feFuncA",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feFuncAElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feFuncB",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feFuncBElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feFuncG",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feFuncGElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feFuncR",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feFuncRElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feGaussianBlur",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feGaussianBlurElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "edgeMode",
+        "in",
+        "stdDeviation"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feImage",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feImageElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateTransform",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "crossorigin",
+        "externalResourcesRequired",
+        "href",
+        "preserveAspectRatio",
+        "xlink:href"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feMerge",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feMergeElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "feMergeNode",
+          "script"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "feMergeNode",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feMergeElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feMorphology",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feMorphologyElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in",
+        "operator",
+        "radius"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feOffset",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feOffsetElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "dx",
+        "dy",
+        "in"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "fePointLight",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#fePointLightElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "x",
+        "y",
+        "z"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feSpecularLighting",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feSpecularLightingElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [
+        "in",
+        "kernelUnitLength",
+        "specularConstant",
+        "specularExponent",
+        "surfaceScale"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feSpotLight",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feSpotLightElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "limitingConeAngle",
+        "pointsAtX",
+        "pointsAtY",
+        "pointsAtZ",
+        "specularExponent",
+        "x",
+        "y",
+        "z"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feTile",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feTileElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "in"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "feTurbulence",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#feTurbulenceElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set"
+        ]
+      },
+      "attrs": [
+        "baseFrequency",
+        "numOctaves",
+        "seed",
+        "stitchTiles",
+        "type"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "filter",
+      "spec_url": "https://drafts.csswg.org/filter-effects-1/#FilterElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "desc",
+          "feBlend",
+          "feColorMatrix",
+          "feComponentTransfer",
+          "feComposite",
+          "feConvolveMatrix",
+          "feDiffuseLighting",
+          "feDisplacementMap",
+          "feDropShadow",
+          "feFlood",
+          "feGaussianBlur",
+          "feImage",
+          "feMerge",
+          "feMorphology",
+          "feOffset",
+          "feSpecularLighting",
+          "feTile",
+          "feTurbulence",
+          "metadata",
+          "script",
+          "set",
+          "title"
+        ]
+      },
+      "attrs": [
+        "externalResourcesRequired",
+        "filterUnits",
+        "height",
+        "primitiveUnits",
+        "width",
+        "x",
+        "y"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "foreignObject",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/embedded.html#ForeignObjectElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "g",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#GElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "image",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/embedded.html#ImageElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "mask",
+          "metadata",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "crossorigin",
+        "href",
+        "preserveAspectRatio"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "line",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength",
+        "x1",
+        "x2",
+        "y1",
+        "y2"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "linearGradient",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateTransform",
+          "desc",
+          "metadata",
+          "script",
+          "set",
+          "stop",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "gradientTransform",
+        "gradientUnits",
+        "href",
+        "spreadMethod",
+        "x1",
+        "x2",
+        "y1",
+        "y2"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "marker",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [
+        "markerHeight",
+        "markerUnits",
+        "markerWidth",
+        "orient",
+        "preserveAspectRatio",
+        "refX",
+        "refY",
+        "viewBox"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "mask",
+      "spec_url": "https://drafts.csswg.org/css-masking-1/#MaskElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "altGlyphDef",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "color-profile",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "font",
+          "font-face",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [
+        "height",
+        "maskContentUnits",
+        "maskUnits",
+        "width",
+        "x",
+        "y"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "metadata",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#MetadataElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "mpath",
+      "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MPathElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
+      },
+      "attrs": [
+        "href"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "path",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "pattern",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [
+        "height",
+        "href",
+        "patternContentUnits",
+        "patternTransform",
+        "patternUnits",
+        "preserveAspectRatio",
+        "viewBox",
+        "width",
+        "x",
+        "y"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "polygon",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolygonElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength",
+        "points"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "polyline",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolylineElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength",
+        "points"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "radialGradient",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateTransform",
+          "desc",
+          "metadata",
+          "script",
+          "set",
+          "stop",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "cx",
+        "cy",
+        "fr",
+        "fx",
+        "fy",
+        "gradientTransform",
+        "gradientUnits",
+        "href",
+        "r",
+        "spreadMethod"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "rect",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#RectElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "pathLength"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "script",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#ScriptElement",
+      "content_model": {
+        "kind": "text"
+      },
+      "attrs": [
+        "crossorigin",
+        "href",
+        "type"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "set",
+      "spec_url": "https://w3c.github.io/svgwg/specs/animations/#SetElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
+      },
+      "attrs": [
+        "to"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "stop",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "script",
+          "set",
+          "style"
+        ]
+      },
+      "attrs": [
+        "offset"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "style",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElement",
+      "content_model": {
+        "kind": "text"
+      },
+      "attrs": [
+        "media",
+        "title",
+        "type"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "svg",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SVGElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [
+        "preserveAspectRatio",
+        "transform",
+        "viewBox"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "switch",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SwitchElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "ellipse",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "path",
+          "polygon",
+          "polyline",
+          "rect",
+          "set",
+          "svg",
+          "switch",
+          "text",
+          "use"
+        ]
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "symbol",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SymbolElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "circle",
+          "clipPath",
+          "defs",
+          "desc",
+          "ellipse",
+          "filter",
+          "foreignObject",
+          "g",
+          "image",
+          "line",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "path",
+          "pattern",
+          "polygon",
+          "polyline",
+          "radialGradient",
+          "rect",
+          "script",
+          "set",
+          "style",
+          "svg",
+          "switch",
+          "symbol",
+          "text",
+          "title",
+          "use",
+          "view"
+        ]
+      },
+      "attrs": [
+        "preserveAspectRatio",
+        "refX",
+        "refY",
+        "viewBox"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "text",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "textPath",
+          "title",
+          "tspan"
+        ]
+      },
+      "attrs": [
+        "dx",
+        "dy",
+        "lengthAdjust",
+        "rotate",
+        "textLength",
+        "x",
+        "y"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "textPath",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "clipPath",
+          "desc",
+          "linearGradient",
+          "marker",
+          "mask",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title",
+          "tspan"
+        ]
+      },
+      "attrs": [
+        "href",
+        "lengthAdjust",
+        "method",
+        "path",
+        "side",
+        "spacing",
+        "startOffset",
+        "textLength"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "title",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#TitleElement",
+      "content_model": {
+        "kind": "any_svg"
+      },
+      "attrs": [],
+      "global_attrs": true
+    },
+    {
+      "name": "tspan",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "a",
+          "animate",
+          "desc",
+          "linearGradient",
+          "metadata",
+          "pattern",
+          "radialGradient",
+          "script",
+          "set",
+          "style",
+          "title",
+          "tspan"
+        ]
+      },
+      "attrs": [
+        "dx",
+        "dy",
+        "lengthAdjust",
+        "rotate",
+        "textLength",
+        "x",
+        "y"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "use",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#UseElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "clipPath",
+          "desc",
+          "mask",
+          "metadata",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "href"
+      ],
+      "global_attrs": true
+    },
+    {
+      "name": "view",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#ViewElement",
+      "content_model": {
+        "kind": "children_set",
+        "elements": [
+          "animate",
+          "animateMotion",
+          "animateTransform",
+          "desc",
+          "metadata",
+          "script",
+          "set",
+          "style",
+          "title"
+        ]
+      },
+      "attrs": [
+        "preserveAspectRatio",
+        "viewBox"
+      ],
+      "global_attrs": true
+    }
+  ]
+}
