@@ -28,22 +28,52 @@ pub struct AttributeRef {
     pub animatable: Option<bool>,
 }
 
+/// The kind of structural content model an element declares (the `contentmodel`
+/// attribute). These are the build tool's own categories of allowed children.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentModelKind {
+    /// Any element or character data is allowed (`any`).
+    Any,
+    /// Any number of the allowed elements, in any order (`anyof`).
+    AnyOf,
+    /// Character data only (`text`).
+    Text,
+    /// Character data plus any number of the allowed elements (`textoranyof`).
+    TextOrAnyOf,
+}
+
 /// An element declaration.
+///
+/// Mirrors every field the spec's own publication tool reads off an
+/// `<element>`, so the rendered content-model/attribute summary is fully
+/// reconstructable from this record without scraping rendered HTML.
 #[derive(Debug, Clone, Serialize)]
 pub struct ElementDef {
     /// Element name.
     pub name: String,
     /// Spec anchor for the element's definition.
     pub href: Option<String>,
-    /// Names of the attribute categories the element pulls attributes from.
+    /// The structural content-model kind, when declared. Absent when the element
+    /// relies solely on a prose description (`content_model_description`).
+    pub content_model: Option<ContentModelKind>,
+    /// A prose override of the content model (an inline `<contentmodel>` child),
+    /// for elements whose allowed children cannot be expressed structurally.
+    pub content_model_description: Option<String>,
+    /// Element categories whose members are allowed as children.
+    pub allowed_element_categories: Vec<String>,
+    /// Explicit element names allowed as children, beyond the categories.
+    pub allowed_elements: Vec<String>,
+    /// Attribute categories the element pulls attributes from.
     pub attribute_categories: Vec<String>,
+    /// Individual common attribute names the element carries (`attributes`).
+    pub common_attributes: Vec<String>,
+    /// Geometry property names the element accepts (`geometryproperties`).
+    pub geometry_properties: Vec<String>,
     /// IDL interface names the element implements.
     pub interfaces: Vec<String>,
-    /// The inline content-model prose, when the module declares one (most
-    /// elements declare it in chapter prose instead; that is extracted later).
-    pub content_model: Option<String>,
-    /// Attributes declared directly on the element (in addition to those it
-    /// inherits from its attribute categories).
+    /// Attributes declared directly on the element via nested `<attribute>`
+    /// children (element-specific, beyond category-inherited ones).
     pub attributes: Vec<AttributeRef>,
 }
 
@@ -247,11 +277,36 @@ fn parse_element_head(element: &BytesStart) -> Fallible<ElementDef> {
     Ok(ElementDef {
         name: required(element, b"name")?,
         href: attribute(element, b"href")?,
+        content_model: parse_content_model_kind(element)?,
+        content_model_description: None,
+        allowed_element_categories: comma_list(element, b"elementcategories")?,
+        allowed_elements: comma_list(element, b"elements")?,
         attribute_categories: comma_list(element, b"attributecategories")?,
+        common_attributes: comma_list(element, b"attributes")?,
+        geometry_properties: comma_list(element, b"geometryproperties")?,
         interfaces: comma_list(element, b"interfaces")?,
-        content_model: None,
         attributes: Vec::new(),
     })
+}
+
+/// Parse the `contentmodel` attribute into a typed kind, erroring on an
+/// unrecognised value rather than silently dropping it.
+fn parse_content_model_kind(element: &BytesStart) -> Fallible<Option<ContentModelKind>> {
+    let Some(raw) = attribute(element, b"contentmodel")? else {
+        return Ok(None);
+    };
+    let kind = match raw.as_str() {
+        "any" => ContentModelKind::Any,
+        "anyof" => ContentModelKind::AnyOf,
+        "text" => ContentModelKind::Text,
+        "textoranyof" => ContentModelKind::TextOrAnyOf,
+        other => {
+            return Err(Box::<dyn std::error::Error>::from(format!(
+                "unknown contentmodel kind `{other}`"
+            )));
+        }
+    };
+    Ok(Some(kind))
 }
 
 /// Build an [`AttributeRef`] from an `<attribute>` tag's attributes.
@@ -277,17 +332,17 @@ fn route_attribute(attr: AttributeRef, defs: &mut Definitions, context: &mut Con
     }
 }
 
-/// Append a chunk of content-model prose to the open element.
+/// Append a chunk of inline content-model description prose to the open element.
 fn append_content_model(element: &mut ElementDef, prose: &str) {
     if prose.is_empty() {
         return;
     }
-    match &mut element.content_model {
+    match &mut element.content_model_description {
         Some(existing) => {
             existing.push(' ');
             existing.push_str(prose);
         }
-        None => element.content_model = Some(prose.to_owned()),
+        None => element.content_model_description = Some(prose.to_owned()),
     }
 }
 

@@ -13,6 +13,7 @@
 //! submodules: [`fetch`] (network), [`discover`] (manifest parse), and
 //! [`provenance`] (typed run identity).
 
+mod chapter;
 mod discover;
 mod extract;
 mod fetch;
@@ -107,12 +108,15 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     );
 
     println!("\n## definitions extraction (at pinned commit)");
+    // The element to print as a JSON sample. Defaults to the first extracted;
+    // override with REGEN_SAMPLE=<element-name> to inspect a specific one.
+    let want_sample = std::env::var("REGEN_SAMPLE").ok();
     let mut totals = Totals::default();
     let mut sample: Option<extract::ElementDef> = None;
     for module in &graph.definitions {
         let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href);
         let xml = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
-        let mut defs = extract::extract_definitions(&xml, module.base.clone())?;
+        let defs = extract::extract_definitions(&xml, module.base.clone())?;
         println!(
             "  {path:<44} {:>3} el  {:>3} attr  {:>3} prop  {:>2} elcat  {:>2} attrcat",
             defs.elements.len(),
@@ -122,8 +126,11 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
             defs.attribute_categories.len(),
         );
         totals.add(&defs);
-        if sample.is_none() && !defs.elements.is_empty() {
-            sample = Some(defs.elements.swap_remove(0));
+        if sample.is_none() {
+            sample = match &want_sample {
+                Some(name) => defs.elements.iter().find(|el| &el.name == name).cloned(),
+                None => defs.elements.first().cloned(),
+            };
         }
     }
     println!(
@@ -140,6 +147,31 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         println!("\n## sample extracted element (first, as JSON)");
         println!("{}", serde_json::to_string_pretty(element)?);
     }
+
+    println!("\n## chapter extraction (anchors / dfns / examples)");
+    let mut anchors = 0usize;
+    let mut dfns = 0usize;
+    let mut examples = 0usize;
+    let pages = graph.chapters.iter().chain(&graph.appendices);
+    for name in pages {
+        let path = format!("{PUBLISH_DIR}/{name}.html");
+        let html = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
+        let extracted = chapter::extract_chapter(name, &html)?;
+        println!(
+            "  {name:<12} {:>4} anchors  {:>3} dfns  {:>2} examples",
+            extracted.anchors.len(),
+            extracted.dfns.len(),
+            extracted.examples.len(),
+        );
+        anchors += extracted.anchors.len();
+        dfns += extracted.dfns.len();
+        examples += extracted.examples.len();
+    }
+    println!(
+        "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} examples ({} pages)",
+        "TOTAL ",
+        graph.chapters.len() + graph.appendices.len(),
+    );
 
     Ok(())
 }
