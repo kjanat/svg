@@ -231,6 +231,15 @@ fn check_element<'a>(
         &mut ctx.suppressions,
     );
 
+    // A foreign-content host (`foreignObject`, `desc`, `title`, `metadata`)
+    // holds non-SVG descendants ("any elements or character data"). Clear the
+    // default namespace for its children so unprefixed descendants (e.g. HTML
+    // `<div>`) are not validated as SVG, while an explicit `<svg xmlns>` still
+    // re-declares the SVG namespace and re-enters linting.
+    if svg_data::allows_foreign_children(def.name) {
+        scope.set_default_namespace(None);
+    }
+
     scope
 }
 

@@ -33,6 +33,7 @@ struct Element {
 enum ContentModel {
     ChildrenSet { elements: Vec<String> },
     AnySvg,
+    Foreign,
     Text,
 }
 
@@ -109,6 +110,7 @@ fn emit_element(out: &mut String, element: &Element) {
             )
         }
         ContentModel::AnySvg => "crate::types::ContentModel::AnySvg".to_owned(),
+        ContentModel::Foreign => "crate::types::ContentModel::Foreign".to_owned(),
         ContentModel::Text => "crate::types::ContentModel::Text".to_owned(),
     };
     let _ = writeln!(

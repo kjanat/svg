@@ -250,6 +250,27 @@ mod tests {
     }
 
     #[test]
+    fn unprefixed_html_inside_foreignobject_is_not_flagged() {
+        // `<div>` carries no xmlns, so it inherits the namespace; `foreignObject`
+        // clears the default so the div is foreign (HTML), not unknown SVG.
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <foreignObject width="100" height="50">
+                    <div>plain HTML content</div>
+                </foreignObject>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::UnknownElement),
+            "HTML inside foreignObject must not be flagged as unknown SVG: {diags:?}"
+        );
+    }
+
+    #[test]
     fn prefixed_svg_elements_still_use_svg_validation_rules() {
         let src = br#"
             <svg xmlns:svg="http://www.w3.org/2000/svg">

@@ -174,7 +174,7 @@
       "name": "desc",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#DescElement",
       "content_model": {
-        "kind": "any_svg"
+        "kind": "foreign"
       },
       "attrs": [],
       "global_attrs": true
@@ -690,7 +690,7 @@
       "name": "foreignObject",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/embedded.html#ForeignObjectElement",
       "content_model": {
-        "kind": "any_svg"
+        "kind": "foreign"
       },
       "attrs": [],
       "global_attrs": true
@@ -941,7 +941,7 @@
       "name": "metadata",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#MetadataElement",
       "content_model": {
-        "kind": "any_svg"
+        "kind": "foreign"
       },
       "attrs": [],
       "global_attrs": true
@@ -1429,7 +1429,7 @@
       "name": "title",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#TitleElement",
       "content_model": {
-        "kind": "any_svg"
+        "kind": "foreign"
       },
       "attrs": [],
       "global_attrs": true

@@ -50,6 +50,9 @@ pub enum CatalogContentModel {
     },
     /// Accepts any element from the SVG namespace.
     AnySvg,
+    /// Hosts arbitrary foreign-namespace content (the spec's `any` model:
+    /// "any elements or character data"), e.g. HTML in `foreignObject`.
+    Foreign,
     /// Primarily character data.
     Text,
 }
@@ -97,16 +100,20 @@ fn build_element(
     members: &BTreeMap<&str, Vec<&str>>,
 ) -> CatalogElement {
     let content_model = match element.content_model {
+        // The spec's `any` ("any elements or character data") hosts foreign
+        // content (`foreignObject`, `desc`, `title`, `metadata`); its children
+        // are not SVG and must not be validated as such.
+        Some(ContentModelKind::Any) => CatalogContentModel::Foreign,
         Some(ContentModelKind::Text) => CatalogContentModel::Text,
         Some(ContentModelKind::AnyOf | ContentModelKind::TextOrAnyOf) => {
             CatalogContentModel::ChildrenSet {
                 elements: flatten_children(element, members),
             }
         }
-        // `any`, and description-only models (e.g. `a`, whose children mirror the
-        // parent): over-approximate as "any SVG element" so valid children never
-        // trip a false "invalid child" diagnostic.
-        Some(ContentModelKind::Any) | None => CatalogContentModel::AnySvg,
+        // Description-only models (e.g. `a`, whose children mirror the parent):
+        // over-approximate as "any SVG element" so valid children never trip a
+        // false "invalid child" diagnostic.
+        None => CatalogContentModel::AnySvg,
     };
 
     let mut attrs: Vec<String> = element

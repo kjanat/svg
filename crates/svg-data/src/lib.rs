@@ -242,7 +242,10 @@ mod catalog_tests {
             panic!("circle missing from catalog");
         };
         assert!(circle.global_attrs, "circle carries core attributes");
-        assert!(circle.attrs.contains(&"pathLength"), "circle has pathLength");
+        assert!(
+            circle.attrs.contains(&"pathLength"),
+            "circle has pathLength"
+        );
         assert!(circle.spec_url.is_some(), "circle has a spec permalink");
 
         // The flattened content model resolves to real child elements.
@@ -256,5 +259,19 @@ mod catalog_tests {
     #[test]
     fn catalog_is_non_empty() {
         assert!(elements().len() >= 60, "the element catalog is populated");
+    }
+
+    #[test]
+    fn foreign_object_hosts_foreign_content() {
+        let Some(foreign_object) = element("foreignObject") else {
+            panic!("foreignObject missing from catalog");
+        };
+        assert!(
+            matches!(foreign_object.content_model, ContentModel::Foreign),
+            "the spec's `any` content model maps to Foreign"
+        );
+        assert!(allows_foreign_children("foreignObject"));
+        // A regular element is not a foreign host.
+        assert!(!allows_foreign_children("circle"));
     }
 }

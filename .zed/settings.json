@@ -9,7 +9,20 @@
 		"SVG": { "language_servers": ["svg-language-server"] }
 	},
 	"lsp": {
-		"svg-language-server": { "binary": { "path": "cargo", "arguments": ["lsp"] } },
+		"svg-language-server": {
+			"binary": {
+				"path": "cargo",
+				"arguments": ["lsp"],
+				"env": {
+					"CARGO_TERM_QUIET": "true",
+					"CARGO_PKG_VERSION_PRE": "zed",
+					"CARGO_TARGET_DIR": "target/zed"
+				}
+			},
+			"initialization_options": {},
+			"settings": {},
+			"enable_lsp_tasks": true
+		},
 		"json-language-server": {
 			"settings": {
 				"json": {
