@@ -783,7 +783,7 @@ mod tests {
         verdicts: &[],
         values: AttributeValues::FreeText,
         value_overrides: &[],
-        elements: &["*"],
+        applicability: svg_data::AttributeApplicability::Global,
     };
 
     #[test]

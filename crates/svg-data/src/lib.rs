@@ -16,10 +16,10 @@ mod catalog;
 pub mod types;
 
 pub use types::{
-    AttributeDef, AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport,
-    BrowserVersion, CompatVerdict, ContentModel, ElementCategory, ElementDef, ProfileLookup,
-    ProfiledAttribute, ProfiledElement, SnapshotMetadata, SpecLifecycle, SpecSnapshotId,
-    VerdictReason, VerdictRecommendation,
+    AttributeApplicability, AttributeDef, AttributeValues, BaselineQualifier, BaselineStatus,
+    BrowserFlag, BrowserSupport, BrowserVersion, CompatVerdict, ContentModel, ElementCategory,
+    ElementDef, ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotMetadata, SpecLifecycle,
+    SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{ATTRIBUTES, ELEMENTS, SNAPSHOT_METADATA};
@@ -91,9 +91,9 @@ pub fn attributes_for_with_profile(
     ATTRIBUTES
         .iter()
         .filter(|attribute| {
-            element.attrs.contains(&attribute.name)
-                || (attribute.elements.is_empty() && element.global_attrs)
-                || attribute.elements.contains(&elem_name)
+            attribute
+                .applicability
+                .includes(elem_name, element.global_attrs)
         })
         .map(|attribute| ProfiledAttribute {
             attribute,

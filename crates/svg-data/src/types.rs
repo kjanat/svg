@@ -120,6 +120,42 @@ pub enum AttributeValues {
     FreeText,
 }
 
+/// Which elements an attribute can appear on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttributeApplicability {
+    /// Applies to every element that accepts global SVG attributes.
+    Global,
+    /// Applies only to the listed element names.
+    Elements(&'static [&'static str]),
+    /// Known attribute that applies to no elements in this catalog/profile.
+    None,
+}
+
+impl AttributeApplicability {
+    /// Whether this applicability includes `element_name`.
+    ///
+    /// Global attributes apply only to elements whose definition accepts the
+    /// SVG global attribute set.
+    #[must_use]
+    pub fn includes(self, element_name: &str, accepts_global_attributes: bool) -> bool {
+        match self {
+            Self::Global => accepts_global_attributes,
+            Self::Elements(elements) => elements.contains(&element_name),
+            Self::None => false,
+        }
+    }
+
+    /// Build a scoped applicability from a generated element slice.
+    #[must_use]
+    pub const fn only(elements: &'static [&'static str]) -> Self {
+        if elements.is_empty() {
+            Self::None
+        } else {
+            Self::Elements(elements)
+        }
+    }
+}
+
 /// Inexactness qualifier on a baseline / version date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BaselineQualifier {
@@ -344,8 +380,8 @@ pub struct AttributeDef {
     pub values: AttributeValues,
     /// Per-snapshot value overrides, when the value space differs by profile.
     pub value_overrides: &'static [(SpecSnapshotId, AttributeValues)],
-    /// Elements the attribute applies to; empty means global.
-    pub elements: &'static [&'static str],
+    /// Elements the attribute applies to.
+    pub applicability: AttributeApplicability,
 }
 
 impl AttributeDef {
@@ -356,6 +392,32 @@ impl AttributeDef {
             .iter()
             .find_map(|(snapshot, values)| (*snapshot == profile).then_some(values))
             .unwrap_or(&self.values)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AttributeApplicability;
+
+    #[test]
+    fn attribute_applicability_distinguishes_global_scoped_and_none() {
+        assert!(AttributeApplicability::Global.includes("circle", true));
+        assert!(!AttributeApplicability::Global.includes("circle", false));
+        assert!(AttributeApplicability::Elements(&["circle"]).includes("circle", false));
+        assert!(!AttributeApplicability::Elements(&["circle"]).includes("rect", true));
+        assert!(!AttributeApplicability::None.includes("circle", true));
+    }
+
+    #[test]
+    fn empty_scoped_applicability_maps_to_none() {
+        assert_eq!(
+            AttributeApplicability::only(&[]),
+            AttributeApplicability::None
+        );
+        assert_eq!(
+            AttributeApplicability::only(&["circle"]),
+            AttributeApplicability::Elements(&["circle"])
+        );
     }
 }
 

@@ -120,7 +120,7 @@ Two crates do the work:
 ### `svg-data` key files
 
 - `src/types.rs` - the runtime ADTs (the contract the LSP+linter compile
-  against). `ElementDef`, `AttributeDef`, `ContentModel`
+  against). `ElementDef`, `AttributeDef`, `AttributeApplicability`, `ContentModel`
   (`ChildrenSet`/`AnySvg`/`Foreign`/`Void`/`Text`/`Children{categories,elements}`),
   `SpecSnapshotId`, `BaselineStatus`, `CompatVerdict`, `ProfileLookup`, etc.
   All fields are `&'static` (baked literals emitted by build.rs).
@@ -224,10 +224,12 @@ element `common_attributes`. Per `AttributeDef` field:
   `chapter.rs` (join by name) -> `AttributeValues::Enum(keywords)` / typed variant;
   otherwise `FreeText` until per-attribute value grammars are parsed. YES - the
   property value tables feed BOTH the property and its presentation attribute.
-- `elements`: **empty = global** (attributes from global categories core/presentation/
-  aria/conditional-processing/events reach elements via `element.global_attrs`); else
-  the bearer element names. This global-vs-scoped policy is the one real design
-  decision - confirm with the user.
+- `applicability`: use `AttributeApplicability`, not an overloaded element slice.
+  `Global` means "applies to elements that accept global SVG attrs";
+  `Elements(&[...])` means "applies only to these bearer elements"; `None` means
+  "known attribute, applies nowhere in this catalog/profile". Do NOT encode
+  global as an empty element list. User explicitly confirmed the model must
+  represent all three states before wiring attributes.
 - `deprecated`: `false` for now, BUT note the spec signal - attributes in the
   `deprecated xlink` category are spec-deprecated (a spec-axis input distinct from MDN).
 - `description`/`mdn_url`/`baseline`/`browser_support`/`verdicts`/`experimental`:
@@ -237,10 +239,9 @@ element `common_attributes`. Per `AttributeDef` field:
 
 `b5ecf9d` accidentally included `.zed/settings.json` and
 `samples/validity-vs-reliability.svg` - they were pre-staged by the user (not by
-the agent), and `git commit` takes all staged content. Not pushed. The user was
-asked whether to split them out via `git reset --soft HEAD~1` + re-commit and
-**had not answered** when this handover was written. **Ask the user** before
-rewriting that commit (it contains their changes).
+the agent), and `git commit` takes all staged content. Not pushed. The user has
+now decided to **leave both files in that commit**. Do not rewrite `b5ecf9d` for
+this issue.
 
 ### Issue #3 - `spec_url` is editors-draft only (P5 not done)
 
@@ -270,30 +271,29 @@ the SVG namespace and re-enters linting. Fixed in `b5ecf9d`; regression-tested.
 
 ## 7. Recommended next steps (in order)
 
-1. **Resolve Issue #2** with the user (split their files out of `b5ecf9d`, or
-   leave it).
-2. **Wire `ATTRIBUTES` (finish P6 element-style for attributes).** Mirror what
+1. **Wire `ATTRIBUTES` (finish P6 element-style for attributes).** Mirror what
    `catalog.rs` + `build.rs` do for elements: collect the union of attributes
    (global + per-category + element-specific) from the extraction, dedup by
-   canonical name, emit `AttributeDef` literals. `values` (value space) can come
-   from the property value-definition tables already extracted in `chapter.rs`
-   (the `PropertyValueDef` records: grammar + enum `keywords`); attributes
-   without a propdef table get `AttributeValues::FreeText`. This alone should
-   clear the "attribute-presence" test failures (Issue #1, bucket 1).
-3. **Add a repro/provenance test gate (finish P6).** A committed test (or CI
+   canonical name, emit `AttributeDef` literals with explicit
+   `AttributeApplicability` (`Global`/`Elements`/`None`). `values` (value space)
+   can come from the property value-definition tables already extracted in
+   `chapter.rs` (the `PropertyValueDef` records: grammar + enum `keywords`);
+   attributes without a propdef table get `AttributeValues::FreeText`. Do not
+   pre-promise which tests this flips; run the suite after wiring.
+2. **Add a repro/provenance test gate (finish P6).** A committed test (or CI
    step) that fails if a fresh `cargo run -p svg-data-regen` changes
    `data/catalog.json` bytes, and that records the fetched SHA. Note: this needs
    the network, so it likely belongs in CI, not a unit test.
-4. **P4: MDN browser-compat + editions.** Fetch `@mdn/browser-compat-data` SVG
+3. **P4: MDN browser-compat + editions.** Fetch `@mdn/browser-compat-data` SVG
    subtree -> `BaselineStatus` + `BrowserSupport` + `CompatVerdict`. Fetch SVG
    1.1/1.0 from W3C `/TR/` for per-edition presence + `changes.html` lifecycle.
    Keep the spec and browser axes SEPARATE (see Hard Rule #3). This clears
    Issue #1 buckets 2 and 3.
-5. **P5: per-profile permalinks.** Resolve `spec_url` per `SpecSnapshotId` using
+4. **P5: per-profile permalinks.** Resolve `spec_url` per `SpecSnapshotId` using
    the per-edition base URLs.
-6. **P7: hover.** Surface description + spec line + browser-support line
+5. **P7: hover.** Surface description + spec line + browser-support line
    (distinct) in `crates/svg-language-server/src/hover.rs`.
-7. **P8: `just refresh-spec` + scheduled CI** that runs the pipeline and opens a
+6. **P8: `just refresh-spec` + scheduled CI** that runs the pipeline and opens a
    PR when the derived data changes.
 
 ---
