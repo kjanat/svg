@@ -148,30 +148,56 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
-    println!("\n## chapter extraction (anchors / dfns / examples)");
+    report_chapters(provenance, graph)
+}
+
+/// Extract and report the chapter/appendix pages: anchor, definition, example,
+/// and property-table counts, plus a sample property as JSON.
+fn report_chapters(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
+    println!("\n## chapter extraction (anchors / dfns / examples / properties)");
     let mut anchors = 0usize;
     let mut dfns = 0usize;
     let mut examples = 0usize;
+    let mut properties = 0usize;
+    let mut sample_property: Option<chapter::PropertyValueDef> = None;
+    let want_property = std::env::var("REGEN_PROPERTY").ok();
     let pages = graph.chapters.iter().chain(&graph.appendices);
     for name in pages {
         let path = format!("{PUBLISH_DIR}/{name}.html");
         let html = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
         let extracted = chapter::extract_chapter(name, &html)?;
         println!(
-            "  {name:<12} {:>4} anchors  {:>3} dfns  {:>2} examples",
+            "  {name:<12} {:>4} anchors  {:>3} dfns  {:>2} examples  {:>3} props",
             extracted.anchors.len(),
             extracted.dfns.len(),
             extracted.examples.len(),
+            extracted.properties.len(),
         );
         anchors += extracted.anchors.len();
         dfns += extracted.dfns.len();
         examples += extracted.examples.len();
+        properties += extracted.properties.len();
+        if sample_property.is_none() {
+            sample_property = match &want_property {
+                Some(want) => extracted
+                    .properties
+                    .iter()
+                    .find(|p| &p.name == want)
+                    .cloned(),
+                None => extracted.properties.first().cloned(),
+            };
+        }
     }
     println!(
-        "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} examples ({} pages)",
+        "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} examples  {properties:>3} props ({} pages)",
         "TOTAL ",
         graph.chapters.len() + graph.appendices.len(),
     );
+
+    if let Some(property) = &sample_property {
+        println!("\n## sample extracted property (as JSON)");
+        println!("{}", serde_json::to_string_pretty(property)?);
+    }
 
     Ok(())
 }
