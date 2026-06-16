@@ -1042,7 +1042,6 @@ mod tests {
 
     fn bv_unknown() -> BrowserVersion {
         BrowserVersion {
-            raw_value_added: svg_data::RawVersionAdded::Flag(true),
             supported: Some(true),
             ..BrowserVersion::EMPTY
         }
@@ -1050,7 +1049,6 @@ mod tests {
 
     fn bv_version(version: &'static str) -> BrowserVersion {
         BrowserVersion {
-            raw_value_added: svg_data::RawVersionAdded::Text(version),
             version_added: Some(version),
             ..BrowserVersion::EMPTY
         }
@@ -1115,7 +1113,7 @@ mod tests {
             profile_lifecycle_hover_line(
                 SpecSnapshotId::Svg2EditorsDraft,
                 &ProfileLookup::Present {
-                    value: (),
+                    value: &(),
                     lifecycle: SpecLifecycle::Experimental,
                 },
             ),

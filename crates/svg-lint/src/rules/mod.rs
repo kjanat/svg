@@ -245,7 +245,7 @@ fn edition_declares_element(edition: Option<&svg_data::inventory::Inventory>, na
         inventory
             .elements
             .iter()
-            .any(|element| element.name.as_ref() == name)
+            .any(|element| element.name == name)
     })
 }
 
@@ -317,7 +317,7 @@ fn check_edition_attribute(
     }
     let allowed: Vec<&str> = edition
         .attributes_for_element(elem_name)
-        .map(|attribute| attribute.name.as_ref())
+        .map(|attribute| attribute.name)
         .collect();
     if !allowed.is_empty() && !allowed.contains(&lookup_name) {
         push_diag_in_tag(

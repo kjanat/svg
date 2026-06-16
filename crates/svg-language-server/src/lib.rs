@@ -527,7 +527,7 @@ fn restrict_attribute_items_to_inventory(
 ) {
     let allowed: std::collections::HashSet<&str> = inventory
         .attributes_for_element(elem_name)
-        .map(|attribute| attribute.name.as_ref())
+        .map(|attribute| attribute.name)
         .collect();
     if allowed.is_empty() {
         return;
@@ -545,7 +545,7 @@ fn restrict_child_items_to_inventory(
     let allowed: std::collections::HashSet<&str> = inventory
         .elements
         .iter()
-        .map(|element| element.name.as_ref())
+        .map(|element| element.name)
         .collect();
     if allowed.is_empty() {
         return;
@@ -576,7 +576,7 @@ fn restrict_attribute_items_to_native(
         // attribute applies, so they do not gate completion here.
         for kind in [ConstraintKind::Attribute, ConstraintKind::Property] {
             if let Some(ConstraintScope::Elements { names }) = native.supported_only(kind, name)
-                && !names.iter().any(|allowed| allowed == elem_name)
+                && !names.contains(&elem_name)
             {
                 return false;
             }

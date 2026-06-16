@@ -751,10 +751,7 @@ mod tests {
             inventory::for_edition(&inventory::EditionId::dated(Series::Svg10, "2001-09-04"))
                 .ok_or("no SVG 1.0 edition inventory")?;
         assert!(
-            svg10
-                .elements
-                .iter()
-                .any(|e| e.name.as_ref() == "definition-src"),
+            svg10.elements.iter().any(|e| e.name == "definition-src"),
             "fixture assumption: definition-src is an SVG 1.0 element"
         );
 

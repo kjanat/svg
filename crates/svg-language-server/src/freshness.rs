@@ -176,7 +176,7 @@ pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
         match VersionsEnvelope::parse(series, &json) {
             Ok(live) => {
                 for version in unseen_versions(series, &live) {
-                    unseen_uris.push(version.uri.to_string());
+                    unseen_uris.push(version.uri.clone());
                 }
             }
             Err(error) => {
