@@ -108,8 +108,8 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     );
 
     println!("\n## definitions extraction (at pinned commit)");
-    // The element to print as a JSON sample. Defaults to the first extracted;
-    // override with REGEN_SAMPLE=<element-name> to inspect a specific one.
+    // REGEN_SAMPLE=<name> prints the element, property, and/or term with that
+    // name as a JSON sample (whichever exist). Unset: the first of each kind.
     let want_sample = std::env::var("REGEN_SAMPLE").ok();
     let mut totals = Totals::default();
     let mut sample: Option<extract::ElementDef> = None;
@@ -146,11 +146,11 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     );
 
     if let Some(element) = &sample {
-        println!("\n## sample extracted element (first, as JSON)");
+        println!("\n## sample extracted element (as JSON)");
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
-    report_chapters(provenance, graph, &macros)
+    report_chapters(provenance, graph, &macros, want_sample.as_deref())
 }
 
 /// Record one module's element/attribute category membership for macro
@@ -170,11 +170,14 @@ fn index_categories(defs: &extract::Definitions, macros: &mut chapter::MacroInde
 }
 
 /// Extract and report the chapter/appendix pages: anchor, definition, example,
-/// and property-table counts, plus a sample property as JSON.
+/// property, and term counts, plus a sample property and term as JSON. `want`
+/// (from `REGEN_SAMPLE`) selects which property/term to print by name; when
+/// `None`, the first of each is shown.
 fn report_chapters(
     provenance: &Provenance,
     graph: &PublishGraph,
     macros: &chapter::MacroIndex,
+    want: Option<&str>,
 ) -> Fallible<()> {
     println!("\n## chapter extraction (anchors / dfns / examples / properties)");
     let mut anchors = 0usize;
@@ -184,8 +187,6 @@ fn report_chapters(
     let mut terms = 0usize;
     let mut sample_property: Option<chapter::PropertyValueDef> = None;
     let mut sample_term: Option<chapter::TermDefinition> = None;
-    let want_property = std::env::var("REGEN_PROPERTY").ok();
-    let want_term = std::env::var("REGEN_TERM").ok();
     let pages = graph.chapters.iter().chain(&graph.appendices);
     for name in pages {
         let path = format!("{PUBLISH_DIR}/{name}.html");
@@ -205,21 +206,21 @@ fn report_chapters(
         properties += extracted.properties.len();
         terms += extracted.term_definitions.len();
         if sample_property.is_none() {
-            sample_property = match &want_property {
-                Some(want) => extracted
+            sample_property = match want {
+                Some(name) => extracted
                     .properties
                     .iter()
-                    .find(|p| &p.name == want)
+                    .find(|p| p.name == name)
                     .cloned(),
                 None => extracted.properties.first().cloned(),
             };
         }
         if sample_term.is_none() {
-            sample_term = match &want_term {
-                Some(want) => extracted
+            sample_term = match want {
+                Some(name) => extracted
                     .term_definitions
                     .iter()
-                    .find(|t| &t.term == want)
+                    .find(|t| t.term == name)
                     .cloned(),
                 None => extracted.term_definitions.first().cloned(),
             };
