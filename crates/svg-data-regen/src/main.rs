@@ -113,6 +113,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     let want_sample = std::env::var("REGEN_SAMPLE").ok();
     let mut totals = Totals::default();
     let mut sample: Option<extract::ElementDef> = None;
+    let mut macros = chapter::MacroIndex::default();
     for module in &graph.definitions {
         let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href);
         let xml = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
@@ -126,6 +127,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
             defs.attribute_categories.len(),
         );
         totals.add(&defs);
+        index_categories(&defs, &mut macros);
         if sample.is_none() {
             sample = match &want_sample {
                 Some(name) => defs.elements.iter().find(|el| &el.name == name).cloned(),
@@ -148,12 +150,32 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
-    report_chapters(provenance, graph)
+    report_chapters(provenance, graph, &macros)
+}
+
+/// Record one module's element/attribute category membership for macro
+/// expansion in chapter descriptions.
+fn index_categories(defs: &extract::Definitions, macros: &mut chapter::MacroIndex) {
+    for category in &defs.element_categories {
+        macros
+            .element_categories
+            .insert(category.name.clone(), category.elements.clone());
+    }
+    for category in &defs.attribute_categories {
+        let names = category.attributes.iter().map(|a| a.name.clone()).collect();
+        macros
+            .attribute_categories
+            .insert(category.name.clone(), names);
+    }
 }
 
 /// Extract and report the chapter/appendix pages: anchor, definition, example,
 /// and property-table counts, plus a sample property as JSON.
-fn report_chapters(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
+fn report_chapters(
+    provenance: &Provenance,
+    graph: &PublishGraph,
+    macros: &chapter::MacroIndex,
+) -> Fallible<()> {
     println!("\n## chapter extraction (anchors / dfns / examples / properties)");
     let mut anchors = 0usize;
     let mut dfns = 0usize;
@@ -168,7 +190,7 @@ fn report_chapters(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()
     for name in pages {
         let path = format!("{PUBLISH_DIR}/{name}.html");
         let html = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
-        let extracted = chapter::extract_chapter(name, &html)?;
+        let extracted = chapter::extract_chapter(name, &html, macros)?;
         println!(
             "  {name:<12} {:>4} anchors  {:>3} dfns  {:>2} ex  {:>3} props  {:>3} terms",
             extracted.anchors.len(),

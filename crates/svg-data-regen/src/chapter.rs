@@ -8,6 +8,7 @@
 //! from there, not here.) This module turns one page into a typed record.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 
 use serde::Serialize;
 use tl::{HTMLTag, Parser, ParserOptions};
@@ -104,11 +105,25 @@ pub struct Chapter {
     pub term_definitions: Vec<TermDefinition>,
 }
 
-/// Extract anchors, definitions, and examples from a chapter's HTML.
+/// Category membership used to expand the spec's publish-time `<edit:*category>`
+/// macros (which are empty in source HTML) back into prose. Keyed by category
+/// name; values are the member element/attribute names, in document order.
+#[derive(Debug, Default)]
+pub struct MacroIndex {
+    /// Element-category name to its member element names.
+    pub element_categories: BTreeMap<String, Vec<String>>,
+    /// Attribute-category name to its member attribute names.
+    pub attribute_categories: BTreeMap<String, Vec<String>>,
+}
+
+/// Extract anchors, definitions, examples, properties, and term definitions
+/// from a chapter's HTML. `macros` supplies category membership so that the
+/// publish-time `<edit:*category>` placeholders in descriptions are expanded
+/// rather than dropped.
 ///
 /// # Errors
 /// Returns an error if the HTML cannot be parsed.
-pub fn extract_chapter(name: &str, html: &str) -> Fallible<Chapter> {
+pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<Chapter> {
     let dom = tl::parse(html, ParserOptions::default())?;
     let parser = dom.parser();
     let mut chapter = Chapter {
@@ -156,7 +171,7 @@ pub fn extract_chapter(name: &str, html: &str) -> Fallible<Chapter> {
                 }
             }
             "dl" if has_class(tag, "definitions") => {
-                extract_definition_list(tag, parser, &mut chapter.term_definitions);
+                extract_definition_list(tag, parser, macros, &mut chapter.term_definitions);
             }
             _ => {}
         }
@@ -168,7 +183,12 @@ pub fn extract_chapter(name: &str, html: &str) -> Fallible<Chapter> {
 /// Pair the `<dt>`/`<dd>` children of a definition list into term definitions,
 /// walking direct children in document order so each term keeps its own
 /// description.
-fn extract_definition_list(dl: &HTMLTag, parser: &Parser, out: &mut Vec<TermDefinition>) {
+fn extract_definition_list(
+    dl: &HTMLTag,
+    parser: &Parser,
+    macros: &MacroIndex,
+    out: &mut Vec<TermDefinition>,
+) {
     let mut pending: Option<Dfn> = None;
     for handle in dl.children().top().iter() {
         let Some(child) = handle.get(parser).and_then(|node| node.as_tag()) else {
@@ -182,12 +202,52 @@ fn extract_definition_list(dl: &HTMLTag, parser: &Parser, out: &mut Vec<TermDefi
                         term: dfn.term,
                         id: dfn.id,
                         kind: dfn.kind,
-                        description: normalize_ws(&child.inner_text(parser)),
+                        description: description_text(child, parser, macros),
                     });
                 }
             }
             _ => {}
         }
+    }
+}
+
+/// Build a tag's text content, expanding `<edit:elementcategory>` and
+/// `<edit:attributecategory>` placeholders into their member lists (which
+/// `inner_text` would otherwise drop, leaving dangling "Specifically:" prose).
+fn description_text(tag: &HTMLTag, parser: &Parser, macros: &MacroIndex) -> String {
+    let mut buffer = String::new();
+    collect_text(tag, parser, macros, &mut buffer);
+    normalize_ws(&buffer)
+}
+
+/// Append `tag`'s descendant text to `buffer`, substituting category macros.
+fn collect_text(tag: &HTMLTag, parser: &Parser, macros: &MacroIndex, buffer: &mut String) {
+    for handle in tag.children().top().iter() {
+        let Some(node) = handle.get(parser) else {
+            continue;
+        };
+        if let Some(child) = node.as_tag() {
+            match child.name().as_utf8_str().as_ref() {
+                "edit:elementcategory" => {
+                    push_members(&macros.element_categories, child, buffer);
+                }
+                "edit:attributecategory" => {
+                    push_members(&macros.attribute_categories, child, buffer);
+                }
+                _ => collect_text(child, parser, macros, buffer),
+            }
+        } else if let Some(raw) = node.as_raw() {
+            buffer.push_str(&raw.as_utf8_str());
+        }
+    }
+}
+
+/// Append the comma-joined members of the category named by `tag`'s `name`.
+fn push_members(members: &BTreeMap<String, Vec<String>>, tag: &HTMLTag, buffer: &mut String) {
+    if let Some(name) = attr(tag, "name")
+        && let Some(names) = members.get(&name)
+    {
+        buffer.push_str(&names.join(", "));
     }
 }
 
@@ -401,7 +461,10 @@ mod tests {
 
     #[test]
     fn value_keywords_keeps_only_bare_keywords() {
-        assert_eq!(value_keywords("start | middle | end"), ["start", "middle", "end"]);
+        assert_eq!(
+            value_keywords("start | middle | end"),
+            ["start", "middle", "end"]
+        );
         assert_eq!(value_keywords("auto | <length-percentage>"), ["auto"]);
         assert_eq!(value_keywords("<paint>"), Vec::<String>::new());
         assert_eq!(value_keywords("nonzero | evenodd"), ["nonzero", "evenodd"]);
@@ -420,10 +483,14 @@ mod tests {
 
     #[test]
     fn extracts_chapter_entities() -> Result<(), Box<dyn std::error::Error>> {
-        let ch = extract_chapter("shapes", HTML)?;
+        let ch = extract_chapter("shapes", HTML, &MacroIndex::default())?;
 
         // Heading anchor keeps its (entity/whitespace-normalized) text.
-        let shapes = ch.anchors.iter().find(|a| a.id == "Shapes").ok_or("no Shapes anchor")?;
+        let shapes = ch
+            .anchors
+            .iter()
+            .find(|a| a.id == "Shapes")
+            .ok_or("no Shapes anchor")?;
         assert_eq!(shapes.tag, "h2");
         assert_eq!(shapes.text.as_deref(), Some("Basic Shapes"));
 
@@ -445,7 +512,10 @@ mod tests {
         assert_eq!(term.term, "shape");
         assert_eq!(term.id.as_deref(), Some("term-shape"));
         assert_eq!(term.kind.as_deref(), Some("dfn"));
-        assert_eq!(term.description, "A graphics element with a defined outline.");
+        assert_eq!(
+            term.description,
+            "A graphics element with a defined outline."
+        );
         Ok(())
     }
 
@@ -455,10 +525,33 @@ mod tests {
   <tr><th>Name:</th><td><dfn id="P">inline-size</dfn></td></tr>
   <tr><th>Value:</th><td>auto | <a>&lt;length-percentage&gt;</a></td></tr>
 </table>"#;
-        let ch = extract_chapter("text", html)?;
+        let ch = extract_chapter("text", html, &MacroIndex::default())?;
         assert_eq!(ch.properties.len(), 1);
-        assert_eq!(ch.properties[0].value.as_deref(), Some("auto | <length-percentage>"));
+        assert_eq!(
+            ch.properties[0].value.as_deref(),
+            Some("auto | <length-percentage>")
+        );
         assert_eq!(ch.properties[0].keywords, ["auto"]);
+        Ok(())
+    }
+
+    #[test]
+    fn expands_category_macro_in_description() -> Result<(), Box<dyn std::error::Error>> {
+        let html = r"<dl class='definitions'>
+  <dt><dfn id='c' data-dfn-type='dfn'>container element</dfn></dt>
+  <dd>An element. Specifically: <edit:elementcategory name='container'/>.</dd>
+</dl>";
+        let mut macros = MacroIndex::default();
+        macros.element_categories.insert(
+            "container".to_owned(),
+            vec!["svg".to_owned(), "g".to_owned(), "defs".to_owned()],
+        );
+        let ch = extract_chapter("struct", html, &macros)?;
+        assert_eq!(ch.term_definitions.len(), 1);
+        assert_eq!(
+            ch.term_definitions[0].description,
+            "An element. Specifically: svg, g, defs."
+        );
         Ok(())
     }
 }
