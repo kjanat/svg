@@ -414,7 +414,11 @@ mod tests {
         assert_eq!(defs.anchor_base.as_deref(), Some("https://base/"));
         assert_eq!(defs.elements.len(), 2);
 
-        let rect = defs.elements.iter().find(|e| e.name == "rect").ok_or("no rect")?;
+        let rect = defs
+            .elements
+            .iter()
+            .find(|e| e.name == "rect")
+            .ok_or("no rect")?;
         assert_eq!(rect.href.as_deref(), Some("shapes.html#RectElement"));
         assert_eq!(rect.content_model, Some(ContentModelKind::AnyOf));
         assert_eq!(rect.allowed_element_categories, ["descriptive"]);
@@ -427,7 +431,11 @@ mod tests {
         assert_eq!(rect.attributes[0].name, "rx");
         assert_eq!(rect.attributes[0].animatable, Some(true));
 
-        let desc = defs.elements.iter().find(|e| e.name == "desc").ok_or("no desc")?;
+        let desc = defs
+            .elements
+            .iter()
+            .find(|e| e.name == "desc")
+            .ok_or("no desc")?;
         assert_eq!(desc.content_model, Some(ContentModelKind::Any));
         assert!(desc.allowed_elements.is_empty());
         Ok(())
@@ -451,7 +459,10 @@ mod tests {
         assert_eq!(defs.attribute_categories.len(), 1);
         assert_eq!(defs.attribute_categories[0].attributes.len(), 1);
         assert_eq!(defs.attribute_categories[0].attributes[0].name, "cid");
-        assert_eq!(defs.attribute_categories[0].attributes[0].animatable, Some(false));
+        assert_eq!(
+            defs.attribute_categories[0].attributes[0].animatable,
+            Some(false)
+        );
         Ok(())
     }
 

@@ -22,6 +22,7 @@
 		"**/*.lock",
 		"**/node_modules",
 		"**/samples/w3",
+		"catalog.json",
 		"**/svg-data/data/sources/**",
 		"**/svgwg",
 		"**/target",

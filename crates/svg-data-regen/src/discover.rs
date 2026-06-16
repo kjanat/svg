@@ -179,9 +179,17 @@ mod tests {
         assert_eq!(graph.definitions[1].href, "../specs/x/definitions.xml");
         assert_eq!(graph.definitions[1].base.as_deref(), Some("https://ext/"));
 
-        let cvs = graph.versions.iter().find(|v| v.name == "cvs").ok_or("no cvs")?;
+        let cvs = graph
+            .versions
+            .iter()
+            .find(|v| v.name == "cvs")
+            .ok_or("no cvs")?;
         assert_eq!(cvs.href, "https://draft/");
-        let this = graph.versions.iter().find(|v| v.name == "this").ok_or("no this")?;
+        let this = graph
+            .versions
+            .iter()
+            .find(|v| v.name == "this")
+            .ok_or("no this")?;
         assert_eq!(this.href, "https://tr/dated/");
 
         assert_eq!(graph.references.len(), 1);
