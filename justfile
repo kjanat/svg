@@ -103,6 +103,21 @@ build-release *ARGS:
 run-lsp *ARGS:
     cargo run -p svg-language-server -- {{ ARGS }}
 
+# regenerate spec data: fetch canonical svgwg + extract (default-branch HEAD, or pinned REF: branch/tag/SHA)
+[group('spec')]
+regen REF="":
+    cargo run -p svg-data-regen -- {{ REF }}
+
+# regen, printing the element/property/term named NAME as a JSON sample (optional pinned REF)
+[group('spec')]
+regen-sample NAME REF="":
+    REGEN_SAMPLE='{{ NAME }}' cargo run -p svg-data-regen -- {{ REF }}
+
+# run the svg-data-regen parser tests (offline, no network)
+[group('spec')]
+regen-test *ARGS:
+    cargo test -p svg-data-regen {{ ARGS }}
+
 # typecheck the Deno-checked scripts (run under Bun, type-checked by Deno)
 [group('scripts')]
 typecheck:
