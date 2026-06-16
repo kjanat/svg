@@ -11,7 +11,6 @@ alias t := test
 alias b := build-debug
 alias br := build-release
 alias cmt := commit
-alias gs := generate-schemas
 
 # list every recipe
 default:

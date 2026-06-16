@@ -1052,6 +1052,14 @@ dependencies = [
 name = "svg-data"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "svg-data-regen"
+version = "0.1.0"
+dependencies = [
  "quick-xml",
  "regex",
  "serde",
