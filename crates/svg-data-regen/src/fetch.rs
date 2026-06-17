@@ -5,13 +5,18 @@
 //! is never read - the only source is canonical upstream over the network, so a
 //! regeneration is reproducible from nothing but the repo slug and a ref.
 
+use std::time::Duration;
+
 use serde_json::Value;
+use ureq::config::IpFamily;
 
 /// User agent GitHub requires on API requests.
 const USER_AGENT: &str = "svg-data-regen (+https://github.com/kjanat/svg-language-server)";
 /// Maximum body size accepted from a single fetch. Generous: the largest spec
 /// pages are a few megabytes; this only guards against a runaway response.
 const BODY_LIMIT: u64 = 64 * 1024 * 1024;
+/// Bound each upstream request so one slow spec host cannot hang regeneration.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -30,7 +35,14 @@ pub struct Head {
 
 /// Fetch the body of `url` as text, sending the headers GitHub expects.
 fn get_text(url: &str, accept: &str) -> Fallible<String> {
-    let mut response = ureq::get(url)
+    let config = ureq::Agent::config_builder()
+        .ip_family(IpFamily::Ipv4Only)
+        .timeout_global(Some(REQUEST_TIMEOUT))
+        .timeout_per_call(Some(REQUEST_TIMEOUT))
+        .build();
+    let agent: ureq::Agent = config.into();
+    let mut response = agent
+        .get(url)
         .header("User-Agent", USER_AGENT)
         .header("Accept", accept)
         .call()?;

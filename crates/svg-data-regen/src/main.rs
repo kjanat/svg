@@ -16,6 +16,7 @@
 mod catalog;
 mod chapter;
 mod compat;
+mod css;
 mod discover;
 mod extract;
 mod fetch;
@@ -164,20 +165,18 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         .as_deref()
         .unwrap_or_default();
     let chapter_report = report_chapters(provenance, graph, &macros, want_sample.as_deref())?;
+    let external_properties = fetch_and_report_external_property_defs(&all_defs, editors_draft)?;
     let compat = fetch_and_report_compat()?;
     let legacy = fetch_and_report_legacy_value_overrides()?;
+    let chapter_report = chapter_report.with_external_properties(external_properties.properties);
 
-    let built = catalog::build_catalog(
+    let built = build_committed_catalog(
         &all_defs,
-        &chapter_report.properties,
-        &chapter_report.descriptions,
+        &chapter_report,
         editors_draft,
         &provenance.commit_sha,
-        Some(&compat),
-        catalog::CatalogLegacyInputs {
-            sources: &legacy.sources,
-            value_overrides: &legacy.attributes,
-        },
+        &compat,
+        &legacy,
     );
     let path = write_catalog(&built)?;
     println!(
@@ -187,6 +186,49 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         display_path(&path)
     );
     Ok(())
+}
+
+fn build_committed_catalog(
+    definitions: &[extract::Definitions],
+    chapter_report: &ChapterReport,
+    editors_draft_base: &str,
+    commit: &str,
+    compat: &compat::CompatCatalog,
+    legacy: &legacy::LegacyValueOverrides,
+) -> catalog::Catalog {
+    catalog::build_catalog(
+        definitions,
+        &chapter_report.properties,
+        &chapter_report.descriptions,
+        editors_draft_base,
+        commit,
+        Some(compat),
+        catalog::CatalogLegacyInputs {
+            sources: &legacy.sources,
+            value_overrides: &legacy.attributes,
+        },
+    )
+}
+
+fn fetch_and_report_external_property_defs(
+    modules: &[extract::Definitions],
+    editors_draft_base: &str,
+) -> Fallible<css::ExternalPropertyDefinitions> {
+    println!("\n## external property definition extraction");
+    let extracted = css::fetch_external_property_defs(modules, editors_draft_base)?;
+    for page in &extracted.pages {
+        println!(
+            "  {} -> {}/{} property definition(s)",
+            page.url, page.matched, page.requested
+        );
+    }
+    println!(
+        "  {:-<44} {:>3}/{} property definition(s)",
+        "TOTAL ",
+        extracted.properties.len(),
+        extracted.requested_count,
+    );
+    Ok(extracted)
 }
 
 fn fetch_and_report_legacy_value_overrides() -> Fallible<legacy::LegacyValueOverrides> {
@@ -375,6 +417,13 @@ struct ChapterReport {
     properties: Vec<chapter::PropertyValueDef>,
     /// Anchor descriptions, used for element/attribute hover prose.
     descriptions: Vec<chapter::AnchorDescription>,
+}
+
+impl ChapterReport {
+    fn with_external_properties(mut self, properties: Vec<chapter::PropertyValueDef>) -> Self {
+        self.properties.extend(properties);
+        self
+    }
 }
 
 /// Running totals across all definitions modules.

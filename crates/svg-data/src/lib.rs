@@ -606,18 +606,71 @@ mod catalog_tests {
             "expected broad SVG 1.1 value override coverage, got {override_count}"
         );
 
-        let Some(visibility) = attribute("visibility") else {
-            panic!("visibility missing from catalog");
+        let Some(display) = attribute("display") else {
+            panic!("display missing from catalog");
         };
-        assert!(matches!(visibility.values, AttributeValues::FreeText));
         assert!(matches!(
-            visibility.values_for_profile(SpecSnapshotId::Svg11Rec20110816),
+            &display.values,
             AttributeValues::Enum(values)
-                if values.contains(&"visible")
-                    && values.contains(&"hidden")
-                    && values.contains(&"collapse")
-                    && values.contains(&"inherit")
+                if values.contains(&"inline-block") && !values.contains(&"run-in")
         ));
+        assert!(matches!(
+            display.values_for_profile(SpecSnapshotId::Svg11Rec20110816),
+            AttributeValues::Enum(values)
+                if values.contains(&"run-in") && !values.contains(&"inline-block")
+        ));
+    }
+
+    #[test]
+    fn external_css_property_definitions_supply_latest_value_spaces() {
+        let Some(clip_rule) = attribute("clip-rule") else {
+            panic!("clip-rule missing from catalog");
+        };
+        assert!(matches!(
+            &clip_rule.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"evenodd") && values.contains(&"nonzero")
+        ));
+
+        let Some(font_style) = attribute("font-style") else {
+            panic!("font-style missing from catalog");
+        };
+        assert!(matches!(
+            &font_style.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"normal")
+                    && values.contains(&"italic")
+                    && values.contains(&"oblique")
+        ));
+
+        let Some(display) = attribute("display") else {
+            panic!("display missing from catalog");
+        };
+        assert!(matches!(
+            &display.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"inline")
+                    && values.contains(&"inline-block")
+                    && values.contains(&"none")
+                    && !values.contains(&"run-in")
+        ));
+
+        let Some(unicode_bidi) = attribute("unicode-bidi") else {
+            panic!("unicode-bidi missing from catalog");
+        };
+        assert!(matches!(
+            &unicode_bidi.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"normal")
+                    && values.contains(&"embed")
+                    && values.contains(&"bidi-override")
+                    && values.contains(&"plaintext")
+        ));
+
+        let Some(clip_path) = attribute("clip-path") else {
+            panic!("clip-path missing from catalog");
+        };
+        assert!(matches!(clip_path.values, AttributeValues::FreeText));
     }
 
     #[test]

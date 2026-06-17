@@ -6238,7 +6238,7 @@
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-clip",
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "clip",
       "baseline": {
         "kind": "limited"
@@ -6323,7 +6323,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/clip-path",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#the-clip-path",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "clip-path",
       "baseline": {
         "kind": "widely",
@@ -6407,7 +6407,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/clip-rule",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#the-clip-rule",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "clip-rule",
       "baseline": {
         "kind": "widely",
@@ -6461,7 +6461,11 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "evenodd",
+          "nonzero"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -6802,7 +6806,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color-interpolation-filters",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#ColorInterpolationFiltersProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "color-interpolation-filters",
       "baseline": {
         "kind": "widely",
@@ -6858,7 +6862,12 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "auto",
+          "linearRGB",
+          "sRGB"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -7058,7 +7067,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/cursor",
       "spec_url": "https://www.w3.org/TR/css-ui-3/#cursor",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "cursor",
       "baseline": {
         "kind": "widely",
@@ -7845,7 +7854,25 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "block",
+          "inherit",
+          "inline",
+          "inline-block",
+          "inline-table",
+          "list-item",
+          "none",
+          "table",
+          "table-caption",
+          "table-cell",
+          "table-column",
+          "table-column-group",
+          "table-footer-group",
+          "table-header-group",
+          "table-row",
+          "table-row-group"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -9437,7 +9464,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/filter",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FilterProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "filter",
       "baseline": {
         "kind": "widely",
@@ -9605,7 +9632,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/flood-color",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FloodColorProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "flood-color",
       "baseline": {
         "kind": "widely",
@@ -9689,7 +9716,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/flood-opacity",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FloodOpacityProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "flood-opacity",
       "baseline": {
         "kind": "widely",
@@ -10130,7 +10157,18 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "condensed",
+          "expanded",
+          "extra-condensed",
+          "extra-expanded",
+          "normal",
+          "semi-condensed",
+          "semi-expanded",
+          "ultra-condensed",
+          "ultra-expanded"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -10243,7 +10281,12 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "italic",
+          "normal",
+          "oblique"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -10493,7 +10536,22 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "100",
+          "200",
+          "300",
+          "400",
+          "500",
+          "600",
+          "700",
+          "800",
+          "900",
+          "bold",
+          "bolder",
+          "lighter",
+          "normal"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -13517,7 +13575,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/letter-spacing",
       "spec_url": "https://www.w3.org/TR/css-text-3/#letter-spacing-property",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "letter-spacing",
       "baseline": {
         "kind": "widely",
@@ -13601,7 +13659,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/lighting-color",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#LightingColorProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "lighting-color",
       "baseline": {
         "kind": "widely",
@@ -14285,7 +14343,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/mask",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-mask",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "mask",
       "baseline": {
         "kind": "newly",
@@ -14367,10 +14425,14 @@
     {
       "name": "mask-type",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-mask-type",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "mask-type",
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "alpha",
+          "luminance"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -18605,7 +18667,14 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "auto",
+          "hidden",
+          "inherit",
+          "scroll",
+          "visible"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -24689,7 +24758,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/transform-origin",
       "spec_url": "https://drafts.csswg.org/css-transforms/#propdef-transform-origin",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "transform-origin",
       "baseline": {
         "kind": "limited"
@@ -25018,7 +25087,15 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "bidi-override",
+          "embed",
+          "isolate",
+          "isolate-override",
+          "normal",
+          "plaintext"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -25506,7 +25583,13 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "collapse",
+          "hidden",
+          "inherit",
+          "visible"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -25885,7 +25968,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/word-spacing",
       "spec_url": "https://www.w3.org/TR/css-text-3/#word-spacing-property",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "word-spacing",
       "baseline": {
         "kind": "widely",
