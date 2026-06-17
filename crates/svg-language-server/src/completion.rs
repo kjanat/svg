@@ -441,7 +441,7 @@ pub fn attribute_completion_items(
 ) -> Vec<CompletionItem> {
     svg_data::attributes_for_with_profile(profile, elem_name)
         .into_iter()
-        .filter(|attr| !existing.contains(attr.attribute.name))
+        .filter(|attr| !existing.contains(attr.name))
         .map(attribute_completion_item)
         .collect()
 }
@@ -715,9 +715,9 @@ fn lifecycle_completion_detail(description: &str, lifecycle: SpecLifecycle) -> S
 
 fn attribute_completion_item(attr: ProfiledAttribute) -> CompletionItem {
     detailed_snippet_completion_item(
-        attr.attribute.name,
+        attr.name,
         CompletionItemKind::PROPERTY,
-        format!("{}=\"$0\"", attr.attribute.name),
+        format!("{}=\"$0\"", attr.name),
         lifecycle_completion_detail(attr.attribute.description, attr.lifecycle),
     )
 }
@@ -801,6 +801,7 @@ mod tests {
     #[test]
     fn experimental_attribute_completion_is_annotated() {
         let item = attribute_completion_item(ProfiledAttribute {
+            name: TEST_ATTRIBUTE.name,
             attribute: &TEST_ATTRIBUTE,
             lifecycle: SpecLifecycle::Experimental,
         });

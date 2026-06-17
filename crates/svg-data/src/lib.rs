@@ -45,9 +45,11 @@ pub fn element(name: &str) -> Option<&'static ElementDef> {
 #[must_use]
 pub fn attribute(name: &str) -> Option<&'static AttributeDef> {
     let canonical = xlink::canonical_svg_attribute_name(name);
-    ATTRIBUTES
-        .iter()
-        .find(|attribute| attribute.name == canonical.as_ref())
+    attribute_by_catalog_name(canonical.as_ref())
+}
+
+fn attribute_by_catalog_name(name: &str) -> Option<&'static AttributeDef> {
+    ATTRIBUTES.iter().find(|attribute| attribute.name == name)
 }
 
 /// All element definitions in the union catalog.
@@ -71,11 +73,40 @@ pub fn element_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup
 /// Profile-aware attribute lookup.
 #[must_use]
 pub fn attribute_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup<AttributeDef> {
-    let _ = profile;
-    attribute(name).map_or(ProfileLookup::Unknown, |value| ProfileLookup::Present {
+    if let Some(lookup) = href_lookup_for_profile(profile, name) {
+        return lookup;
+    }
+    attribute(name).map_or(ProfileLookup::Unknown, attribute_lookup_present)
+}
+
+const fn attribute_lookup_present(value: &'static AttributeDef) -> ProfileLookup<AttributeDef> {
+    if matches!(value.applicability, AttributeApplicability::None) {
+        return ProfileLookup::Unknown;
+    }
+    ProfileLookup::Present {
         value,
         lifecycle: SpecLifecycle::Stable,
-    })
+    }
+}
+
+fn href_lookup_for_profile(
+    profile: SpecSnapshotId,
+    name: &str,
+) -> Option<ProfileLookup<AttributeDef>> {
+    match (name, is_svg11_profile(profile)) {
+        ("href", true) => {
+            attribute_by_catalog_name("href").map(|_| ProfileLookup::UnsupportedInProfile {
+                known_in: SVG2_HREF_SNAPSHOTS,
+            })
+        }
+        ("xlink:href", true) => attribute_by_catalog_name("href").map(attribute_lookup_present),
+        ("xlink:href", false) => {
+            attribute_by_catalog_name("href").map(|_| ProfileLookup::UnsupportedInProfile {
+                known_in: SVG11_XLINK_HREF_SNAPSHOTS,
+            })
+        }
+        _ => None,
+    }
 }
 
 /// Attributes that apply to `elem_name` in `profile`.
@@ -84,7 +115,6 @@ pub fn attributes_for_with_profile(
     profile: SpecSnapshotId,
     elem_name: &str,
 ) -> Vec<ProfiledAttribute> {
-    let _ = profile;
     let Some(element) = element(elem_name) else {
         return Vec::new();
     };
@@ -96,10 +126,36 @@ pub fn attributes_for_with_profile(
                 .includes(elem_name, element.global_attrs)
         })
         .map(|attribute| ProfiledAttribute {
+            name: attribute_name_for_profile(profile, attribute.name),
             attribute,
             lifecycle: SpecLifecycle::Stable,
         })
         .collect()
+}
+
+fn attribute_name_for_profile(profile: SpecSnapshotId, name: &'static str) -> &'static str {
+    if name == "href" && is_svg11_profile(profile) {
+        "xlink:href"
+    } else {
+        name
+    }
+}
+
+const SVG11_XLINK_HREF_SNAPSHOTS: &[SpecSnapshotId] = &[
+    SpecSnapshotId::Svg11Rec20030114,
+    SpecSnapshotId::Svg11Rec20110816,
+];
+
+const SVG2_HREF_SNAPSHOTS: &[SpecSnapshotId] = &[
+    SpecSnapshotId::Svg2Cr20181004,
+    SpecSnapshotId::Svg2EditorsDraft,
+];
+
+const fn is_svg11_profile(profile: SpecSnapshotId) -> bool {
+    matches!(
+        profile,
+        SpecSnapshotId::Svg11Rec20030114 | SpecSnapshotId::Svg11Rec20110816
+    )
 }
 
 /// Concrete child elements allowed inside `parent` in `profile`.
@@ -170,17 +226,45 @@ pub fn snapshot_metadata(snapshot: SpecSnapshotId) -> SnapshotMetadata {
         .iter()
         .find(|metadata| metadata.snapshot == snapshot)
         .cloned()
-        .unwrap_or(SnapshotMetadata {
-            snapshot,
-            aliases: &[],
-        })
+        .unwrap_or_else(|| built_in_snapshot_metadata(snapshot))
+}
+
+fn built_in_snapshot_metadata(snapshot: SpecSnapshotId) -> SnapshotMetadata {
+    let aliases: &'static [&'static str] = match snapshot {
+        SpecSnapshotId::Svg11Rec20030114 => {
+            &["svg11rec20030114", "svg11-20030114", "svg1.1-20030114"][..]
+        }
+        SpecSnapshotId::Svg11Rec20110816 => &[
+            "svg11",
+            "svg1.1",
+            "1.1",
+            "svg11rec20110816",
+            "svg11-20110816",
+        ],
+        SpecSnapshotId::Svg2Cr20181004 => &["svg2cr", "svg2-cr", "svg2cr20181004", "svg2-20181004"],
+        SpecSnapshotId::Svg2EditorsDraft => &[
+            "svg2",
+            "svg2.0",
+            "2",
+            "2.0",
+            "svg2draft",
+            "svg2-draft",
+            "latest",
+        ],
+    };
+    SnapshotMetadata { snapshot, aliases }
 }
 
 /// Resolve a requested profile string (id or alias) to a snapshot.
 #[must_use]
 pub fn resolve_profile_id(requested: &str) -> Option<SpecSnapshotId> {
+    let requested = requested.trim();
     spec_snapshots().iter().copied().find(|snapshot| {
-        snapshot.as_str() == requested || snapshot_metadata(*snapshot).aliases.contains(&requested)
+        snapshot.as_str().eq_ignore_ascii_case(requested)
+            || snapshot_metadata(*snapshot)
+                .aliases
+                .iter()
+                .any(|alias| alias.eq_ignore_ascii_case(requested))
     })
 }
 
@@ -262,6 +346,22 @@ mod catalog_tests {
     }
 
     #[test]
+    fn profile_aliases_resolve_without_generated_snapshot_metadata() {
+        assert_eq!(
+            resolve_profile_id("svg11"),
+            Some(SpecSnapshotId::Svg11Rec20110816)
+        );
+        assert_eq!(
+            resolve_profile_id("Svg2Draft"),
+            Some(SpecSnapshotId::Svg2EditorsDraft)
+        );
+        assert_eq!(
+            resolve_profile_id("Svg11Rec20030114"),
+            Some(SpecSnapshotId::Svg11Rec20030114)
+        );
+    }
+
+    #[test]
     fn attribute_catalog_distinguishes_global_scoped_and_geometry_attrs() {
         let Some(id) = attribute("id") else {
             panic!("id missing from catalog");
@@ -306,6 +406,54 @@ mod catalog_tests {
                 .iter()
                 .any(|profiled| profiled.attribute.name == "cx")
         );
+    }
+
+    #[test]
+    fn href_alias_tracks_svg11_and_svg2_profiles() {
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "href"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == SVG2_HREF_SNAPSHOTS
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "xlink:href"),
+            ProfileLookup::Present { value, lifecycle: SpecLifecycle::Stable }
+                if value.name == "href"
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "xlink:href"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == SVG11_XLINK_HREF_SNAPSHOTS
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "href"),
+            ProfileLookup::Present { value, lifecycle: SpecLifecycle::Stable }
+                if value.name == "href"
+        ));
+
+        let svg11_use_attrs = attributes_for_with_profile(SpecSnapshotId::Svg11Rec20110816, "use");
+        assert!(
+            svg11_use_attrs
+                .iter()
+                .any(|profiled| profiled.name == "xlink:href")
+        );
+        assert!(
+            !svg11_use_attrs
+                .iter()
+                .any(|profiled| profiled.name == "href")
+        );
+    }
+
+    #[test]
+    fn nowhere_supported_attributes_are_not_present_without_element_context() {
+        let Some(xlink_title) = attribute("xlink:title") else {
+            panic!("xlink:title missing from catalog");
+        };
+        assert_eq!(xlink_title.applicability, AttributeApplicability::None);
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::LATEST, "xlink:title"),
+            ProfileLookup::Unknown
+        ));
     }
 
     #[test]

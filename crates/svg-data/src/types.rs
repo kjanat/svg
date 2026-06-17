@@ -453,6 +453,8 @@ pub struct ProfiledElement {
 /// An attribute paired with its lifecycle in a profile (for completion).
 #[derive(Debug, Clone, Copy)]
 pub struct ProfiledAttribute {
+    /// Attribute name to expose in this profile.
+    pub name: &'static str,
     /// The attribute definition.
     pub attribute: &'static AttributeDef,
     /// Its lifecycle in the active profile.

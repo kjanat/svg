@@ -55,7 +55,7 @@ use completion::{
 use definition::{DefinitionContext, build_definition_context, stylesheet_definition_locations};
 use diagnostics::publish_lint_diagnostics;
 use hover::{
-    external_attribute_hover, format_attribute_hover_with_profile, format_class_hover,
+    external_attribute_hover, format_attribute_hover_with_profile_name, format_class_hover,
     format_custom_property_hover, format_element_hover_with_profile, profile_lifecycle_hover_line,
 };
 use logging::init_logging;
@@ -847,8 +847,9 @@ fn build_attribute_hover_markdown(
 
     match lookup {
         svg_data::ProfileLookup::Present { value, .. } => {
-            Some(format_attribute_hover_with_profile(
+            Some(format_attribute_hover_with_profile_name(
                 value,
+                node_text,
                 profile,
                 profile_lifecycle,
                 runtime_override,
@@ -857,8 +858,9 @@ fn build_attribute_hover_markdown(
         }
         svg_data::ProfileLookup::UnsupportedInProfile { .. } => {
             svg_data::attribute(node_text).map(|attribute| {
-                format_attribute_hover_with_profile(
+                format_attribute_hover_with_profile_name(
                     attribute,
+                    node_text,
                     profile,
                     profile_lifecycle,
                     runtime_override,

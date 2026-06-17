@@ -405,8 +405,9 @@ pub fn format_element_hover_with_profile(
 /// overrides surface in the hover panel, then layers profile-lifecycle text,
 /// baseline status, and browser-support chips (optionally overridden by the
 /// runtime compat overlay `rt`) on top.
-pub fn format_attribute_hover_with_profile(
+pub fn format_attribute_hover_with_profile_name(
     attr: &svg_data::AttributeDef,
+    display_name: &str,
     profile: SpecSnapshotId,
     profile_lifecycle: Option<String>,
     rt: Option<&CompatOverride>,
@@ -420,7 +421,9 @@ pub fn format_attribute_hover_with_profile(
     let mut builder = CompatMarkdownBuilder::new();
 
     if let Some(v) = verdict {
-        builder.headline(format_verdict_headline(v, attr.name));
+        builder.headline(format_verdict_headline(v, display_name));
+    } else {
+        builder.headline(format!("`{display_name}`"));
     }
     builder.description(attr.description.to_owned());
 

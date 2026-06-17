@@ -3743,7 +3743,7 @@
     {
       "name": "color-interpolation",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorInterpolationProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "color-interpolation",
       "values": {
         "kind": "enum",
@@ -4047,13 +4047,10 @@
     {
       "name": "d",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#DProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "enum",
-        "values": [
-          "none"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -4425,7 +4422,7 @@
     {
       "name": "fill",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "fill",
       "values": {
         "kind": "color"
@@ -4487,7 +4484,7 @@
     {
       "name": "fill-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillOpacityProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "fill-opacity",
       "values": {
         "kind": "free_text"
@@ -4546,7 +4543,7 @@
     {
       "name": "fill-rule",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillRuleProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "fill-rule",
       "values": {
         "kind": "enum",
@@ -5605,7 +5602,7 @@
     {
       "name": "image-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ImageRenderingProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "image-rendering",
       "values": {
         "kind": "enum",
@@ -5714,13 +5711,10 @@
     {
       "name": "inline-size",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#InlineSizeProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "enum",
-        "values": [
-          "auto"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "none"
@@ -6157,13 +6151,10 @@
     {
       "name": "marker",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "enum",
-        "values": [
-          "none"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "none"
@@ -10052,14 +10043,10 @@
     {
       "name": "paint-order",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#PaintOrderProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "paint-order",
       "values": {
-        "kind": "enum",
-        "values": [
-          "normal",
-          "stroke"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -10131,13 +10118,10 @@
     {
       "name": "path-length",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathLengthProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "path-length",
       "values": {
-        "kind": "enum",
-        "values": [
-          "none"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -10199,7 +10183,16 @@
         "kind": "free_text"
       },
       "applicability": {
-        "kind": "global"
+        "kind": "elements",
+        "elements": [
+          "circle",
+          "ellipse",
+          "line",
+          "path",
+          "polygon",
+          "polyline",
+          "rect"
+        ]
       }
     },
     {
@@ -10280,7 +10273,7 @@
     {
       "name": "pointer-events",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "pointer-events",
       "values": {
         "kind": "enum",
@@ -10446,7 +10439,16 @@
         "kind": "free_text"
       },
       "applicability": {
-        "kind": "global"
+        "kind": "elements",
+        "elements": [
+          "feImage",
+          "image",
+          "marker",
+          "pattern",
+          "svg",
+          "symbol",
+          "view"
+        ]
       }
     },
     {
@@ -10732,13 +10734,10 @@
     {
       "name": "rx",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RxProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "enum",
-        "values": [
-          "auto"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -10754,10 +10753,7 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "enum",
-        "values": [
-          "auto"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -10812,7 +10808,7 @@
     {
       "name": "shape-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ShapeRenderingProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "shape-rendering",
       "values": {
         "kind": "enum",
@@ -11136,7 +11132,7 @@
     {
       "name": "stroke",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke",
       "values": {
         "kind": "color"
@@ -11195,13 +11191,10 @@
     {
       "name": "stroke-dasharray",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDasharrayProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-dasharray",
       "values": {
-        "kind": "enum",
-        "values": [
-          "none"
-        ]
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -11257,7 +11250,7 @@
     {
       "name": "stroke-dashoffset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashoffsetProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-dashoffset",
       "values": {
         "kind": "free_text"
@@ -11316,7 +11309,7 @@
     {
       "name": "stroke-linecap",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinecapProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-linecap",
       "values": {
         "kind": "enum",
@@ -11380,7 +11373,7 @@
     {
       "name": "stroke-linejoin",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinejoinProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-linejoin",
       "values": {
         "kind": "enum",
@@ -11444,7 +11437,7 @@
     {
       "name": "stroke-miterlimit",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeMiterlimitProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-miterlimit",
       "values": {
         "kind": "free_text"
@@ -11503,7 +11496,7 @@
     {
       "name": "stroke-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeOpacityProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-opacity",
       "values": {
         "kind": "free_text"
@@ -11562,7 +11555,7 @@
     {
       "name": "stroke-width",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeWidthProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stroke-width",
       "values": {
         "kind": "free_text"
@@ -11797,7 +11790,7 @@
     {
       "name": "text-anchor",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextAnchorProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "text-anchor",
       "values": {
         "kind": "enum",
@@ -12016,7 +12009,7 @@
     {
       "name": "text-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#TextRenderingProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "text-rendering",
       "values": {
         "kind": "enum",
@@ -12389,7 +12382,7 @@
     {
       "name": "vector-effect",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#VectorEffectProperty",
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "vector-effect",
       "values": {
         "kind": "enum",
@@ -12473,7 +12466,14 @@
         "kind": "free_text"
       },
       "applicability": {
-        "kind": "global"
+        "kind": "elements",
+        "elements": [
+          "marker",
+          "pattern",
+          "svg",
+          "symbol",
+          "view"
+        ]
       }
     },
     {

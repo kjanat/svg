@@ -251,9 +251,7 @@ fn build_attributes(
         for attribute in &module.global_attributes {
             let entry = accumulator_for(&mut attributes, &attribute.name);
             entry.merge_ref(attribute, base);
-            if attribute.elements.is_empty() {
-                entry.global = true;
-            } else {
+            if !attribute.elements.is_empty() {
                 entry.bearers.extend(attribute.elements.iter().cloned());
             }
         }
@@ -459,7 +457,7 @@ struct CategorizedAttribute {
 struct AttributeAccumulator {
     name: String,
     spec_url: Option<String>,
-    animatable: bool,
+    animatable: Option<bool>,
     presentation_attribute: Option<String>,
     bearers: BTreeSet<String>,
     global: bool,
@@ -471,7 +469,7 @@ impl AttributeAccumulator {
         Self {
             name,
             spec_url: None,
-            animatable: false,
+            animatable: None,
             presentation_attribute: None,
             bearers: BTreeSet::new(),
             global: false,
@@ -481,7 +479,11 @@ impl AttributeAccumulator {
     /// Merge href/animatability metadata from one spec attribute reference.
     fn merge_ref(&mut self, attribute: &AttributeRef, base: &str) {
         self.merge_href(attribute.href.as_deref(), base);
-        self.animatable |= attribute.animatable.unwrap_or(false);
+        match attribute.animatable {
+            Some(true) => self.animatable = Some(true),
+            Some(false) if self.animatable.is_none() => self.animatable = Some(false),
+            _ => {}
+        }
     }
 
     /// Merge href metadata from a CSS/SVG property.
@@ -508,11 +510,11 @@ impl AttributeAccumulator {
         all_elements: &BTreeSet<String>,
         properties_by_name: &BTreeMap<&str, &PropertyValueDef>,
     ) -> CatalogAttribute {
-        let values = properties_by_name
-            .get(self.name.as_str())
-            .map_or(CatalogAttributeValues::FreeText, |property| {
-                values_for_property(property)
-            });
+        let property = properties_by_name.get(self.name.as_str()).copied();
+        let values = property.map_or(CatalogAttributeValues::FreeText, values_for_property);
+        let animatable = self
+            .animatable
+            .unwrap_or_else(|| property.is_some_and(property_is_animatable));
         let applicability = if self.global || self.bearers == *all_elements {
             CatalogAttributeApplicability::Global
         } else if self.bearers.is_empty() {
@@ -525,7 +527,7 @@ impl AttributeAccumulator {
         CatalogAttribute {
             name: self.name,
             spec_url: self.spec_url,
-            animatable: self.animatable,
+            animatable,
             presentation_attribute: self.presentation_attribute,
             values,
             applicability,
@@ -550,7 +552,12 @@ fn values_for_property(property: &PropertyValueDef) -> CatalogAttributeValues {
     let mut keywords = property.keywords.clone();
     keywords.sort();
     keywords.dedup();
-    if !keywords.is_empty() {
+    if !keywords.is_empty()
+        && property
+            .value
+            .as_deref()
+            .is_some_and(is_keyword_only_grammar)
+    {
         return CatalogAttributeValues::Enum { values: keywords };
     }
 
@@ -582,6 +589,30 @@ fn values_for_property(property: &PropertyValueDef) -> CatalogAttributeValues {
         return CatalogAttributeValues::Length;
     }
     CatalogAttributeValues::FreeText
+}
+
+/// Whether the raw value grammar is just bare keyword alternatives.
+fn is_keyword_only_grammar(value: &str) -> bool {
+    value.split('|').all(|token| is_keyword_token(token.trim()))
+}
+
+/// Whether a CSS/SVG property definition says the property is animatable.
+fn property_is_animatable(property: &PropertyValueDef) -> bool {
+    let Some(animation_type) = property.animation_type.as_deref() else {
+        return false;
+    };
+    !matches!(
+        animation_type.trim().to_ascii_lowercase().as_str(),
+        "" | "no" | "none" | "not animatable"
+    )
+}
+
+/// Whether a value grammar token is a bare keyword.
+fn is_keyword_token(token: &str) -> bool {
+    !token.is_empty()
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
 /// Resolve `href` against a module base unless it is already absolute.
@@ -656,6 +687,7 @@ mod tests {
         let mut rect = element("rect");
         rect.attribute_categories.push("presentation".to_owned());
         rect.geometry_properties.push("x".to_owned());
+        rect.common_attributes.push("viewBox".to_owned());
 
         let mut link = element("a");
         link.attributes
@@ -664,7 +696,10 @@ mod tests {
         Definitions {
             anchor_base: None,
             elements: vec![rect, link, element("metadata")],
-            global_attributes: vec![attr("id", "struct.html#IDAttribute", None)],
+            global_attributes: vec![
+                attr("id", "struct.html#IDAttribute", None),
+                attr("viewBox", "coords.html#ViewBoxAttribute", Some(true)),
+            ],
             properties: vec![PropertyDef {
                 name: "fill".to_owned(),
                 href: Some("painting.html#FillProperty".to_owned()),
@@ -674,7 +709,10 @@ mod tests {
                 AttributeCategory {
                     name: "core".to_owned(),
                     href: None,
-                    attributes: vec![attr("class", "struct.html#ClassAttribute", None)],
+                    attributes: vec![
+                        attr("class", "struct.html#ClassAttribute", None),
+                        attr("id", "struct.html#IDAttribute", None),
+                    ],
                     presentation_attributes: Vec::new(),
                 },
                 AttributeCategory {
@@ -703,7 +741,7 @@ mod tests {
             applies_to: None,
             inherited: None,
             computed_value: None,
-            animation_type: None,
+            animation_type: Some("by computed value type".to_owned()),
         }
     }
 
@@ -746,6 +784,7 @@ mod tests {
                 values: vec!["context-fill".to_owned(), "none".to_owned()]
             }
         );
+        assert!(fill.animatable);
 
         let href = catalog
             .attributes
@@ -775,6 +814,39 @@ mod tests {
                 elements: vec!["rect".to_owned()]
             }
         );
+
+        let view_box = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "viewBox")
+            .ok_or("missing viewBox")?;
+        assert_eq!(
+            view_box.applicability,
+            CatalogAttributeApplicability::Elements {
+                elements: vec!["rect".to_owned()]
+            }
+        );
         Ok(())
+    }
+
+    #[test]
+    fn mixed_property_grammars_do_not_collapse_to_keyword_enums() {
+        let stroke_dasharray = property("stroke-dasharray", "none | <dasharray>", &["none"]);
+        assert_eq!(
+            values_for_property(&stroke_dasharray),
+            CatalogAttributeValues::FreeText
+        );
+
+        let linecap = property(
+            "stroke-linecap",
+            "butt | round | square",
+            &["butt", "round", "square"],
+        );
+        assert_eq!(
+            values_for_property(&linecap),
+            CatalogAttributeValues::Enum {
+                values: vec!["butt".to_owned(), "round".to_owned(), "square".to_owned()]
+            }
+        );
     }
 }
