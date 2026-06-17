@@ -26,6 +26,8 @@ pub struct AttributeRef {
     pub href: Option<String>,
     /// Whether the attribute is animatable (`animatable='yes'|'no'`).
     pub animatable: Option<bool>,
+    /// Element names from a top-level `elements='...'` restriction, when any.
+    pub elements: Vec<String>,
 }
 
 /// The kind of structural content model an element declares (the `contentmodel`
@@ -106,6 +108,8 @@ pub struct AttributeCategory {
     pub href: Option<String>,
     /// Member attributes.
     pub attributes: Vec<AttributeRef>,
+    /// Presentation attribute names listed on a self-closing category.
+    pub presentation_attributes: Vec<String>,
 }
 
 /// A glossary-style entry (a `<term>`, `<symbol>`, or top-level `<interface>`)
@@ -206,11 +210,7 @@ fn start_element(
     match element.local_name().as_ref() {
         b"element" => *context = Context::Element(parse_element_head(element)?),
         b"attributecategory" => {
-            *context = Context::AttributeCategory(AttributeCategory {
-                name: required(element, b"name")?,
-                href: attribute(element, b"href")?,
-                attributes: Vec::new(),
-            });
+            *context = Context::AttributeCategory(parse_attribute_category_head(element)?);
         }
         b"contentmodel" => *in_content_model = true,
         // A nested attribute inside an element/category opened as a container.
@@ -241,6 +241,9 @@ fn empty_element(
             href: attribute(element, b"href")?,
             elements: comma_list(element, b"elements")?,
         }),
+        b"attributecategory" => defs
+            .attribute_categories
+            .push(parse_attribute_category_head(element)?),
         b"term" => defs.terms.push(glossary_entry(element)?),
         b"symbol" => defs.symbols.push(glossary_entry(element)?),
         b"interface" => defs.interfaces.push(glossary_entry(element)?),
@@ -319,6 +322,17 @@ fn parse_attribute_ref(element: &BytesStart) -> Fallible<AttributeRef> {
             Some("no") => Some(false),
             _ => None,
         },
+        elements: comma_list(element, b"elements")?,
+    })
+}
+
+/// Build an [`AttributeCategory`] from an `<attributecategory>` tag.
+fn parse_attribute_category_head(element: &BytesStart) -> Fallible<AttributeCategory> {
+    Ok(AttributeCategory {
+        name: required(element, b"name")?,
+        href: attribute(element, b"href")?,
+        attributes: Vec::new(),
+        presentation_attributes: comma_list(element, b"presentationattributes")?,
     })
 }
 
@@ -401,11 +415,14 @@ mod tests {
   </element>
   <element name='desc' href='struct.html#DescElement' contentmodel='any'/>
   <attribute name='id' href='struct.html#id'/>
+  <attribute name='href' href='linking.html#href' elements='a, use'/>
   <property name='fill' href='painting.html#fill'/>
   <elementcategory name='shape' href='shapes.html#shape' elements='rect, circle'/>
   <attributecategory name='core' href='struct.html#core'>
     <attribute name='cid' href='struct.html#cid' animatable='no'/>
   </attributecategory>
+  <attributecategory name='presentation' href='styling.html#presentation'
+      presentationattributes='fill, stroke'/>
 </definitions>";
 
     #[test]
@@ -446,8 +463,11 @@ mod tests {
         let defs = extract_definitions(DEFS, None)?;
         // Only the top-level <attribute> is global; the one nested in the
         // category must NOT leak into globals.
-        assert_eq!(defs.global_attributes.len(), 1);
+        assert_eq!(defs.global_attributes.len(), 2);
         assert_eq!(defs.global_attributes[0].name, "id");
+        assert!(defs.global_attributes[0].elements.is_empty());
+        assert_eq!(defs.global_attributes[1].name, "href");
+        assert_eq!(defs.global_attributes[1].elements, ["a", "use"]);
 
         assert_eq!(defs.properties.len(), 1);
         assert_eq!(defs.properties[0].name, "fill");
@@ -456,12 +476,23 @@ mod tests {
         assert_eq!(defs.element_categories[0].name, "shape");
         assert_eq!(defs.element_categories[0].elements, ["rect", "circle"]);
 
-        assert_eq!(defs.attribute_categories.len(), 1);
+        assert_eq!(defs.attribute_categories.len(), 2);
         assert_eq!(defs.attribute_categories[0].attributes.len(), 1);
         assert_eq!(defs.attribute_categories[0].attributes[0].name, "cid");
+        assert!(
+            defs.attribute_categories[0].attributes[0]
+                .elements
+                .is_empty()
+        );
         assert_eq!(
             defs.attribute_categories[0].attributes[0].animatable,
             Some(false)
+        );
+        assert_eq!(defs.attribute_categories[1].name, "presentation");
+        assert!(defs.attribute_categories[1].attributes.is_empty());
+        assert_eq!(
+            defs.attribute_categories[1].presentation_attributes,
+            ["fill", "stroke"]
         );
         Ok(())
     }

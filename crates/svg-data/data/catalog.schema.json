@@ -1,0 +1,347 @@
+{
+  "$id": "https://github.com/kjanat/svg-language-server/raw/HEAD/crates/svg-data/data/catalog.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CatalogAttribute": {
+      "description": "One attribute's spec-derived catalog entry.",
+      "type": "object",
+      "required": [
+        "animatable",
+        "applicability",
+        "name",
+        "values"
+      ],
+      "properties": {
+        "animatable": {
+          "description": "Whether the spec marks the attribute animatable.",
+          "type": "boolean"
+        },
+        "applicability": {
+          "$ref": "#/$defs/CatalogAttributeApplicability",
+          "description": "Which elements accept the attribute."
+        },
+        "name": {
+          "description": "Canonical attribute name (`xlink:href` collapses to `href`).",
+          "type": "string"
+        },
+        "presentation_attribute": {
+          "description": "Backing CSS property name when this is a presentation attribute.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "spec_url": {
+          "description": "Resolved spec permalink.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "values": {
+          "$ref": "#/$defs/CatalogAttributeValues",
+          "description": "Attribute value space."
+        }
+      }
+    },
+    "CatalogAttributeApplicability": {
+      "description": "Which elements an attribute can appear on.",
+      "oneOf": [
+        {
+          "description": "Applies to every element that accepts global SVG attributes.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "global"
+            }
+          }
+        },
+        {
+          "description": "Applies only to the listed element names.",
+          "type": "object",
+          "required": [
+            "elements",
+            "kind"
+          ],
+          "properties": {
+            "elements": {
+              "description": "Bearer element names.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "elements"
+            }
+          }
+        },
+        {
+          "description": "Known attribute that applies to no elements in this catalog.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "none"
+            }
+          }
+        }
+      ]
+    },
+    "CatalogAttributeValues": {
+      "description": "The runtime value-space shapes the catalog emits.",
+      "oneOf": [
+        {
+          "description": "One of the listed keyword values.",
+          "type": "object",
+          "required": [
+            "kind",
+            "values"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "enum"
+            },
+            "values": {
+              "description": "Allowed keyword values.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "description": "A transform list; functions are completion hints.",
+          "type": "object",
+          "required": [
+            "functions",
+            "kind"
+          ],
+          "properties": {
+            "functions": {
+              "description": "Transform function names.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "transform"
+            }
+          }
+        },
+        {
+          "description": "A CSS/SVG color value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "color"
+            }
+          }
+        },
+        {
+          "description": "A length or length-percentage value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "length"
+            }
+          }
+        },
+        {
+          "description": "A URL / fragment reference.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "url"
+            }
+          }
+        },
+        {
+          "description": "A number or percentage.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "number_or_percentage"
+            }
+          }
+        },
+        {
+          "description": "Free-form text with no constrained grammar.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "free_text"
+            }
+          }
+        }
+      ]
+    },
+    "CatalogContentModel": {
+      "description": "The runtime content-model shapes the catalog emits. The spec's category\ntaxonomy is already flattened into [`Self::ChildrenSet`].",
+      "oneOf": [
+        {
+          "description": "Accepts exactly the listed child element names.",
+          "type": "object",
+          "required": [
+            "elements",
+            "kind"
+          ],
+          "properties": {
+            "elements": {
+              "description": "Allowed child element names (sorted, deduped).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "children_set"
+            }
+          }
+        },
+        {
+          "description": "Accepts any element from the SVG namespace.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "any_svg"
+            }
+          }
+        },
+        {
+          "description": "Hosts arbitrary foreign-namespace content (the spec's `any` model:\n\"any elements or character data\"), e.g. HTML in `foreignObject`.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "foreign"
+            }
+          }
+        },
+        {
+          "description": "Primarily character data.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "text"
+            }
+          }
+        }
+      ]
+    },
+    "CatalogElement": {
+      "description": "One element's spec-derived catalog entry.",
+      "type": "object",
+      "required": [
+        "attrs",
+        "content_model",
+        "global_attrs",
+        "name"
+      ],
+      "properties": {
+        "attrs": {
+          "description": "Element-specific attribute names (sorted, deduped).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "content_model": {
+          "$ref": "#/$defs/CatalogContentModel",
+          "description": "Structural child-content model."
+        },
+        "global_attrs": {
+          "description": "Whether the element carries the SVG global (`core`) attributes.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Element tag name.",
+          "type": "string"
+        },
+        "spec_url": {
+          "description": "Resolved spec permalink (the module's anchor base joined with the href).",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    }
+  },
+  "title": "svg-data catalog v1",
+  "description": "The full derived catalog written to `svg-data/data/catalog.json`.",
+  "type": "object",
+  "required": [
+    "attributes",
+    "commit",
+    "elements",
+    "schema_version"
+  ],
+  "properties": {
+    "attributes": {
+      "description": "Attribute definitions, sorted by canonical name.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CatalogAttribute"
+      }
+    },
+    "commit": {
+      "description": "The upstream commit this catalog was derived from.",
+      "type": "string"
+    },
+    "elements": {
+      "description": "Element definitions, sorted by name.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CatalogElement"
+      }
+    },
+    "schema_version": {
+      "const": 1
+    }
+  }
+}

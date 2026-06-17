@@ -8,23 +8,31 @@
 //! enum staying in sync with the spec's taxonomy. The output is sorted, so the
 //! same upstream commit always yields byte-identical JSON.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
+use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::extract::{ContentModelKind, Definitions};
+use crate::{
+    chapter::PropertyValueDef,
+    extract::{AttributeRef, ContentModelKind, Definitions, PropertyDef},
+};
 
 /// The full derived catalog written to `svg-data/data/catalog.json`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct Catalog {
+    /// Version of the JSON catalog/schema contract.
+    pub schema_version: u16,
     /// The upstream commit this catalog was derived from.
     pub commit: String,
     /// Element definitions, sorted by name.
     pub elements: Vec<CatalogElement>,
+    /// Attribute definitions, sorted by canonical name.
+    pub attributes: Vec<CatalogAttribute>,
 }
 
 /// One element's spec-derived catalog entry.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct CatalogElement {
     /// Element tag name.
     pub name: String,
@@ -38,9 +46,67 @@ pub struct CatalogElement {
     pub global_attrs: bool,
 }
 
+/// One attribute's spec-derived catalog entry.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct CatalogAttribute {
+    /// Canonical attribute name (`xlink:href` collapses to `href`).
+    pub name: String,
+    /// Resolved spec permalink.
+    pub spec_url: Option<String>,
+    /// Whether the spec marks the attribute animatable.
+    pub animatable: bool,
+    /// Backing CSS property name when this is a presentation attribute.
+    pub presentation_attribute: Option<String>,
+    /// Attribute value space.
+    pub values: CatalogAttributeValues,
+    /// Which elements accept the attribute.
+    pub applicability: CatalogAttributeApplicability,
+}
+
+/// The runtime value-space shapes the catalog emits.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CatalogAttributeValues {
+    /// One of the listed keyword values.
+    Enum {
+        /// Allowed keyword values.
+        values: Vec<String>,
+    },
+    /// A transform list; functions are completion hints.
+    Transform {
+        /// Transform function names.
+        functions: Vec<String>,
+    },
+    /// A CSS/SVG color value.
+    Color,
+    /// A length or length-percentage value.
+    Length,
+    /// A URL / fragment reference.
+    Url,
+    /// A number or percentage.
+    NumberOrPercentage,
+    /// Free-form text with no constrained grammar.
+    FreeText,
+}
+
+/// Which elements an attribute can appear on.
+#[derive(Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CatalogAttributeApplicability {
+    /// Applies to every element that accepts global SVG attributes.
+    Global,
+    /// Applies only to the listed element names.
+    Elements {
+        /// Bearer element names.
+        elements: Vec<String>,
+    },
+    /// Known attribute that applies to no elements in this catalog.
+    None,
+}
+
 /// The runtime content-model shapes the catalog emits. The spec's category
 /// taxonomy is already flattened into [`Self::ChildrenSet`].
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CatalogContentModel {
     /// Accepts exactly the listed child element names.
@@ -64,7 +130,12 @@ pub enum CatalogContentModel {
 /// within `svgwg` itself; modules carrying their own external `anchor_base`
 /// (CSS drafts) resolve against that instead.
 #[must_use]
-pub fn build_catalog(modules: &[Definitions], editors_draft_base: &str, commit: &str) -> Catalog {
+pub fn build_catalog(
+    modules: &[Definitions],
+    properties: &[PropertyValueDef],
+    editors_draft_base: &str,
+    commit: &str,
+) -> Catalog {
     let members = category_members(modules);
     let mut elements = Vec::new();
     for module in modules {
@@ -75,8 +146,10 @@ pub fn build_catalog(modules: &[Definitions], editors_draft_base: &str, commit: 
     }
     elements.sort_by(|a, b| a.name.cmp(&b.name));
     Catalog {
+        schema_version: crate::schema::CATALOG_SCHEMA_VERSION,
         commit: commit.to_owned(),
         elements,
+        attributes: build_attributes(modules, properties, editors_draft_base),
     }
 }
 
@@ -119,8 +192,19 @@ fn build_element(
     let mut attrs: Vec<String> = element
         .attributes
         .iter()
-        .map(|attribute| attribute.name.clone())
-        .chain(element.common_attributes.iter().cloned())
+        .map(|attribute| canonical_attribute_name(&attribute.name).into_owned())
+        .chain(
+            element
+                .common_attributes
+                .iter()
+                .map(|attribute| canonical_attribute_name(attribute).into_owned()),
+        )
+        .chain(
+            element
+                .geometry_properties
+                .iter()
+                .map(|attribute| canonical_attribute_name(attribute).into_owned()),
+        )
         .collect();
     attrs.sort();
     attrs.dedup();
@@ -134,6 +218,386 @@ fn build_element(
             .attribute_categories
             .iter()
             .any(|category| category == "core"),
+    }
+}
+
+/// Build the canonical attribute catalog from globals, categories, and element
+/// bearer declarations.
+fn build_attributes(
+    modules: &[Definitions],
+    properties: &[PropertyValueDef],
+    editors_draft_base: &str,
+) -> Vec<CatalogAttribute> {
+    let all_elements: BTreeSet<String> = modules
+        .iter()
+        .flat_map(|module| module.elements.iter().map(|element| element.name.clone()))
+        .collect();
+    let properties_by_name: BTreeMap<&str, &PropertyValueDef> = properties
+        .iter()
+        .map(|property| (property.name.as_str(), property))
+        .collect();
+    let module_properties = module_properties(modules, editors_draft_base);
+    let presentation_attributes =
+        presentation_attributes(modules, &module_properties, editors_draft_base);
+    let category_attributes = attribute_categories(modules, editors_draft_base);
+    let mut attributes: BTreeMap<String, AttributeAccumulator> = BTreeMap::new();
+
+    for module in modules {
+        let base = module.anchor_base.as_deref().unwrap_or(editors_draft_base);
+        for property in &module.properties {
+            let entry = accumulator_for(&mut attributes, &property.name);
+            entry.merge_property(property, base);
+        }
+        for attribute in &module.global_attributes {
+            let entry = accumulator_for(&mut attributes, &attribute.name);
+            entry.merge_ref(attribute, base);
+            if attribute.elements.is_empty() {
+                entry.global = true;
+            } else {
+                entry.bearers.extend(attribute.elements.iter().cloned());
+            }
+        }
+        for category in &module.attribute_categories {
+            for attribute in &category.attributes {
+                let entry = accumulator_for(&mut attributes, &attribute.name);
+                entry.merge_ref(attribute, base);
+                if category.name == "presentation" {
+                    entry.presentation_attribute = Some(entry.name.clone());
+                }
+            }
+        }
+    }
+    for presentation in &presentation_attributes {
+        let entry = accumulator_for(&mut attributes, &presentation.name);
+        entry.merge_presentation_href(presentation.href.as_deref(), &presentation.base);
+    }
+
+    for module in modules {
+        let base = module.anchor_base.as_deref().unwrap_or(editors_draft_base);
+        for element in &module.elements {
+            for attribute in &element.attributes {
+                let entry = accumulator_for(&mut attributes, &attribute.name);
+                entry.merge_ref(attribute, base);
+                if attribute.elements.is_empty() {
+                    entry.bearers.insert(element.name.clone());
+                } else {
+                    entry.bearers.extend(attribute.elements.iter().cloned());
+                }
+            }
+            for attribute_name in element
+                .common_attributes
+                .iter()
+                .chain(&element.geometry_properties)
+            {
+                let entry = accumulator_for(&mut attributes, attribute_name);
+                entry.bearers.insert(element.name.clone());
+            }
+            for category_name in &element.attribute_categories {
+                if category_name == "presentation" {
+                    for presentation in &presentation_attributes {
+                        let entry = accumulator_for(&mut attributes, &presentation.name);
+                        entry.merge_presentation_href(
+                            presentation.href.as_deref(),
+                            &presentation.base,
+                        );
+                        entry.bearers.insert(element.name.clone());
+                    }
+                }
+                if category_name == "deprecated xlink" {
+                    continue;
+                }
+                let Some(category) = category_attributes.get(category_name.as_str()) else {
+                    continue;
+                };
+                for attribute in category {
+                    let entry = accumulator_for(&mut attributes, &attribute.attribute.name);
+                    entry.merge_ref(&attribute.attribute, &attribute.base);
+                    if attribute.presentation {
+                        entry.presentation_attribute = Some(entry.name.clone());
+                    }
+                    if attribute.attribute.elements.is_empty() {
+                        entry.bearers.insert(element.name.clone());
+                    } else {
+                        entry
+                            .bearers
+                            .extend(attribute.attribute.elements.iter().cloned());
+                    }
+                }
+            }
+        }
+    }
+
+    attributes
+        .into_values()
+        .map(|attribute| attribute.finish(&all_elements, &properties_by_name))
+        .collect()
+}
+
+/// Module property declarations paired with the base URL needed to resolve
+/// each property href.
+fn module_properties<'a>(
+    modules: &'a [Definitions],
+    editors_draft_base: &str,
+) -> Vec<CategorizedProperty<'a>> {
+    let mut properties = Vec::new();
+    for module in modules {
+        let base = module
+            .anchor_base
+            .as_deref()
+            .unwrap_or(editors_draft_base)
+            .to_owned();
+        properties.extend(
+            module
+                .properties
+                .iter()
+                .map(|property| CategorizedProperty {
+                    property,
+                    base: base.clone(),
+                }),
+        );
+    }
+    properties
+}
+
+/// A property paired with the base URL needed to resolve its href.
+struct CategorizedProperty<'a> {
+    property: &'a PropertyDef,
+    base: String,
+}
+
+/// Presentation attribute declarations from the spec's
+/// `presentationattributes` category field, paired with property href metadata.
+fn presentation_attributes(
+    modules: &[Definitions],
+    module_properties: &[CategorizedProperty<'_>],
+    editors_draft_base: &str,
+) -> Vec<PresentationAttribute> {
+    let property_sources: BTreeMap<&str, (&PropertyDef, &str)> = module_properties
+        .iter()
+        .map(|property| {
+            (
+                property.property.name.as_str(),
+                (property.property, property.base.as_str()),
+            )
+        })
+        .collect();
+    let mut presentations: BTreeMap<String, PresentationAttribute> = BTreeMap::new();
+    for module in modules {
+        let base = module
+            .anchor_base
+            .as_deref()
+            .unwrap_or(editors_draft_base)
+            .to_owned();
+        for category in &module.attribute_categories {
+            if category.name != "presentation" {
+                continue;
+            }
+            for name in &category.presentation_attributes {
+                let canonical = canonical_attribute_name(name).into_owned();
+                let (href, source_base) = property_sources.get(canonical.as_str()).map_or_else(
+                    || (None, base.clone()),
+                    |(property, property_base)| {
+                        (property.href.clone(), (*property_base).to_owned())
+                    },
+                );
+                presentations
+                    .entry(canonical.clone())
+                    .or_insert(PresentationAttribute {
+                        name: canonical,
+                        href,
+                        base: source_base,
+                    });
+            }
+        }
+    }
+    presentations.into_values().collect()
+}
+
+/// A presentation attribute name with its property permalink metadata.
+struct PresentationAttribute {
+    name: String,
+    href: Option<String>,
+    base: String,
+}
+
+/// Attribute-category membership across all modules, preserving each member's
+/// own permalink base.
+fn attribute_categories(
+    modules: &[Definitions],
+    editors_draft_base: &str,
+) -> BTreeMap<String, Vec<CategorizedAttribute>> {
+    let mut categories: BTreeMap<String, Vec<CategorizedAttribute>> = BTreeMap::new();
+    for module in modules {
+        let base = module
+            .anchor_base
+            .as_deref()
+            .unwrap_or(editors_draft_base)
+            .to_owned();
+        for category in &module.attribute_categories {
+            let entry = categories.entry(category.name.clone()).or_default();
+            entry.extend(category.attributes.iter().cloned().map(|attribute| {
+                CategorizedAttribute {
+                    attribute,
+                    base: base.clone(),
+                    presentation: category.name == "presentation",
+                }
+            }));
+        }
+    }
+    categories
+}
+
+/// A category member paired with the base URL needed to resolve its href.
+struct CategorizedAttribute {
+    attribute: AttributeRef,
+    base: String,
+    presentation: bool,
+}
+
+/// Mutable aggregation for duplicate declarations of one canonical attribute.
+#[derive(Debug)]
+struct AttributeAccumulator {
+    name: String,
+    spec_url: Option<String>,
+    animatable: bool,
+    presentation_attribute: Option<String>,
+    bearers: BTreeSet<String>,
+    global: bool,
+}
+
+impl AttributeAccumulator {
+    /// Start tracking one canonical attribute name.
+    const fn new(name: String) -> Self {
+        Self {
+            name,
+            spec_url: None,
+            animatable: false,
+            presentation_attribute: None,
+            bearers: BTreeSet::new(),
+            global: false,
+        }
+    }
+
+    /// Merge href/animatability metadata from one spec attribute reference.
+    fn merge_ref(&mut self, attribute: &AttributeRef, base: &str) {
+        self.merge_href(attribute.href.as_deref(), base);
+        self.animatable |= attribute.animatable.unwrap_or(false);
+    }
+
+    /// Merge href metadata from a CSS/SVG property.
+    fn merge_property(&mut self, property: &PropertyDef, base: &str) {
+        self.merge_href(property.href.as_deref(), base);
+    }
+
+    /// Merge href metadata and mark this attribute as a presentation attribute.
+    fn merge_presentation_href(&mut self, href: Option<&str>, base: &str) {
+        self.merge_href(href, base);
+        self.presentation_attribute = Some(self.name.clone());
+    }
+
+    /// Set the spec URL once, preferring the first canonical declaration seen.
+    fn merge_href(&mut self, href: Option<&str>, base: &str) {
+        if self.spec_url.is_none() {
+            self.spec_url = href.map(|href| resolve_url(base, href));
+        }
+    }
+
+    /// Convert the accumulator into its serialized catalog entry.
+    fn finish(
+        self,
+        all_elements: &BTreeSet<String>,
+        properties_by_name: &BTreeMap<&str, &PropertyValueDef>,
+    ) -> CatalogAttribute {
+        let values = properties_by_name
+            .get(self.name.as_str())
+            .map_or(CatalogAttributeValues::FreeText, |property| {
+                values_for_property(property)
+            });
+        let applicability = if self.global || self.bearers == *all_elements {
+            CatalogAttributeApplicability::Global
+        } else if self.bearers.is_empty() {
+            CatalogAttributeApplicability::None
+        } else {
+            CatalogAttributeApplicability::Elements {
+                elements: self.bearers.into_iter().collect(),
+            }
+        };
+        CatalogAttribute {
+            name: self.name,
+            spec_url: self.spec_url,
+            animatable: self.animatable,
+            presentation_attribute: self.presentation_attribute,
+            values,
+            applicability,
+        }
+    }
+}
+
+/// Get or insert the accumulator for a raw attribute name.
+fn accumulator_for<'a>(
+    attributes: &'a mut BTreeMap<String, AttributeAccumulator>,
+    raw_name: &str,
+) -> &'a mut AttributeAccumulator {
+    let canonical = canonical_attribute_name(raw_name).into_owned();
+    attributes
+        .entry(canonical.clone())
+        .or_insert_with(|| AttributeAccumulator::new(canonical))
+}
+
+/// Convert a CSS property grammar into the runtime value-space subset we know
+/// how to represent today.
+fn values_for_property(property: &PropertyValueDef) -> CatalogAttributeValues {
+    let mut keywords = property.keywords.clone();
+    keywords.sort();
+    keywords.dedup();
+    if !keywords.is_empty() {
+        return CatalogAttributeValues::Enum { values: keywords };
+    }
+
+    let Some(value) = property.value.as_deref() else {
+        return CatalogAttributeValues::FreeText;
+    };
+    let normalized = value.to_ascii_lowercase();
+    if property.name == "transform" || normalized.contains("<transform-list>") {
+        return CatalogAttributeValues::Transform {
+            functions: ["matrix", "translate", "scale", "rotate", "skewX", "skewY"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        };
+    }
+    if normalized == "<color>" || normalized == "<paint>" {
+        return CatalogAttributeValues::Color;
+    }
+    if normalized == "<url>" || normalized == "<iri>" {
+        return CatalogAttributeValues::Url;
+    }
+    if normalized == "<number> | <percentage>" || normalized == "<percentage> | <number>" {
+        return CatalogAttributeValues::NumberOrPercentage;
+    }
+    if matches!(
+        normalized.as_str(),
+        "<length>" | "<length-percentage>" | "<length> | <percentage>"
+    ) {
+        return CatalogAttributeValues::Length;
+    }
+    CatalogAttributeValues::FreeText
+}
+
+/// Resolve `href` against a module base unless it is already absolute.
+fn resolve_url(base: &str, href: &str) -> String {
+    if href.starts_with("http://") || href.starts_with("https://") {
+        href.to_owned()
+    } else {
+        format!("{base}{href}")
+    }
+}
+
+/// Canonicalize legacy xlink spellings without depending on the runtime crate.
+fn canonical_attribute_name(name: &str) -> std::borrow::Cow<'_, str> {
+    match name {
+        "xlink:href" => std::borrow::Cow::Borrowed("href"),
+        other => std::borrow::Cow::Borrowed(other),
     }
 }
 
@@ -154,4 +618,163 @@ fn flatten_children(
     names.sort();
     names.dedup();
     names
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::extract::{
+        AttributeCategory, AttributeRef, ContentModelKind, ElementDef, PropertyDef,
+    };
+
+    fn attr(name: &str, href: &str, animatable: Option<bool>) -> AttributeRef {
+        AttributeRef {
+            name: name.to_owned(),
+            href: Some(href.to_owned()),
+            animatable,
+            elements: Vec::new(),
+        }
+    }
+
+    fn element(name: &str) -> ElementDef {
+        ElementDef {
+            name: name.to_owned(),
+            href: Some(format!("{name}.html#{name}")),
+            content_model: Some(ContentModelKind::AnyOf),
+            content_model_description: None,
+            allowed_element_categories: Vec::new(),
+            allowed_elements: Vec::new(),
+            attribute_categories: vec!["core".to_owned()],
+            common_attributes: Vec::new(),
+            geometry_properties: Vec::new(),
+            interfaces: Vec::new(),
+            attributes: Vec::new(),
+        }
+    }
+
+    fn defs() -> Definitions {
+        let mut rect = element("rect");
+        rect.attribute_categories.push("presentation".to_owned());
+        rect.geometry_properties.push("x".to_owned());
+
+        let mut link = element("a");
+        link.attributes
+            .push(attr("xlink:href", "linking.html#XLinkHref", Some(true)));
+
+        Definitions {
+            anchor_base: None,
+            elements: vec![rect, link, element("metadata")],
+            global_attributes: vec![attr("id", "struct.html#IDAttribute", None)],
+            properties: vec![PropertyDef {
+                name: "fill".to_owned(),
+                href: Some("painting.html#FillProperty".to_owned()),
+            }],
+            element_categories: Vec::new(),
+            attribute_categories: vec![
+                AttributeCategory {
+                    name: "core".to_owned(),
+                    href: None,
+                    attributes: vec![attr("class", "struct.html#ClassAttribute", None)],
+                    presentation_attributes: Vec::new(),
+                },
+                AttributeCategory {
+                    name: "presentation".to_owned(),
+                    href: None,
+                    attributes: Vec::new(),
+                    presentation_attributes: vec!["fill".to_owned()],
+                },
+            ],
+            terms: Vec::new(),
+            symbols: Vec::new(),
+            interfaces: Vec::new(),
+        }
+    }
+
+    fn property(name: &str, value: &str, keywords: &[&str]) -> PropertyValueDef {
+        PropertyValueDef {
+            name: name.to_owned(),
+            id: None,
+            value: Some(value.to_owned()),
+            keywords: keywords
+                .iter()
+                .map(|keyword| (*keyword).to_owned())
+                .collect(),
+            initial: None,
+            applies_to: None,
+            inherited: None,
+            computed_value: None,
+            animation_type: None,
+        }
+    }
+
+    #[test]
+    fn builds_attribute_catalog_with_explicit_applicability()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let catalog = build_catalog(
+            &[defs()],
+            &[property(
+                "fill",
+                "none | context-fill",
+                &["context-fill", "none"],
+            )],
+            "https://example.test/",
+            "abc",
+        );
+
+        let id = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "id")
+            .ok_or("missing id")?;
+        assert_eq!(id.applicability, CatalogAttributeApplicability::Global);
+
+        let fill = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "fill")
+            .ok_or("missing fill")?;
+        assert_eq!(fill.presentation_attribute.as_deref(), Some("fill"));
+        assert_eq!(
+            fill.applicability,
+            CatalogAttributeApplicability::Elements {
+                elements: vec!["rect".to_owned()]
+            }
+        );
+        assert_eq!(
+            fill.values,
+            CatalogAttributeValues::Enum {
+                values: vec!["context-fill".to_owned(), "none".to_owned()]
+            }
+        );
+
+        let href = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "href")
+            .ok_or("missing href")?;
+        assert!(href.animatable);
+        assert_eq!(
+            href.spec_url.as_deref(),
+            Some("https://example.test/linking.html#XLinkHref")
+        );
+        assert_eq!(
+            href.applicability,
+            CatalogAttributeApplicability::Elements {
+                elements: vec!["a".to_owned()]
+            }
+        );
+
+        let x = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "x")
+            .ok_or("missing x")?;
+        assert_eq!(
+            x.applicability,
+            CatalogAttributeApplicability::Elements {
+                elements: vec!["rect".to_owned()]
+            }
+        );
+        Ok(())
+    }
 }

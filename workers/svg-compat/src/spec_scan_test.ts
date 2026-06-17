@@ -28,11 +28,11 @@
  * @module
  */
 
-import { assert, assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from '@std/assert';
 
-import { parseChangesLog, parseDefinitionsXml, parseTextHtmlOverrides } from "./spec_scan.ts";
+import { parseChangesLog, parseDefinitionsXml, parseTextHtmlOverrides } from './spec_scan.ts';
 
-Deno.test("parseDefinitionsXml extracts elements with various indentation", () => {
+Deno.test('parseDefinitionsXml extracts elements with various indentation', () => {
 	const fixture = `<definitions xmlns='http://mcc.id.au/ns/local'>
   <element name='rect' href='shapes.html#RectElement' interfaces='SVGRectElement'/>
   <element
@@ -45,19 +45,19 @@ Deno.test("parseDefinitionsXml extracts elements with various indentation", () =
     contentmodel='anyof'/>
 </definitions>
 `;
-	const facts = parseDefinitionsXml(fixture, "definitions.xml");
+	const facts = parseDefinitionsXml(fixture, 'definitions.xml');
 	const elementNames = facts
-		.filter((f) => f.kind === "element")
+		.filter((f) => f.kind === 'element')
 		.map((f) => f.name);
-	assertEquals(elementNames.sort(), ["circle", "defs", "rect"]);
+	assertEquals(elementNames.sort(), ['circle', 'defs', 'rect']);
 	for (const fact of facts) {
-		assertEquals(fact.status, "defined");
-		assertEquals(fact.provenance.file, "definitions.xml");
+		assertEquals(fact.status, 'defined');
+		assertEquals(fact.provenance.file, 'definitions.xml');
 		assert(fact.provenance.line > 0);
 	}
 });
 
-Deno.test("parseDefinitionsXml extracts attributes and properties alongside elements", () => {
+Deno.test('parseDefinitionsXml extracts attributes and properties alongside elements', () => {
 	const fixture = `<definitions>
   <element name='svg' interfaces='SVGSVGElement'>
     <attribute name='viewBox' href='struct.html#viewBox' animatable='yes'/>
@@ -67,27 +67,27 @@ Deno.test("parseDefinitionsXml extracts attributes and properties alongside elem
   <property name='stroke' href='painting.html#StrokeProperty'/>
 </definitions>
 `;
-	const facts = parseDefinitionsXml(fixture, "definitions.xml");
+	const facts = parseDefinitionsXml(fixture, 'definitions.xml');
 	const byKind: Record<string, string[]> = { element: [], attribute: [], property: [] };
 	for (const fact of facts) {
 		byKind[fact.kind].push(fact.name);
 	}
-	assertEquals(byKind.element, ["svg"]);
-	assertEquals(byKind.attribute.sort(), ["id", "viewBox"]);
-	assertEquals(byKind.property.sort(), ["fill", "stroke"]);
+	assertEquals(byKind.element, ['svg']);
+	assertEquals(byKind.attribute.sort(), ['id', 'viewBox']);
+	assertEquals(byKind.property.sort(), ['fill', 'stroke']);
 });
 
-Deno.test("parseDefinitionsXml respects double-quoted name attributes too", () => {
+Deno.test('parseDefinitionsXml respects double-quoted name attributes too', () => {
 	const fixture = `<element name="rect"/>
 <attribute name="d"/>
 `;
-	const facts = parseDefinitionsXml(fixture, "definitions.xml");
+	const facts = parseDefinitionsXml(fixture, 'definitions.xml');
 	assertEquals(facts.length, 2);
-	assertEquals(facts[0].name, "rect");
-	assertEquals(facts[1].name, "d");
+	assertEquals(facts[0].name, 'rect');
+	assertEquals(facts[1].name, 'd');
 });
 
-Deno.test("parseTextHtmlOverrides classifies a single-line removal note", () => {
+Deno.test('parseTextHtmlOverrides classifies a single-line removal note', () => {
 	const fixture = `
 <h4 id='GlyphOrientationHorizontalProperty'>The <span class="property">'glyph-orientation-horizontal'</span> property</h4>
 
@@ -98,17 +98,17 @@ Deno.test("parseTextHtmlOverrides classifies a single-line removal note", () => 
 <h4 id='NextProperty'>The <span class="property">'next'</span> property</h4>
 <p>The next property is fine.</p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 1);
-	assertEquals(result.removed[0].name, "glyph-orientation-horizontal");
-	assertEquals(result.removed[0].status, "removed");
-	assertEquals(result.removed[0].kind, "property");
+	assertEquals(result.removed[0].name, 'glyph-orientation-horizontal');
+	assertEquals(result.removed[0].status, 'removed');
+	assertEquals(result.removed[0].kind, 'property');
 	assertExists(result.removed[0].provenance.line);
 	assert(result.removed[0].provenance.line >= 4);
 	assertEquals(result.obsoleted.length, 0);
 });
 
-Deno.test("parseTextHtmlOverrides handles multiline removal sentence (kerning case)", () => {
+Deno.test('parseTextHtmlOverrides handles multiline removal sentence (kerning case)', () => {
 	// The kerning case the user surfaced: the sentence wraps across two lines
 	// inside the <p class="note"> block. This is the regression that exposed
 	// the user's "no spec scanning at all" complaint.
@@ -124,13 +124,13 @@ Deno.test("parseTextHtmlOverrides handles multiline removal sentence (kerning ca
     tables should be used.
   </p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 1);
-	assertEquals(result.removed[0].name, "kerning");
-	assertEquals(result.removed[0].status, "removed");
+	assertEquals(result.removed[0].name, 'kerning');
+	assertEquals(result.removed[0].status, 'removed');
 });
 
-Deno.test("parseTextHtmlOverrides classifies obsoletion separately from removal", () => {
+Deno.test('parseTextHtmlOverrides classifies obsoletion separately from removal', () => {
 	const fixture = `
 <h4 id='GlyphOrientationVerticalProperty'>The <span class="property">'glyph-orientation-vertical'</span> property</h4>
 
@@ -139,14 +139,14 @@ Deno.test("parseTextHtmlOverrides classifies obsoletion separately from removal"
   in SVG 2 and partially replaced by the text-orientation property.
 </p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 0);
 	assertEquals(result.obsoleted.length, 1);
-	assertEquals(result.obsoleted[0].name, "glyph-orientation-vertical");
-	assertEquals(result.obsoleted[0].status, "obsoleted");
+	assertEquals(result.obsoleted[0].name, 'glyph-orientation-vertical');
+	assertEquals(result.obsoleted[0].status, 'obsoleted');
 });
 
-Deno.test("parseTextHtmlOverrides scopes notes to their h4 section", () => {
+Deno.test('parseTextHtmlOverrides scopes notes to their h4 section', () => {
 	// A removal sentence inside section A must NOT attach to section B.
 	const fixture = `
 <h4 id='AProperty'>The <span class="property">'a'</span> property</h4>
@@ -158,12 +158,12 @@ Deno.test("parseTextHtmlOverrides scopes notes to their h4 section", () => {
 <h4 id='CProperty'>The <span class="property">'c'</span> property</h4>
 <p>This property is also fine.</p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 1);
-	assertEquals(result.removed[0].name, "b");
+	assertEquals(result.removed[0].name, 'b');
 });
 
-Deno.test("parseTextHtmlOverrides ignores non-status paragraphs preceding a status note", () => {
+Deno.test('parseTextHtmlOverrides ignores non-status paragraphs preceding a status note', () => {
 	// First <p> is just intro prose; second <p class="note"> carries the
 	// authoritative status. The scanner should pick the status one, not
 	// the first paragraph.
@@ -172,76 +172,76 @@ Deno.test("parseTextHtmlOverrides ignores non-status paragraphs preceding a stat
 <p>Some intro text about x that does not mention removal.</p>
 <p class="note">This property has been removed in SVG 2.</p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 1);
-	assertEquals(result.removed[0].name, "x");
+	assertEquals(result.removed[0].name, 'x');
 });
 
-Deno.test("parseChangesLog matches removed properties in <li>", () => {
+Deno.test('parseChangesLog matches removed properties in <li>', () => {
 	const fixture = `<ul>
   <li>Removed the <span class='property'>'kerning'</span> property.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	assertEquals(facts.length, 1);
-	assertEquals(facts[0].name, "kerning");
-	assertEquals(facts[0].kind, "property");
-	assertEquals(facts[0].status, "removed");
+	assertEquals(facts[0].name, 'kerning');
+	assertEquals(facts[0].kind, 'property');
+	assertEquals(facts[0].status, 'removed');
 });
 
-Deno.test("parseChangesLog matches removed elements in <li>", () => {
+Deno.test('parseChangesLog matches removed elements in <li>', () => {
 	const fixture = `<ul>
   <li>Removed the <span class='element'>'tref'</span> element.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	assertEquals(facts.length, 1);
-	assertEquals(facts[0].kind, "element");
-	assertEquals(facts[0].name, "tref");
+	assertEquals(facts[0].kind, 'element');
+	assertEquals(facts[0].name, 'tref');
 });
 
-Deno.test("parseChangesLog matches removed attributes in <li>", () => {
+Deno.test('parseChangesLog matches removed attributes in <li>', () => {
 	const fixture = `<ul>
   <li>Removed the <span class="attr-name">'externalResourcesRequired'</span> attribute.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	assertEquals(facts.length, 1);
-	assertEquals(facts[0].kind, "attribute");
-	assertEquals(facts[0].name, "externalResourcesRequired");
+	assertEquals(facts[0].kind, 'attribute');
+	assertEquals(facts[0].name, 'externalResourcesRequired');
 });
 
-Deno.test("parseChangesLog handles multiple features in one <li>", () => {
+Deno.test('parseChangesLog handles multiple features in one <li>', () => {
 	// The altGlyph cluster: four removals in a single multi-line li.
 	const fixture = `<ul>
   <li>Removed the <span class='element'>'altGlyph'</span>, <span class='element'>'altGlyphDef'</span>,
   <span class='element'>'altGlyphItem'</span> and <span class='element'>'glyphRef'</span> elements.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	const names = facts.map((f) => f.name).sort();
-	assertEquals(names, ["altGlyph", "altGlyphDef", "altGlyphItem", "glyphRef"]);
+	assertEquals(names, ['altGlyph', 'altGlyphDef', 'altGlyphItem', 'glyphRef']);
 	for (const fact of facts) {
-		assertEquals(fact.kind, "element");
-		assertEquals(fact.status, "removed");
+		assertEquals(fact.kind, 'element');
+		assertEquals(fact.status, 'removed');
 	}
 });
 
-Deno.test("parseChangesLog handles multiple attributes in one <li>", () => {
+Deno.test('parseChangesLog handles multiple attributes in one <li>', () => {
 	// The baseProfile + version case: two attributes, single removal entry.
 	const fixture = `<ul>
   <li>Removed the <span class="attr-name">baseProfile</span> and <span class="attr-name">version</span> attributes from the <a>'svg'</a> element.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	const names = facts.map((f) => f.name).sort();
-	assertEquals(names, ["baseProfile", "version"]);
+	assertEquals(names, ['baseProfile', 'version']);
 	for (const fact of facts) {
-		assertEquals(fact.kind, "attribute");
+		assertEquals(fact.kind, 'attribute');
 	}
 });
 
-Deno.test("parseChangesLog skips false-positive prose without span markup", () => {
+Deno.test('parseChangesLog skips false-positive prose without span markup', () => {
 	// The "use element from list of elements" case: this li starts with
 	// "Removed the use element" but the "use" is bare prose, not a
 	// `<span class='element'>` declaration. The scanner must NOT match.
@@ -249,11 +249,11 @@ Deno.test("parseChangesLog skips false-positive prose without span markup", () =
   <li>Removed the use element from list of elements that the <a>'visibility'</a> property directly affects.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	assertEquals(facts.length, 0);
 });
 
-Deno.test("parseChangesLog skips IDL/code-only removals", () => {
+Deno.test('parseChangesLog skips IDL/code-only removals', () => {
 	// Removals of IDL interface methods etc are wrapped in `<code>`,
 	// not classed spans. Out of scope for the scanner.
 	const fixture = `<ul>
@@ -261,22 +261,22 @@ Deno.test("parseChangesLog skips IDL/code-only removals", () => {
   <li>Removed the SVGViewSpec interface.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	assertEquals(facts.length, 0);
 });
 
-Deno.test("parseChangesLog accepts both single and double quoted span class", () => {
+Deno.test('parseChangesLog accepts both single and double quoted span class', () => {
 	const fixture = `<ul>
   <li>Removed the <span class='attr-name'>'a'</span> attribute.</li>
   <li>Removed the <span class="attr-name">'b'</span> attribute.</li>
 </ul>
 `;
-	const facts = parseChangesLog(fixture, "changes.html");
+	const facts = parseChangesLog(fixture, 'changes.html');
 	const names = facts.map((f) => f.name).sort();
-	assertEquals(names, ["a", "b"]);
+	assertEquals(names, ['a', 'b']);
 });
 
-Deno.test("parseDefinitionsXml provenance line numbers match the source", () => {
+Deno.test('parseDefinitionsXml provenance line numbers match the source', () => {
 	const fixture = `line1
 line2
 <element name='one'/>
@@ -284,17 +284,17 @@ line4
 <element
   name='two'/>
 `;
-	const facts = parseDefinitionsXml(fixture, "definitions.xml");
+	const facts = parseDefinitionsXml(fixture, 'definitions.xml');
 	assertEquals(facts.length, 2);
-	assertEquals(facts[0].name, "one");
+	assertEquals(facts[0].name, 'one');
 	assertEquals(facts[0].provenance.line, 3);
-	assertEquals(facts[1].name, "two");
+	assertEquals(facts[1].name, 'two');
 	// The match starts at line 5 (the `<element\n` token), not at
 	// line 6 where `name='two'` lives.
 	assertEquals(facts[1].provenance.line, 5);
 });
 
-Deno.test("parseTextHtmlOverrides preserves line numbers across multiline matches", () => {
+Deno.test('parseTextHtmlOverrides preserves line numbers across multiline matches', () => {
 	const fixture = `1
 2
 <h4 id='XProperty'>The <span class="property">'x'</span> property</h4>
@@ -303,13 +303,13 @@ Deno.test("parseTextHtmlOverrides preserves line numbers across multiline matche
   This property has been removed in SVG 2.
 </p>
 `;
-	const result = parseTextHtmlOverrides(fixture, "text.html");
+	const result = parseTextHtmlOverrides(fixture, 'text.html');
 	assertEquals(result.removed.length, 1);
 	// The `<p class="note">` opens on line 5.
 	assertEquals(result.removed[0].provenance.line, 5);
 });
 
-Deno.test("real-world fixture: glyph-orientation + kerning + altGlyph cluster end-to-end", () => {
+Deno.test('real-world fixture: glyph-orientation + kerning + altGlyph cluster end-to-end', () => {
 	// Larger fixture stitching the three patterns the user surfaced
 	// directly from svgwg's text.html / changes.html. Locks in the
 	// joint behaviour so a regex tweak can't silently break one
@@ -339,25 +339,25 @@ Deno.test("real-world fixture: glyph-orientation + kerning + altGlyph cluster en
   <li>Removed the <span class='property'>'kerning'</span> property.</li>
 </ul>
 `;
-	const text = parseTextHtmlOverrides(textHtml, "text.html");
+	const text = parseTextHtmlOverrides(textHtml, 'text.html');
 	const removedNames = text.removed.map((f) => f.name).sort();
-	assertEquals(removedNames, ["glyph-orientation-horizontal", "kerning"]);
+	assertEquals(removedNames, ['glyph-orientation-horizontal', 'kerning']);
 	const obsoletedNames = text.obsoleted.map((f) => f.name);
-	assertEquals(obsoletedNames, ["glyph-orientation-vertical"]);
+	assertEquals(obsoletedNames, ['glyph-orientation-vertical']);
 
-	const changes = parseChangesLog(changesHtml, "changes.html");
+	const changes = parseChangesLog(changesHtml, 'changes.html');
 	const elementNames = changes
-		.filter((f) => f.kind === "element")
+		.filter((f) => f.kind === 'element')
 		.map((f) => f.name)
 		.sort();
 	const attributeNames = changes
-		.filter((f) => f.kind === "attribute")
+		.filter((f) => f.kind === 'attribute')
 		.map((f) => f.name)
 		.sort();
 	const propertyNames = changes
-		.filter((f) => f.kind === "property")
+		.filter((f) => f.kind === 'property')
 		.map((f) => f.name);
-	assertEquals(elementNames, ["altGlyph", "altGlyphDef", "altGlyphItem", "glyphRef"]);
-	assertEquals(attributeNames, ["baseProfile", "version"]);
-	assertEquals(propertyNames, ["kerning"]);
+	assertEquals(elementNames, ['altGlyph', 'altGlyphDef', 'altGlyphItem', 'glyphRef']);
+	assertEquals(attributeNames, ['baseProfile', 'version']);
+	assertEquals(propertyNames, ['kerning']);
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { error, log } from "node:console";
-import { normalize, relative } from "node:path";
-import { argv, cwd, exit } from "node:process";
+import { error, log } from 'node:console';
+import { normalize, relative } from 'node:path';
+import { argv, cwd, exit } from 'node:process';
 
 const version = argv[2];
 if (!version || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
@@ -10,8 +10,8 @@ if (!version || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
 }
 
 const status = (await Bun.$`git status --short`.text()).trim();
-if (status !== "") {
-	error("working tree must be clean before preparing a release");
+if (status !== '') {
+	error('working tree must be clean before preparing a release');
 	exit(1);
 }
 
@@ -30,7 +30,7 @@ const cargoTomlParsed = Bun.TOML.parse(cargoTomlSource) as {
 };
 
 if (cargoTomlParsed.workspace?.package?.version == null) {
-	error("Cargo.toml is missing workspace.package.version");
+	error('Cargo.toml is missing workspace.package.version');
 	exit(1);
 }
 
@@ -40,7 +40,7 @@ const cargoToml = cargoTomlSource.replace(
 );
 
 if (cargoToml === cargoTomlSource) {
-	error("failed to update workspace.package.version in Cargo.toml");
+	error('failed to update workspace.package.version in Cargo.toml');
 	exit(1);
 }
 
@@ -49,7 +49,7 @@ const updatedCargoToml = Bun.TOML.parse(cargoToml) as {
 };
 
 if (updatedCargoToml.workspace?.package?.version !== version) {
-	error("Cargo.toml version update did not produce the expected workspace.package.version");
+	error('Cargo.toml version update did not produce the expected workspace.package.version');
 	exit(1);
 }
 
@@ -62,6 +62,6 @@ await Bun.$`git commit -m ${`chore(release): ${tag}`}`;
 await Bun.$`git tag -a ${tag} -m ${tag}`;
 
 const branch = (await Bun.$`git branch --show-current`.text()).trim();
-log("release prepared locally");
+log('release prepared locally');
 log(`next: git push origin ${branch}`);
 log(`next: git push origin ${tag}`);

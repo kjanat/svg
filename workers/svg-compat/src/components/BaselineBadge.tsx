@@ -1,13 +1,13 @@
-import type { Baseline } from "../main.ts";
+import type { Baseline } from '../main.ts';
 
 interface Props {
 	baseline: Baseline | undefined;
 }
 
 const BADGE_SRC = {
-	widely: "/badges/baseline-widely.svg",
-	newly: "/badges/baseline-newly.svg",
-	limited: "/badges/baseline-limited.svg",
+	widely: '/badges/baseline-widely.svg',
+	newly: '/badges/baseline-newly.svg',
+	limited: '/badges/baseline-limited.svg',
 } as const;
 
 /**
@@ -17,10 +17,10 @@ const BADGE_SRC = {
  * displaying as `2021`. Unknown qualifiers fall through to `~`
  * (the parser already mapped them to "approximately").
  */
-const QUALIFIER_GLYPH: Record<NonNullable<Baseline["since_qualifier"]>, string> = {
-	before: "≤",
-	after: "≥",
-	approximately: "~",
+const QUALIFIER_GLYPH: Record<NonNullable<Baseline['since_qualifier']>, string> = {
+	before: '≤',
+	after: '≥',
+	approximately: '~',
 };
 
 /**
@@ -41,28 +41,28 @@ function baselineTitle(baseline: Baseline): string {
 		parts.push(`(unrecognised upstream status: ${baseline.raw_status})`);
 	}
 	if (parts.length === 0) {
-		return baseline.status === "limited"
-			? "Limited availability"
+		return baseline.status === 'limited'
+			? 'Limited availability'
 			: `${baseline.status} baseline`;
 	}
-	return parts.join(" · ");
+	return parts.join(' · ');
 }
 
 export function BaselineBadge({ baseline }: Props) {
-	if (!baseline) return <span class="muted">-</span>;
+	if (!baseline) return <span class='muted'>-</span>;
 	const variant = baseline.status;
-	const glyph = baseline.since_qualifier ? QUALIFIER_GLYPH[baseline.since_qualifier] : "";
-	const label = variant === "limited"
-		? "limited"
-		: `${variant} ${glyph}${baseline.since ?? ""}`.trim();
+	const glyph = baseline.since_qualifier ? QUALIFIER_GLYPH[baseline.since_qualifier] : '';
+	const label = variant === 'limited'
+		? 'limited'
+		: `${variant} ${glyph}${baseline.since ?? ''}`.trim();
 	return (
 		<span class={`badge badge-${variant}`} title={baselineTitle(baseline)}>
 			<img
-				class="badge-icon"
+				class='badge-icon'
 				src={BADGE_SRC[variant]}
-				alt=""
-				width="18"
-				height="10"
+				alt=''
+				width='18'
+				height='10'
 			/>
 			{label}
 		</span>

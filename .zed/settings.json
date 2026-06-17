@@ -27,6 +27,9 @@
 			"settings": {
 				"json": {
 					"schemas": [{
+						"fileMatch": ["catalog.json"],
+						"url": "./crates/svg-data/data/catalog.schema.json"
+					}, {
 						"fileMatch": ["**/specs/*/snapshot.json"],
 						"url": "./crates/svg-data/data/schemas/snapshot.schema.json"
 					}, {

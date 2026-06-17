@@ -12,13 +12,15 @@ categories.workspace = true
 publish              = false
 
 [dependencies]
-quick-xml  = { workspace = true }
-regex      = { workspace = true }
-serde      = { workspace = true }
-serde_json = { workspace = true }
-sha1       = { workspace = true }
-tl         = { workspace = true }
-ureq       = { workspace = true }
+json-schema-sort.workspace = true
+quick-xml.workspace        = true
+regex.workspace            = true
+schemars.workspace         = true
+serde.workspace            = true
+serde_json.workspace       = true
+sha1.workspace             = true
+tl.workspace               = true
+ureq.workspace             = true
 
 [lints]
 workspace = true

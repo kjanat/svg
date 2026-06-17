@@ -262,6 +262,53 @@ mod catalog_tests {
     }
 
     #[test]
+    fn attribute_catalog_distinguishes_global_scoped_and_geometry_attrs() {
+        let Some(id) = attribute("id") else {
+            panic!("id missing from catalog");
+        };
+        assert_eq!(id.applicability, AttributeApplicability::Global);
+
+        let Some(href) = attribute("xlink:href") else {
+            panic!("href missing from catalog");
+        };
+        assert_eq!(href.name, "href");
+        assert!(matches!(
+            href.applicability,
+            AttributeApplicability::Elements(elements)
+                if elements.contains(&"a") && elements.contains(&"use")
+        ));
+
+        let Some(cx) = attribute("cx") else {
+            panic!("cx missing from catalog");
+        };
+        assert_eq!(cx.presentation_attribute, None);
+        assert!(matches!(
+            cx.applicability,
+            AttributeApplicability::Elements(elements)
+                if elements.contains(&"circle") && !elements.contains(&"rect")
+        ));
+
+        let circle_attrs = attributes_for_with_profile(SpecSnapshotId::LATEST, "circle");
+        assert!(
+            circle_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "id")
+        );
+        assert!(
+            circle_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "cx")
+        );
+
+        let rect_attrs = attributes_for_with_profile(SpecSnapshotId::LATEST, "rect");
+        assert!(
+            !rect_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "cx")
+        );
+    }
+
+    #[test]
     fn foreign_object_hosts_foreign_content() {
         let Some(foreign_object) = element("foreignObject") else {
             panic!("foreignObject missing from catalog");

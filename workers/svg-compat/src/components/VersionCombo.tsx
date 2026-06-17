@@ -13,18 +13,18 @@ interface Props {
  */
 export function VersionCombo({ pkg, param, label }: Props) {
 	return (
-		<span class="ver-wrap">
+		<span class='ver-wrap'>
 			<input
-				type="text"
-				class="ver"
+				type='text'
+				class='ver'
 				data-pkg={pkg}
 				data-param={param}
-				placeholder="version"
-				autocomplete="off"
+				placeholder='version'
+				autocomplete='off'
 				aria-label={label}
 			/>
-			<ul class="ver-list" hidden></ul>
-			<script type="module" src="/version-picker.mjs"></script>
+			<ul class='ver-list' hidden></ul>
+			<script type='module' src='/version-picker.mjs'></script>
 		</span>
 	);
 }

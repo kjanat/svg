@@ -19,6 +19,7 @@ mod discover;
 mod extract;
 mod fetch;
 mod provenance;
+mod schema;
 
 use std::path::{Path, PathBuf};
 
@@ -160,15 +161,21 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         .editors_draft
         .as_deref()
         .unwrap_or_default();
-    let built = catalog::build_catalog(&all_defs, editors_draft, &provenance.commit_sha);
+    let chapter_report = report_chapters(provenance, graph, &macros, want_sample.as_deref())?;
+    let built = catalog::build_catalog(
+        &all_defs,
+        &chapter_report.properties,
+        editors_draft,
+        &provenance.commit_sha,
+    );
     let path = write_catalog(&built)?;
     println!(
-        "\n## catalog written: {} elements -> {}",
+        "\n## catalog written: {} elements, {} attributes -> {}",
         built.elements.len(),
+        built.attributes.len(),
         path.display()
     );
-
-    report_chapters(provenance, graph, &macros, want_sample.as_deref())
+    Ok(())
 }
 
 /// Write the derived catalog as deterministic pretty JSON into `svg-data`'s
@@ -180,6 +187,10 @@ fn write_catalog(built: &catalog::Catalog) -> Fallible<PathBuf> {
     let mut json = serde_json::to_string_pretty(built)?;
     json.push('\n');
     std::fs::write(&path, json)?;
+    std::fs::write(
+        data_dir.join(schema::CATALOG_SCHEMA_FILE),
+        schema::catalog_schema_json()?,
+    )?;
     Ok(path)
 }
 
@@ -192,7 +203,12 @@ fn index_categories(defs: &extract::Definitions, macros: &mut chapter::MacroInde
             .insert(category.name.clone(), category.elements.clone());
     }
     for category in &defs.attribute_categories {
-        let names = category.attributes.iter().map(|a| a.name.clone()).collect();
+        let names = category
+            .attributes
+            .iter()
+            .map(|a| a.name.clone())
+            .chain(category.presentation_attributes.iter().cloned())
+            .collect();
         macros
             .attribute_categories
             .insert(category.name.clone(), names);
@@ -208,7 +224,7 @@ fn report_chapters(
     graph: &PublishGraph,
     macros: &chapter::MacroIndex,
     want: Option<&str>,
-) -> Fallible<()> {
+) -> Fallible<ChapterReport> {
     println!("\n## chapter extraction (anchors / dfns / examples / properties)");
     let mut anchors = 0usize;
     let mut dfns = 0usize;
@@ -217,6 +233,7 @@ fn report_chapters(
     let mut terms = 0usize;
     let mut sample_property: Option<chapter::PropertyValueDef> = None;
     let mut sample_term: Option<chapter::TermDefinition> = None;
+    let mut collected_properties = Vec::new();
     let pages = graph.chapters.iter().chain(&graph.appendices);
     for name in pages {
         let path = format!("{PUBLISH_DIR}/{name}.html");
@@ -255,6 +272,7 @@ fn report_chapters(
                 None => extracted.term_definitions.first().cloned(),
             };
         }
+        collected_properties.extend(extracted.properties);
     }
     println!(
         "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} ex  {properties:>3} props  {terms:>3} terms ({} pages)",
@@ -271,7 +289,15 @@ fn report_chapters(
         println!("{}", serde_json::to_string_pretty(term)?);
     }
 
-    Ok(())
+    Ok(ChapterReport {
+        properties: collected_properties,
+    })
+}
+
+/// Chapter-derived records needed by the committed catalog.
+struct ChapterReport {
+    /// Property value grammars, used for presentation attribute value spaces.
+    properties: Vec<chapter::PropertyValueDef>,
 }
 
 /// Running totals across all definitions modules.

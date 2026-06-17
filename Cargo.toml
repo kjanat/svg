@@ -35,6 +35,10 @@ ureq             = "3"
 url              = "2"
 winnow           = "1"
 
+[workspace.dependencies.json-schema-sort]
+version          = "0.1"
+default-features = false
+
 [workspace.dependencies.serde]
 version  = "1"
 features = ["derive"]

@@ -1,4 +1,4 @@
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren } from 'preact';
 
 interface Props {
 	id: string;
@@ -24,26 +24,26 @@ export function TableSection(
 ) {
 	return (
 		<section id={id} data-searchable>
-			<header class="section-head">
+			<header class='section-head'>
 				<div>
 					<h2>{title}</h2>
-					<p class="muted">{description}</p>
+					<p class='muted'>{description}</p>
 				</div>
-				<label class="table-search">
+				<label class='table-search'>
 					<input
-						type="search"
+						type='search'
 						placeholder={placeholder}
 						data-filter-target={id}
 						aria-label={placeholder}
 					/>
-					<span class="table-search-count" data-filter-count={id}>
+					<span class='table-search-count' data-filter-count={id}>
 						{total} / {total}
 					</span>
 				</label>
 			</header>
 			{children}
-			<script type="module" src="/table-filter.mjs"></script>
-			<script type="module" src="/table-columns.mjs"></script>
+			<script type='module' src='/table-filter.mjs'></script>
+			<script type='module' src='/table-columns.mjs'></script>
 		</section>
 	);
 }

@@ -1,6 +1,11 @@
 {
+	"extends": ["https://github.com/kjanat/kjanat/raw/HEAD/configs/dprint.remote.json"],
 	"useTabs": true,
-	"json": { "trailingCommas": "maintain" },
+	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
+	"json": {
+		"trailingCommas": "maintain",
+		"associations": ["!schema.json", "!*.schema.json", "**/*.json", "**/*.jsonc"]
+	},
 	"markdown": { "textWrap": "maintain", "emphasisKind": "asterisks" },
 	"malva": {},
 	"markup": {
@@ -29,13 +34,6 @@
 		".github/workflows/release.yml",
 	],
 	"plugins": [
-		"https://plugins.dprint.dev/json-0.21.3.wasm",
-		"https://plugins.dprint.dev/markdown-0.21.1.wasm",
-		"https://plugins.dprint.dev/typescript-0.95.15.wasm",
-		"https://plugins.dprint.dev/g-plane/malva-v0.15.2.wasm",
-		"https://plugins.dprint.dev/g-plane/markup_fmt-v0.27.0.wasm",
-		"https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
 		"https://plugins.dprint.dev/exec-0.6.2.json@df98f54ffd3092b8a841aedd6d098a2651f16d0a796a40535774f1a8b4b9d463",
-		"https://plugins.dprint.dev/kjanat/svg-v0.4.1.wasm",
 	],
 }

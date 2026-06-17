@@ -8,15 +8,15 @@
  * @module
  */
 
-import type { AttributeEntry, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput } from "./main.ts";
-import type { SourceInfo } from "./sources.ts";
+import type { AttributeEntry, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput } from './main.ts';
+import type { SourceInfo } from './sources.ts';
 
 /** Browser keys used in chip rendering; ordered for display. */
 export const BROWSER_KEYS = [
-	"chrome",
-	"edge",
-	"firefox",
-	"safari",
+	'chrome',
+	'edge',
+	'firefox',
+	'safari',
 ] as const satisfies readonly (keyof BrowserSupport)[];
 
 /** Maximum version-string character count per browser across all elements. */
@@ -92,10 +92,10 @@ function named<T>(record: Record<string, T>): Array<T & { name: string }> {
  * @returns Max character count per browser key. Floors at 1 so empty
  *   datasets still produce a sane layout.
  */
-const QUALIFIER_GLYPH: Record<NonNullable<BrowserVersion["version_qualifier"]>, string> = {
-	before: "≤",
-	after: "≥",
-	approximately: "~",
+const QUALIFIER_GLYPH: Record<NonNullable<BrowserVersion['version_qualifier']>, string> = {
+	before: '≤',
+	after: '≥',
+	approximately: '~',
 };
 
 /**
@@ -104,15 +104,15 @@ const QUALIFIER_GLYPH: Record<NonNullable<BrowserVersion["version_qualifier"]>, 
  * computation stays in sync with the actual glyph layout.
  */
 export function browserVersionChipLabel(version: BrowserVersion): string {
-	if (version.supported === false) return "—";
+	if (version.supported === false) return '—';
 	if (version.version_added !== undefined) {
 		const glyph = version.version_qualifier
 			? QUALIFIER_GLYPH[version.version_qualifier]
-			: "";
+			: '';
 		return `${glyph}${version.version_added}`;
 	}
-	if (version.raw_value_added === true) return "✓";
-	return "—";
+	if (version.raw_value_added === true) return '✓';
+	return '—';
 }
 
 function computeBrowserMaxChars(elements: NamedCompatEntry[]): BrowserMaxChars {
@@ -185,10 +185,10 @@ export function buildPageModel(
 	const attributes = named(output.attributes);
 	const deprecatedElements = elements.filter((entry) => entry.deprecated);
 	const limitedAttributes = attributes.filter(
-		(entry) => entry.baseline?.status === "limited",
+		(entry) => entry.baseline?.status === 'limited',
 	);
 	const origin = requestUrl.origin;
-	const jsonUrl = new URL("/data.json", requestUrl);
+	const jsonUrl = new URL('/data.json', requestUrl);
 	// Keep the exact active source selection in the JSON endpoint link so
 	// the exported payload matches the versions currently shown in the UI.
 	jsonUrl.search = requestUrl.search;
@@ -244,12 +244,12 @@ function browserTokens(entry: CompatEntry): string[] {
 		if (version.prefix !== undefined) anyPrefixed = true;
 		if (version.flags !== undefined) anyFlagged = true;
 	}
-	if (anySupported) tokens.push("supported");
-	if (anyUnsupported) tokens.push("unsupported");
-	if (anyRemoved) tokens.push("removed");
-	if (anyPartial) tokens.push("partial");
-	if (anyPrefixed) tokens.push("prefixed");
-	if (anyFlagged) tokens.push("flagged");
+	if (anySupported) tokens.push('supported');
+	if (anyUnsupported) tokens.push('unsupported');
+	if (anyRemoved) tokens.push('removed');
+	if (anyPartial) tokens.push('partial');
+	if (anyPrefixed) tokens.push('prefixed');
+	if (anyFlagged) tokens.push('flagged');
 	return tokens;
 }
 
@@ -266,7 +266,7 @@ function normaliseToken(value: string): string {
 }
 
 function joinTokens(parts: string[]): string {
-	return parts.map(normaliseToken).filter((part) => part.length > 0).join(" ");
+	return parts.map(normaliseToken).filter((part) => part.length > 0).join(' ');
 }
 
 /** Pre-lowered search tokens for an element row. */
@@ -275,14 +275,14 @@ export function elementSearchTokens(entry: NamedCompatEntry): string {
 		entry.name,
 		...baselineTokens(entry),
 		...browserTokens(entry),
-		entry.deprecated ? "deprecated" : "",
+		entry.deprecated ? 'deprecated' : '',
 	]);
 }
 
 /** Pre-lowered search tokens for an attribute row. */
 export function attributeSearchTokens(entry: NamedAttributeEntry): string {
-	const scope = entry.elements.length === 1 && entry.elements[0] === "*"
-		? ["global"]
+	const scope = entry.elements.length === 1 && entry.elements[0] === '*'
+		? ['global']
 		: entry.elements;
 	return joinTokens([
 		entry.name,

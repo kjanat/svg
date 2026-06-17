@@ -47,10 +47,10 @@
  */
 
 /** Kind of feature the spec scanner emits facts about. */
-export type FeatureKind = "element" | "attribute" | "property";
+export type FeatureKind = 'element' | 'attribute' | 'property';
 
 /** Declared status of a feature per the spec prose. */
-export type SpecStatus = "defined" | "removed" | "obsoleted";
+export type SpecStatus = 'defined' | 'removed' | 'obsoleted';
 
 /**
  * Provenance for a single scanner fact — file path (relative to
@@ -84,7 +84,7 @@ export interface SpecReport {
 	schema_version: 1;
 	/** Git metadata identifying the exact spec revision scanned. */
 	source_pin: {
-		repository: "https://github.com/w3c/svgwg";
+		repository: 'https://github.com/w3c/svgwg';
 		commit: string;
 		commit_date?: string;
 		generated_at: string;
@@ -164,13 +164,13 @@ function indexLines(content: string): {
 } {
 	const lineStarts: number[] = [0];
 	const lines: LineText[] = [];
-	let current = "";
+	let current = '';
 	let currentLine = 1;
 	for (let i = 0; i < content.length; i++) {
 		const ch = content[i];
-		if (ch === "\n") {
+		if (ch === '\n') {
 			lines.push({ line: currentLine, text: current });
-			current = "";
+			current = '';
 			currentLine++;
 			lineStarts.push(i + 1);
 		} else {
@@ -214,7 +214,7 @@ export function parseDefinitionsXml(
 		facts.push({
 			name,
 			kind,
-			status: "defined",
+			status: 'defined',
 			provenance: {
 				file: relativePath,
 				line: lineAtOffset(lineStarts, match.index),
@@ -243,7 +243,7 @@ export function parseTextHtmlOverrides(
 
 	// Find all h4 property-section boundaries.
 	const headings: Array<{ name: string; start: number; headingText: string }> = [];
-	const headingRe = new RegExp(TEXT_HTML_H4_PROPERTY.source, "gi");
+	const headingRe = new RegExp(TEXT_HTML_H4_PROPERTY.source, 'gi');
 	let headingMatch: RegExpExecArray | null;
 	while ((headingMatch = headingRe.exec(content)) !== null) {
 		headings.push({
@@ -286,8 +286,8 @@ export function parseTextHtmlOverrides(
 				const absoluteOffset = heading.start + p.index;
 				removed.push({
 					name: heading.name,
-					kind: "property",
-					status: "removed",
+					kind: 'property',
+					status: 'removed',
 					provenance: {
 						file: relativePath,
 						line: lineAtOffset(lineStarts, absoluteOffset),
@@ -300,8 +300,8 @@ export function parseTextHtmlOverrides(
 				const absoluteOffset = heading.start + p.index;
 				obsoleted.push({
 					name: heading.name,
-					kind: "property",
-					status: "obsoleted",
+					kind: 'property',
+					status: 'obsoleted',
 					provenance: {
 						file: relativePath,
 						line: lineAtOffset(lineStarts, absoluteOffset),
@@ -340,21 +340,21 @@ export function parseChangesLog(
 		const liLine = lineAtOffset(lineStarts, liStartOffset);
 
 		// Extract every classed span inside this removal entry.
-		const spanRe = new RegExp(REMOVED_SPAN.source, "g");
+		const spanRe = new RegExp(REMOVED_SPAN.source, 'g');
 		let span: RegExpExecArray | null;
 		while ((span = spanRe.exec(body)) !== null) {
 			const [, spanClass, rawName] = span;
-			const kind: FeatureKind = spanClass === "attr-name" ? "attribute" : spanClass as FeatureKind;
+			const kind: FeatureKind = spanClass === 'attr-name' ? 'attribute' : spanClass as FeatureKind;
 			const name = rawName.trim();
 			if (name.length === 0) continue;
 			facts.push({
 				name,
 				kind,
-				status: "removed",
+				status: 'removed',
 				provenance: {
 					file: relativePath,
 					line: liLine,
-					text: stripHtml(body).trim().replace(/\s+/g, " "),
+					text: stripHtml(body).trim().replace(/\s+/g, ' '),
 				},
 			});
 		}
@@ -365,7 +365,7 @@ export function parseChangesLog(
 
 /** Strip HTML tags for provenance display. Preserves only text nodes. */
 function stripHtml(input: string): string {
-	return input.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+	return input.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -381,7 +381,7 @@ export async function scanSvg2Spec(params: {
 	commitDate?: string;
 }): Promise<SpecReport> {
 	const { svgwgRoot, commit, commitDate } = params;
-	const master = `${svgwgRoot.replace(/\/$/, "")}/master`;
+	const master = `${svgwgRoot.replace(/\/$/, '')}/master`;
 
 	const definedElements: SpecFact[] = [];
 	const definedAttributes: SpecFact[] = [];
@@ -389,36 +389,36 @@ export async function scanSvg2Spec(params: {
 
 	for (
 		const xmlFile of [
-			"definitions.xml",
-			"definitions-filters.xml",
-			"definitions-masking.xml",
-			"definitions-compositing.xml",
+			'definitions.xml',
+			'definitions-filters.xml',
+			'definitions-masking.xml',
+			'definitions-compositing.xml',
 		]
 	) {
 		const content = await safeRead(`${master}/${xmlFile}`);
 		if (content === undefined) continue;
 		const facts = parseDefinitionsXml(content, xmlFile);
 		for (const fact of facts) {
-			if (fact.kind === "element") definedElements.push(fact);
-			else if (fact.kind === "attribute") definedAttributes.push(fact);
+			if (fact.kind === 'element') definedElements.push(fact);
+			else if (fact.kind === 'attribute') definedAttributes.push(fact);
 			else definedProperties.push(fact);
 		}
 	}
 
 	const textHtml = await safeRead(`${master}/text.html`);
 	const overrides = textHtml
-		? parseTextHtmlOverrides(textHtml, "text.html")
+		? parseTextHtmlOverrides(textHtml, 'text.html')
 		: { removed: [], obsoleted: [] };
 
 	const changesHtml = await safeRead(`${master}/changes.html`);
 	const changelogRemovals = changesHtml
-		? parseChangesLog(changesHtml, "changes.html")
+		? parseChangesLog(changesHtml, 'changes.html')
 		: [];
 
 	return {
 		schema_version: 1,
 		source_pin: {
-			repository: "https://github.com/w3c/svgwg",
+			repository: 'https://github.com/w3c/svgwg',
 			commit,
 			commit_date: commitDate,
 			generated_at: new Date().toISOString(),

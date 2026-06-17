@@ -10,8 +10,8 @@
  * @module
  */
 
-import { isRecord, type JsonRecord, type LoadedSourceData, UpstreamSourceError } from "../sources.ts";
-import { getCompat, getRecordProperty, makeCompatEntry } from "./parse.ts";
+import { isRecord, type JsonRecord, type LoadedSourceData, UpstreamSourceError } from '../sources.ts';
+import { getCompat, getRecordProperty, makeCompatEntry } from './parse.ts';
 import type {
 	AttributeEntry,
 	Baseline,
@@ -20,7 +20,7 @@ import type {
 	CompatEntry,
 	SvgCompatOutput,
 	SvgCompatSnapshot,
-} from "./types.ts";
+} from './types.ts';
 
 /**
  * BCD uses underscore-delimited namespace names (`xlink_href`,
@@ -41,10 +41,10 @@ interface DocsFallback {
  */
 const ATTRIBUTE_DOCS_FALLBACKS: Record<string, DocsFallback> = {
 	path: {
-		mdn_url: "https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/path",
+		mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/path',
 		spec_url: [
-			"https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute",
-			"https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute",
+			'https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute',
+			'https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute',
 		],
 	},
 };
@@ -55,13 +55,13 @@ function canonicalAttributeName(name: string): string {
 }
 
 function baselineRank(baseline: Baseline): number {
-	if (baseline.status === "limited") return 0;
-	if (baseline.status === "newly") return 1;
+	if (baseline.status === 'limited') return 0;
+	if (baseline.status === 'newly') return 1;
 	return 2;
 }
 
 function parseVersionParts(version: string): number[] | undefined {
-	const parts = version.split(".").map(Number);
+	const parts = version.split('.').map(Number);
 	if (parts.some(Number.isNaN)) return undefined;
 	return parts;
 }
@@ -97,7 +97,7 @@ function compareVersionStrings(left: string, right: string): number {
 function browserVersionRank(version: BrowserVersion): number {
 	const raw = version.raw_value_added;
 	if (raw === false) return 4;
-	if (typeof raw === "string") return 3;
+	if (typeof raw === 'string') return 3;
 	if (raw === true) return 2;
 	if (raw === null) return 1;
 	return 0;
@@ -115,8 +115,8 @@ function mergeBrowserVersion(
 	if (incomingRank < existingRank) return existing;
 	// Same rank. For concrete versions, compare numerically.
 	if (
-		typeof existing.raw_value_added === "string"
-		&& typeof incoming.raw_value_added === "string"
+		typeof existing.raw_value_added === 'string'
+		&& typeof incoming.raw_value_added === 'string'
 		&& existing.version_added !== undefined
 		&& incoming.version_added !== undefined
 	) {
@@ -165,7 +165,7 @@ function mergeAttributeEntry(
 	for (const url of compat.spec_url) {
 		if (!existing.spec_url.includes(url)) existing.spec_url.push(url);
 	}
-	if (!existing.elements.includes("*") && !existing.elements.includes(elementName)) {
+	if (!existing.elements.includes('*') && !existing.elements.includes(elementName)) {
 		existing.elements.push(elementName);
 	}
 
@@ -206,7 +206,7 @@ function collectElements(
 	featureMap: JsonRecord,
 ): Record<string, CompatEntry> {
 	const result: Record<string, CompatEntry> = {};
-	const names = Object.keys(svgElements).filter((key) => key !== "__compat").sort();
+	const names = Object.keys(svgElements).filter((key) => key !== '__compat').sort();
 	for (const name of names) {
 		const element = getRecordProperty(svgElements, name);
 		if (!element) continue;
@@ -224,26 +224,26 @@ function collectAttributes(
 ): Record<string, AttributeEntry> {
 	const attributes = new Map<string, AttributeEntry>();
 
-	const globalAttributes = getRecordProperty(svgRoot, "global_attributes");
+	const globalAttributes = getRecordProperty(svgRoot, 'global_attributes');
 	if (globalAttributes) {
 		for (const [name, value] of Object.entries(globalAttributes)) {
-			if (name === "__compat") continue;
+			if (name === '__compat') continue;
 			if (!isRecord(value)) continue;
 			const compat = getCompat(value);
 			if (!compat) continue;
 			const canonicalName = canonicalAttributeName(name);
 			const entry = makeCompatEntry(compat, featureMap, `svg.global_attributes.${name}`);
-			attributes.set(canonicalName, { ...entry, elements: ["*"] });
+			attributes.set(canonicalName, { ...entry, elements: ['*'] });
 		}
 	}
 
-	const elements = getRecordProperty(svgRoot, "elements");
+	const elements = getRecordProperty(svgRoot, 'elements');
 	if (elements) {
 		for (const [elementName, value] of Object.entries(elements)) {
-			if (elementName === "__compat") continue;
+			if (elementName === '__compat') continue;
 			if (!isRecord(value)) continue;
 			for (const [attributeName, attributeValue] of Object.entries(value)) {
-				if (attributeName === "__compat") continue;
+				if (attributeName === '__compat') continue;
 				if (!isRecord(attributeValue)) continue;
 				const compat = getCompat(attributeValue);
 				if (!compat) continue;
@@ -269,9 +269,9 @@ function collectAttributes(
 
 /** Processes raw loaded source data into a processed snapshot of elements and attributes. */
 export function buildSnapshot(data: LoadedSourceData): SvgCompatSnapshot {
-	const elements = getRecordProperty(data.svgRoot, "elements");
+	const elements = getRecordProperty(data.svgRoot, 'elements');
 	if (!elements) {
-		throw new UpstreamSourceError("BCD payload is missing the svg.elements map.");
+		throw new UpstreamSourceError('BCD payload is missing the svg.elements map.');
 	}
 
 	return {
