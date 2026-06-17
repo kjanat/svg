@@ -116,8 +116,74 @@ pub enum AttributeValues {
     Url,
     /// A number or percentage.
     NumberOrPercentage,
+    /// A CSS value grammar graph for mixed or richer grammars.
+    CssGrammar {
+        /// Raw grammar text from the defining spec.
+        grammar: &'static str,
+        /// Token graph extracted from the grammar.
+        graph: CssGrammarGraph,
+    },
     /// Free-form text with no constrained grammar.
     FreeText,
+}
+
+/// Graph representation of a CSS value grammar.
+#[derive(Debug, Clone)]
+pub struct CssGrammarGraph {
+    /// Root node id.
+    pub root: u16,
+    /// Grammar nodes.
+    pub nodes: &'static [CssGrammarNode],
+    /// Grammar edges.
+    pub edges: &'static [CssGrammarEdge],
+}
+
+/// One node in a CSS grammar graph.
+#[derive(Debug, Clone, Copy)]
+pub struct CssGrammarNode {
+    /// Stable node id within the graph.
+    pub id: u16,
+    /// Node kind.
+    pub kind: CssGrammarNodeKind,
+    /// Token text, when the node carries one.
+    pub text: Option<&'static str>,
+}
+
+/// CSS grammar node kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CssGrammarNodeKind {
+    /// Synthetic root.
+    Root,
+    /// Bracketed group.
+    Group,
+    /// CSS keyword token.
+    Keyword,
+    /// CSS type token, e.g. `<length>`.
+    Type,
+    /// Functional notation token, e.g. `url()`.
+    Function,
+    /// CSS grammar operator or multiplier.
+    Operator,
+}
+
+/// One directed edge in a CSS grammar graph.
+#[derive(Debug, Clone, Copy)]
+pub struct CssGrammarEdge {
+    /// Source node id.
+    pub from: u16,
+    /// Target node id.
+    pub to: u16,
+    /// Edge kind.
+    pub kind: CssGrammarEdgeKind,
+}
+
+/// CSS grammar edge kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CssGrammarEdgeKind {
+    /// Parent/group containment.
+    Contains,
+    /// Sibling order within a parent/group.
+    Next,
 }
 
 /// Which elements an attribute can appear on.

@@ -334,6 +334,29 @@
           }
         },
         {
+          "description": "A structured CSS value grammar that is richer than the runtime's\nspecialized variants.",
+          "type": "object",
+          "required": [
+            "grammar",
+            "graph",
+            "kind"
+          ],
+          "properties": {
+            "grammar": {
+              "description": "Raw grammar text from the defining spec.",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/CatalogCssGrammarGraph",
+              "description": "Token graph extracted from the grammar."
+            },
+            "kind": {
+              "type": "string",
+              "const": "css_grammar"
+            }
+          }
+        },
+        {
           "description": "Free-form text with no constrained grammar.",
           "type": "object",
           "required": [
@@ -768,6 +791,145 @@
               "const": "text"
             }
           }
+        }
+      ]
+    },
+    "CatalogCssGrammarEdge": {
+      "description": "One directed edge in a CSS grammar graph.",
+      "type": "object",
+      "required": [
+        "from",
+        "kind",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "description": "Source node id.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "format": "uint16"
+        },
+        "kind": {
+          "$ref": "#/$defs/CatalogCssGrammarEdgeKind",
+          "description": "Edge kind."
+        },
+        "to": {
+          "description": "Target node id.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "format": "uint16"
+        }
+      }
+    },
+    "CatalogCssGrammarEdgeKind": {
+      "description": "CSS grammar edge kinds.",
+      "oneOf": [
+        {
+          "description": "Parent/group containment.",
+          "type": "string",
+          "const": "contains"
+        },
+        {
+          "description": "Sibling order within a parent/group.",
+          "type": "string",
+          "const": "next"
+        }
+      ]
+    },
+    "CatalogCssGrammarGraph": {
+      "description": "Graph representation of a CSS value grammar.",
+      "type": "object",
+      "required": [
+        "edges",
+        "nodes",
+        "root"
+      ],
+      "properties": {
+        "edges": {
+          "description": "Grammar edges.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogCssGrammarEdge"
+          }
+        },
+        "nodes": {
+          "description": "Grammar nodes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogCssGrammarNode"
+          }
+        },
+        "root": {
+          "description": "Root node id.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "format": "uint16"
+        }
+      }
+    },
+    "CatalogCssGrammarNode": {
+      "description": "One node in a CSS grammar graph.",
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable node id within the graph.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "format": "uint16"
+        },
+        "kind": {
+          "$ref": "#/$defs/CatalogCssGrammarNodeKind",
+          "description": "Node kind."
+        },
+        "text": {
+          "description": "Token text, when the node carries one.",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "CatalogCssGrammarNodeKind": {
+      "description": "CSS grammar node kinds.",
+      "oneOf": [
+        {
+          "description": "Synthetic root.",
+          "type": "string",
+          "const": "root"
+        },
+        {
+          "description": "Bracketed group.",
+          "type": "string",
+          "const": "group"
+        },
+        {
+          "description": "CSS keyword token.",
+          "type": "string",
+          "const": "keyword"
+        },
+        {
+          "description": "CSS type token, e.g. `<length>`.",
+          "type": "string",
+          "const": "type"
+        },
+        {
+          "description": "Functional notation token, e.g. `url()`.",
+          "type": "string",
+          "const": "function"
+        },
+        {
+          "description": "CSS grammar operator or multiplier.",
+          "type": "string",
+          "const": "operator"
         }
       ]
     },

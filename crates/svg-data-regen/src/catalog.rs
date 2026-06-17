@@ -366,8 +366,78 @@ pub enum CatalogAttributeValues {
     Url,
     /// A number or percentage.
     NumberOrPercentage,
+    /// A structured CSS value grammar that is richer than the runtime's
+    /// specialized variants.
+    CssGrammar {
+        /// Raw grammar text from the defining spec.
+        grammar: String,
+        /// Token graph extracted from the grammar.
+        graph: CatalogCssGrammarGraph,
+    },
     /// Free-form text with no constrained grammar.
     FreeText,
+}
+
+/// Graph representation of a CSS value grammar.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogCssGrammarGraph {
+    /// Root node id.
+    pub root: u16,
+    /// Grammar nodes.
+    pub nodes: Vec<CatalogCssGrammarNode>,
+    /// Grammar edges.
+    pub edges: Vec<CatalogCssGrammarEdge>,
+}
+
+/// One node in a CSS grammar graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogCssGrammarNode {
+    /// Stable node id within the graph.
+    pub id: u16,
+    /// Node kind.
+    pub kind: CatalogCssGrammarNodeKind,
+    /// Token text, when the node carries one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
+/// CSS grammar node kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogCssGrammarNodeKind {
+    /// Synthetic root.
+    Root,
+    /// Bracketed group.
+    Group,
+    /// CSS keyword token.
+    Keyword,
+    /// CSS type token, e.g. `<length>`.
+    Type,
+    /// Functional notation token, e.g. `url()`.
+    Function,
+    /// CSS grammar operator or multiplier.
+    Operator,
+}
+
+/// One directed edge in a CSS grammar graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogCssGrammarEdge {
+    /// Source node id.
+    pub from: u16,
+    /// Target node id.
+    pub to: u16,
+    /// Edge kind.
+    pub kind: CatalogCssGrammarEdgeKind,
+}
+
+/// CSS grammar edge kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogCssGrammarEdgeKind {
+    /// Parent/group containment.
+    Contains,
+    /// Sibling order within a parent/group.
+    Next,
 }
 
 /// Which elements an attribute can appear on.
@@ -1173,9 +1243,11 @@ fn values_for_property(property: &PropertyValueDef) -> CatalogAttributeValues {
         return CatalogAttributeValues::Enum { values: keywords };
     }
 
-    let Some(value) = property.value.as_deref() else {
+    let Some(raw_value) = property.value.as_deref() else {
         return CatalogAttributeValues::FreeText;
     };
+    let grammar = repair_css_type_tokens(raw_value);
+    let value = grammar.as_str();
     let normalized = value.to_ascii_lowercase();
     if property.name == "transform" || normalized.contains("<transform-list>") {
         return CatalogAttributeValues::Transform {
@@ -1200,12 +1272,197 @@ fn values_for_property(property: &PropertyValueDef) -> CatalogAttributeValues {
     ) {
         return CatalogAttributeValues::Length;
     }
-    CatalogAttributeValues::FreeText
+    let graph = css_grammar_graph(value);
+    CatalogAttributeValues::CssGrammar { grammar, graph }
 }
 
 /// Whether the raw value grammar is just bare keyword alternatives.
 fn is_keyword_only_grammar(value: &str) -> bool {
     value.split('|').all(|token| is_keyword_token(token.trim()))
+}
+
+fn repair_css_type_tokens(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut repaired = String::with_capacity(value.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'<' && bytes.get(index + 1).is_some_and(u8::is_ascii_alphabetic) {
+            let start = index;
+            repaired.push('<');
+            index += 1;
+            while index < bytes.len()
+                && bytes[index] != b'>'
+                && !bytes[index].is_ascii_whitespace()
+                && !matches!(bytes[index], b'|' | b'[' | b']' | b',')
+            {
+                repaired.push(char::from(bytes[index]));
+                index += 1;
+            }
+            repaired.push('>');
+            if bytes.get(index) == Some(&b'>') {
+                index += 1;
+            }
+            if index == start {
+                index += 1;
+            }
+            continue;
+        }
+        repaired.push(char::from(bytes[index]));
+        index += 1;
+    }
+    repaired
+}
+
+#[derive(Clone, Copy)]
+struct GrammarContext {
+    node_id: u16,
+    last_child: Option<u16>,
+}
+
+fn css_grammar_graph(value: &str) -> CatalogCssGrammarGraph {
+    let mut graph = empty_css_grammar_graph();
+    let mut contexts = vec![GrammarContext {
+        node_id: 0,
+        last_child: None,
+    }];
+    let bytes = value.as_bytes();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        match bytes[index] {
+            byte if byte.is_ascii_whitespace() => index += 1,
+            b'<' => {
+                let Some(end) = value[index..].find('>') else {
+                    break;
+                };
+                let text = &value[index..=index + end];
+                push_grammar_node(
+                    &mut graph,
+                    &mut contexts,
+                    CatalogCssGrammarNodeKind::Type,
+                    Some(text),
+                );
+                index += end + 1;
+            }
+            b'[' => {
+                let id = push_grammar_node(
+                    &mut graph,
+                    &mut contexts,
+                    CatalogCssGrammarNodeKind::Group,
+                    None,
+                );
+                contexts.push(GrammarContext {
+                    node_id: id,
+                    last_child: None,
+                });
+                index += 1;
+            }
+            b']' => {
+                if contexts.len() > 1 {
+                    contexts.pop();
+                }
+                index += 1;
+            }
+            b'|' if bytes.get(index + 1) == Some(&b'|') => {
+                push_grammar_node(
+                    &mut graph,
+                    &mut contexts,
+                    CatalogCssGrammarNodeKind::Operator,
+                    Some("||"),
+                );
+                index += 2;
+            }
+            b'&' if bytes.get(index + 1) == Some(&b'&') => {
+                push_grammar_node(
+                    &mut graph,
+                    &mut contexts,
+                    CatalogCssGrammarNodeKind::Operator,
+                    Some("&&"),
+                );
+                index += 2;
+            }
+            b'|' | b',' | b'?' | b'*' | b'+' | b'#' | b'!' => {
+                let text = &value[index..=index];
+                push_grammar_node(
+                    &mut graph,
+                    &mut contexts,
+                    CatalogCssGrammarNodeKind::Operator,
+                    Some(text),
+                );
+                index += 1;
+            }
+            byte if byte.is_ascii_alphanumeric() || byte == b'-' => {
+                let start = index;
+                while index < bytes.len()
+                    && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'-')
+                {
+                    index += 1;
+                }
+                let text = &value[start..index];
+                let kind = if bytes.get(index) == Some(&b'(') {
+                    while index < bytes.len() && bytes[index] != b')' {
+                        index += 1;
+                    }
+                    if index < bytes.len() {
+                        index += 1;
+                    }
+                    CatalogCssGrammarNodeKind::Function
+                } else {
+                    CatalogCssGrammarNodeKind::Keyword
+                };
+                push_grammar_node(&mut graph, &mut contexts, kind, Some(text));
+            }
+            _ => index += 1,
+        }
+    }
+
+    graph
+}
+
+fn empty_css_grammar_graph() -> CatalogCssGrammarGraph {
+    CatalogCssGrammarGraph {
+        root: 0,
+        nodes: vec![CatalogCssGrammarNode {
+            id: 0,
+            kind: CatalogCssGrammarNodeKind::Root,
+            text: None,
+        }],
+        edges: Vec::new(),
+    }
+}
+
+fn push_grammar_node(
+    graph: &mut CatalogCssGrammarGraph,
+    contexts: &mut [GrammarContext],
+    kind: CatalogCssGrammarNodeKind,
+    text: Option<&str>,
+) -> u16 {
+    let Ok(id) = u16::try_from(graph.nodes.len()) else {
+        return u16::MAX;
+    };
+    graph.nodes.push(CatalogCssGrammarNode {
+        id,
+        kind,
+        text: text.map(str::to_owned),
+    });
+
+    let Some(current) = contexts.last_mut() else {
+        return id;
+    };
+    graph.edges.push(CatalogCssGrammarEdge {
+        from: current.node_id,
+        to: id,
+        kind: CatalogCssGrammarEdgeKind::Contains,
+    });
+    if let Some(previous) = current.last_child {
+        graph.edges.push(CatalogCssGrammarEdge {
+            from: previous,
+            to: id,
+            kind: CatalogCssGrammarEdgeKind::Next,
+        });
+    }
+    current.last_child = Some(id);
+    id
 }
 
 /// Whether a CSS/SVG property definition says the property is animatable.
@@ -1700,11 +1957,29 @@ mod tests {
     }
 
     #[test]
-    fn mixed_property_grammars_do_not_collapse_to_keyword_enums() {
+    fn mixed_property_grammars_keep_css_grammar_shape() {
         let stroke_dasharray = property("stroke-dasharray", "none | <dasharray>", &["none"]);
-        assert_eq!(
-            values_for_property(&stroke_dasharray),
-            CatalogAttributeValues::FreeText
+        let CatalogAttributeValues::CssGrammar { grammar, graph } =
+            values_for_property(&stroke_dasharray)
+        else {
+            panic!("mixed grammar should keep a CSS grammar graph");
+        };
+        assert_eq!(grammar, "none | <dasharray>");
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Keyword,
+            "none"
+        ));
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Type,
+            "<dasharray>"
+        ));
+        assert!(
+            graph
+                .edges
+                .iter()
+                .any(|edge| edge.kind == CatalogCssGrammarEdgeKind::Next)
         );
 
         let linecap = property(
@@ -1718,5 +1993,69 @@ mod tests {
                 values: vec!["butt".to_owned(), "round".to_owned(), "square".to_owned()]
             }
         );
+    }
+
+    #[test]
+    fn css_grammar_values_extract_type_and_function_hints() {
+        let cursor = property(
+            "cursor",
+            "[ [ <url> [ <x> <y> ]? , ]* [ auto | pointer ] ]",
+            &[],
+        );
+        let CatalogAttributeValues::CssGrammar { graph, .. } = values_for_property(&cursor) else {
+            panic!("cursor should keep a CSS grammar graph");
+        };
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Type,
+            "<url>"
+        ));
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Type,
+            "<x>"
+        ));
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Type,
+            "<y>"
+        ));
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .any(|node| node.kind == CatalogCssGrammarNodeKind::Group)
+        );
+
+        let filter = property("filter", "none | blur() | url()", &["none"]);
+        let CatalogAttributeValues::CssGrammar { graph, .. } = values_for_property(&filter) else {
+            panic!("filter should keep a CSS grammar graph");
+        };
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Keyword,
+            "none"
+        ));
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Function,
+            "blur"
+        ));
+        assert!(graph_contains(
+            &graph,
+            CatalogCssGrammarNodeKind::Function,
+            "url"
+        ));
+    }
+
+    fn graph_contains(
+        graph: &CatalogCssGrammarGraph,
+        kind: CatalogCssGrammarNodeKind,
+        text: &str,
+    ) -> bool {
+        graph
+            .nodes
+            .iter()
+            .any(|node| node.kind == kind && node.text.as_deref() == Some(text))
     }
 }

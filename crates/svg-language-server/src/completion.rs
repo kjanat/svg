@@ -551,8 +551,37 @@ pub fn value_completions(
             );
             items
         }
+        AttributeValues::CssGrammar { graph, .. } => css_grammar_value_completions(graph),
         _ => Vec::new(),
     }
+}
+
+fn css_grammar_value_completions(graph: &svg_data::CssGrammarGraph) -> Vec<CompletionItem> {
+    let mut items = Vec::new();
+    for node in graph.nodes {
+        let Some(text) = node.text else {
+            continue;
+        };
+        match node.kind {
+            svg_data::CssGrammarNodeKind::Keyword => {
+                items.push(completion_item(text.to_owned(), CompletionItemKind::VALUE));
+            }
+            svg_data::CssGrammarNodeKind::Function => {
+                items.push(snippet_completion_item(
+                    text.to_owned(),
+                    CompletionItemKind::FUNCTION,
+                    format!("{text}($0)"),
+                ));
+            }
+            svg_data::CssGrammarNodeKind::Root
+            | svg_data::CssGrammarNodeKind::Group
+            | svg_data::CssGrammarNodeKind::Type
+            | svg_data::CssGrammarNodeKind::Operator => {}
+        }
+    }
+    items.sort_by(|left, right| left.label.cmp(&right.label));
+    items.dedup_by(|left, right| left.label == right.label);
+    items
 }
 
 /// Dispatch completions for grammar-typed attribute value nodes.

@@ -225,13 +225,61 @@ struct BrowserFlag {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum AttributeValues {
-    Enum { values: Vec<String> },
-    Transform { functions: Vec<String> },
+    Enum {
+        values: Vec<String>,
+    },
+    Transform {
+        functions: Vec<String>,
+    },
     Color,
     Length,
     Url,
     NumberOrPercentage,
+    CssGrammar {
+        grammar: String,
+        graph: CssGrammarGraph,
+    },
     FreeText,
+}
+
+#[derive(Deserialize)]
+struct CssGrammarGraph {
+    root: u16,
+    nodes: Vec<CssGrammarNode>,
+    edges: Vec<CssGrammarEdge>,
+}
+
+#[derive(Deserialize)]
+struct CssGrammarNode {
+    id: u16,
+    kind: CssGrammarNodeKind,
+    #[serde(default)]
+    text: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CssGrammarNodeKind {
+    Root,
+    Group,
+    Keyword,
+    Type,
+    Function,
+    Operator,
+}
+
+#[derive(Deserialize)]
+struct CssGrammarEdge {
+    from: u16,
+    to: u16,
+    kind: CssGrammarEdgeKind,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CssGrammarEdgeKind {
+    Contains,
+    Next,
 }
 
 /// Which elements the catalog says an attribute can appear on.
@@ -573,7 +621,68 @@ fn emit_attribute_values(values: &AttributeValues) -> String {
         AttributeValues::NumberOrPercentage => {
             "crate::types::AttributeValues::NumberOrPercentage".to_owned()
         }
+        AttributeValues::CssGrammar { grammar, graph } => {
+            format!(
+                "crate::types::AttributeValues::CssGrammar {{ grammar: {grammar:?}, graph: {} }}",
+                emit_css_grammar_graph(graph)
+            )
+        }
         AttributeValues::FreeText => "crate::types::AttributeValues::FreeText".to_owned(),
+    }
+}
+
+fn emit_css_grammar_graph(graph: &CssGrammarGraph) -> String {
+    format!(
+        "crate::types::CssGrammarGraph {{ root: {}, nodes: &[{}], edges: &[{}] }}",
+        graph.root,
+        graph
+            .nodes
+            .iter()
+            .map(emit_css_grammar_node)
+            .collect::<Vec<_>>()
+            .join(", "),
+        graph
+            .edges
+            .iter()
+            .map(emit_css_grammar_edge)
+            .collect::<Vec<_>>()
+            .join(", "),
+    )
+}
+
+fn emit_css_grammar_node(node: &CssGrammarNode) -> String {
+    format!(
+        "crate::types::CssGrammarNode {{ id: {}, kind: {}, text: {} }}",
+        node.id,
+        emit_css_grammar_node_kind(&node.kind),
+        emit_option_str(node.text.as_deref())
+    )
+}
+
+const fn emit_css_grammar_node_kind(kind: &CssGrammarNodeKind) -> &'static str {
+    match kind {
+        CssGrammarNodeKind::Root => "crate::types::CssGrammarNodeKind::Root",
+        CssGrammarNodeKind::Group => "crate::types::CssGrammarNodeKind::Group",
+        CssGrammarNodeKind::Keyword => "crate::types::CssGrammarNodeKind::Keyword",
+        CssGrammarNodeKind::Type => "crate::types::CssGrammarNodeKind::Type",
+        CssGrammarNodeKind::Function => "crate::types::CssGrammarNodeKind::Function",
+        CssGrammarNodeKind::Operator => "crate::types::CssGrammarNodeKind::Operator",
+    }
+}
+
+fn emit_css_grammar_edge(edge: &CssGrammarEdge) -> String {
+    format!(
+        "crate::types::CssGrammarEdge {{ from: {}, to: {}, kind: {} }}",
+        edge.from,
+        edge.to,
+        emit_css_grammar_edge_kind(&edge.kind)
+    )
+}
+
+const fn emit_css_grammar_edge_kind(kind: &CssGrammarEdgeKind) -> &'static str {
+    match kind {
+        CssGrammarEdgeKind::Contains => "crate::types::CssGrammarEdgeKind::Contains",
+        CssGrammarEdgeKind::Next => "crate::types::CssGrammarEdgeKind::Next",
     }
 }
 

@@ -18,7 +18,8 @@ pub mod types;
 pub use types::{
     AttributeApplicability, AttributeDef, AttributeElementCompat, AttributeValues,
     BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport, BrowserVersion, CompatFacts,
-    CompatSubfeature, CompatSubfeatureKind, CompatVerdict, ContentModel, ElementCategory,
+    CompatSubfeature, CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge,
+    CssGrammarEdgeKind, CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, ElementCategory,
     ElementDef, ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotMetadata, SpecLifecycle,
     SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
@@ -670,7 +671,20 @@ mod catalog_tests {
         let Some(clip_path) = attribute("clip-path") else {
             panic!("clip-path missing from catalog");
         };
-        assert!(matches!(clip_path.values, AttributeValues::FreeText));
+        assert!(matches!(
+            &clip_path.values,
+            AttributeValues::CssGrammar { grammar, graph }
+                if grammar.contains("<clip-source>")
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Type && node.text == Some("<clip-source>")
+                    )
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Type && node.text == Some("<basic-shape>")
+                    )
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Group
+                    )
+        ));
     }
 
     #[test]

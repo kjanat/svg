@@ -348,8 +348,39 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
             format!("Alignments: `{}`", alignments.join("` | `")),
             format!("Scaling: `{}`", meet_or_slice.join("` | `")),
         ],
+        svg_data::AttributeValues::CssGrammar { grammar, graph } => {
+            let mut lines = vec![format!("Grammar: `{grammar}`")];
+            let keywords = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Keyword);
+            if !keywords.is_empty() {
+                lines.push(format!("Keywords: `{}`", keywords.join("` | `")));
+            }
+            let types = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Type);
+            if !types.is_empty() {
+                lines.push(format!("Types: `{}`", types.join("` | `")));
+            }
+            let functions = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Function);
+            if !functions.is_empty() {
+                lines.push(format!("Functions: `{}`", functions.join("` | `")));
+            }
+            lines
+        }
         _ => Vec::new(),
     }
+}
+
+fn css_graph_node_text(
+    graph: &svg_data::CssGrammarGraph,
+    kind: svg_data::CssGrammarNodeKind,
+) -> Vec<&'static str> {
+    let mut values: Vec<&'static str> = graph
+        .nodes
+        .iter()
+        .filter(|node| node.kind == kind)
+        .filter_map(|node| node.text)
+        .collect();
+    values.sort_unstable();
+    values.dedup();
+    values
 }
 
 pub fn format_element_hover_with_profile(

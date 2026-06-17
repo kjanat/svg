@@ -6265,7 +6265,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<rect()> | auto",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<rect()>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "auto"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -6349,7 +6401,128 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<clip-source> | [ <basic-shape> || <geometry-box> ] | none",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<clip-source>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "group"
+            },
+            {
+              "id": 4,
+              "kind": "type",
+              "text": "<basic-shape>"
+            },
+            {
+              "id": 5,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 6,
+              "kind": "type",
+              "text": "<geometry-box>"
+            },
+            {
+              "id": 7,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 8,
+              "kind": "keyword",
+              "text": "none"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 7,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -7096,7 +7269,83 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "[<cursor-image>,]* <cursor-predefined>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "group"
+            },
+            {
+              "id": 2,
+              "kind": "type",
+              "text": "<cursor-image>"
+            },
+            {
+              "id": 3,
+              "kind": "operator",
+              "text": ","
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "*"
+            },
+            {
+              "id": 5,
+              "kind": "type",
+              "text": "<cursor-predefined>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -7419,7 +7668,59 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <string>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<string>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -9291,7 +9592,29 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<''opacity''>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<''opacity''>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -9492,7 +9815,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <filter-value-list>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<filter-value-list>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -9658,7 +10033,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "color"
       },
       "applicability": {
         "kind": "elements",
@@ -9742,7 +10117,18 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<'opacity'",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            }
+          ],
+          "edges": []
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -9838,7 +10224,83 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "[ <family-name> | <generic-family> ] #",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "group"
+            },
+            {
+              "id": 2,
+              "kind": "type",
+              "text": "<family-name>"
+            },
+            {
+              "id": 3,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 4,
+              "kind": "type",
+              "text": "<generic-family>"
+            },
+            {
+              "id": 5,
+              "kind": "operator",
+              "text": "#"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 5,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -9946,7 +10408,89 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<absolute-size> | <relative-size> | <length-percentage>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<absolute-size>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<relative-size>"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "type",
+              "text": "<length-percentage>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -10033,7 +10577,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <number>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<number>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -10394,7 +10990,911 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> || stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name> #) || character-variant(<feature-value-name> #) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) || -- [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] || <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero || <east-asian-variant-values> || <east-asian-width-values> || ruby || [ sub | super ] ]",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "normal"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "group"
+            },
+            {
+              "id": 6,
+              "kind": "type",
+              "text": "<common-lig-values>"
+            },
+            {
+              "id": 7,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 8,
+              "kind": "type",
+              "text": "<discretionary-lig-values>"
+            },
+            {
+              "id": 9,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 10,
+              "kind": "type",
+              "text": "<historical-lig-values>"
+            },
+            {
+              "id": 11,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 12,
+              "kind": "type",
+              "text": "<contextual-alt-values>"
+            },
+            {
+              "id": 13,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 14,
+              "kind": "function",
+              "text": "stylistic"
+            },
+            {
+              "id": 15,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 16,
+              "kind": "keyword",
+              "text": "historical-forms"
+            },
+            {
+              "id": 17,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 18,
+              "kind": "function",
+              "text": "styleset"
+            },
+            {
+              "id": 19,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 20,
+              "kind": "function",
+              "text": "character-variant"
+            },
+            {
+              "id": 21,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 22,
+              "kind": "function",
+              "text": "swash"
+            },
+            {
+              "id": 23,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 24,
+              "kind": "function",
+              "text": "ornaments"
+            },
+            {
+              "id": 25,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 26,
+              "kind": "function",
+              "text": "annotation"
+            },
+            {
+              "id": 27,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 28,
+              "kind": "keyword",
+              "text": "--"
+            },
+            {
+              "id": 29,
+              "kind": "group"
+            },
+            {
+              "id": 30,
+              "kind": "keyword",
+              "text": "small-caps"
+            },
+            {
+              "id": 31,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 32,
+              "kind": "keyword",
+              "text": "all-small-caps"
+            },
+            {
+              "id": 33,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 34,
+              "kind": "keyword",
+              "text": "petite-caps"
+            },
+            {
+              "id": 35,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 36,
+              "kind": "keyword",
+              "text": "all-petite-caps"
+            },
+            {
+              "id": 37,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 38,
+              "kind": "keyword",
+              "text": "unicase"
+            },
+            {
+              "id": 39,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 40,
+              "kind": "keyword",
+              "text": "titling-caps"
+            },
+            {
+              "id": 41,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 42,
+              "kind": "type",
+              "text": "<numeric-figure-values>"
+            },
+            {
+              "id": 43,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 44,
+              "kind": "type",
+              "text": "<numeric-spacing-values>"
+            },
+            {
+              "id": 45,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 46,
+              "kind": "type",
+              "text": "<numeric-fraction-values>"
+            },
+            {
+              "id": 47,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 48,
+              "kind": "keyword",
+              "text": "ordinal"
+            },
+            {
+              "id": 49,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 50,
+              "kind": "keyword",
+              "text": "slashed-zero"
+            },
+            {
+              "id": 51,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 52,
+              "kind": "type",
+              "text": "<east-asian-variant-values>"
+            },
+            {
+              "id": 53,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 54,
+              "kind": "type",
+              "text": "<east-asian-width-values>"
+            },
+            {
+              "id": 55,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 56,
+              "kind": "keyword",
+              "text": "ruby"
+            },
+            {
+              "id": 57,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 58,
+              "kind": "group"
+            },
+            {
+              "id": 59,
+              "kind": "keyword",
+              "text": "sub"
+            },
+            {
+              "id": 60,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 61,
+              "kind": "keyword",
+              "text": "super"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 7,
+              "kind": "contains"
+            },
+            {
+              "from": 6,
+              "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 9,
+              "kind": "contains"
+            },
+            {
+              "from": 8,
+              "to": 9,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 10,
+              "kind": "contains"
+            },
+            {
+              "from": 9,
+              "to": 10,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 11,
+              "kind": "contains"
+            },
+            {
+              "from": 10,
+              "to": 11,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 12,
+              "kind": "contains"
+            },
+            {
+              "from": 11,
+              "to": 12,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 13,
+              "kind": "contains"
+            },
+            {
+              "from": 12,
+              "to": 13,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 14,
+              "kind": "contains"
+            },
+            {
+              "from": 13,
+              "to": 14,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 15,
+              "kind": "contains"
+            },
+            {
+              "from": 14,
+              "to": 15,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 16,
+              "kind": "contains"
+            },
+            {
+              "from": 15,
+              "to": 16,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 17,
+              "kind": "contains"
+            },
+            {
+              "from": 16,
+              "to": 17,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 18,
+              "kind": "contains"
+            },
+            {
+              "from": 17,
+              "to": 18,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 19,
+              "kind": "contains"
+            },
+            {
+              "from": 18,
+              "to": 19,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 20,
+              "kind": "contains"
+            },
+            {
+              "from": 19,
+              "to": 20,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 21,
+              "kind": "contains"
+            },
+            {
+              "from": 20,
+              "to": 21,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 22,
+              "kind": "contains"
+            },
+            {
+              "from": 21,
+              "to": 22,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 23,
+              "kind": "contains"
+            },
+            {
+              "from": 22,
+              "to": 23,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 24,
+              "kind": "contains"
+            },
+            {
+              "from": 23,
+              "to": 24,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 25,
+              "kind": "contains"
+            },
+            {
+              "from": 24,
+              "to": 25,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 26,
+              "kind": "contains"
+            },
+            {
+              "from": 25,
+              "to": 26,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 27,
+              "kind": "contains"
+            },
+            {
+              "from": 26,
+              "to": 27,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 28,
+              "kind": "contains"
+            },
+            {
+              "from": 27,
+              "to": 28,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 29,
+              "kind": "contains"
+            },
+            {
+              "from": 28,
+              "to": 29,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 30,
+              "kind": "contains"
+            },
+            {
+              "from": 29,
+              "to": 31,
+              "kind": "contains"
+            },
+            {
+              "from": 30,
+              "to": 31,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 32,
+              "kind": "contains"
+            },
+            {
+              "from": 31,
+              "to": 32,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 33,
+              "kind": "contains"
+            },
+            {
+              "from": 32,
+              "to": 33,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 34,
+              "kind": "contains"
+            },
+            {
+              "from": 33,
+              "to": 34,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 35,
+              "kind": "contains"
+            },
+            {
+              "from": 34,
+              "to": 35,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 36,
+              "kind": "contains"
+            },
+            {
+              "from": 35,
+              "to": 36,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 37,
+              "kind": "contains"
+            },
+            {
+              "from": 36,
+              "to": 37,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 38,
+              "kind": "contains"
+            },
+            {
+              "from": 37,
+              "to": 38,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 39,
+              "kind": "contains"
+            },
+            {
+              "from": 38,
+              "to": 39,
+              "kind": "next"
+            },
+            {
+              "from": 29,
+              "to": 40,
+              "kind": "contains"
+            },
+            {
+              "from": 39,
+              "to": 40,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 41,
+              "kind": "contains"
+            },
+            {
+              "from": 29,
+              "to": 41,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 42,
+              "kind": "contains"
+            },
+            {
+              "from": 41,
+              "to": 42,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 43,
+              "kind": "contains"
+            },
+            {
+              "from": 42,
+              "to": 43,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 44,
+              "kind": "contains"
+            },
+            {
+              "from": 43,
+              "to": 44,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 45,
+              "kind": "contains"
+            },
+            {
+              "from": 44,
+              "to": 45,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 46,
+              "kind": "contains"
+            },
+            {
+              "from": 45,
+              "to": 46,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 47,
+              "kind": "contains"
+            },
+            {
+              "from": 46,
+              "to": 47,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 48,
+              "kind": "contains"
+            },
+            {
+              "from": 47,
+              "to": 48,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 49,
+              "kind": "contains"
+            },
+            {
+              "from": 48,
+              "to": 49,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 50,
+              "kind": "contains"
+            },
+            {
+              "from": 49,
+              "to": 50,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 51,
+              "kind": "contains"
+            },
+            {
+              "from": 50,
+              "to": 51,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 52,
+              "kind": "contains"
+            },
+            {
+              "from": 51,
+              "to": 52,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 53,
+              "kind": "contains"
+            },
+            {
+              "from": 52,
+              "to": 53,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 54,
+              "kind": "contains"
+            },
+            {
+              "from": 53,
+              "to": 54,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 55,
+              "kind": "contains"
+            },
+            {
+              "from": 54,
+              "to": 55,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 56,
+              "kind": "contains"
+            },
+            {
+              "from": 55,
+              "to": 56,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 57,
+              "kind": "contains"
+            },
+            {
+              "from": 56,
+              "to": 57,
+              "kind": "next"
+            },
+            {
+              "from": 5,
+              "to": 58,
+              "kind": "contains"
+            },
+            {
+              "from": 57,
+              "to": 58,
+              "kind": "next"
+            },
+            {
+              "from": 58,
+              "to": 59,
+              "kind": "contains"
+            },
+            {
+              "from": 58,
+              "to": 60,
+              "kind": "contains"
+            },
+            {
+              "from": 59,
+              "to": 60,
+              "kind": "next"
+            },
+            {
+              "from": 58,
+              "to": 61,
+              "kind": "contains"
+            },
+            {
+              "from": 60,
+              "to": 61,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -12746,7 +14246,59 @@
       "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "auto | <length-percentage>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "auto"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length-percentage>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "none"
@@ -13601,7 +15153,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "normal | <length>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "normal"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -13685,7 +15289,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "color"
       },
       "applicability": {
         "kind": "elements",
@@ -13852,7 +15456,59 @@
       "animatable": true,
       "presentation_attribute": null,
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <marker-ref>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<marker-ref>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "none"
@@ -14369,7 +16025,29 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<mask-layer#>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<mask-layer#>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -18774,7 +20452,128 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "normal | [ fill || stroke || markers ]",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "normal"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "group"
+            },
+            {
+              "id": 4,
+              "kind": "keyword",
+              "text": "fill"
+            },
+            {
+              "id": 5,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 6,
+              "kind": "keyword",
+              "text": "stroke"
+            },
+            {
+              "id": 7,
+              "kind": "operator",
+              "text": "||"
+            },
+            {
+              "id": 8,
+              "kind": "keyword",
+              "text": "markers"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 7,
+              "kind": "contains"
+            },
+            {
+              "from": 6,
+              "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 3,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -18902,7 +20701,98 @@
       "animatable": true,
       "presentation_attribute": "path-length",
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <length> [0,â]",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length>"
+            },
+            {
+              "id": 4,
+              "kind": "group"
+            },
+            {
+              "id": 5,
+              "kind": "keyword",
+              "text": "0"
+            },
+            {
+              "id": 6,
+              "kind": "operator",
+              "text": ","
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -20833,7 +22723,59 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<length-percentage> | auto",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "auto"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -20906,7 +22848,59 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<length-percentage> | auto",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "auto"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -22110,7 +24104,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <dasharray>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<dasharray>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -22198,7 +24244,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<length-percentage> | <number>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<number>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -22524,7 +24622,29 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<number>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<number>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -22612,7 +24732,29 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<''opacity''>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<''opacity''>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -22700,7 +24842,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<length-percentage> | <number>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<number>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -24789,7 +26983,668 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "[ left | center | right | top | bottom | <length-percentage> ] | [ left | center | right | <length-percentage> ] [ top | center | bottom | <length-percentage> ] <length?> | [ [ center | left | right ] && [ center | top | bottom ] ] <length?>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "group"
+            },
+            {
+              "id": 2,
+              "kind": "keyword",
+              "text": "left"
+            },
+            {
+              "id": 3,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 4,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 5,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 6,
+              "kind": "keyword",
+              "text": "right"
+            },
+            {
+              "id": 7,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 8,
+              "kind": "keyword",
+              "text": "top"
+            },
+            {
+              "id": 9,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 10,
+              "kind": "keyword",
+              "text": "bottom"
+            },
+            {
+              "id": 11,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 12,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 13,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 14,
+              "kind": "group"
+            },
+            {
+              "id": 15,
+              "kind": "keyword",
+              "text": "left"
+            },
+            {
+              "id": 16,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 17,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 18,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 19,
+              "kind": "keyword",
+              "text": "right"
+            },
+            {
+              "id": 20,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 21,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 22,
+              "kind": "group"
+            },
+            {
+              "id": 23,
+              "kind": "keyword",
+              "text": "top"
+            },
+            {
+              "id": 24,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 25,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 26,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 27,
+              "kind": "keyword",
+              "text": "bottom"
+            },
+            {
+              "id": 28,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 29,
+              "kind": "type",
+              "text": "<length-percentage>"
+            },
+            {
+              "id": 30,
+              "kind": "type",
+              "text": "<length?>"
+            },
+            {
+              "id": 31,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 32,
+              "kind": "group"
+            },
+            {
+              "id": 33,
+              "kind": "group"
+            },
+            {
+              "id": 34,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 35,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 36,
+              "kind": "keyword",
+              "text": "left"
+            },
+            {
+              "id": 37,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 38,
+              "kind": "keyword",
+              "text": "right"
+            },
+            {
+              "id": 39,
+              "kind": "operator",
+              "text": "&&"
+            },
+            {
+              "id": 40,
+              "kind": "group"
+            },
+            {
+              "id": 41,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 42,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 43,
+              "kind": "keyword",
+              "text": "top"
+            },
+            {
+              "id": 44,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 45,
+              "kind": "keyword",
+              "text": "bottom"
+            },
+            {
+              "id": 46,
+              "kind": "type",
+              "text": "<length?>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 7,
+              "kind": "contains"
+            },
+            {
+              "from": 6,
+              "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 9,
+              "kind": "contains"
+            },
+            {
+              "from": 8,
+              "to": 9,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 10,
+              "kind": "contains"
+            },
+            {
+              "from": 9,
+              "to": 10,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 11,
+              "kind": "contains"
+            },
+            {
+              "from": 10,
+              "to": 11,
+              "kind": "next"
+            },
+            {
+              "from": 1,
+              "to": 12,
+              "kind": "contains"
+            },
+            {
+              "from": 11,
+              "to": 12,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 13,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 13,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 14,
+              "kind": "contains"
+            },
+            {
+              "from": 13,
+              "to": 14,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 15,
+              "kind": "contains"
+            },
+            {
+              "from": 14,
+              "to": 16,
+              "kind": "contains"
+            },
+            {
+              "from": 15,
+              "to": 16,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 17,
+              "kind": "contains"
+            },
+            {
+              "from": 16,
+              "to": 17,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 18,
+              "kind": "contains"
+            },
+            {
+              "from": 17,
+              "to": 18,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 19,
+              "kind": "contains"
+            },
+            {
+              "from": 18,
+              "to": 19,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 20,
+              "kind": "contains"
+            },
+            {
+              "from": 19,
+              "to": 20,
+              "kind": "next"
+            },
+            {
+              "from": 14,
+              "to": 21,
+              "kind": "contains"
+            },
+            {
+              "from": 20,
+              "to": 21,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 22,
+              "kind": "contains"
+            },
+            {
+              "from": 14,
+              "to": 22,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 23,
+              "kind": "contains"
+            },
+            {
+              "from": 22,
+              "to": 24,
+              "kind": "contains"
+            },
+            {
+              "from": 23,
+              "to": 24,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 25,
+              "kind": "contains"
+            },
+            {
+              "from": 24,
+              "to": 25,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 26,
+              "kind": "contains"
+            },
+            {
+              "from": 25,
+              "to": 26,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 27,
+              "kind": "contains"
+            },
+            {
+              "from": 26,
+              "to": 27,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 28,
+              "kind": "contains"
+            },
+            {
+              "from": 27,
+              "to": 28,
+              "kind": "next"
+            },
+            {
+              "from": 22,
+              "to": 29,
+              "kind": "contains"
+            },
+            {
+              "from": 28,
+              "to": 29,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 30,
+              "kind": "contains"
+            },
+            {
+              "from": 22,
+              "to": 30,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 31,
+              "kind": "contains"
+            },
+            {
+              "from": 30,
+              "to": 31,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 32,
+              "kind": "contains"
+            },
+            {
+              "from": 31,
+              "to": 32,
+              "kind": "next"
+            },
+            {
+              "from": 32,
+              "to": 33,
+              "kind": "contains"
+            },
+            {
+              "from": 33,
+              "to": 34,
+              "kind": "contains"
+            },
+            {
+              "from": 33,
+              "to": 35,
+              "kind": "contains"
+            },
+            {
+              "from": 34,
+              "to": 35,
+              "kind": "next"
+            },
+            {
+              "from": 33,
+              "to": 36,
+              "kind": "contains"
+            },
+            {
+              "from": 35,
+              "to": 36,
+              "kind": "next"
+            },
+            {
+              "from": 33,
+              "to": 37,
+              "kind": "contains"
+            },
+            {
+              "from": 36,
+              "to": 37,
+              "kind": "next"
+            },
+            {
+              "from": 33,
+              "to": 38,
+              "kind": "contains"
+            },
+            {
+              "from": 37,
+              "to": 38,
+              "kind": "next"
+            },
+            {
+              "from": 32,
+              "to": 39,
+              "kind": "contains"
+            },
+            {
+              "from": 33,
+              "to": 39,
+              "kind": "next"
+            },
+            {
+              "from": 32,
+              "to": 40,
+              "kind": "contains"
+            },
+            {
+              "from": 39,
+              "to": 40,
+              "kind": "next"
+            },
+            {
+              "from": 40,
+              "to": 41,
+              "kind": "contains"
+            },
+            {
+              "from": 40,
+              "to": 42,
+              "kind": "contains"
+            },
+            {
+              "from": 41,
+              "to": 42,
+              "kind": "next"
+            },
+            {
+              "from": 40,
+              "to": 43,
+              "kind": "contains"
+            },
+            {
+              "from": 42,
+              "to": 43,
+              "kind": "next"
+            },
+            {
+              "from": 40,
+              "to": 44,
+              "kind": "contains"
+            },
+            {
+              "from": 43,
+              "to": 44,
+              "kind": "next"
+            },
+            {
+              "from": 40,
+              "to": 45,
+              "kind": "contains"
+            },
+            {
+              "from": 44,
+              "to": 45,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 46,
+              "kind": "contains"
+            },
+            {
+              "from": 32,
+              "to": 46,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -25994,7 +28849,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "normal | <length>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "normal"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
