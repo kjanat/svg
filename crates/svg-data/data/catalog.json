@@ -3679,6 +3679,50 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "after-edge",
+              "alphabetic",
+              "auto",
+              "baseline",
+              "before-edge",
+              "central",
+              "hanging",
+              "ideographic",
+              "inherit",
+              "mathematical",
+              "middle",
+              "text-after-edge",
+              "text-before-edge"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "after-edge",
+              "alphabetic",
+              "auto",
+              "baseline",
+              "before-edge",
+              "central",
+              "hanging",
+              "ideographic",
+              "inherit",
+              "mathematical",
+              "middle",
+              "text-after-edge",
+              "text-before-edge"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -6392,6 +6436,30 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "evenodd",
+              "inherit",
+              "nonzero"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "evenodd",
+              "inherit",
+              "nonzero"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -6644,6 +6712,32 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "linearRGB",
+              "sRGB"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "linearRGB",
+              "sRGB"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -6737,6 +6831,32 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "linearRGB",
+              "sRGB"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "linearRGB",
+              "sRGB"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -7561,6 +7681,30 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "ltr",
+              "rtl"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "ltr",
+              "rtl"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -7859,6 +8003,50 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "alphabetic",
+              "auto",
+              "central",
+              "hanging",
+              "ideographic",
+              "inherit",
+              "mathematical",
+              "middle",
+              "no-change",
+              "reset-size",
+              "text-after-edge",
+              "text-before-edge",
+              "use-script"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "alphabetic",
+              "auto",
+              "central",
+              "hanging",
+              "ideographic",
+              "inherit",
+              "mathematical",
+              "middle",
+              "no-change",
+              "reset-size",
+              "text-after-edge",
+              "text-before-edge",
+              "use-script"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -9162,6 +9350,30 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "evenodd",
+              "inherit",
+              "nonzero"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "evenodd",
+              "inherit",
+              "nonzero"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -9875,6 +10087,48 @@
           "version_added": "11"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "condensed",
+              "expanded",
+              "extra-condensed",
+              "extra-expanded",
+              "inherit",
+              "narrower",
+              "normal",
+              "semi-condensed",
+              "semi-expanded",
+              "ultra-condensed",
+              "ultra-expanded",
+              "wider"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "condensed",
+              "expanded",
+              "extra-condensed",
+              "extra-expanded",
+              "inherit",
+              "narrower",
+              "normal",
+              "semi-condensed",
+              "semi-expanded",
+              "ultra-condensed",
+              "ultra-expanded",
+              "wider"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -9962,6 +10216,32 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "italic",
+              "normal",
+              "oblique"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "italic",
+              "normal",
+              "oblique"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -10046,6 +10326,30 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "normal",
+              "small-caps"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "normal",
+              "small-caps"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -10142,6 +10446,52 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "100",
+              "200",
+              "300",
+              "400",
+              "500",
+              "600",
+              "700",
+              "800",
+              "900",
+              "bold",
+              "bolder",
+              "inherit",
+              "lighter",
+              "normal"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "100",
+              "200",
+              "300",
+              "400",
+              "500",
+              "600",
+              "700",
+              "800",
+              "900",
+              "bold",
+              "bolder",
+              "inherit",
+              "lighter",
+              "normal"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -11727,6 +12077,32 @@
           "version_added": "6"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "optimizeQuality",
+              "optimizeSpeed"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "inherit",
+              "optimizeQuality",
+              "optimizeSpeed"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -18200,6 +18576,34 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "hidden",
+              "inherit",
+              "scroll",
+              "visible"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "hidden",
+              "inherit",
+              "scroll",
+              "visible"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -18832,6 +19236,26 @@
           "version_added": "4"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "all",
+              "fill",
+              "inherit",
+              "none",
+              "painted",
+              "stroke",
+              "visible",
+              "visibleFill",
+              "visiblePainted",
+              "visibleStroke"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -20616,6 +21040,21 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "crispEdges",
+              "geometricPrecision",
+              "inherit",
+              "optimizeSpeed"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -21777,6 +22216,32 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "butt",
+              "inherit",
+              "round",
+              "square"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "butt",
+              "inherit",
+              "round",
+              "square"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -21870,6 +22335,32 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "bevel",
+              "inherit",
+              "miter",
+              "round"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "bevel",
+              "inherit",
+              "miter",
+              "round"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -23383,6 +23874,32 @@
           "version_qualifier": "before"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "end",
+              "inherit",
+              "middle",
+              "start"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "end",
+              "inherit",
+              "middle",
+              "start"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -23698,6 +24215,21 @@
           "version_added": "5"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "auto",
+              "geometricPrecision",
+              "inherit",
+              "optimizeLegibility",
+              "optimizeSpeed"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -24459,6 +24991,32 @@
           "version_added": "1.3"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "bidi-override",
+              "embed",
+              "inherit",
+              "normal"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "bidi-override",
+              "embed",
+              "inherit",
+              "normal"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -24921,6 +25479,32 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "collapse",
+              "hidden",
+              "inherit",
+              "visible"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "collapse",
+              "hidden",
+              "inherit",
+              "visible"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -25426,6 +26010,38 @@
           "version_added": "10.1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "lr",
+              "lr-tb",
+              "rl",
+              "rl-tb",
+              "tb",
+              "tb-rl"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "inherit",
+              "lr",
+              "lr-tb",
+              "rl",
+              "rl-tb",
+              "tb",
+              "tb-rl"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },

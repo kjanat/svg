@@ -596,6 +596,31 @@ mod catalog_tests {
     }
 
     #[test]
+    fn svg11_legacy_property_index_supplies_keyword_overrides() {
+        let override_count = attributes()
+            .iter()
+            .filter(|attribute| !attribute.value_overrides.is_empty())
+            .count();
+        assert!(
+            override_count >= 20,
+            "expected broad SVG 1.1 value override coverage, got {override_count}"
+        );
+
+        let Some(visibility) = attribute("visibility") else {
+            panic!("visibility missing from catalog");
+        };
+        assert!(matches!(visibility.values, AttributeValues::FreeText));
+        assert!(matches!(
+            visibility.values_for_profile(SpecSnapshotId::Svg11Rec20110816),
+            AttributeValues::Enum(values)
+                if values.contains(&"visible")
+                    && values.contains(&"hidden")
+                    && values.contains(&"collapse")
+                    && values.contains(&"inherit")
+        ));
+    }
+
+    #[test]
     fn nowhere_supported_attributes_are_not_present_without_element_context() {
         let Some(xlink_title) = attribute("xlink:title") else {
             panic!("xlink:title missing from catalog");

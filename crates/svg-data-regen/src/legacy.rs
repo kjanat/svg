@@ -51,27 +51,29 @@ pub struct LegacyValueOverrides {
 /// Extract value overrides from one SVG 1.1 property index HTML page.
 ///
 /// # Errors
-/// Returns an error if the HTML cannot be parsed, or if the expected display
-/// row is absent/malformed.
+/// Returns an error if the HTML cannot be parsed, or if no keyword-only rows
+/// are found.
 pub fn extract_svg11_property_index(
     source: &LegacyPropertyIndexSource,
     html: &str,
 ) -> Fallible<LegacyValueOverrides> {
     let dom = tl::parse(html, ParserOptions::default())?;
     let parser = dom.parser();
-    let display_values = extract_property_values(&dom, parser, "display")
-        .ok_or_else(|| boxed("SVG 1.1 property index missing display value row"))?;
+    let value_overrides = extract_keyword_only_value_overrides(&dom, parser);
+    if value_overrides.is_empty() {
+        return Err(boxed("SVG 1.1 property index had no keyword-only rows"));
+    }
 
     let mut attributes = BTreeMap::new();
-    attributes.insert(
-        "display".to_owned(),
-        vec![CatalogAttributeValueOverride {
-            profile: source.profile,
-            values: CatalogAttributeValues::Enum {
-                values: display_values,
-            },
-        }],
-    );
+    for (name, values) in value_overrides {
+        attributes
+            .entry(name)
+            .or_insert_with(Vec::new)
+            .push(CatalogAttributeValueOverride {
+                profile: source.profile,
+                values: CatalogAttributeValues::Enum { values },
+            });
+    }
 
     Ok(LegacyValueOverrides {
         sources: vec![CatalogLegacySource {
@@ -95,11 +97,11 @@ pub fn merge_value_overrides(target: &mut LegacyValueOverrides, mut source: Lega
     }
 }
 
-fn extract_property_values(
+fn extract_keyword_only_value_overrides(
     dom: &tl::VDom<'_>,
     parser: &Parser,
-    property_name: &str,
-) -> Option<Vec<String>> {
+) -> BTreeMap<String, Vec<String>> {
+    let mut overrides = BTreeMap::new();
     for node in dom.nodes() {
         let Some(row) = node.as_tag() else {
             continue;
@@ -110,11 +112,16 @@ fn extract_property_values(
         let Some((name, values)) = property_row_name_and_values(row, parser) else {
             continue;
         };
-        if normalized_property_name(&name) == property_name {
-            return Some(keyword_values(&values));
+        let name = normalized_property_name(&name);
+        if name.is_empty() {
+            continue;
         }
+        let Some(values) = keyword_only_values(&values) else {
+            continue;
+        };
+        overrides.insert(name, values);
     }
-    None
+    overrides
 }
 
 fn property_row_name_and_values(row: &HTMLTag, parser: &Parser) -> Option<(String, String)> {
@@ -135,16 +142,15 @@ fn normalized_property_name(name: &str) -> String {
         .collect()
 }
 
-fn keyword_values(value: &str) -> Vec<String> {
-    let mut values: Vec<String> = value
-        .split('|')
-        .map(str::trim)
-        .filter(|token| is_keyword_token(token))
-        .map(str::to_owned)
-        .collect();
+fn keyword_only_values(value: &str) -> Option<Vec<String>> {
+    let tokens: Vec<&str> = value.split('|').map(str::trim).collect();
+    if tokens.is_empty() || !tokens.iter().all(|token| is_keyword_token(token)) {
+        return None;
+    }
+    let mut values: Vec<String> = tokens.into_iter().map(str::to_owned).collect();
     values.sort();
     values.dedup();
-    values
+    Some(values)
 }
 
 fn is_keyword_token(token: &str) -> bool {
@@ -167,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn extracts_svg11_display_values_from_property_index() -> Fallible<()> {
+    fn extracts_keyword_only_svg11_property_values() -> Fallible<()> {
         let html = r#"
             <table class="property-table">
               <tr>
@@ -177,7 +183,17 @@ mod tests {
                     table-header-group | table-footer-group | table-row |
                     table-column-group | table-column | table-cell |
                     table-caption | none | <a><span>inherit</span></a></td>
-                <td>inline</td>
+                    <td>inline</td>
+              </tr>
+              <tr>
+                <td><a href="painting.html#StrokeLinecapProperty"><span>'stroke-linecap'</span></a></td>
+                <td>butt | round | square | inherit</td>
+                <td>butt</td>
+              </tr>
+              <tr>
+                <td><a href="painting.html#StrokeDasharrayProperty"><span>'stroke-dasharray'</span></a></td>
+                <td>none | &lt;dasharray&gt;</td>
+                <td>none</td>
               </tr>
             </table>
         "#;
@@ -217,6 +233,14 @@ mod tests {
                 .map(str::to_owned)
                 .collect()
             }
+        );
+        assert!(
+            overrides.attributes.contains_key("stroke-linecap"),
+            "keyword-only rows should become overrides"
+        );
+        assert!(
+            !overrides.attributes.contains_key("stroke-dasharray"),
+            "mixed grammars must not collapse to keyword-only enums"
         );
         Ok(())
     }
