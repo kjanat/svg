@@ -453,6 +453,18 @@
       }
     ]
   },
+  "legacy_sources": [
+    {
+      "name": "SVG 1.1 First Edition Property Index",
+      "profile": "Svg11Rec20030114",
+      "url": "https://www.w3.org/TR/2003/REC-SVG11-20030114/propidx.html"
+    },
+    {
+      "name": "SVG 1.1 Second Edition Property Index",
+      "profile": "Svg11Rec20110816",
+      "url": "https://www.w3.org/TR/SVG11/propidx.html"
+    }
+  ],
   "elements": [
     {
       "name": "a",
@@ -620,6 +632,7 @@
     },
     {
       "name": "circle",
+      "description": "The 'circle' element defines a circle based on a center point and a radius.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/circle",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#CircleElement",
       "standard_track": true,
@@ -837,6 +850,7 @@
     },
     {
       "name": "ellipse",
+      "description": "The 'ellipse' element defines an ellipse which is axis-aligned with the current user coordinate system based on a center point and two radii.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/ellipse",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#EllipseElement",
       "standard_track": true,
@@ -1026,6 +1040,11 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/feComposite",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#feCompositeElement",
       "standard_track": true,
+      "baseline": {
+        "kind": "widely",
+        "since": 2021,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -1203,6 +1222,11 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/feDistantLight",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#feDistantLightElement",
       "standard_track": true,
+      "baseline": {
+        "kind": "widely",
+        "since": 2021,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -1480,6 +1504,11 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/feGaussianBlur",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#feGaussianBlurElement",
       "standard_track": true,
+      "baseline": {
+        "kind": "widely",
+        "since": 2021,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -2177,6 +2206,7 @@
     },
     {
       "name": "line",
+      "description": "The 'line' element defines a line segment that starts at one point and ends at another.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/line",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElement",
       "standard_track": true,
@@ -2448,6 +2478,7 @@
     },
     {
       "name": "metadata",
+      "description": "Metadata which is included with SVG content should be specified within 'metadata' elements. The contents of the 'metadata' should be elements from other XML namespaces, with these elements from these namespaces expressed in a manner conforming with the Namespaces in XML Recommendation [xml-names].",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/metadata",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#MetadataElement",
       "standard_track": true,
@@ -2485,6 +2516,11 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/mpath",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MPathElement",
       "standard_track": true,
+      "baseline": {
+        "kind": "widely",
+        "since": 2021,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -2655,6 +2691,7 @@
     },
     {
       "name": "polygon",
+      "description": "The 'polygon' element defines a closed shape consisting of a set of connected straight line segments.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/polygon",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolygonElement",
       "standard_track": true,
@@ -2709,6 +2746,7 @@
     },
     {
       "name": "polyline",
+      "description": "The 'polyline' element defines a set of connected straight line segments. Typically, 'polyline' elements define open shapes.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/polyline",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolylineElement",
       "standard_track": true,
@@ -2819,6 +2857,7 @@
     },
     {
       "name": "rect",
+      "description": "The 'rect' element defines a rectangle which is axis-aligned with the current user coordinate system. Rounded rectangles can be achieved by setting non-zero values for the 'rx' and 'ry' geometric properties.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/rect",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#RectElement",
       "standard_track": true,
@@ -2878,6 +2917,7 @@
     },
     {
       "name": "script",
+      "description": "A 'script' element is equivalent to the 'script' element in HTML and thus is the place for scripts (e.g., ECMAScript). Any functions defined within any 'script' element have a \"global\" scope across the entire current document.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/script",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#ScriptElement",
       "standard_track": true,
@@ -3000,6 +3040,7 @@
     },
     {
       "name": "style",
+      "description": "The 'style element' element allows style sheets to be embedded directly within SVG content. SVG's 'style element' element has the same attributes as the corresponding element in HTML.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/style",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElement",
       "standard_track": true,
@@ -3171,6 +3212,7 @@
     },
     {
       "name": "symbol",
+      "description": "The 'symbol' element is used to define graphical templates which can be instantiated by a 'use' element but which are not rendered directly.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/symbol",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SymbolElement",
       "standard_track": true,
@@ -3250,6 +3292,7 @@
     },
     {
       "name": "text",
+      "description": "The 'text' element defines a graphics element consisting of text. The 'tspan' element within a 'text' or another 'tspan' element, allows one to switch the style and/or adjust the position of the rendered text inside the 'tspan' element relative to the parent element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/text",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElement",
       "standard_track": true,
@@ -3409,6 +3452,7 @@
     },
     {
       "name": "tspan",
+      "description": "The 'text' element defines a graphics element consisting of text. The 'tspan' element within a 'text' or another 'tspan' element, allows one to switch the style and/or adjust the position of the rendered text inside the 'tspan' element relative to the parent element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/tspan",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElement",
       "standard_track": true,
@@ -3524,6 +3568,11 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/view",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#ViewElement",
       "standard_track": true,
+      "baseline": {
+        "kind": "widely",
+        "since": 2021,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -3601,6 +3650,7 @@
     },
     {
       "name": "alignment-baseline",
+      "description": "This property is defined in the CSS Line Layout Module 3 specification. See 'alignment-baseline'. [css-inline-3]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/alignment-baseline",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#AlignmentBaselineProperty",
       "standard_track": true,
@@ -5487,6 +5537,7 @@
     },
     {
       "name": "autofocus",
+      "description": "This content attribute allows authors to ask a focusable element to be focused after it's connected to a document. See autofocus in the HTML specification for details.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/autofocus",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SVGElementAutofocusAttribute",
       "standard_track": true,
@@ -5750,6 +5801,7 @@
     },
     {
       "name": "baseline-shift",
+      "description": "This property is defined in the CSS Line Layout Module 3 specification. See 'baseline-shift'. [css-inline-3]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/baseline-shift",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#BaselineShiftProperty",
       "standard_track": true,
@@ -6100,6 +6152,7 @@
     },
     {
       "name": "class",
+      "description": "The 'class' attribute assigns one or more class names to an element, which can then be used for addressing by the styling language.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/class",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#ClassAttribute",
       "standard_track": true,
@@ -6312,6 +6365,11 @@
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "clip-rule",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -6458,6 +6516,7 @@
     },
     {
       "name": "color",
+      "description": "See the CSS Color Module Level 3 specification for the definition of 'color'. [css-color-3]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorProperty",
       "standard_track": true,
@@ -6542,6 +6601,7 @@
     },
     {
       "name": "color-interpolation",
+      "description": "The SVG user agent performs color interpolations and compositing at various points as it processes SVG content. The 'color-interpolation' property controls which color space is used for the following graphics operations:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color-interpolation",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorInterpolationProperty",
       "standard_track": true,
@@ -6650,6 +6710,11 @@
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "color-interpolation-filters",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -6799,6 +6864,7 @@
     },
     {
       "name": "crossorigin",
+      "description": "The crossorigin attribute is a CORS settings attribute, and unless otherwise specified follows the same processing rules as in HTML [HTML].",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/embedded.html#ImageElementCrossoriginAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -6956,6 +7022,7 @@
     },
     {
       "name": "cx",
+      "description": "The 'cx' property describes the horizontal center coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#CxProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -7059,6 +7126,7 @@
     },
     {
       "name": "cy",
+      "description": "The 'cy' property describes the vertical center coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#CyProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -7162,6 +7230,7 @@
     },
     {
       "name": "d",
+      "description": "The 'd' property is used to specify the shape of a 'path' element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/d",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#DProperty",
       "standard_track": true,
@@ -7463,6 +7532,7 @@
     },
     {
       "name": "direction",
+      "description": "The property specifies the inline-base direction of a 'text' or 'tspan' element. It defines the start and end points of a line of text as used by the 'text-anchor' and 'inline-size' properties. It also may affect the direction in which characters are positioned if the 'unicode-bidi' property's value is either embed or bidi-override.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/direction",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#DirectionProperty",
       "standard_track": true,
@@ -7547,6 +7617,7 @@
     },
     {
       "name": "display",
+      "description": "SVG uses two properties to toggle the visible display of elements that are normally rendered: 'display' and 'visibility'. Although they have a similar visible effect in static documents, they are conceptually distinct.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/display",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#VisibilityControl",
       "standard_track": true,
@@ -7575,6 +7646,60 @@
           "version_added": "1"
         }
       },
+      "value_overrides": [
+        {
+          "profile": "Svg11Rec20030114",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "block",
+              "compact",
+              "inherit",
+              "inline",
+              "inline-table",
+              "list-item",
+              "marker",
+              "none",
+              "run-in",
+              "table",
+              "table-caption",
+              "table-cell",
+              "table-column",
+              "table-column-group",
+              "table-footer-group",
+              "table-header-group",
+              "table-row",
+              "table-row-group"
+            ]
+          }
+        },
+        {
+          "profile": "Svg11Rec20110816",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "block",
+              "compact",
+              "inherit",
+              "inline",
+              "inline-table",
+              "list-item",
+              "marker",
+              "none",
+              "run-in",
+              "table",
+              "table-caption",
+              "table-cell",
+              "table-column",
+              "table-column-group",
+              "table-footer-group",
+              "table-header-group",
+              "table-row",
+              "table-row-group"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -7701,11 +7826,17 @@
     },
     {
       "name": "dominant-baseline",
+      "description": "This property is defined in the CSS Line Layout Module 3 specification. See 'dominant-baseline'. [css-inline-3]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/dominant-baseline",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#DominantBaselineProperty",
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "dominant-baseline",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -7784,6 +7915,7 @@
     },
     {
       "name": "download",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/download",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementDownloadAttribute",
       "standard_track": true,
@@ -8482,6 +8614,7 @@
     },
     {
       "name": "fill",
+      "description": "The 'fill' property paints the interior of the given graphical element. The area to be painted consists of any areas inside the outline of the shape. To determine the inside of the shape, all subpaths are considered, and the interior is determined according to the rules associated with the current value of the 'fill-rule' property. The zero-width geometric outline of a shape is included in the area to be painted.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillProperty",
       "animatable": true,
       "presentation_attribute": "fill",
@@ -8910,11 +9043,17 @@
     },
     {
       "name": "fill-opacity",
+      "description": "'fill-opacity' specifies the opacity of the painting operation used to paint the fill the current object. (See Painting shapes and text).",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillOpacityProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "fill-opacity",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -8992,11 +9131,17 @@
     },
     {
       "name": "fill-rule",
+      "description": "The 'fill-rule' property indicates the algorithm (or winding rule) which is to be used to determine what parts of the canvas are included inside the shape. For a simple, non-intersecting path, it is intuitively clear what region lies \"inside\"; however, for a more complex path, such as a path that intersects itself or where one subpath encloses another, the interpretation of \"inside\" is not so obvious.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill-rule",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillRuleProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "fill-rule",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -10083,6 +10228,7 @@
     },
     {
       "name": "fr",
+      "description": "New in SVG 2. Added to align with Canvas.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fr",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFRAttribute",
       "standard_track": true,
@@ -10227,6 +10373,7 @@
     },
     {
       "name": "fx",
+      "description": "'fx', 'fy', and 'fr' define the start circle for the radial gradient. The gradient will be drawn such that the 0% gradient stop is mapped to the perimeter of this start circle.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fx",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFXAttribute",
       "standard_track": true,
@@ -10297,6 +10444,7 @@
     },
     {
       "name": "fy",
+      "description": "See 'fx'.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fy",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFYAttribute",
       "standard_track": true,
@@ -10367,6 +10515,7 @@
     },
     {
       "name": "glyph-orientation-horizontal",
+      "description": "This property has been removed in SVG 2.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/glyph-orientation-horizontal",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationHorizontalProperty",
       "deprecated": true,
@@ -10448,6 +10597,7 @@
     },
     {
       "name": "glyph-orientation-vertical",
+      "description": "This property applies only to vertical text. It has been obsoleted in SVG 2 and partially replaced by the 'text-orientation' property of CSS Writing Modes Level 3. The following SVG 1.1 values must still be supported by aliasing the property as a shorthand to 'text-orientation' as follows:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/glyph-orientation-vertical",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationVerticalProperty",
       "deprecated": true,
@@ -10529,6 +10679,7 @@
     },
     {
       "name": "gradientTransform",
+      "description": "Contains the definition of an optional additional transformation from the gradient coordinate system onto the target coordinate system (i.e., 'userSpaceOnUse' or 'objectBoundingBox'). This allows for things such as skewing the gradient. This additional transformation matrix is post-multiplied to (i.e., inserted to the right of) any previously defined transformations, including the implicit transformation necessary to convert from object bounding box units to user coordinate system.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/gradientTransform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementGradientTransformAttribute",
       "standard_track": true,
@@ -10628,6 +10779,7 @@
     },
     {
       "name": "gradientUnits",
+      "description": "Defines the coordinate system for attributes 'x1', 'y1', 'x2' and 'y2'.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/gradientUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute",
       "standard_track": true,
@@ -10739,6 +10891,7 @@
     },
     {
       "name": "height",
+      "description": "See the CSS 2.1 specification for the definitions of width and height.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing",
       "animatable": true,
       "presentation_attribute": null,
@@ -10998,7 +11151,8 @@
     },
     {
       "name": "href",
-      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#XLinkHrefAttribute",
+      "description": "The location of the referenced object, expressed as an URL reference. Refer to the common handling defined for URL reference attributes.",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementHrefAttribute",
       "animatable": true,
       "presentation_attribute": null,
       "element_compat": [
@@ -11429,6 +11583,7 @@
     },
     {
       "name": "hreflang",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementHreflangAttribute",
       "standard_track": true,
       "animatable": false,
@@ -11505,6 +11660,7 @@
     },
     {
       "name": "id",
+      "description": "Must reflect the element's ID [DOM]. The 'id' attribute must be unique within the node tree, must not be an empty string, and must not contain any whitespace characters.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/id",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#IDAttribute",
       "standard_track": true,
@@ -11542,6 +11698,7 @@
     },
     {
       "name": "image-rendering",
+      "description": "The CSS Image Values and Replacement Content Module Level 4 may in the future redefine this property. In particular it should allow the choice between smoothing and keeping a pixelated look when upscaling.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/image-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ImageRenderingProperty",
       "standard_track": true,
@@ -11719,6 +11876,11 @@
         {
           "element": "feComposite",
           "standard_track": true,
+          "baseline": {
+            "kind": "widely",
+            "since": 2021,
+            "qualifier": "before"
+          },
           "browser_support": {
             "chrome": {
               "supported": true,
@@ -11855,6 +12017,11 @@
         {
           "element": "feGaussianBlur",
           "standard_track": true,
+          "baseline": {
+            "kind": "widely",
+            "since": 2021,
+            "qualifier": "before"
+          },
           "browser_support": {
             "chrome": {
               "supported": true,
@@ -12070,6 +12237,11 @@
         {
           "element": "feComposite",
           "standard_track": true,
+          "baseline": {
+            "kind": "widely",
+            "since": 2021,
+            "qualifier": "before"
+          },
           "browser_support": {
             "chrome": {
               "supported": true,
@@ -12135,6 +12307,7 @@
     },
     {
       "name": "inline-size",
+      "description": "An example of using 'inline-size' for wrapping horizontal text.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#InlineSizeProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -12854,6 +13027,7 @@
     },
     {
       "name": "lang",
+      "description": "The 'lang' attribute specifies the primary language for the element's contents and for any of the element's attributes that contain text. Its value must be a valid BCP 47 language tag, or the empty string. Setting the attribute to the empty string indicates that the primary language is unknown. [BCP47].",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/lang",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#LangAttribute",
       "standard_track": true,
@@ -13214,6 +13388,7 @@
     },
     {
       "name": "line-height",
+      "description": "SVG uses the 'line-height' property to determine the amount of leading space which is added between lines in multi-line text (both for horizontal and vertical text). It is not applicable to text on a path.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#LineHeightProperty",
       "animatable": false,
       "presentation_attribute": null,
@@ -13238,6 +13413,7 @@
     },
     {
       "name": "marker",
+      "description": "The 'marker property' property sets values for the 'marker-start', 'marker-mid' and 'marker-end' properties. The value of the 'marker property' is used directly for all three of the corresponding longhand properties.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -13250,11 +13426,17 @@
     },
     {
       "name": "marker-end",
+      "description": "The 'marker-start' and 'marker-end' properties are used to specify the marker that will be drawn at the first and last vertices of the given shape, respectively. 'marker-mid' is used to specify the marker that will be drawn at all other vertices (i.e., every vertex except the first and last). Possible values for 'marker-start', 'marker-mid' and 'marker-end' are:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-end",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerEndProperty",
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "marker-end",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -13333,11 +13515,17 @@
     },
     {
       "name": "marker-mid",
+      "description": "The 'marker-start' and 'marker-end' properties are used to specify the marker that will be drawn at the first and last vertices of the given shape, respectively. 'marker-mid' is used to specify the marker that will be drawn at all other vertices (i.e., every vertex except the first and last). Possible values for 'marker-start', 'marker-mid' and 'marker-end' are:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-mid",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerMidProperty",
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "marker-mid",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -13416,11 +13604,17 @@
     },
     {
       "name": "marker-start",
+      "description": "The 'marker-start' and 'marker-end' properties are used to specify the marker that will be drawn at the first and last vertices of the given shape, respectively. 'marker-mid' is used to specify the marker that will be drawn at all other vertices (i.e., every vertex except the first and last). Possible values for 'marker-start', 'marker-mid' and 'marker-end' are:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-start",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerStartProperty",
       "standard_track": true,
       "animatable": false,
       "presentation_attribute": "marker-start",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -13499,6 +13693,7 @@
     },
     {
       "name": "markerHeight",
+      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker. A negative value for either attribute is an error (see Error processing).",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerHeight",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerHeightAttribute",
       "standard_track": true,
@@ -13569,6 +13764,7 @@
     },
     {
       "name": "markerUnits",
+      "description": "The 'markerUnits' attribute defines the coordinate system for attributes 'markerWidth', 'markerHeight' and the contents of the 'marker element'. Values have the following meanings:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerUnitsAttribute",
       "standard_track": true,
@@ -13639,6 +13835,7 @@
     },
     {
       "name": "markerWidth",
+      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker. A negative value for either attribute is an error (see Error processing).",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerWidth",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerWidthAttribute",
       "standard_track": true,
@@ -14022,6 +14219,7 @@
     },
     {
       "name": "media",
+      "description": "This attribute specifies a media query that must be matched for the style sheet to apply. Its value is parsed as a media_query_list. If not specified, the style sheet applies unconditionally.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/media",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementMediaAttribute",
       "standard_track": true,
@@ -14092,6 +14290,7 @@
     },
     {
       "name": "method",
+      "description": "Indicates the method by which text should be rendered along the path.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementMethodAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -14301,7 +14500,8 @@
     },
     {
       "name": "offset",
-      "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-offset",
+      "description": "Indicates were the gradient stop is placed. For linear gradients, the 'offset' attribute represents a location along the gradient vector. For radial gradients, it represents a fractional distance from the edge of the innermost/smallest circle to the edge of the outermost/largest circle.",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopElementOffsetAttribute",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": null,
@@ -14373,6 +14573,7 @@
     },
     {
       "name": "onabort",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14388,6 +14589,7 @@
     },
     {
       "name": "onafterprint",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14400,6 +14602,7 @@
     },
     {
       "name": "onbeforeprint",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14412,6 +14615,7 @@
     },
     {
       "name": "onbegin",
+      "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnBeginEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
@@ -14430,6 +14634,7 @@
     },
     {
       "name": "oncancel",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14479,6 +14684,7 @@
     },
     {
       "name": "oncanplay",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14528,6 +14734,7 @@
     },
     {
       "name": "oncanplaythrough",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14577,6 +14784,7 @@
     },
     {
       "name": "onchange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14626,6 +14834,7 @@
     },
     {
       "name": "onclick",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14675,6 +14884,7 @@
     },
     {
       "name": "onclose",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14724,6 +14934,7 @@
     },
     {
       "name": "oncopy",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14773,6 +14984,7 @@
     },
     {
       "name": "oncuechange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14822,6 +15034,7 @@
     },
     {
       "name": "oncut",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14871,6 +15084,7 @@
     },
     {
       "name": "ondblclick",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14920,6 +15134,7 @@
     },
     {
       "name": "ondrag",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -14969,6 +15184,7 @@
     },
     {
       "name": "ondragend",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15018,6 +15234,7 @@
     },
     {
       "name": "ondragenter",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15067,6 +15284,7 @@
     },
     {
       "name": "ondragexit",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15116,6 +15334,7 @@
     },
     {
       "name": "ondragleave",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15165,6 +15384,7 @@
     },
     {
       "name": "ondragover",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15214,6 +15434,7 @@
     },
     {
       "name": "ondragstart",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15263,6 +15484,7 @@
     },
     {
       "name": "ondrop",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15312,6 +15534,7 @@
     },
     {
       "name": "ondurationchange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15361,6 +15584,7 @@
     },
     {
       "name": "onemptied",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15410,6 +15634,7 @@
     },
     {
       "name": "onend",
+      "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnEndEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
@@ -15428,6 +15653,7 @@
     },
     {
       "name": "onended",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15477,6 +15703,7 @@
     },
     {
       "name": "onerror",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15526,6 +15753,7 @@
     },
     {
       "name": "onfocus",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15575,6 +15803,7 @@
     },
     {
       "name": "onhashchange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15587,6 +15816,7 @@
     },
     {
       "name": "oninput",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15636,6 +15866,7 @@
     },
     {
       "name": "oninvalid",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15685,6 +15916,7 @@
     },
     {
       "name": "onkeydown",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15734,6 +15966,7 @@
     },
     {
       "name": "onkeypress",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15783,6 +16016,7 @@
     },
     {
       "name": "onkeyup",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15832,6 +16066,7 @@
     },
     {
       "name": "onload",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15881,6 +16116,7 @@
     },
     {
       "name": "onloadeddata",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15930,6 +16166,7 @@
     },
     {
       "name": "onloadedmetadata",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -15979,6 +16216,7 @@
     },
     {
       "name": "onloadstart",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16028,6 +16266,7 @@
     },
     {
       "name": "onmessage",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16040,6 +16279,7 @@
     },
     {
       "name": "onmousedown",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16089,6 +16329,7 @@
     },
     {
       "name": "onmouseenter",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16138,6 +16379,7 @@
     },
     {
       "name": "onmouseleave",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16187,6 +16429,7 @@
     },
     {
       "name": "onmousemove",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16236,6 +16479,7 @@
     },
     {
       "name": "onmouseout",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16285,6 +16529,7 @@
     },
     {
       "name": "onmouseover",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16334,6 +16579,7 @@
     },
     {
       "name": "onmouseup",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16383,6 +16629,7 @@
     },
     {
       "name": "onoffline",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16395,6 +16642,7 @@
     },
     {
       "name": "ononline",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16407,6 +16655,7 @@
     },
     {
       "name": "onpagehide",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16419,6 +16668,7 @@
     },
     {
       "name": "onpageshow",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16431,6 +16681,7 @@
     },
     {
       "name": "onpaste",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16480,6 +16731,7 @@
     },
     {
       "name": "onpause",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16529,6 +16781,7 @@
     },
     {
       "name": "onplay",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16578,6 +16831,7 @@
     },
     {
       "name": "onplaying",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16627,6 +16881,7 @@
     },
     {
       "name": "onpopstate",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16639,6 +16894,7 @@
     },
     {
       "name": "onprogress",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16688,6 +16944,7 @@
     },
     {
       "name": "onratechange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16737,6 +16994,7 @@
     },
     {
       "name": "onrepeat",
+      "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnRepeatEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
@@ -16755,6 +17013,7 @@
     },
     {
       "name": "onreset",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16804,6 +17063,7 @@
     },
     {
       "name": "onresize",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16853,6 +17113,7 @@
     },
     {
       "name": "onscroll",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16902,6 +17163,7 @@
     },
     {
       "name": "onseeked",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -16951,6 +17213,7 @@
     },
     {
       "name": "onseeking",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17000,6 +17263,7 @@
     },
     {
       "name": "onselect",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17049,6 +17313,7 @@
     },
     {
       "name": "onshow",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17098,6 +17363,7 @@
     },
     {
       "name": "onstalled",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17147,6 +17413,7 @@
     },
     {
       "name": "onstorage",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17159,6 +17426,7 @@
     },
     {
       "name": "onsubmit",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17208,6 +17476,7 @@
     },
     {
       "name": "onsuspend",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17257,6 +17526,7 @@
     },
     {
       "name": "ontimeupdate",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17306,6 +17576,7 @@
     },
     {
       "name": "ontoggle",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17355,6 +17626,7 @@
     },
     {
       "name": "onunload",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17370,6 +17642,7 @@
     },
     {
       "name": "onvolumechange",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17419,6 +17692,7 @@
     },
     {
       "name": "onwaiting",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17468,6 +17742,7 @@
     },
     {
       "name": "onwheel",
+      "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
       "animatable": false,
       "presentation_attribute": null,
@@ -17517,6 +17792,7 @@
     },
     {
       "name": "opacity",
+      "description": "See the CSS Color Module Level 3 for the definition of 'opacity'. [css-color-3]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#ObjectAndGroupOpacityProperties",
       "standard_track": true,
@@ -17608,6 +17884,11 @@
         {
           "element": "feComposite",
           "standard_track": true,
+          "baseline": {
+            "kind": "widely",
+            "since": 2021,
+            "qualifier": "before"
+          },
           "browser_support": {
             "chrome": {
               "supported": true,
@@ -17739,6 +18020,7 @@
     },
     {
       "name": "orient",
+      "description": "The 'orient' attribute indicates how the marker is rotated when it is placed at its position on the shape. Values have the following meanings:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/orient",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#OrientAttribute",
       "standard_track": true,
@@ -17889,6 +18171,7 @@
     },
     {
       "name": "overflow",
+      "description": "See the Cascading Style Sheets Level 2 Revision 1 (CSS 2.1) Specification [CSS2] for the definition of 'overflow'.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/overflow",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#OverflowAndClipProperties",
       "standard_track": true,
@@ -17985,6 +18268,7 @@
     },
     {
       "name": "paint-order",
+      "description": "New in SVG 2. Added primarily to allow painting the stroke of text below its fill without needing to duplicate the 'text' element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/paint-order",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#PaintOrderProperty",
       "standard_track": true,
@@ -18072,6 +18356,7 @@
     },
     {
       "name": "path",
+      "description": "A path data string describing the path onto which the typographic characters will be rendered. If the attribute is not specified, or if the path data results in no valid path segments (e.g., the value is an empty string or an error occurs before any valid path segments), the path specified with 'href' is used instead. If the path data contains an error but produces at least one valid path segment before the error, the valid portion of the path is used following the rules in Error handling in path data.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementPathAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -18199,6 +18484,7 @@
     },
     {
       "name": "pathLength",
+      "description": "The author's computation of the total length of the path, in user units. This value is used to calibrate the user agent's own distance-along-a-path calculations with that of the author. The user agent will scale all distance-along-a-path computations by the ratio of 'pathLength' to the user agent's own computed value for total path length. 'pathLength' potentially affects calculations for text on a path, motion animation and various stroke operations.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathLengthAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -18220,6 +18506,7 @@
     },
     {
       "name": "patternContentUnits",
+      "description": "Defines the coordinate system for the contents of the 'pattern'. Note that this attribute has no effect if attribute 'viewBox' is specified.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternContentUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute",
       "standard_track": true,
@@ -18290,6 +18577,7 @@
     },
     {
       "name": "patternTransform",
+      "description": "Contains the definition of an optional additional transformation from the pattern coordinate system onto the target coordinate system (i.e., 'userSpaceOnUse' or 'objectBoundingBox'). This allows for things such as skewing the pattern tiles. This additional transformation matrix is post-multiplied to (i.e., inserted to the right of) any previously defined transformations, including the implicit transformation necessary to convert from object bounding box units to user coordinate system.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternTransform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternTransformAttribute",
       "standard_track": true,
@@ -18360,6 +18648,7 @@
     },
     {
       "name": "patternUnits",
+      "description": "Defines the coordinate system for attributes 'x', 'y', 'width' and 'height'.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternUnitsAttribute",
       "standard_track": true,
@@ -18430,6 +18719,7 @@
     },
     {
       "name": "ping",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementPingAttribute",
       "experimental": true,
       "standard_track": true,
@@ -18513,6 +18803,7 @@
     },
     {
       "name": "pointer-events",
+      "description": "For text elements, hit-testing is performed on a character cell basis:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pointer-events",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProperty",
       "standard_track": true,
@@ -18610,6 +18901,7 @@
     },
     {
       "name": "points",
+      "description": "The points that make up the polygon. All coordinate values are in the user coordinate system.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolygonElementPointsAttribute",
       "standard_track": true,
       "animatable": true,
@@ -18998,6 +19290,7 @@
     },
     {
       "name": "preserveAspectRatio",
+      "description": "Indicates whether or not to force uniform scaling. Applies to all elements that establish a new SVG viewport (see elements that establish SVG viewports), plus the 'image', 'marker element', 'pattern' and 'view' elements",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#PreserveAspectRatioAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -19226,6 +19519,7 @@
     },
     {
       "name": "r",
+      "description": "The 'r' property describes the radius of the 'circle' element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -19370,6 +19664,7 @@
     },
     {
       "name": "refX",
+      "description": "New in SVG 2: geometric keywords (matches use in 'symbol').",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerElementRefXAttribute",
       "standard_track": true,
       "animatable": true,
@@ -19439,6 +19734,7 @@
     },
     {
       "name": "refY",
+      "description": "New in SVG 2: geometric keywords (matches use in 'symbol').",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerElementRefYAttribute",
       "standard_track": true,
       "animatable": true,
@@ -19508,6 +19804,7 @@
     },
     {
       "name": "referrerpolicy",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementReferrerpolicyAttribute",
       "standard_track": true,
       "animatable": false,
@@ -19576,6 +19873,7 @@
     },
     {
       "name": "rel",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementRelAttribute",
       "standard_track": true,
       "animatable": false,
@@ -19733,6 +20031,7 @@
     },
     {
       "name": "requiredExtensions",
+      "description": "The value is a list of URL references which identify the required extensions, with the individual values separated by white space. Determines whether all of the named extensions are supported by the user agent. If all of the given extensions are supported, then the attribute evaluates to true; otherwise, the current element and its children are skipped and thus will not be rendered.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/requiredExtensions",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#RequiredExtensionsAttribute",
       "standard_track": true,
@@ -19844,6 +20143,7 @@
     },
     {
       "name": "role",
+      "description": "The 'role' attribute must be a set of space-separated tokens having values defined in Definition of Roles ([wai-aria], section 5.4).",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#RoleAttribute",
       "animatable": false,
       "presentation_attribute": null,
@@ -19979,6 +20279,7 @@
     },
     {
       "name": "rx",
+      "description": "The 'rx' property describes the horizontal radius of the 'ellipse' element and the curve radius of the 'rect' element. When the computed value of 'rx' is auto, the used radius is equal to the absolute length used for 'ry', creating a circular arc. If both 'rx' and 'ry' have a computed value of auto, the used value is 0.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RxProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -20051,6 +20352,7 @@
     },
     {
       "name": "ry",
+      "description": "The 'ry' property describes the vertical radius of the 'ellipse' element and the vertical curve radius of the 'rect' element. When the computed value of 'ry' is auto, the used radius is equal to the absolute length used for 'rx', creating a circular arc. If both 'rx' and 'ry' have a computed value of auto, the used value is 0.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RyProperty",
       "animatable": false,
       "presentation_attribute": null,
@@ -20281,11 +20583,17 @@
     },
     {
       "name": "shape-rendering",
+      "description": "The 'shape-rendering' property provides a hint to the implementation about what tradeoffs to make as it renders vector graphics elements such as 'path' elements and basic shapes such as circles and rectangles. Values have the following meanings:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/shape-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ShapeRenderingProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "shape-rendering",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -20370,6 +20678,7 @@
     },
     {
       "name": "side",
+      "description": "Determines the side of the path the text is placed on (relative to the path direction). Specifying a value of right effectively reverses the path.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/side",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementSideAttribute",
       "experimental": true,
@@ -20450,6 +20759,7 @@
     },
     {
       "name": "spacing",
+      "description": "Indicates how the user agent should determine the spacing between typographic characters that are to be rendered along a path.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/spacing",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementSpacingAttribute",
       "standard_track": true,
@@ -20686,6 +20996,7 @@
     },
     {
       "name": "spreadMethod",
+      "description": "Indicates what happens if the gradient starts or ends inside the bounds of the target rectangle.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/spreadMethod",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementSpreadMethodAttribute",
       "standard_track": true,
@@ -20785,6 +21096,7 @@
     },
     {
       "name": "startOffset",
+      "description": "An offset from the start of the path for the initial current text position, calculated using the user agent's distance along the path algorithm, after converting the path to the 'textPath' element's coordinate system.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/startOffset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementStartOffsetAttribute",
       "standard_track": true,
@@ -20891,6 +21203,11 @@
           "element": "feGaussianBlur",
           "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stdDeviation",
           "standard_track": true,
+          "baseline": {
+            "kind": "widely",
+            "since": 2021,
+            "qualifier": "before"
+          },
           "browser_support": {
             "chrome": {
               "supported": true,
@@ -21163,11 +21480,17 @@
     },
     {
       "name": "stroke",
+      "description": "The 'stroke' property paints along the outline of the given graphical element.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21246,11 +21569,17 @@
     },
     {
       "name": "stroke-dasharray",
+      "description": "The 'stroke-dasharray' property controls the pattern of dashes and gaps used to form the shape of a path's stroke.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-dasharray",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDasharrayProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-dasharray",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21328,11 +21657,17 @@
     },
     {
       "name": "stroke-dashoffset",
+      "description": "The 'stroke-dashoffset' property specifies the distance into the repeated dash pattern to start the stroke dashing at the beginning of the path. If the value is negative, then the effect is the same as dash offset d:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-dashoffset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashoffsetProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-dashoffset",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21410,11 +21745,17 @@
     },
     {
       "name": "stroke-linecap",
+      "description": "'stroke-linecap' specifies the shape to be used at the end of open subpaths when they are stroked, and the shape to be drawn for zero length subpaths whether they are open or closed. The possible values are:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-linecap",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinecapProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-linecap",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21497,11 +21838,17 @@
     },
     {
       "name": "stroke-linejoin",
+      "description": "'stroke-linejoin' specifies the shape to be used at the corners of paths or basic shapes when they are stroked. For further details see the path implementation notes.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-linejoin",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinejoinProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-linejoin",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21584,11 +21931,17 @@
     },
     {
       "name": "stroke-miterlimit",
+      "description": "When two line segments meet at a sharp angle and a value of miter has been specified for 'stroke-linejoin', it is possible for the join to extend far beyond the thickness of the line stroking the path. The 'stroke-miterlimit' imposes a limit on the extent of the line join.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-miterlimit",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeMiterlimitProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-miterlimit",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21666,11 +22019,17 @@
     },
     {
       "name": "stroke-opacity",
+      "description": "The 'stroke-opacity' property specifies the opacity of the painting operation used to stroke the current object. (See Painting shapes and text.) As with 'fill-opacity'.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeOpacityProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-opacity",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21748,11 +22107,17 @@
     },
     {
       "name": "stroke-width",
+      "description": "This property specifies the width of the stroke on the current object. A zero value causes no stroke to be painted. A negative value is invalid. A <number> value represents a value in user units.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-width",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeWidthProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "stroke-width",
+      "baseline": {
+        "kind": "widely",
+        "since": 2022,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -21830,6 +22195,7 @@
     },
     {
       "name": "style",
+      "description": "The 'style attribute' attribute is used to supply a CSS declaration of an element. The attribute is parsed as a declaration-list.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/style",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleAttribute",
       "standard_track": true,
@@ -21940,6 +22306,7 @@
     },
     {
       "name": "systemLanguage",
+      "description": "The value is a set of comma-separated tokens, each of which must be a Language-Tag value, as defined in BCP 47 [BCP47].",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SystemLanguageAttribute",
       "animatable": false,
       "presentation_attribute": null,
@@ -22691,6 +23058,7 @@
     },
     {
       "name": "tabindex",
+      "description": "This content attribute allows authors to control whether an element is focusable, whether it is supposed to be reachable using sequential focus navigation, and what is to be the relative order of the element for the purposes of sequential focus navigation.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/tabindex",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SVGElementTabindexAttribute",
       "standard_track": true,
@@ -22747,6 +23115,7 @@
     },
     {
       "name": "target",
+      "description": "This attribute should be used when there are multiple possible targets for the ending resource, such as when the parent document is embedded within an HTML or XHTML document, or is viewed with a tabbed browser. This attribute specifies the name of the browsing context (e.g., a browser tab or an (X)HTML iframe or object element) into which a document is to be opened when the link is activated:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/target",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementTargetAttribute",
       "standard_track": true,
@@ -22981,11 +23350,17 @@
     },
     {
       "name": "text-anchor",
+      "description": "The 'text-anchor' property is used to align (start-, middle- or end-alignment) a string of pre-formatted text or auto-wrapped text where the wrapping area is determined from the 'inline-size' property relative to a given point. It is not applicable to other types of auto-wrapped text, see instead 'text-align'. For multi-line text, the alignment takes place for each line.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-anchor",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextAnchorProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "text-anchor",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -23081,6 +23456,7 @@
     },
     {
       "name": "text-decoration",
+      "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-decoration",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
       "standard_track": true,
@@ -23165,6 +23541,7 @@
     },
     {
       "name": "text-decoration-color",
+      "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
       "animatable": false,
       "presentation_attribute": null,
@@ -23177,6 +23554,7 @@
     },
     {
       "name": "text-decoration-line",
+      "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
       "animatable": false,
       "presentation_attribute": null,
@@ -23189,6 +23567,7 @@
     },
     {
       "name": "text-decoration-style",
+      "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
       "animatable": false,
       "presentation_attribute": null,
@@ -23237,6 +23616,7 @@
     },
     {
       "name": "text-overflow",
+      "description": "New in SVG 2. Added to allow user agents to handle text strings that overflow a predefined wrapping area in a more useful way. Aligns SVG and HTML/CSS text processing.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-overflow",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextOverflowProperty",
       "standard_track": true,
@@ -23277,6 +23657,7 @@
     },
     {
       "name": "text-rendering",
+      "description": "The 'text-rendering' property provides a hint to the implementation about what tradeoffs to make as it renders text. Values have the following meanings:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#TextRenderingProperty",
       "standard_track": true,
@@ -23506,6 +23887,7 @@
     },
     {
       "name": "title",
+      "description": "This attribute specifies a title for the style sheet, which is used when exposing and selecting between alternate style sheets. The attribute takes any value.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementTitleAttribute",
       "standard_track": true,
       "animatable": false,
@@ -23675,6 +24057,7 @@
     },
     {
       "name": "transform",
+      "description": "User agents must support the 'transform' property and presentation attribute as defined in [css-transforms-1].",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/transform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#TransformProperty",
       "standard_track": true,
@@ -23860,7 +24243,8 @@
     },
     {
       "name": "type",
-      "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type",
+      "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
+      "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementTypeAttribute",
       "animatable": true,
       "presentation_attribute": null,
       "element_compat": [
@@ -24202,11 +24586,17 @@
     },
     {
       "name": "vector-effect",
+      "description": "These values can be enumerated. Thereby, the effect which has these characteristics simultaneously can be specified.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/vector-effect",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#VectorEffectProperty",
       "standard_track": true,
       "animatable": true,
       "presentation_attribute": "vector-effect",
+      "baseline": {
+        "kind": "widely",
+        "since": 2023,
+        "qualifier": "before"
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -24372,6 +24762,7 @@
     },
     {
       "name": "viewBox",
+      "description": "The 'viewBox' attribute, in conjunction with the 'preserveAspectRatio' attribute, provides the capability to stretch an SVG viewport to fit a particular container element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#ViewBoxAttribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -24501,6 +24892,7 @@
     },
     {
       "name": "visibility",
+      "description": "SVG uses two properties to toggle the visible display of elements that are normally rendered: 'display' and 'visibility'. Although they have a similar visible effect in static documents, they are conceptually distinct.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/visibility",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#VisibilityControl",
       "standard_track": true,
@@ -24622,6 +25014,7 @@
     },
     {
       "name": "width",
+      "description": "See the CSS 2.1 specification for the definitions of width and height.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing",
       "animatable": true,
       "presentation_attribute": null,
@@ -25001,6 +25394,7 @@
     },
     {
       "name": "writing-mode",
+      "description": "The 'writing-mode' property gets defined by the CSS Writing Modes Module ([css-writing-modes-3]).",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/writing-mode",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#WritingModeProperty",
       "standard_track": true,
@@ -25088,6 +25482,7 @@
     },
     {
       "name": "x",
+      "description": "The 'x' property describes the horizontal coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#XProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -25460,6 +25855,7 @@
     },
     {
       "name": "x1",
+      "description": "The x- and y-axis coordinates of the start of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementX1Attribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -25534,6 +25930,7 @@
     },
     {
       "name": "x2",
+      "description": "The x- and y-axis coordinates of the end of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementX2Attribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -25812,6 +26209,7 @@
     },
     {
       "name": "xlink:title",
+      "description": "Deprecated attribute to describe the meaning of a link or resource in a human-readable fashion. New content should use a 'title' child element rather than a 'xlink:title' attribute.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:title",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#XLinkTitleAttribute",
       "deprecated": true,
@@ -25914,6 +26312,7 @@
     },
     {
       "name": "xml:space",
+      "description": "Deprecated XML attribute to specify whether white space is preserved in character data. The only possible values are the strings 'default' and 'preserve', without white space. Refer to the Extensible Markup Language (XML) 1.0 Recommendation [xml] and to the discussion white space handling in SVG.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xml:space",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#XMLSpaceAttribute",
       "deprecated": true,
@@ -25950,6 +26349,7 @@
     },
     {
       "name": "y",
+      "description": "The 'y' property describes the vertical coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#YProperty",
       "animatable": true,
       "presentation_attribute": null,
@@ -26322,6 +26722,7 @@
     },
     {
       "name": "y1",
+      "description": "The x- and y-axis coordinates of the start of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementY1Attribute",
       "animatable": true,
       "presentation_attribute": null,
@@ -26396,6 +26797,7 @@
     },
     {
       "name": "y2",
+      "description": "The x- and y-axis coordinates of the end of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementY2Attribute",
       "animatable": true,
       "presentation_attribute": null,

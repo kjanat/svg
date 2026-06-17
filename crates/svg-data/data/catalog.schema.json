@@ -46,6 +46,13 @@
           "description": "Whether compat data marks the attribute deprecated.",
           "type": "boolean"
         },
+        "description": {
+          "description": "Short human-readable description from spec prose.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "element_compat": {
           "description": "Element-scoped compat facts for attributes whose BCD data differs by bearer.",
           "type": "array",
@@ -88,6 +95,13 @@
             "boolean",
             "null"
           ]
+        },
+        "value_overrides": {
+          "description": "Per-profile value-space overrides, when older snapshots accepted a\ndifferent grammar.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogAttributeValueOverride"
+          }
         },
         "values": {
           "$ref": "#/$defs/CatalogAttributeValues",
@@ -201,6 +215,24 @@
             "boolean",
             "null"
           ]
+        }
+      }
+    },
+    "CatalogAttributeValueOverride": {
+      "description": "One per-profile value-space override for an attribute.",
+      "type": "object",
+      "required": [
+        "profile",
+        "values"
+      ],
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/CatalogSpecSnapshotId",
+          "description": "Profile snapshot where this value grammar applies."
+        },
+        "values": {
+          "$ref": "#/$defs/CatalogAttributeValues",
+          "description": "Value space for that profile."
         }
       }
     },
@@ -786,6 +818,13 @@
           "description": "Whether compat data marks the element deprecated.",
           "type": "boolean"
         },
+        "description": {
+          "description": "Short human-readable description from spec prose.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "experimental": {
           "description": "Whether compat data marks the element experimental.",
           "type": "boolean"
@@ -821,6 +860,29 @@
         }
       }
     },
+    "CatalogLegacySource": {
+      "description": "One legacy SVG profile source used to derive snapshot-specific facts.",
+      "type": "object",
+      "required": [
+        "name",
+        "profile",
+        "url"
+      ],
+      "properties": {
+        "name": {
+          "description": "Human-readable source label.",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/CatalogSpecSnapshotId",
+          "description": "Snapshot this source represents."
+        },
+        "url": {
+          "description": "Exact source URL fetched.",
+          "type": "string"
+        }
+      }
+    },
     "CatalogPackageSource": {
       "description": "One npm package source used during regeneration.",
       "type": "object",
@@ -843,6 +905,31 @@
           "type": "string"
         }
       }
+    },
+    "CatalogSpecSnapshotId": {
+      "description": "SVG specification snapshots understood by the catalog contract.",
+      "oneOf": [
+        {
+          "description": "SVG 1.1 First Edition (W3C REC 2003-01-14).",
+          "type": "string",
+          "const": "Svg11Rec20030114"
+        },
+        {
+          "description": "SVG 1.1 Second Edition (W3C REC 2011-08-16).",
+          "type": "string",
+          "const": "Svg11Rec20110816"
+        },
+        {
+          "description": "SVG 2 Candidate Recommendation (2018-10-04).",
+          "type": "string",
+          "const": "Svg2Cr20181004"
+        },
+        {
+          "description": "SVG 2 Editor's Draft (rolling).",
+          "type": "string",
+          "const": "Svg2EditorsDraft"
+        }
+      ]
     }
   },
   "title": "svg-data catalog v1",
@@ -882,6 +969,13 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/CatalogElement"
+      }
+    },
+    "legacy_sources": {
+      "description": "Authoritative legacy-profile sources used for snapshot-specific data.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CatalogLegacySource"
       }
     },
     "schema_version": {

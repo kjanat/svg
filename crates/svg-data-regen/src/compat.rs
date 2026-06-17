@@ -457,19 +457,17 @@ fn web_feature_for_compat_key<'a>(web_features: &'a Value, compat_key: &str) -> 
 fn baseline_status_from_web_features(status: &Value) -> Option<CatalogBaselineStatus> {
     match status.get("baseline")? {
         Value::String(value) if value == "high" => {
-            year_from_date(status.get("baseline_high_date")?.as_str()?).map(|since| {
-                CatalogBaselineStatus::Widely {
-                    since,
-                    qualifier: None,
-                }
+            let date = status.get("baseline_high_date")?.as_str()?;
+            year_from_date(date).map(|since| CatalogBaselineStatus::Widely {
+                since,
+                qualifier: parse_version_qualifier(date),
             })
         }
         Value::String(value) if value == "low" => {
-            year_from_date(status.get("baseline_low_date")?.as_str()?).map(|since| {
-                CatalogBaselineStatus::Newly {
-                    since,
-                    qualifier: None,
-                }
+            let date = status.get("baseline_low_date")?.as_str()?;
+            year_from_date(date).map(|since| CatalogBaselineStatus::Newly {
+                since,
+                qualifier: parse_version_qualifier(date),
             })
         }
         Value::String(value) if value == "limited" => Some(CatalogBaselineStatus::Limited),
@@ -683,6 +681,13 @@ const fn baseline_since(baseline: CatalogBaselineStatus) -> u16 {
 }
 
 fn year_from_date(date: &str) -> Option<u16> {
+    let date = date
+        .strip_prefix('\u{2264}')
+        .or_else(|| date.strip_prefix('\u{2265}'))
+        .or_else(|| date.strip_prefix("<="))
+        .or_else(|| date.strip_prefix(">="))
+        .or_else(|| date.strip_prefix('~'))
+        .unwrap_or(date);
     date.get(..4)?.parse().ok()
 }
 
@@ -796,6 +801,33 @@ mod tests {
             Some(CatalogBaselineStatus::Newly {
                 since: 2025,
                 qualifier: None
+            })
+        );
+    }
+
+    #[test]
+    fn resolves_qualified_baseline_dates() {
+        let web_features = serde_json::json!({
+            "feature": {
+                "compat_features": ["svg.elements.feGaussianBlur"],
+                "status": {
+                    "baseline": "high",
+                    "baseline_high_date": "2018-01-29",
+                    "by_compat_key": {
+                        "svg.elements.feGaussianBlur": {
+                            "baseline": "high",
+                            "baseline_high_date": "\u{2264}2021-04-02"
+                        }
+                    }
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_baseline(Some(&web_features), "svg.elements.feGaussianBlur"),
+            Some(CatalogBaselineStatus::Widely {
+                since: 2021,
+                qualifier: Some(crate::catalog::CatalogBaselineQualifier::Before)
             })
         );
     }

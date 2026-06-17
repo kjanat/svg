@@ -80,6 +80,7 @@ mod tests {
                 "commit",
                 "compat",
                 "elements",
+                "legacy_sources",
                 "schema_version"
             ]
         );

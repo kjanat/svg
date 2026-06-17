@@ -19,6 +19,7 @@ mod compat;
 mod discover;
 mod extract;
 mod fetch;
+mod legacy;
 mod provenance;
 mod schema;
 
@@ -164,22 +165,41 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         .unwrap_or_default();
     let chapter_report = report_chapters(provenance, graph, &macros, want_sample.as_deref())?;
     let compat = fetch_and_report_compat()?;
+    let legacy = fetch_and_report_legacy_value_overrides()?;
 
     let built = catalog::build_catalog(
         &all_defs,
         &chapter_report.properties,
+        &chapter_report.descriptions,
         editors_draft,
         &provenance.commit_sha,
         Some(&compat),
+        catalog::CatalogLegacyInputs {
+            sources: &legacy.sources,
+            value_overrides: &legacy.attributes,
+        },
     );
     let path = write_catalog(&built)?;
     println!(
         "\n## catalog written: {} elements, {} attributes -> {}",
         built.elements.len(),
         built.attributes.len(),
-        path.display()
+        display_path(&path)
     );
     Ok(())
+}
+
+fn fetch_and_report_legacy_value_overrides() -> Fallible<legacy::LegacyValueOverrides> {
+    println!("\n## legacy profile value overrides");
+    let mut merged = legacy::LegacyValueOverrides::default();
+    for source in legacy::SVG11_PROPERTY_INDEXES {
+        let html = fetch::url_text(source.url, "text/html")?;
+        let extracted = legacy::extract_svg11_property_index(source, &html)?;
+        let count = extracted.attributes.values().map(Vec::len).sum::<usize>();
+        println!("  {} -> {} value override(s)", source.url, count);
+        legacy::merge_value_overrides(&mut merged, extracted);
+    }
+    Ok(merged)
 }
 
 fn fetch_and_report_compat() -> Fallible<compat::CompatCatalog> {
@@ -199,8 +219,7 @@ fn fetch_and_report_compat() -> Fallible<compat::CompatCatalog> {
 /// Write the derived catalog as deterministic pretty JSON into `svg-data`'s
 /// `data/` directory, returning the path written.
 fn write_catalog(built: &catalog::Catalog) -> Fallible<PathBuf> {
-    let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../svg-data/data");
-    std::fs::create_dir_all(&data_dir)?;
+    let data_dir = catalog_data_dir()?;
     let path = data_dir.join("catalog.json");
     let mut json = serde_json::to_string_pretty(built)?;
     json.push('\n');
@@ -210,6 +229,41 @@ fn write_catalog(built: &catalog::Catalog) -> Fallible<PathBuf> {
         schema::catalog_schema_json()?,
     )?;
     Ok(path)
+}
+
+fn catalog_data_dir() -> Result<PathBuf, std::io::Error> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize()?;
+    let workspace_crates_dir = manifest_dir
+        .parent()
+        .ok_or_else(|| std::io::Error::other("svg-data-regen manifest has no parent"))?;
+    let svg_data_dir = workspace_crates_dir.join("svg-data").canonicalize()?;
+    let data_dir = svg_data_dir.join("data");
+    std::fs::create_dir_all(&data_dir)?;
+    let data_dir = data_dir.canonicalize()?;
+
+    if !data_dir.starts_with(&svg_data_dir) {
+        return Err(std::io::Error::other(format!(
+            "catalog data directory escaped svg-data crate: {}",
+            data_dir.display()
+        )));
+    }
+    if data_dir.file_name().and_then(|name| name.to_str()) != Some("data") {
+        return Err(std::io::Error::other(format!(
+            "catalog data directory must end in `data`: {}",
+            data_dir.display()
+        )));
+    }
+
+    Ok(data_dir)
+}
+
+fn display_path(path: &Path) -> String {
+    if let Ok(cwd) = std::env::current_dir()
+        && let Ok(relative) = path.strip_prefix(cwd)
+    {
+        return relative.display().to_string();
+    }
+    path.display().to_string()
 }
 
 /// Record one module's element/attribute category membership for macro
@@ -252,6 +306,7 @@ fn report_chapters(
     let mut sample_property: Option<chapter::PropertyValueDef> = None;
     let mut sample_term: Option<chapter::TermDefinition> = None;
     let mut collected_properties = Vec::new();
+    let mut collected_descriptions = Vec::new();
     let pages = graph.chapters.iter().chain(&graph.appendices);
     for name in pages {
         let path = format!("{PUBLISH_DIR}/{name}.html");
@@ -291,6 +346,7 @@ fn report_chapters(
             };
         }
         collected_properties.extend(extracted.properties);
+        collected_descriptions.extend(extracted.anchor_descriptions);
     }
     println!(
         "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} ex  {properties:>3} props  {terms:>3} terms ({} pages)",
@@ -309,6 +365,7 @@ fn report_chapters(
 
     Ok(ChapterReport {
         properties: collected_properties,
+        descriptions: collected_descriptions,
     })
 }
 
@@ -316,6 +373,8 @@ fn report_chapters(
 struct ChapterReport {
     /// Property value grammars, used for presentation attribute value spaces.
     properties: Vec<chapter::PropertyValueDef>,
+    /// Anchor descriptions, used for element/attribute hover prose.
+    descriptions: Vec<chapter::AnchorDescription>,
 }
 
 /// Running totals across all definitions modules.

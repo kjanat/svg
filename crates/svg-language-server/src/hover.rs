@@ -259,7 +259,9 @@ impl CompatMarkdownBuilder {
     }
 
     fn description(&mut self, line: String) -> &mut Self {
-        self.sections.push(HoverSection::Description(line));
+        if !line.is_empty() {
+            self.sections.push(HoverSection::Description(line));
+        }
         self
     }
 
@@ -384,10 +386,12 @@ pub fn format_element_hover_with_profile(
         builder.baseline(format_baseline(*baseline));
     }
 
-    builder.browser_chips(format_browser_support_line(
+    if let Some(line) = format_browser_support_line(
         el.browser_support.as_ref(),
         rt.and_then(|r| r.browser_support.as_ref()),
-    ));
+    ) {
+        builder.browser_chips(line);
+    }
 
     if let Some(notes) = format_browser_notes_list(el.browser_support.as_ref()) {
         builder.browser_notes(notes);
@@ -414,13 +418,68 @@ pub fn format_attribute_hover_with_profile_name(
     rt: Option<&CompatOverride>,
     native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
+    let verdict = svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile);
+    format_attribute_hover_with_verdict(
+        attr,
+        display_name,
+        element_name,
+        profile,
+        profile_lifecycle,
+        rt,
+        native,
+        verdict.as_ref(),
+    )
+}
+
+pub struct UnsupportedAttributeHoverProfile<'a> {
+    pub profile: SpecSnapshotId,
+    pub known_in: &'static [SpecSnapshotId],
+    pub profile_lifecycle: Option<String>,
+    pub rt: Option<&'a CompatOverride>,
+    pub native: Option<&'a svg_data::profile::SvgNative>,
+}
+
+pub fn format_unsupported_attribute_hover_with_profile_name(
+    attr: &svg_data::AttributeDef,
+    display_name: &str,
+    element_name: Option<&str>,
+    profile: UnsupportedAttributeHoverProfile<'_>,
+) -> String {
+    let verdict = profile_unsupported_attribute_verdict(
+        attr,
+        element_name,
+        profile.profile,
+        profile.known_in,
+    );
+    format_attribute_hover_with_verdict(
+        attr,
+        display_name,
+        element_name,
+        profile.profile,
+        profile.profile_lifecycle,
+        profile.rt,
+        profile.native,
+        Some(&verdict),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn format_attribute_hover_with_verdict(
+    attr: &svg_data::AttributeDef,
+    display_name: &str,
+    element_name: Option<&str>,
+    profile: SpecSnapshotId,
+    profile_lifecycle: Option<String>,
+    rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
+    verdict: Option<&svg_data::CompatVerdict>,
+) -> String {
     let facts = attr.compat_facts_for_element(element_name);
     let baseline = rt.and_then(|r| r.baseline).or(facts.baseline);
-    let verdict = svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile);
 
     let mut builder = CompatMarkdownBuilder::new();
 
-    if let Some(v) = verdict.as_ref() {
+    if let Some(v) = verdict {
         builder.headline(format_verdict_headline(v, display_name));
     } else {
         builder.headline(format!("`{display_name}`"));
@@ -434,7 +493,7 @@ pub fn format_attribute_hover_with_profile_name(
         builder.status("⚠ Not supported by the SVG Native profile".to_owned());
     }
 
-    if let Some(status) = reconciled_status(verdict.as_ref(), profile_lifecycle, rt) {
+    if let Some(status) = reconciled_status(verdict, profile_lifecycle, rt) {
         builder.status(status);
     }
 
@@ -444,10 +503,12 @@ pub fn format_attribute_hover_with_profile_name(
         builder.baseline(format_baseline(baseline));
     }
 
-    builder.browser_chips(format_browser_support_line(
+    if let Some(line) = format_browser_support_line(
         facts.browser_support.as_ref(),
         rt.and_then(|r| r.browser_support.as_ref()),
-    ));
+    ) {
+        builder.browser_chips(line);
+    }
 
     if let Some(notes) = format_browser_notes_list(facts.browser_support.as_ref()) {
         builder.browser_notes(notes);
@@ -456,6 +517,51 @@ pub fn format_attribute_hover_with_profile_name(
     builder.links(hover_link_list(attr.mdn_url, attr.spec_url));
 
     builder.build()
+}
+
+fn profile_unsupported_attribute_verdict(
+    attr: &svg_data::AttributeDef,
+    element_name: Option<&str>,
+    profile: SpecSnapshotId,
+    known_in: &'static [SpecSnapshotId],
+) -> svg_data::CompatVerdict {
+    let mut reasons =
+        svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile)
+            .map(|verdict| verdict.reasons)
+            .unwrap_or_default();
+
+    if let Some(last_seen) = last_known_before_profile(profile, known_in)
+        && !reasons
+            .iter()
+            .any(|reason| matches!(reason, svg_data::VerdictReason::ProfileObsolete { .. }))
+    {
+        reasons.push(svg_data::VerdictReason::ProfileObsolete { last_seen });
+    }
+
+    let headline_template = if reasons
+        .iter()
+        .any(|reason| matches!(reason, svg_data::VerdictReason::ProfileObsolete { .. }))
+    {
+        "removed from the current SVG profile"
+    } else {
+        "not in the current SVG profile"
+    };
+
+    svg_data::CompatVerdict {
+        recommendation: svg_data::VerdictRecommendation::Forbid,
+        headline_template,
+        reasons,
+    }
+}
+
+fn last_known_before_profile(
+    profile: SpecSnapshotId,
+    known_in: &'static [SpecSnapshotId],
+) -> Option<SpecSnapshotId> {
+    let selected_index = snapshot_index(profile)?;
+    known_in.iter().rev().copied().find(|known| {
+        snapshot_index(*known).is_some_and(|known_index| known_index < selected_index)
+    })
 }
 
 pub fn profile_lifecycle_hover_line<T>(
@@ -926,7 +1032,11 @@ fn format_verdict_reason(reason: svg_data::VerdictReason) -> String {
 fn format_browser_support_line(
     baked: Option<&BrowserSupport>,
     runtime: Option<&RuntimeBrowserSupport>,
-) -> String {
+) -> Option<String> {
+    if baked.is_none() && runtime.is_none() {
+        return None;
+    }
+
     let fmt = |name: &str,
                baked_ver: Option<BrowserVersion>,
                rt_ver: RuntimeBrowserOverride<'_>|
@@ -935,8 +1045,10 @@ fn format_browser_support_line(
             BrowserVersionView::Unsupported => format!("{name} \u{2717}"),
             BrowserVersionView::SupportedUnknown => format!("{name} supported"),
             BrowserVersionView::Version { version, qualifier } => {
-                let glyph = format_baseline_qualifier(qualifier);
-                format!("{name} {glyph}{version}")
+                format!(
+                    "{name} {}",
+                    format_version_with_qualifier(version, qualifier)
+                )
             }
         }
     };
@@ -964,7 +1076,16 @@ fn format_browser_support_line(
 
     // Prose-friendly bullet separator. The earlier `|` worked for a
     // fixed-width grid but reads as table syntax in rendered markdown.
-    format!("{chrome} · {edge} · {firefox} · {safari}")
+    Some(format!("{chrome} · {edge} · {firefox} · {safari}"))
+}
+
+fn format_version_with_qualifier(version: &str, qualifier: Option<BaselineQualifier>) -> String {
+    let glyph = format_baseline_qualifier(qualifier);
+    if glyph.is_empty() || version.starts_with(glyph) {
+        version.to_owned()
+    } else {
+        format!("{glyph}{version}")
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1074,7 +1195,24 @@ mod tests {
         // New separator is ` · ` (prose bullet) instead of ` | `.
         assert_eq!(
             format_browser_support_line(Some(&baked), None),
-            "Chrome supported · Edge ✗ · Firefox ✗ · Safari ✗"
+            Some("Chrome supported · Edge ✗ · Firefox ✗ · Safari ✗".to_owned())
+        );
+    }
+
+    #[test]
+    fn absent_browser_support_omits_chip_row() {
+        assert_eq!(format_browser_support_line(None, None), None);
+    }
+
+    #[test]
+    fn qualified_browser_versions_are_not_double_prefixed() {
+        assert_eq!(
+            format_version_with_qualifier("≤80", Some(BaselineQualifier::Before)),
+            "≤80"
+        );
+        assert_eq!(
+            format_version_with_qualifier("80", Some(BaselineQualifier::Before)),
+            "≤80"
         );
     }
 
@@ -1095,7 +1233,7 @@ mod tests {
 
         assert_eq!(
             format_browser_support_line(Some(&baked), Some(&runtime)),
-            "Chrome 120 · Edge ✗ · Firefox ✗ · Safari ✗"
+            Some("Chrome 120 · Edge ✗ · Firefox ✗ · Safari ✗".to_owned())
         );
     }
 

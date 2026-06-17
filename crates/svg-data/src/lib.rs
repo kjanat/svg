@@ -97,6 +97,9 @@ pub fn attribute_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLook
     if let Some(lookup) = href_lookup_for_profile(profile, name) {
         return lookup;
     }
+    if let Some(lookup) = svg11_declarator_lookup_for_profile(profile, name) {
+        return lookup;
+    }
     attribute(name).map_or(ProfileLookup::Unknown, attribute_lookup_present)
 }
 
@@ -123,11 +126,26 @@ fn href_lookup_for_profile(
         ("xlink:href", true) => attribute_by_catalog_name("href").map(attribute_lookup_present),
         ("xlink:href", false) => {
             attribute_by_catalog_name("href").map(|_| ProfileLookup::UnsupportedInProfile {
-                known_in: SVG11_XLINK_HREF_SNAPSHOTS,
+                known_in: SVG11_SNAPSHOTS,
             })
         }
         _ => None,
     }
+}
+
+fn svg11_declarator_lookup_for_profile(
+    profile: SpecSnapshotId,
+    name: &str,
+) -> Option<ProfileLookup<AttributeDef>> {
+    if !matches!(name, "baseProfile" | "version") {
+        return None;
+    }
+    if is_svg11_profile(profile) {
+        return attribute_by_catalog_name(name).map(attribute_lookup_present);
+    }
+    attribute_by_catalog_name(name).map(|_| ProfileLookup::UnsupportedInProfile {
+        known_in: SVG11_SNAPSHOTS,
+    })
 }
 
 /// Attributes that apply to `elem_name` in `profile`.
@@ -162,7 +180,7 @@ fn attribute_name_for_profile(profile: SpecSnapshotId, name: &'static str) -> &'
     }
 }
 
-const SVG11_XLINK_HREF_SNAPSHOTS: &[SpecSnapshotId] = &[
+const SVG11_SNAPSHOTS: &[SpecSnapshotId] = &[
     SpecSnapshotId::Svg11Rec20030114,
     SpecSnapshotId::Svg11Rec20110816,
 ];
@@ -556,7 +574,7 @@ mod catalog_tests {
         assert!(matches!(
             attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "xlink:href"),
             ProfileLookup::UnsupportedInProfile { known_in }
-                if known_in == SVG11_XLINK_HREF_SNAPSHOTS
+                if known_in == SVG11_SNAPSHOTS
         ));
         assert!(matches!(
             attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "href"),

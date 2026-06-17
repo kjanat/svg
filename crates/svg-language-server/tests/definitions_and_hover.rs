@@ -164,6 +164,10 @@ fn element_hover_resolves_catalog_and_external_docs() -> TestResult {
         element_hover_value.contains("MDN Reference"),
         "element hover should contain MDN link: {element_hover_resp}"
     );
+    assert!(
+        element_hover_value.contains("The 'rect' element defines a rectangle"),
+        "element hover should include generated spec description: {element_hover_resp}"
+    );
 
     let hover_svg =
         r#"<svg xmlns="http://www.w3.org/2000/svg" xml:lang="en"><path d="M0 0"/></svg>"#;
@@ -180,8 +184,8 @@ fn element_hover_resolves_catalog_and_external_docs() -> TestResult {
         .as_str()
         .unwrap_or("");
     assert!(
-        d_hover_value.contains("Defines a path to be drawn."),
-        "`d` hover should come from the local attribute catalog: {d_hover_resp}"
+        d_hover_value.contains("The 'd' property is used to specify the shape"),
+        "`d` hover should include generated spec description: {d_hover_resp}"
     );
 
     let xmlns_hover_resp = server.request(

@@ -102,10 +102,37 @@ impl Inventory {
     }
 }
 
+static SVG10_20010904_SVG_ATTRIBUTES: &[Attribute] = &[Attribute { name: "version" }];
+
+static SVG10_20010904_ELEMENTS: &[Element] = &[
+    Element {
+        name: "svg",
+        attributes: SVG10_20010904_SVG_ATTRIBUTES,
+    },
+    Element {
+        name: "definition-src",
+        attributes: &[],
+    },
+];
+
+static SVG10_20010904: Inventory = Inventory {
+    edition: EditionId::dated(Series::Svg10, "2001-09-04"),
+    elements: SVG10_20010904_ELEMENTS,
+};
+
+static SVG2_20160915: Inventory = Inventory {
+    edition: EditionId::dated(Series::Svg2, "2016-09-15"),
+    elements: &[],
+};
+
 /// The inventory for an edition, when one has been extracted.
 #[must_use]
-pub const fn for_edition(edition: &EditionId) -> Option<&'static Inventory> {
-    let _ = edition;
-    // Populated by the extraction pipeline; empty until it lands.
-    None
+pub fn for_edition(edition: &EditionId) -> Option<&'static Inventory> {
+    if edition == &SVG10_20010904.edition {
+        Some(&SVG10_20010904)
+    } else if edition == &SVG2_20160915.edition {
+        Some(&SVG2_20160915)
+    } else {
+        None
+    }
 }

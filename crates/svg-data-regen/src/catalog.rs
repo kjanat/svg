@@ -14,7 +14,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::{
-    chapter::PropertyValueDef,
+    chapter::{AnchorDescription, PropertyValueDef},
     compat::CompatCatalog,
     extract::{AttributeRef, ContentModelKind, Definitions, PropertyDef},
 };
@@ -29,6 +29,9 @@ pub struct Catalog {
     /// Browser-compat data sources used for objective compat facts.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<CatalogCompatProvenance>,
+    /// Authoritative legacy-profile sources used for snapshot-specific data.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub legacy_sources: Vec<CatalogLegacySource>,
     /// Element definitions, sorted by name.
     pub elements: Vec<CatalogElement>,
     /// Attribute definitions, sorted by canonical name.
@@ -40,6 +43,9 @@ pub struct Catalog {
 pub struct CatalogElement {
     /// Element tag name.
     pub name: String,
+    /// Short human-readable description from spec prose.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// MDN reference URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mdn_url: Option<String>,
@@ -73,6 +79,9 @@ pub struct CatalogElement {
 pub struct CatalogAttribute {
     /// Canonical attribute name (`xlink:href` collapses to `href`).
     pub name: String,
+    /// Short human-readable description from spec prose.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// MDN reference URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mdn_url: Option<String>,
@@ -100,6 +109,10 @@ pub struct CatalogAttribute {
     /// Element-scoped compat facts for attributes whose BCD data differs by bearer.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub element_compat: Vec<CatalogAttributeElementCompat>,
+    /// Per-profile value-space overrides, when older snapshots accepted a
+    /// different grammar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub value_overrides: Vec<CatalogAttributeValueOverride>,
     /// Attribute value space.
     pub values: CatalogAttributeValues,
     /// Which elements accept the attribute.
@@ -129,6 +142,17 @@ pub struct CatalogPackageSource {
     pub url: String,
 }
 
+/// One legacy SVG profile source used to derive snapshot-specific facts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogLegacySource {
+    /// Human-readable source label.
+    pub name: String,
+    /// Snapshot this source represents.
+    pub profile: CatalogSpecSnapshotId,
+    /// Exact source URL fetched.
+    pub url: String,
+}
+
 /// Attribute compat facts scoped to one element bearer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct CatalogAttributeElementCompat {
@@ -137,6 +161,29 @@ pub struct CatalogAttributeElementCompat {
     /// Objective compat facts for this attribute on `element`.
     #[serde(flatten)]
     pub facts: CatalogCompatFacts,
+}
+
+/// One per-profile value-space override for an attribute.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogAttributeValueOverride {
+    /// Profile snapshot where this value grammar applies.
+    pub profile: CatalogSpecSnapshotId,
+    /// Value space for that profile.
+    pub values: CatalogAttributeValues,
+}
+
+/// SVG specification snapshots understood by the catalog contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[allow(dead_code)]
+pub enum CatalogSpecSnapshotId {
+    /// SVG 1.1 First Edition (W3C REC 2003-01-14).
+    Svg11Rec20030114,
+    /// SVG 1.1 Second Edition (W3C REC 2011-08-16).
+    Svg11Rec20110816,
+    /// SVG 2 Candidate Recommendation (2018-10-04).
+    Svg2Cr20181004,
+    /// SVG 2 Editor's Draft (rolling).
+    Svg2EditorsDraft,
 }
 
 /// A BCD feature below an SVG element that is not an element or attribute.
@@ -357,6 +404,15 @@ pub enum CatalogContentModel {
     Text,
 }
 
+/// Legacy-profile inputs derived from dated authoritative sources.
+#[derive(Clone, Copy)]
+pub struct CatalogLegacyInputs<'a> {
+    /// Source records to persist in `catalog.json`.
+    pub sources: &'a [CatalogLegacySource],
+    /// Attribute value overrides keyed by attribute/property name.
+    pub value_overrides: &'a BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
+}
+
 /// Build the catalog from every definitions module's extracted entities.
 ///
 /// `editors_draft_base` is the SVG 2 editor's-draft base URL (from
@@ -367,11 +423,14 @@ pub enum CatalogContentModel {
 pub fn build_catalog(
     modules: &[Definitions],
     properties: &[PropertyValueDef],
+    descriptions: &[AnchorDescription],
     editors_draft_base: &str,
     commit: &str,
     compat: Option<&CompatCatalog>,
+    legacy: CatalogLegacyInputs<'_>,
 ) -> Catalog {
     let members = category_members(modules);
+    let descriptions_by_id = descriptions_by_id(descriptions);
     let mut elements = Vec::new();
     for module in modules {
         let base = module.anchor_base.as_deref().unwrap_or(editors_draft_base);
@@ -380,6 +439,7 @@ pub fn build_catalog(
                 element,
                 base,
                 &members,
+                &descriptions_by_id,
                 compat.and_then(|compat| compat.elements.get(&element.name)),
             ));
         }
@@ -389,9 +449,37 @@ pub fn build_catalog(
         schema_version: crate::schema::CATALOG_SCHEMA_VERSION,
         commit: commit.to_owned(),
         compat: compat.map(|compat| compat.provenance.clone()),
+        legacy_sources: legacy.sources.to_vec(),
         elements,
-        attributes: build_attributes(modules, properties, editors_draft_base, compat),
+        attributes: build_attributes(
+            modules,
+            properties,
+            &descriptions_by_id,
+            editors_draft_base,
+            compat,
+            legacy.value_overrides,
+        ),
     }
+}
+
+fn descriptions_by_id(descriptions: &[AnchorDescription]) -> BTreeMap<&str, &str> {
+    let mut by_id = BTreeMap::new();
+    for description in descriptions {
+        by_id
+            .entry(description.id.as_str())
+            .or_insert(description.description.as_str());
+    }
+    by_id
+}
+
+fn description_for_href(
+    href: Option<&str>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
+) -> Option<String> {
+    let fragment = href?.rsplit_once('#')?.1;
+    descriptions_by_id
+        .get(fragment)
+        .map(|description| (*description).to_owned())
 }
 
 /// Element-category membership across all modules: category name to its member
@@ -412,6 +500,7 @@ fn build_element(
     element: &crate::extract::ElementDef,
     base: &str,
     members: &BTreeMap<&str, Vec<&str>>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     compat: Option<&CatalogCompatFacts>,
 ) -> CatalogElement {
     let content_model = match element.content_model {
@@ -453,6 +542,7 @@ fn build_element(
 
     CatalogElement {
         name: element.name.clone(),
+        description: description_for_href(element.href.as_deref(), descriptions_by_id),
         mdn_url: compat.and_then(|facts| facts.mdn_url.clone()),
         spec_url: element.href.as_ref().map(|href| format!("{base}{href}")),
         deprecated: compat.is_some_and(|facts| facts.deprecated),
@@ -474,8 +564,10 @@ fn build_element(
 fn build_attributes(
     modules: &[Definitions],
     properties: &[PropertyValueDef],
+    descriptions_by_id: &BTreeMap<&str, &str>,
     editors_draft_base: &str,
     compat: Option<&CompatCatalog>,
+    legacy_value_overrides: &BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
 ) -> Vec<CatalogAttribute> {
     let all_elements: BTreeSet<String> = modules
         .iter()
@@ -491,20 +583,31 @@ fn build_attributes(
     let category_attributes = attribute_categories(modules, editors_draft_base);
     let mut attributes: BTreeMap<String, AttributeAccumulator> = BTreeMap::new();
 
-    seed_attribute_metadata(modules, editors_draft_base, &mut attributes);
-    seed_presentation_attribute_metadata(&presentation_attributes, &mut attributes);
+    seed_attribute_metadata(
+        modules,
+        editors_draft_base,
+        descriptions_by_id,
+        &mut attributes,
+    );
+    seed_presentation_attribute_metadata(
+        &presentation_attributes,
+        descriptions_by_id,
+        &mut attributes,
+    );
     collect_element_attribute_bearers(
         modules,
         editors_draft_base,
         &presentation_attributes,
         &category_attributes,
+        descriptions_by_id,
         &mut attributes,
     );
 
     let mut attributes: Vec<CatalogAttribute> = attributes
         .into_values()
         .map(|attribute| {
-            let mut attribute = attribute.finish(&all_elements, &properties_by_name);
+            let mut attribute =
+                attribute.finish(&all_elements, &properties_by_name, legacy_value_overrides);
             if let Some(attribute_compat) =
                 compat.and_then(|compat| compat.attributes.get(&attribute.name))
             {
@@ -534,6 +637,7 @@ fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat:
         }
         let mut attribute = CatalogAttribute {
             name: name.clone(),
+            description: None,
             mdn_url: None,
             spec_url: None,
             deprecated: false,
@@ -544,6 +648,7 @@ fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat:
             baseline: None,
             browser_support: None,
             element_compat: Vec::new(),
+            value_overrides: Vec::new(),
             values: CatalogAttributeValues::FreeText,
             applicability: compat_attribute_applicability(attribute_compat),
         };
@@ -572,16 +677,21 @@ fn compat_attribute_applicability(
 fn seed_attribute_metadata(
     modules: &[Definitions],
     editors_draft_base: &str,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for module in modules {
         let base = module.anchor_base.as_deref().unwrap_or(editors_draft_base);
         for property in &module.properties {
-            accumulator_for(attributes, &property.name).merge_property(property, base);
+            accumulator_for(attributes, &property.name).merge_property(
+                property,
+                base,
+                descriptions_by_id,
+            );
         }
         for attribute in &module.global_attributes {
             let entry = accumulator_for(attributes, &attribute.name);
-            entry.merge_ref(attribute, base);
+            entry.merge_ref(attribute, base, descriptions_by_id);
             if !attribute.elements.is_empty() {
                 entry.bearers.extend(attribute.elements.iter().cloned());
             }
@@ -589,7 +699,7 @@ fn seed_attribute_metadata(
         for category in &module.attribute_categories {
             for attribute in &category.attributes {
                 let entry = accumulator_for(attributes, &attribute.name);
-                entry.merge_ref(attribute, base);
+                entry.merge_ref(attribute, base, descriptions_by_id);
                 if category.name == "presentation" {
                     entry.presentation_attribute = Some(entry.name.clone());
                 }
@@ -600,11 +710,15 @@ fn seed_attribute_metadata(
 
 fn seed_presentation_attribute_metadata(
     presentation_attributes: &[PresentationAttribute],
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for presentation in presentation_attributes {
-        accumulator_for(attributes, &presentation.name)
-            .merge_presentation_href(presentation.href.as_deref(), &presentation.base);
+        accumulator_for(attributes, &presentation.name).merge_presentation_href(
+            presentation.href.as_deref(),
+            &presentation.base,
+            descriptions_by_id,
+        );
     }
 }
 
@@ -613,16 +727,18 @@ fn collect_element_attribute_bearers(
     editors_draft_base: &str,
     presentation_attributes: &[PresentationAttribute],
     category_attributes: &BTreeMap<String, Vec<CategorizedAttribute>>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for module in modules {
         let base = module.anchor_base.as_deref().unwrap_or(editors_draft_base);
         for element in &module.elements {
-            collect_direct_attribute_bearers(element, base, attributes);
+            collect_direct_attribute_bearers(element, base, descriptions_by_id, attributes);
             collect_category_attribute_bearers(
                 element,
                 presentation_attributes,
                 category_attributes,
+                descriptions_by_id,
                 attributes,
             );
         }
@@ -632,11 +748,12 @@ fn collect_element_attribute_bearers(
 fn collect_direct_attribute_bearers(
     element: &crate::extract::ElementDef,
     base: &str,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for attribute in &element.attributes {
         let entry = accumulator_for(attributes, &attribute.name);
-        entry.merge_ref(attribute, base);
+        entry.merge_ref(attribute, base, descriptions_by_id);
         if attribute.elements.is_empty() {
             entry.bearers.insert(element.name.clone());
         } else {
@@ -658,11 +775,17 @@ fn collect_category_attribute_bearers(
     element: &crate::extract::ElementDef,
     presentation_attributes: &[PresentationAttribute],
     category_attributes: &BTreeMap<String, Vec<CategorizedAttribute>>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for category_name in &element.attribute_categories {
         if category_name == "presentation" {
-            collect_presentation_attribute_bearers(element, presentation_attributes, attributes);
+            collect_presentation_attribute_bearers(
+                element,
+                presentation_attributes,
+                descriptions_by_id,
+                attributes,
+            );
         }
         if category_name == "deprecated xlink" {
             continue;
@@ -671,7 +794,12 @@ fn collect_category_attribute_bearers(
             continue;
         };
         for attribute in category {
-            collect_one_category_attribute_bearer(element, attribute, attributes);
+            collect_one_category_attribute_bearer(
+                element,
+                attribute,
+                descriptions_by_id,
+                attributes,
+            );
         }
     }
 }
@@ -679,11 +807,16 @@ fn collect_category_attribute_bearers(
 fn collect_presentation_attribute_bearers(
     element: &crate::extract::ElementDef,
     presentation_attributes: &[PresentationAttribute],
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     for presentation in presentation_attributes {
         let entry = accumulator_for(attributes, &presentation.name);
-        entry.merge_presentation_href(presentation.href.as_deref(), &presentation.base);
+        entry.merge_presentation_href(
+            presentation.href.as_deref(),
+            &presentation.base,
+            descriptions_by_id,
+        );
         entry.bearers.insert(element.name.clone());
     }
 }
@@ -691,10 +824,11 @@ fn collect_presentation_attribute_bearers(
 fn collect_one_category_attribute_bearer(
     element: &crate::extract::ElementDef,
     attribute: &CategorizedAttribute,
+    descriptions_by_id: &BTreeMap<&str, &str>,
     attributes: &mut BTreeMap<String, AttributeAccumulator>,
 ) {
     let entry = accumulator_for(attributes, &attribute.attribute.name);
-    entry.merge_ref(&attribute.attribute, &attribute.base);
+    entry.merge_ref(&attribute.attribute, &attribute.base, descriptions_by_id);
     if attribute.presentation {
         entry.presentation_attribute = Some(entry.name.clone());
     }
@@ -832,7 +966,9 @@ struct CategorizedAttribute {
 #[derive(Debug)]
 struct AttributeAccumulator {
     name: String,
+    description: Option<String>,
     spec_url: Option<String>,
+    metadata_priority: Option<MetadataPriority>,
     animatable: Option<bool>,
     presentation_attribute: Option<String>,
     bearers: BTreeSet<String>,
@@ -844,7 +980,9 @@ impl AttributeAccumulator {
     const fn new(name: String) -> Self {
         Self {
             name,
+            description: None,
             spec_url: None,
+            metadata_priority: None,
             animatable: None,
             presentation_attribute: None,
             bearers: BTreeSet::new(),
@@ -853,8 +991,18 @@ impl AttributeAccumulator {
     }
 
     /// Merge href/animatability metadata from one spec attribute reference.
-    fn merge_ref(&mut self, attribute: &AttributeRef, base: &str) {
-        self.merge_href(attribute.href.as_deref(), base);
+    fn merge_ref(
+        &mut self,
+        attribute: &AttributeRef,
+        base: &str,
+        descriptions_by_id: &BTreeMap<&str, &str>,
+    ) {
+        self.merge_href(
+            attribute.href.as_deref(),
+            base,
+            descriptions_by_id,
+            metadata_priority(attribute.name.as_str()),
+        );
         match attribute.animatable {
             Some(true) => self.animatable = Some(true),
             Some(false) if self.animatable.is_none() => self.animatable = Some(false),
@@ -863,20 +1011,58 @@ impl AttributeAccumulator {
     }
 
     /// Merge href metadata from a CSS/SVG property.
-    fn merge_property(&mut self, property: &PropertyDef, base: &str) {
-        self.merge_href(property.href.as_deref(), base);
+    fn merge_property(
+        &mut self,
+        property: &PropertyDef,
+        base: &str,
+        descriptions_by_id: &BTreeMap<&str, &str>,
+    ) {
+        self.merge_href(
+            property.href.as_deref(),
+            base,
+            descriptions_by_id,
+            MetadataPriority::Normal,
+        );
     }
 
     /// Merge href metadata and mark this attribute as a presentation attribute.
-    fn merge_presentation_href(&mut self, href: Option<&str>, base: &str) {
-        self.merge_href(href, base);
+    fn merge_presentation_href(
+        &mut self,
+        href: Option<&str>,
+        base: &str,
+        descriptions_by_id: &BTreeMap<&str, &str>,
+    ) {
+        self.merge_href(href, base, descriptions_by_id, MetadataPriority::Normal);
         self.presentation_attribute = Some(self.name.clone());
     }
 
-    /// Set the spec URL once, preferring the first canonical declaration seen.
-    fn merge_href(&mut self, href: Option<&str>, base: &str) {
-        if self.spec_url.is_none() {
-            self.spec_url = href.map(|href| resolve_url(base, href));
+    /// Set the spec URL, preferring canonical declarations over legacy aliases.
+    fn merge_href(
+        &mut self,
+        href: Option<&str>,
+        base: &str,
+        descriptions_by_id: &BTreeMap<&str, &str>,
+        priority: MetadataPriority,
+    ) {
+        let Some(href) = href else {
+            return;
+        };
+        let description = description_for_href(Some(href), descriptions_by_id);
+        let should_replace = self
+            .metadata_priority
+            .is_none_or(|current| priority > current);
+        if should_replace {
+            self.spec_url = Some(resolve_url(base, href));
+            self.description = description;
+            self.metadata_priority = Some(priority);
+        } else if self.description.is_none()
+            && description.is_some()
+            && self
+                .metadata_priority
+                .is_some_and(|current| priority == current)
+        {
+            self.spec_url = Some(resolve_url(base, href));
+            self.description = description;
         }
     }
 
@@ -885,9 +1071,14 @@ impl AttributeAccumulator {
         self,
         all_elements: &BTreeSet<String>,
         properties_by_name: &BTreeMap<&str, &PropertyValueDef>,
+        legacy_value_overrides: &BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
     ) -> CatalogAttribute {
         let property = properties_by_name.get(self.name.as_str()).copied();
         let values = property.map_or(CatalogAttributeValues::FreeText, values_for_property);
+        let value_overrides = legacy_value_overrides
+            .get(&self.name)
+            .cloned()
+            .unwrap_or_default();
         let animatable = self
             .animatable
             .unwrap_or_else(|| property.is_some_and(property_is_animatable));
@@ -902,6 +1093,7 @@ impl AttributeAccumulator {
         };
         CatalogAttribute {
             name: self.name,
+            description: self.description,
             mdn_url: None,
             spec_url: self.spec_url,
             deprecated: false,
@@ -912,9 +1104,24 @@ impl AttributeAccumulator {
             baseline: None,
             browser_support: None,
             element_compat: Vec::new(),
+            value_overrides,
             values,
             applicability,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum MetadataPriority {
+    LegacyAlias,
+    Normal,
+}
+
+fn metadata_priority(attribute_name: &str) -> MetadataPriority {
+    if attribute_name.starts_with("xlink:") {
+        MetadataPriority::LegacyAlias
+    } else {
+        MetadataPriority::Normal
     }
 }
 
@@ -1098,6 +1305,11 @@ mod tests {
         let mut link = element("a");
         link.attributes
             .push(attr("xlink:href", "linking.html#XLinkHref", Some(true)));
+        link.attributes.push(attr(
+            "href",
+            "linking.html#AElementHrefAttribute",
+            Some(true),
+        ));
 
         Definitions {
             anchor_base: None,
@@ -1159,33 +1371,56 @@ mod tests {
         }
     }
 
-    #[test]
-    fn builds_attribute_catalog_with_explicit_applicability()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let catalog = build_catalog(
+    fn description(id: &str, text: &str) -> AnchorDescription {
+        AnchorDescription {
+            id: id.to_owned(),
+            description: text.to_owned(),
+        }
+    }
+
+    fn catalog_with_test_descriptions() -> Catalog {
+        let descriptions = [
+            description("rect", "The rect element defines a rectangle."),
+            description("FillProperty", "The fill property paints shapes."),
+            description(
+                "ViewBoxAttribute",
+                "The viewBox attribute defines the viewport.",
+            ),
+            description(
+                "AElementHrefAttribute",
+                "The href attribute identifies a linked resource.",
+            ),
+        ];
+        build_catalog(
             &[defs()],
             &[property(
                 "fill",
                 "none | context-fill",
                 &["context-fill", "none"],
             )],
+            &descriptions,
             "https://example.test/",
             "abc",
             None,
-        );
+            CatalogLegacyInputs {
+                sources: &[],
+                value_overrides: &BTreeMap::new(),
+            },
+        )
+    }
 
-        let id = catalog
+    fn catalog_attribute<'a>(
+        catalog: &'a Catalog,
+        name: &str,
+    ) -> Result<&'a CatalogAttribute, Box<dyn std::error::Error>> {
+        catalog
             .attributes
             .iter()
-            .find(|attribute| attribute.name == "id")
-            .ok_or("missing id")?;
-        assert_eq!(id.applicability, CatalogAttributeApplicability::Global);
+            .find(|attribute| attribute.name == name)
+            .ok_or_else(|| format!("missing {name}").into())
+    }
 
-        let fill = catalog
-            .attributes
-            .iter()
-            .find(|attribute| attribute.name == "fill")
-            .ok_or("missing fill")?;
+    fn assert_fill_attribute(fill: &CatalogAttribute) {
         assert_eq!(fill.presentation_attribute.as_deref(), Some("fill"));
         assert_eq!(
             fill.applicability,
@@ -1199,17 +1434,22 @@ mod tests {
                 values: vec!["context-fill".to_owned(), "none".to_owned()]
             }
         );
+        assert_eq!(
+            fill.description.as_deref(),
+            Some("The fill property paints shapes.")
+        );
         assert!(fill.animatable);
+    }
 
-        let href = catalog
-            .attributes
-            .iter()
-            .find(|attribute| attribute.name == "href")
-            .ok_or("missing href")?;
+    fn assert_href_attribute(href: &CatalogAttribute) {
         assert!(href.animatable);
         assert_eq!(
             href.spec_url.as_deref(),
-            Some("https://example.test/linking.html#XLinkHref")
+            Some("https://example.test/linking.html#AElementHrefAttribute")
+        );
+        assert_eq!(
+            href.description.as_deref(),
+            Some("The href attribute identifies a linked resource.")
         );
         assert_eq!(
             href.applicability,
@@ -1217,6 +1457,66 @@ mod tests {
                 elements: vec!["a".to_owned()]
             }
         );
+    }
+
+    #[test]
+    fn value_overrides_are_threaded_from_legacy_sources() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let overrides = BTreeMap::from([(
+            "fill".to_owned(),
+            vec![CatalogAttributeValueOverride {
+                profile: CatalogSpecSnapshotId::Svg11Rec20110816,
+                values: CatalogAttributeValues::Enum {
+                    values: vec!["legacy-fill".to_owned()],
+                },
+            }],
+        )]);
+        let catalog = build_catalog(
+            &[defs()],
+            &[property(
+                "fill",
+                "none | context-fill",
+                &["context-fill", "none"],
+            )],
+            &[],
+            "https://example.test/",
+            "abc",
+            None,
+            CatalogLegacyInputs {
+                sources: &[],
+                value_overrides: &overrides,
+            },
+        );
+
+        let fill = catalog_attribute(&catalog, "fill")?;
+        assert_eq!(fill.value_overrides, overrides["fill"]);
+        Ok(())
+    }
+
+    #[test]
+    fn builds_attribute_catalog_with_explicit_applicability()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let catalog = catalog_with_test_descriptions();
+
+        let rect = catalog
+            .elements
+            .iter()
+            .find(|element| element.name == "rect")
+            .ok_or("missing rect")?;
+        assert_eq!(
+            rect.description.as_deref(),
+            Some("The rect element defines a rectangle.")
+        );
+
+        let id = catalog
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "id")
+            .ok_or("missing id")?;
+        assert_eq!(id.applicability, CatalogAttributeApplicability::Global);
+
+        assert_fill_attribute(catalog_attribute(&catalog, "fill")?);
+        assert_href_attribute(catalog_attribute(&catalog, "href")?);
 
         let x = catalog
             .attributes
@@ -1240,6 +1540,10 @@ mod tests {
             CatalogAttributeApplicability::Elements {
                 elements: vec!["rect".to_owned()]
             }
+        );
+        assert_eq!(
+            view_box.description.as_deref(),
+            Some("The viewBox attribute defines the viewport.")
         );
         Ok(())
     }
@@ -1273,9 +1577,14 @@ mod tests {
         let catalog = build_catalog(
             &[defs()],
             &[],
+            &[],
             "https://example.test/",
             "abc",
             Some(&compat),
+            CatalogLegacyInputs {
+                sources: &[],
+                value_overrides: &BTreeMap::new(),
+            },
         );
 
         let fetchpriority = catalog
@@ -1351,7 +1660,18 @@ mod tests {
                 },
             )]),
         };
-        let catalog = build_catalog(&[defs], &[], "https://example.test/", "abc", Some(&compat));
+        let catalog = build_catalog(
+            &[defs],
+            &[],
+            &[],
+            "https://example.test/",
+            "abc",
+            Some(&compat),
+            CatalogLegacyInputs {
+                sources: &[],
+                value_overrides: &BTreeMap::new(),
+            },
+        );
 
         let path = catalog
             .attributes

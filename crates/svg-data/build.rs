@@ -55,6 +55,8 @@ enum CompatSubfeatureKind {
 struct Element {
     name: String,
     #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
     mdn_url: Option<String>,
     spec_url: Option<String>,
     #[serde(default)]
@@ -87,6 +89,8 @@ enum ContentModel {
 struct Attribute {
     name: String,
     #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
     mdn_url: Option<String>,
     spec_url: Option<String>,
     #[serde(default)]
@@ -104,6 +108,8 @@ struct Attribute {
     browser_support: Option<BrowserSupport>,
     #[serde(default)]
     element_compat: Vec<AttributeElementCompat>,
+    #[serde(default)]
+    value_overrides: Vec<AttributeValueOverride>,
     values: AttributeValues,
     applicability: AttributeApplicability,
 }
@@ -114,6 +120,22 @@ struct AttributeElementCompat {
     element: String,
     #[serde(flatten)]
     facts: CompatFacts,
+}
+
+/// Per-profile value-space override for one attribute.
+#[derive(Deserialize)]
+struct AttributeValueOverride {
+    profile: SpecSnapshot,
+    values: AttributeValues,
+}
+
+/// SVG specification snapshots encoded in the catalog.
+#[derive(Clone, Copy, Deserialize)]
+enum SpecSnapshot {
+    Svg11Rec20030114,
+    Svg11Rec20110816,
+    Svg2Cr20181004,
+    Svg2EditorsDraft,
 }
 
 /// Objective browser-compat facts.
@@ -300,6 +322,7 @@ fn emit_catalog(catalog: &Catalog) -> String {
 
 /// Append one `ElementDef` literal.
 fn emit_element(out: &mut String, element: &Element) {
+    let description = element.description.as_deref().unwrap_or_default();
     let mdn_url = element.mdn_url.as_deref().unwrap_or_default();
     let spec_url = element
         .spec_url
@@ -320,7 +343,7 @@ fn emit_element(out: &mut String, element: &Element) {
     };
     let _ = writeln!(
         out,
-        "    crate::types::ElementDef {{ name: {:?}, description: \"\", mdn_url: {mdn_url:?}, \
+        "    crate::types::ElementDef {{ name: {:?}, description: {description:?}, mdn_url: {mdn_url:?}, \
          spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, baseline: {baseline}, \
          browser_support: {browser_support}, content_model: {content_model}, \
          attrs: &[{}], global_attrs: {} }},",
@@ -335,6 +358,7 @@ fn emit_element(out: &mut String, element: &Element) {
 
 /// Append one `AttributeDef` literal.
 fn emit_attribute(out: &mut String, attribute: &Attribute) {
+    let description = attribute.description.as_deref().unwrap_or_default();
     let mdn_url = attribute.mdn_url.as_deref().unwrap_or_default();
     let spec_url = attribute
         .spec_url
@@ -354,20 +378,48 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
     let baseline = emit_baseline(base_facts.baseline.as_ref());
     let browser_support = emit_browser_support(base_facts.browser_support.as_ref());
     let element_compat = emit_attribute_element_compat(&attribute.element_compat);
+    let value_overrides = emit_attribute_value_overrides(&attribute.value_overrides);
     let values = emit_attribute_values(&attribute.values);
     let applicability = emit_attribute_applicability(&attribute.applicability);
     let _ = writeln!(
         out,
-        "    crate::types::AttributeDef {{ name: {:?}, description: \"\", mdn_url: {mdn_url:?}, \
+        "    crate::types::AttributeDef {{ name: {:?}, description: {description:?}, mdn_url: {mdn_url:?}, \
          spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, animatable: {}, \
          presentation_attribute: {presentation_attribute}, baseline: {baseline}, browser_support: {browser_support}, \
-         element_compat: {element_compat}, values: {values}, value_overrides: &[], applicability: {applicability} }},",
+         element_compat: {element_compat}, values: {values}, value_overrides: {value_overrides}, applicability: {applicability} }},",
         attribute.name,
         attribute.deprecated,
         attribute.experimental,
         emit_option_bool(attribute.standard_track),
         attribute.animatable,
     );
+}
+
+fn emit_attribute_value_overrides(overrides: &[AttributeValueOverride]) -> String {
+    if overrides.is_empty() {
+        return "&[]".to_owned();
+    }
+    let entries = overrides
+        .iter()
+        .map(|override_| {
+            format!(
+                "({}, {})",
+                emit_spec_snapshot(override_.profile),
+                emit_attribute_values(&override_.values)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("&[{entries}]")
+}
+
+const fn emit_spec_snapshot(snapshot: SpecSnapshot) -> &'static str {
+    match snapshot {
+        SpecSnapshot::Svg11Rec20030114 => "crate::types::SpecSnapshotId::Svg11Rec20030114",
+        SpecSnapshot::Svg11Rec20110816 => "crate::types::SpecSnapshotId::Svg11Rec20110816",
+        SpecSnapshot::Svg2Cr20181004 => "crate::types::SpecSnapshotId::Svg2Cr20181004",
+        SpecSnapshot::Svg2EditorsDraft => "crate::types::SpecSnapshotId::Svg2EditorsDraft",
+    }
 }
 
 fn emit_attribute_element_compat(overrides: &[AttributeElementCompat]) -> String {

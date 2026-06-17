@@ -88,6 +88,16 @@ pub struct TermDefinition {
     pub description: String,
 }
 
+/// Prose attached to an anchor id, usually the first meaningful paragraph
+/// after a section heading, property table, or attribute definition row.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnchorDescription {
+    /// The anchor id the prose describes.
+    pub id: String,
+    /// Human-readable description prose.
+    pub description: String,
+}
+
 /// Everything extracted from one chapter/appendix page.
 #[derive(Debug, Clone, Serialize)]
 pub struct Chapter {
@@ -103,6 +113,8 @@ pub struct Chapter {
     pub properties: Vec<PropertyValueDef>,
     /// Glossary term definitions paired with their descriptions.
     pub term_definitions: Vec<TermDefinition>,
+    /// Prose descriptions keyed by spec anchor id.
+    pub anchor_descriptions: Vec<AnchorDescription>,
 }
 
 /// Category membership used to expand the spec's publish-time `<edit:*category>`
@@ -133,7 +145,10 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
         examples: Vec::new(),
         properties: Vec::new(),
         term_definitions: Vec::new(),
+        anchor_descriptions: Vec::new(),
     };
+    let mut pending_description_ids: Vec<String> = Vec::new();
+    let mut section_intro: Option<String> = None;
 
     for node in dom.nodes() {
         let Some(tag) = node.as_tag() else {
@@ -154,6 +169,36 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
             });
         }
 
+        if is_heading(&tag_name)
+            && let Some(id) = attr(tag, "id")
+        {
+            pending_description_ids = vec![id];
+            section_intro = None;
+            continue;
+        }
+
+        if has_class(tag, "propdef") {
+            let ids = dfn_ids(tag, parser);
+            if !ids.is_empty() {
+                pending_description_ids = ids;
+            }
+        }
+
+        if tag_name == "edit:elementsummary" {
+            pending_description_ids.clear();
+        }
+
+        if handle_paragraph_description(
+            tag,
+            parser,
+            macros,
+            &mut pending_description_ids,
+            &mut section_intro,
+            &mut chapter.anchor_descriptions,
+        ) {
+            continue;
+        }
+
         match tag_name.as_ref() {
             "dfn" => chapter.dfns.push(Dfn {
                 id: attr(tag, "id"),
@@ -172,6 +217,14 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
             }
             "dl" if has_class(tag, "definitions") => {
                 extract_definition_list(tag, parser, macros, &mut chapter.term_definitions);
+            }
+            "dl" if is_attribute_definition_list(tag) => {
+                extract_attribute_definition_list(
+                    tag,
+                    parser,
+                    macros,
+                    &mut chapter.anchor_descriptions,
+                );
             }
             _ => {}
         }
@@ -209,6 +262,122 @@ fn extract_definition_list(
             _ => {}
         }
     }
+}
+
+/// Pair `<dt>` rows containing attribute `<dfn>` ids with their following
+/// `<dd>` prose and assign that prose to each id in the row.
+fn extract_attribute_definition_list(
+    dl: &HTMLTag,
+    parser: &Parser,
+    macros: &MacroIndex,
+    out: &mut Vec<AnchorDescription>,
+) {
+    let mut pending_ids = Vec::new();
+    for handle in dl.children().top().iter() {
+        let Some(child) = handle.get(parser).and_then(|node| node.as_tag()) else {
+            continue;
+        };
+        match child.name().as_utf8_str().as_ref() {
+            "dt" => pending_ids = description_anchor_ids(child, parser),
+            "dd" if !pending_ids.is_empty() => {
+                let description = attribute_description_text(child, parser, macros);
+                if !description.is_empty() {
+                    let ids = std::mem::take(&mut pending_ids);
+                    out.extend(ids.into_iter().map(|id| AnchorDescription {
+                        id,
+                        description: description.clone(),
+                    }));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn handle_paragraph_description(
+    tag: &HTMLTag,
+    parser: &Parser,
+    macros: &MacroIndex,
+    pending_ids: &mut Vec<String>,
+    section_intro: &mut Option<String>,
+    out: &mut Vec<AnchorDescription>,
+) -> bool {
+    if tag.name().as_utf8_str().as_ref() != "p" {
+        return false;
+    }
+
+    let description = description_text(tag, parser, macros);
+    let usable = is_description_paragraph(tag, &description);
+    if pending_ids.is_empty() {
+        if section_intro.is_none() && usable {
+            *section_intro = Some(description);
+        }
+        return true;
+    }
+
+    if usable {
+        if section_intro.is_none() {
+            *section_intro = Some(description.clone());
+        }
+        append_anchor_descriptions(pending_ids, &description, out);
+    } else if let Some(description) = section_intro.clone() {
+        append_anchor_descriptions(pending_ids, &description, out);
+    }
+    true
+}
+
+fn append_anchor_descriptions(
+    pending_ids: &mut Vec<String>,
+    description: &str,
+    out: &mut Vec<AnchorDescription>,
+) {
+    let ids = std::mem::take(pending_ids);
+    out.extend(ids.into_iter().map(|id| AnchorDescription {
+        id,
+        description: description.to_owned(),
+    }));
+}
+
+fn is_attribute_definition_list(tag: &HTMLTag) -> bool {
+    has_class(tag, "attrdef-list") || has_class(tag, "attrdef-list-svg2")
+}
+
+fn is_description_paragraph(tag: &HTMLTag, description: &str) -> bool {
+    if description.is_empty()
+        || has_class(tag, "annotation")
+        || has_class(tag, "caption")
+        || has_class(tag, "definition")
+        || has_class(tag, "prod")
+    {
+        return false;
+    }
+    !matches!(
+        description.trim(),
+        "where:" | "Values have the following meanings:"
+    ) && !description.ends_with(" is defined as follows:")
+}
+
+fn description_anchor_ids(tag: &HTMLTag, parser: &Parser) -> Vec<String> {
+    let ids = dfn_ids(tag, parser);
+    if !ids.is_empty() {
+        return ids;
+    }
+    attr(tag, "id").into_iter().collect()
+}
+
+fn attribute_description_text(dd: &HTMLTag, parser: &Parser, macros: &MacroIndex) -> String {
+    for handle in dd.children().top().iter() {
+        let Some(child) = handle.get(parser).and_then(|node| node.as_tag()) else {
+            continue;
+        };
+        if child.name().as_utf8_str().as_ref() == "p" && !has_class(child, "annotation") {
+            let description = description_text(child, parser, macros);
+            if !description.is_empty() {
+                return description;
+            }
+        }
+    }
+    description_text(dd, parser, macros)
 }
 
 /// Build a tag's text content, expanding `<edit:elementcategory>` and
@@ -270,6 +439,15 @@ fn term_of(dt: &HTMLTag, parser: &Parser) -> Dfn {
         term: normalize_ws(&dt.inner_text(parser)),
         kind: None,
     }
+}
+
+fn dfn_ids(tag: &HTMLTag, parser: &Parser) -> Vec<String> {
+    let Some(hits) = tag.query_selector(parser, "dfn") else {
+        return Vec::new();
+    };
+    hits.filter_map(|handle| handle.get(parser).and_then(|node| node.as_tag()))
+        .filter_map(|dfn| attr(dfn, "id"))
+        .collect()
 }
 
 /// Extract a single property value-definition table into a [`PropertyValueDef`].
@@ -447,6 +625,7 @@ mod tests {
     use super::*;
 
     const HTML: &str = r#"<h2 id="Shapes">Basic <span>Shapes</span></h2>
+<p>Shapes are graphical elements.</p>
 <dl class="definitions">
   <dt><dfn id="term-shape" data-dfn-type="dfn">shape</dfn></dt>
   <dd>A graphics element with a defined outline.</dd>
@@ -457,6 +636,15 @@ mod tests {
   <tr><th>Initial:</th><td>start</td></tr>
   <tr><th>Inherited:</th><td>yes</td></tr>
 </table>
+<p>The <a>'text-anchor'</a> property aligns text.</p>
+<dl class="attrdef-list">
+  <dt><table><tr><td><dfn id="DemoAttribute">demo</dfn></td></tr></table></dt>
+  <dd>The demo attribute controls demo behavior.</dd>
+</dl>
+<dl class="attrdef-list-svg2">
+  <dt id="DirectAttribute"><span class="adef">direct</span></dt>
+  <dd><p>The direct attribute uses its dt id.</p><dl><dt>Value</dt><dd>number</dd></dl></dd>
+</dl>
 <edit:example href='images/x.svg' image='no'/>"#;
 
     #[test]
@@ -515,6 +703,64 @@ mod tests {
         assert_eq!(
             term.description,
             "A graphics element with a defined outline."
+        );
+
+        let descriptions: std::collections::BTreeMap<_, _> = ch
+            .anchor_descriptions
+            .iter()
+            .map(|description| (description.id.as_str(), description.description.as_str()))
+            .collect();
+        assert_eq!(
+            descriptions.get("Shapes").copied(),
+            Some("Shapes are graphical elements.")
+        );
+        assert_eq!(
+            descriptions.get("TextAnchor").copied(),
+            Some("The 'text-anchor' property aligns text.")
+        );
+        assert_eq!(
+            descriptions.get("DemoAttribute").copied(),
+            Some("The demo attribute controls demo behavior.")
+        );
+        assert_eq!(
+            descriptions.get("DirectAttribute").copied(),
+            Some("The direct attribute uses its dt id.")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn property_descriptions_skip_value_explanation_boilerplate()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let html = r#"<h3 id="DashSection">Dash section</h3>
+<table class="propdef">
+  <tr><th>Name:</th><td><dfn id="DashProperty">stroke-dasharray</dfn></td></tr>
+  <tr><th>Value:</th><td>none | &lt;dasharray&gt;</td></tr>
+</table>
+<p>where:</p>
+<p class="definition prod">&lt;dasharray&gt; = [ &lt;number&gt;+ ]#</p>
+<p>The 'stroke-dasharray' property controls the pattern of dashes and gaps.</p>
+<h3 id="AnchorSection">Anchor section</h3>
+<p>The 'text-anchor' property aligns text relative to a point.</p>
+<table class="propdef">
+  <tr><th>Name:</th><td><dfn id="AnchorProperty">text-anchor</dfn></td></tr>
+  <tr><th>Value:</th><td>start | middle | end</td></tr>
+</table>
+<p>Values have the following meanings:</p>"#;
+        let ch = extract_chapter("text", html, &MacroIndex::default())?;
+        let descriptions: std::collections::BTreeMap<_, _> = ch
+            .anchor_descriptions
+            .iter()
+            .map(|description| (description.id.as_str(), description.description.as_str()))
+            .collect();
+
+        assert_eq!(
+            descriptions.get("DashProperty").copied(),
+            Some("The 'stroke-dasharray' property controls the pattern of dashes and gaps.")
+        );
+        assert_eq!(
+            descriptions.get("AnchorProperty").copied(),
+            Some("The 'text-anchor' property aligns text relative to a point.")
         );
         Ok(())
     }

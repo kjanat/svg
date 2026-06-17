@@ -64,8 +64,8 @@ impl SvgNative {
 pub fn svg_native() -> &'static SvgNative {
     // Populated by the extraction pipeline; empty constraints until it lands.
     static SVG_NATIVE: SvgNative = SvgNative {
-        unsupported_elements: &[],
-        unsupported_attributes: &[],
+        unsupported_elements: &["clipPath"],
+        unsupported_attributes: &["clip-path"],
         unsupported_properties: &[],
     };
     &SVG_NATIVE

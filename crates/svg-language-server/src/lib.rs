@@ -55,8 +55,10 @@ use completion::{
 use definition::{DefinitionContext, build_definition_context, stylesheet_definition_locations};
 use diagnostics::publish_lint_diagnostics;
 use hover::{
-    external_attribute_hover, format_attribute_hover_with_profile_name, format_class_hover,
-    format_custom_property_hover, format_element_hover_with_profile, profile_lifecycle_hover_line,
+    UnsupportedAttributeHoverProfile, external_attribute_hover,
+    format_attribute_hover_with_profile_name, format_class_hover, format_custom_property_hover,
+    format_element_hover_with_profile, format_unsupported_attribute_hover_with_profile_name,
+    profile_lifecycle_hover_line,
 };
 use logging::init_logging;
 use positions::{byte_col_to_utf16, byte_offset_for_position, end_position_utf16, u32_from_usize};
@@ -873,16 +875,19 @@ fn build_attribute_hover_markdown(
                 native,
             ))
         }
-        svg_data::ProfileLookup::UnsupportedInProfile { .. } => {
+        svg_data::ProfileLookup::UnsupportedInProfile { known_in } => {
             svg_data::attribute(node_text).map(|attribute| {
-                format_attribute_hover_with_profile_name(
+                format_unsupported_attribute_hover_with_profile_name(
                     attribute,
                     node_text,
                     element_name.as_deref(),
-                    profile,
-                    profile_lifecycle,
-                    runtime_override,
-                    native,
+                    UnsupportedAttributeHoverProfile {
+                        profile,
+                        known_in,
+                        profile_lifecycle,
+                        rt: runtime_override,
+                        native,
+                    },
                 )
             })
         }
@@ -891,14 +896,7 @@ fn build_attribute_hover_markdown(
 }
 
 fn attribute_owner_element_name(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
-    let attribute_node = node.parent()?;
-    if attribute_node.kind() != "attribute" {
-        return None;
-    }
-    let tag = attribute_node.parent()?;
-    if !matches!(tag.kind(), "start_tag" | "self_closing_tag") {
-        return None;
-    }
+    let tag = find_ancestor_any(node, &["start_tag", "self_closing_tag"])?;
     let mut cursor = tag.walk();
     tag.children(&mut cursor)
         .find(|child| child.kind() == "name")
