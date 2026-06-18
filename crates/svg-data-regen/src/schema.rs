@@ -12,21 +12,84 @@ pub const CATALOG_SCHEMA_VERSION: u16 = 1;
 
 /// File name for the generated JSON Schema.
 pub const CATALOG_SCHEMA_FILE: &str = "catalog.schema.json";
+/// File name for the generated core catalog JSON Schema.
+pub const CATALOG_CORE_SCHEMA_FILE: &str = "catalog.core.schema.json";
+/// File name for the generated compat catalog JSON Schema.
+pub const CATALOG_COMPAT_SCHEMA_FILE: &str = "catalog.compat.schema.json";
+/// File name for the generated graph catalog JSON Schema.
+pub const CATALOG_GRAPH_SCHEMA_FILE: &str = "catalog.graph.schema.json";
+/// File name for the generated snapshot overlay JSON Schema.
+pub const CATALOG_SNAPSHOT_SCHEMA_FILE: &str = "catalog.snapshot.schema.json";
 
 const CATALOG_SCHEMA_ID: &str = "https://github.com/kjanat/svg-language-server/raw/HEAD/crates/svg-data/data/catalog.schema.json";
 const CATALOG_SCHEMA_TITLE: &str = "svg-data catalog v1";
+const CATALOG_CORE_SCHEMA_TITLE: &str = "svg-data core catalog v1";
+const CATALOG_COMPAT_SCHEMA_TITLE: &str = "svg-data compat catalog v1";
+const CATALOG_GRAPH_SCHEMA_TITLE: &str = "svg-data graph catalog v1";
+const CATALOG_SNAPSHOT_SCHEMA_TITLE: &str = "svg-data snapshot overlay v1";
+
+/// One generated schema document to write under `svg-data/data`.
+pub struct CatalogSchemaDocument {
+    /// Output file name.
+    pub file_name: &'static str,
+    /// Pretty JSON schema text.
+    pub json: String,
+}
 
 /// Render the JSON Schema for the current catalog contract.
 ///
 /// # Errors
 /// Returns an error only if serializing the generated schema value fails.
 pub fn catalog_schema_json() -> Result<String, serde_json::Error> {
-    let mut schema = serde_json::to_value(schema_for!(CatalogManifest))?;
+    let mut schema = schema_value::<CatalogManifest>(CATALOG_SCHEMA_TITLE)?;
     merge_document_schema::<CatalogCore<'static>>(&mut schema, "CatalogCore")?;
     merge_document_schema::<CatalogCompatDocument<'static>>(&mut schema, "CatalogCompatDocument")?;
     merge_document_schema::<CatalogGraphDocument<'static>>(&mut schema, "CatalogGraphDocument")?;
     merge_document_schema::<CatalogSnapshot>(&mut schema, "CatalogSnapshot")?;
-    apply_catalog_metadata(&mut schema);
+    apply_catalog_schema_id(&mut schema);
+    schema_text(schema)
+}
+
+/// Render every first-class schema document for the split catalog artifacts.
+///
+/// # Errors
+/// Returns an error only if serializing a generated schema value fails.
+pub fn catalog_schema_documents() -> Result<Vec<CatalogSchemaDocument>, serde_json::Error> {
+    Ok(vec![
+        CatalogSchemaDocument {
+            file_name: CATALOG_SCHEMA_FILE,
+            json: catalog_schema_json()?,
+        },
+        CatalogSchemaDocument {
+            file_name: CATALOG_CORE_SCHEMA_FILE,
+            json: schema_json::<CatalogCore<'static>>(CATALOG_CORE_SCHEMA_TITLE)?,
+        },
+        CatalogSchemaDocument {
+            file_name: CATALOG_COMPAT_SCHEMA_FILE,
+            json: schema_json::<CatalogCompatDocument<'static>>(CATALOG_COMPAT_SCHEMA_TITLE)?,
+        },
+        CatalogSchemaDocument {
+            file_name: CATALOG_GRAPH_SCHEMA_FILE,
+            json: schema_json::<CatalogGraphDocument<'static>>(CATALOG_GRAPH_SCHEMA_TITLE)?,
+        },
+        CatalogSchemaDocument {
+            file_name: CATALOG_SNAPSHOT_SCHEMA_FILE,
+            json: schema_json::<CatalogSnapshot>(CATALOG_SNAPSHOT_SCHEMA_TITLE)?,
+        },
+    ])
+}
+
+fn schema_json<T: JsonSchema>(title: &str) -> Result<String, serde_json::Error> {
+    schema_text(schema_value::<T>(title)?)
+}
+
+fn schema_value<T: JsonSchema>(title: &str) -> Result<Value, serde_json::Error> {
+    let mut schema = serde_json::to_value(schema_for!(T))?;
+    apply_catalog_metadata(&mut schema, title);
+    Ok(schema)
+}
+
+fn schema_text(mut schema: Value) -> Result<String, serde_json::Error> {
     json_schema_sort::sort_schema(&mut schema);
     let mut text = serde_json::to_string_pretty(&schema)?;
     text.push('\n');
@@ -64,19 +127,21 @@ fn merge_document_schema<T: JsonSchema>(
 }
 
 /// Add catalog-specific metadata that cannot be inferred from the Rust type.
-fn apply_catalog_metadata(schema: &mut Value) {
+fn apply_catalog_metadata(schema: &mut Value, title: &str) {
+    if let Some(object) = schema.as_object_mut() {
+        object.insert("title".to_owned(), Value::String(title.to_owned()));
+    }
+    if let Some(schema_version) = schema.pointer_mut("/properties/schema_version") {
+        *schema_version = json!({ "const": CATALOG_SCHEMA_VERSION });
+    }
+}
+
+fn apply_catalog_schema_id(schema: &mut Value) {
     if let Some(object) = schema.as_object_mut() {
         object.insert(
             "$id".to_owned(),
             Value::String(CATALOG_SCHEMA_ID.to_owned()),
         );
-        object.insert(
-            "title".to_owned(),
-            Value::String(CATALOG_SCHEMA_TITLE.to_owned()),
-        );
-    }
-    if let Some(schema_version) = schema.pointer_mut("/properties/schema_version") {
-        *schema_version = json!({ "const": CATALOG_SCHEMA_VERSION });
     }
 }
 
@@ -135,6 +200,70 @@ mod tests {
             .contains("not_yet_introduced"),
             "lifecycle status schema must include not-yet-introduced"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn split_artifact_schemas_are_valid_json_and_versioned()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let documents = catalog_schema_documents()?;
+        let file_names: Vec<&str> = documents
+            .iter()
+            .map(|document| document.file_name)
+            .collect();
+        assert_eq!(
+            file_names,
+            [
+                CATALOG_SCHEMA_FILE,
+                CATALOG_CORE_SCHEMA_FILE,
+                CATALOG_COMPAT_SCHEMA_FILE,
+                CATALOG_GRAPH_SCHEMA_FILE,
+                CATALOG_SNAPSHOT_SCHEMA_FILE,
+            ]
+        );
+
+        let expected = [
+            (CATALOG_SCHEMA_FILE, ["commit", "core", "graph"].as_slice()),
+            (
+                CATALOG_CORE_SCHEMA_FILE,
+                ["attributes", "elements"].as_slice(),
+            ),
+            (
+                CATALOG_COMPAT_SCHEMA_FILE,
+                ["browser_compat_data", "web_features"].as_slice(),
+            ),
+            (CATALOG_GRAPH_SCHEMA_FILE, ["edges", "nodes"].as_slice()),
+            (
+                CATALOG_SNAPSHOT_SCHEMA_FILE,
+                ["inventory", "profile"].as_slice(),
+            ),
+        ];
+
+        for (file_name, required_keys) in expected {
+            let Some(document) = documents
+                .iter()
+                .find(|document| document.file_name == file_name)
+            else {
+                panic!("schema document {file_name} generated");
+            };
+            let schema: serde_json::Value = serde_json::from_str(&document.json)?;
+            assert_eq!(
+                schema.pointer("/properties/schema_version/const"),
+                Some(&serde_json::Value::from(CATALOG_SCHEMA_VERSION)),
+                "{file_name} pins schema_version"
+            );
+            let required = schema
+                .pointer("/required")
+                .and_then(serde_json::Value::as_array)
+                .ok_or("schema required list")?;
+            for key in required_keys {
+                assert!(
+                    required.iter().any(|value| value.as_str() == Some(*key)),
+                    "{file_name} root schema includes required key {key}"
+                );
+            }
+        }
+
         Ok(())
     }
 }

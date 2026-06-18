@@ -313,10 +313,9 @@ fn write_catalog(
     write_catalog_snapshots(&data_dir, built, inventories)?;
     let path = data_dir.join("catalog.json");
     write_json(&path, &built.manifest())?;
-    std::fs::write(
-        data_dir.join(schema::CATALOG_SCHEMA_FILE),
-        schema::catalog_schema_json()?,
-    )?;
+    for schema in schema::catalog_schema_documents()? {
+        std::fs::write(data_dir.join(schema.file_name), schema.json)?;
+    }
     Ok(path)
 }
 
