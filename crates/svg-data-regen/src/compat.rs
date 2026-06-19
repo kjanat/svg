@@ -1,7 +1,6 @@
 //! Browser-compat-data extraction for objective catalog facts.
 
 use std::{
-    borrow::Cow,
     collections::{BTreeMap, btree_map::Entry},
     sync::LazyLock,
 };
@@ -16,7 +15,7 @@ use crate::{
         CatalogCompatSubfeatureKind, CatalogPackageSource,
     },
     fetch,
-    util::boxed,
+    util::{boxed, decode_html_entities, normalize_ws},
 };
 
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
@@ -384,57 +383,7 @@ fn normalize_support_note(note: &str) -> String {
         format!("[{label}]({href})")
     });
     let note = HTML_TAG_RE.replace_all(&note, "");
-    decode_entities(&note)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Decode entities in BCD/MDN prose.
-///
-/// This intentionally differs from the SVG chapter grammar decoder: BCD text is
-/// human prose from MDN, so unknown entities are preserved verbatim and the
-/// legacy HTML `&#39;` apostrophe spelling is accepted.
-fn decode_entities(input: &str) -> Cow<'_, str> {
-    if !input.contains('&') {
-        return Cow::Borrowed(input);
-    }
-    let mut out = String::with_capacity(input.len());
-    let mut rest = input;
-    while let Some(amp) = rest.find('&') {
-        out.push_str(&rest[..amp]);
-        let after = &rest[amp..];
-        let Some(semi) = after.find(';') else {
-            out.push_str(after);
-            return Cow::Owned(out);
-        };
-        let entity = &after[1..semi];
-        if let Some(decoded) = decode_entity(entity) {
-            out.push(decoded);
-        } else {
-            out.push_str(&after[..=semi]);
-        }
-        rest = &after[semi + 1..];
-    }
-    out.push_str(rest);
-    Cow::Owned(out)
-}
-
-fn decode_entity(entity: &str) -> Option<char> {
-    match entity {
-        "amp" => Some('&'),
-        "lt" => Some('<'),
-        "gt" => Some('>'),
-        "quot" => Some('"'),
-        "apos" | "#39" => Some('\''),
-        _ if entity.starts_with("#x") || entity.starts_with("#X") => {
-            u32::from_str_radix(&entity[2..], 16)
-                .ok()
-                .and_then(char::from_u32)
-        }
-        _ if entity.starts_with('#') => entity[1..].parse().ok().and_then(char::from_u32),
-        _ => None,
-    }
+    normalize_ws(decode_html_entities(&note).as_ref())
 }
 
 fn resolve_baseline(

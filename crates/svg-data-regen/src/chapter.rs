@@ -7,13 +7,12 @@
 //! time from `definitions.xml`, so the structural content model is extracted
 //! from there, not here.) This module turns one page into a typed record.
 
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::Serialize;
 use tl::{HTMLTag, Parser, ParserOptions};
 
-use crate::util::is_keyword_token;
+use crate::util::{is_keyword_token, normalize_html_ws as normalize_ws};
 
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -841,63 +840,6 @@ fn attr(tag: &HTMLTag, key: &str) -> Option<String> {
     }
 }
 
-/// Decode HTML entities, then collapse whitespace runs into single spaces.
-///
-/// `tl`'s `inner_text` returns text verbatim (entities undecoded), so value
-/// grammars come back as `auto | &lt;length-percentage&gt;`; this restores them
-/// to `auto | <length-percentage>`.
-fn normalize_ws(text: &str) -> String {
-    decode_entities(text)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Decode the HTML entities the spec text uses (named basics plus numeric
-/// references) in a single pass, leaving unrecognized `&...;` runs verbatim.
-fn decode_entities(input: &str) -> Cow<'_, str> {
-    if !input.contains('&') {
-        return Cow::Borrowed(input);
-    }
-    let mut out = String::with_capacity(input.len());
-    let mut rest = input;
-    while let Some(amp) = rest.find('&') {
-        out.push_str(&rest[..amp]);
-        let after = &rest[amp..];
-        if let Some(semi) = after.find(';')
-            && let Some(decoded) = decode_entity(&after[1..semi])
-        {
-            out.push(decoded);
-            rest = &after[semi + 1..];
-            continue;
-        }
-        out.push('&');
-        rest = &after[1..];
-    }
-    out.push_str(rest);
-    Cow::Owned(out)
-}
-
-/// Decode one entity body (the text between `&` and `;`).
-fn decode_entity(entity: &str) -> Option<char> {
-    match entity {
-        "amp" => Some('&'),
-        "lt" => Some('<'),
-        "gt" => Some('>'),
-        "quot" => Some('"'),
-        "apos" => Some('\''),
-        "nbsp" => Some('\u{00A0}'),
-        _ => {
-            let code = entity.strip_prefix('#')?;
-            let value = match code.strip_prefix(['x', 'X']) {
-                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-                None => code.parse().ok()?,
-            };
-            char::from_u32(value)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -938,13 +880,28 @@ mod tests {
 
     #[test]
     fn decode_entities_handles_named_and_numeric() {
-        assert_eq!(decode_entities("a&lt;b&gt;c").as_ref(), "a<b>c");
-        assert_eq!(decode_entities("&amp;&quot;").as_ref(), "&\"");
-        assert_eq!(decode_entities("x&#65;y").as_ref(), "xAy");
-        assert_eq!(decode_entities("x&#x41;y").as_ref(), "xAy");
-        assert_eq!(decode_entities("plain text").as_ref(), "plain text");
+        assert_eq!(
+            crate::util::decode_html_entities("a&lt;b&gt;c").as_ref(),
+            "a<b>c"
+        );
+        assert_eq!(
+            crate::util::decode_html_entities("&amp;&quot;").as_ref(),
+            "&\""
+        );
+        assert_eq!(crate::util::decode_html_entities("x&#65;y").as_ref(), "xAy");
+        assert_eq!(
+            crate::util::decode_html_entities("x&#x41;y").as_ref(),
+            "xAy"
+        );
+        assert_eq!(
+            crate::util::decode_html_entities("plain text").as_ref(),
+            "plain text"
+        );
         // Unrecognized entity body is left verbatim.
-        assert_eq!(decode_entities("a&bogus;b").as_ref(), "a&bogus;b");
+        assert_eq!(
+            crate::util::decode_html_entities("a&bogus;b").as_ref(),
+            "a&bogus;b"
+        );
     }
 
     #[test]
