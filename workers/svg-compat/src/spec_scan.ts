@@ -207,8 +207,11 @@ export function parseDefinitionsXml(
 	const { lineStarts } = indexLines(content);
 	const facts: SpecFact[] = [];
 	DEFINITION_TAG.lastIndex = 0;
-	let match: RegExpExecArray | null;
-	while ((match = DEFINITION_TAG.exec(content)) !== null) {
+	for (
+		let match = DEFINITION_TAG.exec(content);
+		match !== null;
+		match = DEFINITION_TAG.exec(content)
+	) {
 		const [fullMatch, tag, name] = match;
 		const kind = tag as FeatureKind;
 		facts.push({
@@ -244,8 +247,11 @@ export function parseTextHtmlOverrides(
 	// Find all h4 property-section boundaries.
 	const headings: Array<{ name: string; start: number; headingText: string }> = [];
 	const headingRe = new RegExp(TEXT_HTML_H4_PROPERTY.source, 'gi');
-	let headingMatch: RegExpExecArray | null;
-	while ((headingMatch = headingRe.exec(content)) !== null) {
+	for (
+		let headingMatch = headingRe.exec(content);
+		headingMatch !== null;
+		headingMatch = headingRe.exec(content)
+	) {
 		headings.push({
 			name: headingMatch[2],
 			start: headingMatch.index,
@@ -258,9 +264,12 @@ export function parseTextHtmlOverrides(
 	// variant heading forms. Safe because downstream dedupes by name.
 	const genericHeadingRe =
 		/<h4\s+[^>]*>\s*The\s*<span[^>]*class=['"]property['"][^>]*>'?([^<']+)'?<\/span>[^<]*<\/h4>/gi;
-	let generic: RegExpExecArray | null;
-	while ((generic = genericHeadingRe.exec(content)) !== null) {
-		if (!headings.some((h) => h.start === generic!.index)) {
+	for (
+		let generic = genericHeadingRe.exec(content);
+		generic !== null;
+		generic = genericHeadingRe.exec(content)
+	) {
+		if (!headings.some((h) => h.start === generic.index)) {
 			headings.push({
 				name: generic[1],
 				start: generic.index,
@@ -279,8 +288,11 @@ export function parseTextHtmlOverrides(
 		// Walk `<p[^>]*>...</p>` blocks inside the section. Stop at the
 		// first one that contains a status sentence; ignore the rest.
 		const paragraphRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
-		let p: RegExpExecArray | null;
-		while ((p = paragraphRe.exec(sectionBody)) !== null) {
+		for (
+			let p = paragraphRe.exec(sectionBody);
+			p !== null;
+			p = paragraphRe.exec(sectionBody)
+		) {
 			const body = p[1];
 			if (HAS_BEEN_REMOVED.test(body)) {
 				const absoluteOffset = heading.start + p.index;
@@ -333,16 +345,22 @@ export function parseChangesLog(
 	const facts: SpecFact[] = [];
 
 	REMOVED_LI.lastIndex = 0;
-	let liMatch: RegExpExecArray | null;
-	while ((liMatch = REMOVED_LI.exec(content)) !== null) {
+	for (
+		let liMatch = REMOVED_LI.exec(content);
+		liMatch !== null;
+		liMatch = REMOVED_LI.exec(content)
+	) {
 		const [, body] = liMatch;
 		const liStartOffset = liMatch.index;
 		const liLine = lineAtOffset(lineStarts, liStartOffset);
 
 		// Extract every classed span inside this removal entry.
 		const spanRe = new RegExp(REMOVED_SPAN.source, 'g');
-		let span: RegExpExecArray | null;
-		while ((span = spanRe.exec(body)) !== null) {
+		for (
+			let span = spanRe.exec(body);
+			span !== null;
+			span = spanRe.exec(body)
+		) {
 			const [, spanClass, rawName] = span;
 			const kind: FeatureKind = spanClass === 'attr-name' ? 'attribute' : spanClass as FeatureKind;
 			const name = rawName.trim();
@@ -363,9 +381,14 @@ export function parseChangesLog(
 	return facts;
 }
 
-/** Strip HTML tags for provenance display. Preserves only text nodes. */
+/** Strip HTML tags, comments, and CDATA for provenance display. */
 function stripHtml(input: string): string {
-	return input.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+	return input
+		.replace(/<!--[\s\S]*?-->/g, '')
+		.replace(/<!\[CDATA\[[\s\S]*?\]\]>/gi, '')
+		.replace(/<[^>]+>/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
 }
 
 /**

@@ -161,6 +161,7 @@ const server: Server = {
 
 		if (
 			url.pathname === '/style.css'
+			|| url.pathname === '/dev-reload.mjs'
 			|| url.pathname === '/version-picker.mjs'
 			|| url.pathname === '/table-filter.mjs'
 			|| url.pathname === '/table-columns.mjs'

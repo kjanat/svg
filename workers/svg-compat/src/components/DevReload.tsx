@@ -8,15 +8,10 @@ interface Props {
  * page when the BOOT timestamp changes. Only emitted when `dev` is true,
  * so production pages never ship this script.
  *
- * CSP note: this is an inline script. http.ts adds `'unsafe-inline'` to
- * script-src only when DEV is true, so this component only renders under
- * the same condition.
+ * CSP note: this loads a static module and passes BOOT via a data attribute,
+ * avoiding inline script construction in rendered HTML.
  */
 export function DevReload({ dev, boot }: Props) {
 	if (!dev) return null;
-	const body =
-		`((b)=>{setInterval(()=>fetch("/__reload").then(r=>r.text()).then(t=>{if(t!==b){b=t;location.reload()}}),500)})(${
-			JSON.stringify(String(boot))
-		})`;
-	return <script dangerouslySetInnerHTML={{ __html: body }} />;
+	return <script type='module' src='/dev-reload.mjs' data-boot={String(boot)}></script>;
 }
