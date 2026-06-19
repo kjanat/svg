@@ -11,13 +11,22 @@ keywords.workspace   = true
 categories.workspace = true
 build                = "build.rs"
 
+[[bin]]
+name              = "spec-freshness"
+path              = "src/bin/spec-freshness.rs"
+required-features = ["freshness-cli"]
+
 [dependencies]
 serde      = { workspace = true }
 serde_json = { workspace = true }
+ureq       = { workspace = true, optional = true }
 
 [build-dependencies]
 serde      = { workspace = true }
 serde_json = { workspace = true }
+
+[features]
+freshness-cli = ["ureq"]
 
 [lints]
 workspace = true

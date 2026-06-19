@@ -16,6 +16,7 @@ use crate::{
         CatalogCompatSubfeatureKind, CatalogPackageSource,
     },
     fetch,
+    util::boxed,
 };
 
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
@@ -153,7 +154,7 @@ fn collect_element_facts(
                 continue;
             };
             let compat_key = format!("svg.elements.{element_name}.{attribute_name}");
-            let Some(canonical) = bcd_attribute_name(attribute_name, compat) else {
+            let Some(canonical) = bcd_attribute_name(attribute_name) else {
                 if let Some(kind) = unmodeled_feature_kind(attribute_name) {
                     unmodeled_features.push(CatalogCompatSubfeature {
                         compat_key: compat_key.clone(),
@@ -186,7 +187,7 @@ fn collect_global_attribute_facts(
         let Some(compat) = attribute_data.pointer("/__compat") else {
             continue;
         };
-        let Some(canonical) = bcd_attribute_name(attribute_name, compat) else {
+        let Some(canonical) = bcd_attribute_name(attribute_name) else {
             continue;
         };
         let facts = facts_from_compat(
@@ -389,6 +390,11 @@ fn normalize_support_note(note: &str) -> String {
         .join(" ")
 }
 
+/// Decode entities in BCD/MDN prose.
+///
+/// This intentionally differs from the SVG chapter grammar decoder: BCD text is
+/// human prose from MDN, so unknown entities are preserved verbatim and the
+/// legacy HTML `&#39;` apostrophe spelling is accepted.
 fn decode_entities(input: &str) -> Cow<'_, str> {
     if !input.contains('&') {
         return Cow::Borrowed(input);
@@ -691,8 +697,7 @@ fn year_from_date(date: &str) -> Option<u16> {
     date.get(..4)?.parse().ok()
 }
 
-fn bcd_attribute_name(name: &str, compat: &Value) -> Option<String> {
-    let _ = compat;
+fn bcd_attribute_name(name: &str) -> Option<String> {
     if unmodeled_feature_kind(name).is_some() {
         return None;
     }
@@ -721,10 +726,6 @@ fn canonical_attribute_name(name: &str) -> Option<String> {
         "referrerPolicy" => Some("referrerpolicy".to_owned()),
         other => Some(other.to_owned()),
     }
-}
-
-fn boxed(message: &str) -> Box<dyn std::error::Error> {
-    Box::<dyn std::error::Error>::from(message.to_owned())
 }
 
 #[cfg(test)]
@@ -834,32 +835,13 @@ mod tests {
 
     #[test]
     fn bcd_attribute_names_are_normalized_and_subfeatures_skipped() {
-        let attribute_compat = serde_json::json!({
-            "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xml:lang"
-        });
-        let spec_only_attribute_compat = serde_json::json!({
-            "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementPathAttribute"
-        });
-        let subfeature_compat = serde_json::json!({
-            "description": "Load from data URI"
-        });
-        let xlink_href_compat = serde_json::json!({
-            "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:href"
-        });
-
+        assert_eq!(bcd_attribute_name("xml_lang").as_deref(), Some("xml:lang"));
         assert_eq!(
-            bcd_attribute_name("xml_lang", &attribute_compat).as_deref(),
-            Some("xml:lang")
-        );
-        assert_eq!(
-            bcd_attribute_name("data_attributes", &attribute_compat).as_deref(),
+            bcd_attribute_name("data_attributes").as_deref(),
             Some("data-*")
         );
-        assert_eq!(
-            bcd_attribute_name("path", &spec_only_attribute_compat).as_deref(),
-            Some("path")
-        );
-        assert_eq!(bcd_attribute_name("data_uri", &subfeature_compat), None);
-        assert_eq!(bcd_attribute_name("xlink_href", &xlink_href_compat), None);
+        assert_eq!(bcd_attribute_name("path").as_deref(), Some("path"));
+        assert_eq!(bcd_attribute_name("data_uri"), None);
+        assert_eq!(bcd_attribute_name("xlink_href"), None);
     }
 }

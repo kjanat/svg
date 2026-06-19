@@ -99,7 +99,9 @@ Why it matters: SVG Native data exists, but not as product functionality. Diagno
 
 Suggested fix: model configured target as a real ADT, for example `Snapshot(SpecSnapshotId)` versus `Profile(SvgNative)`, then apply profile constraints in lint/completion/hover.
 
-### 6. Medium - freshness automation detects drift but does not update data
+### 6. RESOLVED - Medium - freshness automation detects drift but does not update data
+
+Status: RESOLVED - `.github/workflows/spec-freshness.yml` now includes an auto-refresh path that re-vendors sources, regenerates schemas, gates on tests, and opens a review PR when drift is path-relevant.
 
 Files: `.github/workflows/spec-freshness.yml:58-92`, `crates/svg-language-server/src/freshness.rs:35-54`, `crates/svg-language-server/src/lib.rs:668-684`
 
@@ -159,7 +161,9 @@ Why it matters: the PR claims automated CI quality control, but there is no gene
 
 Suggested fix: add a CI workflow for PRs that runs `just verify` after fixing it, plus Deno worker checks if they stay outside verify.
 
-### 11. Medium - freshness CI ignores BCD/web-features drift
+### 11. RESOLVED - Medium - freshness CI ignores BCD/web-features drift
+
+Status: RESOLVED - `.github/workflows/spec-freshness.yml` now runs the compat drift mode and threads the result into the same drift classification/refresh path.
 
 Files: `.github/workflows/spec-freshness.yml:30-36`, `crates/svg-data/src/bin/spec-freshness.rs:1-19`, `crates/svg-data/src/bin/spec-freshness.rs:90-160`, `crates/svg-data/build/bcd.rs:12-21`
 
@@ -171,7 +175,9 @@ Why it matters: BCD/web-features freshness is part of the stated goal, but stale
 
 Suggested fix: add a compat freshness sentinel that compares the vendored versions against latest `@mdn/browser-compat-data` and `web-features`, and include it in the scheduled workflow.
 
-### 12. Medium - freshness sentinel network calls/workflow lack timeouts
+### 12. PARTIAL / STALE - Medium - freshness sentinel network calls/workflow lack timeouts
+
+Status: PARTIAL / STALE - the workflow now has `timeout-minutes`; the referenced `crates/svg-data/src/bin/spec-freshness.rs` path is not present in the current tree, so the old CLI-specific evidence no longer matches current code.
 
 Files: `crates/svg-data/src/bin/spec-freshness.rs:71-88`, `.github/workflows/spec-freshness.yml:21-36`
 
@@ -267,7 +273,9 @@ Why it matters: agents and contributors will get wrong guidance about a now-live
 
 Suggested fix: update the build knowledge base to describe `spec.rs` as the hermetic description extractor.
 
-### 20. Low - `spec-freshness.yml` comment still says SVGWG `master`
+### 20. RESOLVED - Low - `spec-freshness.yml` comment still says SVGWG `master`
+
+Status: RESOLVED - the workflow comment now says the editor's-draft default branch is resolved dynamically.
 
 File: `.github/workflows/spec-freshness.yml:3-10`
 

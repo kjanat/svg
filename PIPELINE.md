@@ -52,10 +52,9 @@ flowchart TD
     seed -.regenerates.-> specs
     build --> catalog --> api --> comp & lint
 
-    propidx["propidx.html<br/>value enum source"]
-    spec_rs["build/spec.rs<br/>description extractor"]
-    svgwg --> propidx --> build
-    spec_rs --> build
+    propidx["propidx.html<br/>declared gap / migration target"]
+    spec_rs["build/spec.rs<br/>orphaned, not referenced"]
+    class propidx,spec_rs gap;
 
     classDef gap stroke-dasharray: 5 5,stroke:#c0392b;
 ```

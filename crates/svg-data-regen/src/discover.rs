@@ -9,6 +9,8 @@
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 
+use crate::util::boxed;
+
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
 /// A named base URL from the `<versions>` block (e.g. `this`, `latest`, `cvs`).
@@ -78,6 +80,7 @@ pub fn parse_publish(xml: &str) -> Fallible<PublishGraph> {
         }
     }
 
+    validate_publish_graph(&graph)?;
     Ok(graph)
 }
 
@@ -87,42 +90,56 @@ fn handle_element(element: &BytesStart, graph: &mut PublishGraph) -> Fallible<()
     match local.as_ref() {
         b"cvs" | b"cvs-single" | b"this" | b"this-single" | b"latest" | b"latestrec"
         | b"historyURL" => {
-            if let Some(href) = attribute(element, b"href")? {
-                graph.versions.push(VersionLink {
-                    name: local_name(element)?,
-                    href,
-                });
-            }
+            graph.versions.push(VersionLink {
+                name: local_name(element)?,
+                href: required_attribute(element, b"href")?,
+            });
         }
         b"definitions" => {
-            if let Some(href) = attribute(element, b"href")? {
-                graph.definitions.push(DefinitionsModule {
-                    href,
-                    base: attribute(element, b"base")?,
-                });
-            }
+            graph.definitions.push(DefinitionsModule {
+                href: required_attribute(element, b"href")?,
+                base: attribute(element, b"base")?,
+            });
         }
         b"chapter" => {
-            if let Some(name) = attribute(element, b"name")? {
-                graph.chapters.push(name);
-            }
+            graph.chapters.push(required_attribute(element, b"name")?);
         }
         b"appendix" => {
-            if let Some(name) = attribute(element, b"name")? {
-                graph.appendices.push(name);
-            }
+            graph.appendices.push(required_attribute(element, b"name")?);
         }
         b"toc" | b"elementindex" | b"attributeindex" | b"propertyindex" => {
-            if let Some(href) = attribute(element, b"href")? {
-                graph.references.push(VersionLink {
-                    name: local_name(element)?,
-                    href,
-                });
-            }
+            graph.references.push(VersionLink {
+                name: local_name(element)?,
+                href: required_attribute(element, b"href")?,
+            });
         }
         _ => {}
     }
     Ok(())
+}
+
+/// Validate that the manifest contained the graph sections this pipeline needs.
+fn validate_publish_graph(graph: &PublishGraph) -> Fallible<()> {
+    let mut missing = Vec::new();
+    if graph.maturity.trim().is_empty() {
+        missing.push("maturity");
+    }
+    if graph.versions.is_empty() {
+        missing.push("versions");
+    }
+    if graph.definitions.is_empty() {
+        missing.push("definitions");
+    }
+    if graph.chapters.is_empty() {
+        missing.push("chapters");
+    }
+    if missing.is_empty() {
+        return Ok(());
+    }
+    Err(boxed(format!(
+        "publish.xml missing required graph section(s): {}",
+        missing.join(", ")
+    )))
 }
 
 /// The element's local name as an owned `String`.
@@ -144,6 +161,18 @@ fn attribute(element: &BytesStart, key: &[u8]) -> Fallible<Option<String>> {
         }
     }
     Ok(None)
+}
+
+/// Required attribute value for manifest elements this pipeline consumes.
+fn required_attribute(element: &BytesStart, key: &[u8]) -> Fallible<String> {
+    let name = local_name(element)?;
+    let key_name = std::str::from_utf8(key).unwrap_or("<invalid>");
+    match attribute(element, key)? {
+        Some(value) if !value.trim().is_empty() => Ok(value),
+        _ => Err(boxed(format!(
+            "publish.xml <{name}> missing required `{key_name}` attribute"
+        ))),
+    }
 }
 
 #[cfg(test)]
@@ -195,5 +224,34 @@ mod tests {
         assert_eq!(graph.references.len(), 1);
         assert_eq!(graph.references[0].name, "toc");
         Ok(())
+    }
+
+    #[test]
+    fn rejects_missing_required_graph_sections() {
+        let Err(error) = parse_publish("<publish-conf><maturity/></publish-conf>") else {
+            panic!("empty manifest should fail validation");
+        };
+        assert!(
+            error.to_string().contains("definitions"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn rejects_missing_required_manifest_attributes() {
+        let Err(error) = parse_publish(
+            r"<publish-conf>
+              <maturity>ED</maturity>
+              <versions><cvs href='https://draft/'/></versions>
+              <definitions/>
+              <chapter name='intro'/>
+            </publish-conf>",
+        ) else {
+            panic!("definitions without href should fail validation");
+        };
+        assert!(
+            error.to_string().contains("missing required `href`"),
+            "unexpected error: {error}"
+        );
     }
 }

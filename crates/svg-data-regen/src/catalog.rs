@@ -17,6 +17,7 @@ use crate::{
     chapter::{AnchorDescription, PropertyValueDef},
     compat::CompatCatalog,
     extract::{AttributeRef, ContentModelKind, Definitions, PropertyDef},
+    util::is_keyword_token,
 };
 
 /// The full derived catalog kept in memory while writing split JSON files.
@@ -2410,14 +2411,6 @@ fn property_is_animatable(property: &PropertyValueDef) -> bool {
         animation_type.trim().to_ascii_lowercase().as_str(),
         "" | "no" | "none" | "not animatable"
     )
-}
-
-/// Whether a value grammar token is a bare keyword.
-fn is_keyword_token(token: &str) -> bool {
-    !token.is_empty()
-        && token
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
 /// Resolve `href` against a module base unless it is already absolute.

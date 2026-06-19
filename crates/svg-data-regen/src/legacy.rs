@@ -12,6 +12,7 @@ use crate::catalog::{
     CatalogAttributeValueOverride, CatalogAttributeValues, CatalogLegacySource,
     CatalogSpecSnapshotId,
 };
+use crate::util::{boxed, is_keyword_token, normalize_ws};
 
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -151,21 +152,6 @@ fn keyword_only_values(value: &str) -> Option<Vec<String>> {
     values.sort();
     values.dedup();
     Some(values)
-}
-
-fn is_keyword_token(token: &str) -> bool {
-    !token.is_empty()
-        && token
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-}
-
-fn normalize_ws(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn boxed(message: &str) -> Box<dyn std::error::Error> {
-    Box::<dyn std::error::Error>::from(message.to_owned())
 }
 
 #[cfg(test)]

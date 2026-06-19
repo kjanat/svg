@@ -10,6 +10,8 @@ use std::time::Duration;
 use serde_json::Value;
 use ureq::config::IpFamily;
 
+use crate::util::boxed;
+
 /// User agent GitHub requires on API requests.
 const USER_AGENT: &str = "svg-data-regen (+https://github.com/kjanat/svg-language-server)";
 /// Maximum body size accepted from a single fetch. Generous: the largest spec
@@ -100,21 +102,39 @@ pub fn raw_file(slug: &str, sha: &str, path: &str) -> Fallible<String> {
 /// Resolve an href relative to a repository directory, collapsing `.` and `..`
 /// segments so module hrefs like `../specs/animations/master/definitions.xml`
 /// resolve to a real repo path.
-pub fn resolve_repo_path(base_dir: &str, href: &str) -> String {
+pub fn resolve_repo_path(base_dir: &str, href: &str) -> Fallible<String> {
     let mut segments: Vec<&str> = base_dir.split('/').filter(|seg| !seg.is_empty()).collect();
     for part in href.split('/') {
         match part {
             "" | "." => {}
             ".." => {
-                segments.pop();
+                if segments.pop().is_none() {
+                    return Err(boxed(format!(
+                        "href `{href}` escapes repository root from `{base_dir}`"
+                    )));
+                }
             }
             other => segments.push(other),
         }
     }
-    segments.join("/")
+    Ok(segments.join("/"))
 }
 
-/// Wrap a static message as a boxed error.
-fn boxed(message: &str) -> Box<dyn std::error::Error> {
-    Box::<dyn std::error::Error>::from(message.to_owned())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_repo_paths_without_leaving_the_repo() -> Fallible<()> {
+        assert_eq!(
+            resolve_repo_path("master", "../specs/animations/master/definitions.xml")?,
+            "specs/animations/master/definitions.xml"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_repo_path_underflow() {
+        assert!(resolve_repo_path("", "../outside.xml").is_err());
+    }
 }

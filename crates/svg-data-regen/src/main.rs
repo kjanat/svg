@@ -24,6 +24,7 @@ mod inventory;
 mod legacy;
 mod provenance;
 mod schema;
+mod util;
 
 use std::{
     collections::BTreeSet,
@@ -128,7 +129,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     let mut macros = chapter::MacroIndex::default();
     let mut all_defs: Vec<extract::Definitions> = Vec::new();
     for module in &graph.definitions {
-        let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href);
+        let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href)?;
         let xml = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
         let defs = extract::extract_definitions(&xml, module.base.clone())?;
         println!(

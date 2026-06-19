@@ -7,6 +7,7 @@ use tl::{HTMLTag, Parser, ParserOptions};
 use crate::{
     catalog::{CatalogInventory, CatalogInventoryElement, CatalogSpecSnapshotId},
     extract::Definitions,
+    util::{boxed, normalize_ws},
 };
 
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
@@ -154,7 +155,7 @@ fn extract_element_index(html: &str) -> Fallible<BTreeSet<String>> {
     let dom = tl::parse(html, ParserOptions::default())?;
     let parser = dom.parser();
     let mut names = BTreeSet::new();
-    for tag in tags_with_class(&dom, parser, "element-name") {
+    for tag in tags_with_class(&dom, "element-name") {
         if let Some(name) = inventory_name_from_tag(tag, parser) {
             names.insert(name);
         }
@@ -169,7 +170,7 @@ fn extract_attribute_index(html: &str) -> Fallible<AttributeInventory> {
     let dom = tl::parse(html, ParserOptions::default())?;
     let parser = dom.parser();
     let mut attributes = BTreeSet::new();
-    for tag in tags_with_class(&dom, parser, "attr-name") {
+    for tag in tags_with_class(&dom, "attr-name") {
         if let Some(name) = inventory_name_from_tag(tag, parser) {
             attributes.insert(name);
         }
@@ -311,16 +312,15 @@ fn is_inventory_attribute_name(name: &str) -> bool {
 
 fn tags_with_class<'a>(
     dom: &'a tl::VDom<'a>,
-    parser: &'a Parser,
     class_name: &'a str,
 ) -> impl Iterator<Item = &'a HTMLTag<'a>> + 'a {
     dom.nodes()
         .iter()
         .filter_map(|node| node.as_tag())
-        .filter(move |tag| tag_has_class(tag, class_name, parser))
+        .filter(move |tag| tag_has_class(tag, class_name))
 }
 
-fn tag_has_class(tag: &HTMLTag, class_name: &str, _parser: &Parser) -> bool {
+fn tag_has_class(tag: &HTMLTag, class_name: &str) -> bool {
     tag.attributes().class().is_some_and(|class| {
         class
             .as_utf8_str()
@@ -356,14 +356,6 @@ fn inventory_elements(
 
 fn canonical_inventory_attribute_name(name: &str) -> String {
     crate::catalog::canonical_attribute_name(name).into_owned()
-}
-
-fn normalize_ws(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn boxed(message: &str) -> Box<dyn std::error::Error> {
-    Box::<dyn std::error::Error>::from(message.to_owned())
 }
 
 #[cfg(test)]

@@ -244,7 +244,7 @@ mod tests {
                 .iter()
                 .find(|document| document.file_name == file_name)
             else {
-                panic!("schema document {file_name} generated");
+                panic!("schema document {file_name} must be generated");
             };
             let schema: serde_json::Value = serde_json::from_str(&document.json)?;
             assert_eq!(

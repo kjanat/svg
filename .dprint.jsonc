@@ -1,5 +1,7 @@
 {
-	"extends": ["https://github.com/kjanat/kjanat/raw/HEAD/configs/dprint.remote.json"],
+	"extends": [
+		"https://github.com/kjanat/kjanat/raw/83172bacbfaf02e8ea419492ed3899b5ce806a9d/configs/dprint.remote.json"
+	],
 	"useTabs": true,
 	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
 	"json": {

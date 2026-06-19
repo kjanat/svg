@@ -13,6 +13,8 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use tl::{HTMLTag, Parser, ParserOptions};
 
+use crate::util::is_keyword_token;
+
 type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
 /// An `id` anchor: a permalink target within a chapter.
@@ -438,6 +440,9 @@ fn find_first(haystack: &str, needles: &[&str]) -> Option<usize> {
 }
 
 fn strip_tags(html: &str) -> String {
+    // This is not a general HTML tokenizer. It is only used on controlled W3C
+    // snippets where `<` inside attribute values is not expected in the text
+    // fragments we strip.
     let mut text = String::with_capacity(html.len());
     let mut in_tag = false;
     for ch in html.chars() {
@@ -784,14 +789,6 @@ fn value_keywords(value: &str) -> Vec<String> {
         .filter(|token| is_keyword_token(token))
         .map(str::to_owned)
         .collect()
-}
-
-/// Whether a value token is a bare keyword (letters, digits, hyphens only).
-fn is_keyword_token(token: &str) -> bool {
-    !token.is_empty()
-        && token
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
 /// Whether `tag` carries `class` among its space-separated class list.

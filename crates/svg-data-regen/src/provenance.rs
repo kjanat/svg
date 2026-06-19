@@ -27,17 +27,20 @@ pub struct BaseUrls {
 impl BaseUrls {
     /// Distil the typed permalink bases from the raw `<versions>` links.
     pub fn from_links(links: &[VersionLink]) -> Self {
-        let find = |name: &str| {
+        let find = |primary: &str, fallback: Option<&str>| {
             links
                 .iter()
-                .find(|link| link.name == name)
+                .find(|link| link.name == primary)
+                .or_else(|| {
+                    fallback.and_then(|fallback| links.iter().find(|link| link.name == fallback))
+                })
                 .map(|link| link.href.clone())
         };
         Self {
-            editors_draft: find("cvs"),
-            dated: find("this"),
-            latest: find("latest"),
-            latest_rec: find("latestrec"),
+            editors_draft: find("cvs", Some("cvs-single")),
+            dated: find("this", Some("this-single")),
+            latest: find("latest", None),
+            latest_rec: find("latestrec", None),
         }
     }
 }
