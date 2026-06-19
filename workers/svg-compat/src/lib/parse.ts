@@ -22,7 +22,7 @@
  * @module
  */
 
-import { isRecord, type JsonRecord } from "../sources.ts";
+import { isRecord, type JsonRecord } from '../sources.ts';
 import type {
 	Baseline,
 	BaselineDate,
@@ -31,9 +31,9 @@ import type {
 	BrowserVersion,
 	CompatEntry,
 	VersionQualifier,
-} from "./types.ts";
+} from './types.ts';
 
-const WEB_FEATURE_KIND_FEATURE = "feature";
+const WEB_FEATURE_KIND_FEATURE = 'feature';
 
 const loggedWarnings = new Set<string>();
 
@@ -42,10 +42,10 @@ const loggedWarnings = new Set<string>();
  * key `warnOnce` so identical unknowns don't spam the log.
  */
 export function stringifyUnknown(value: unknown): string {
-	if (typeof value === "string") return JSON.stringify(value);
-	if (typeof value === "number" || typeof value === "boolean") return String(value);
-	if (value === null) return "null";
-	if (value === undefined) return "undefined";
+	if (typeof value === 'string') return JSON.stringify(value);
+	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+	if (value === null) return 'null';
+	if (value === undefined) return 'undefined';
 	try {
 		return JSON.stringify(value);
 	} catch {
@@ -66,16 +66,16 @@ export function _resetLoggedWarnings(): void {
 }
 
 export function getString(value: unknown): string | undefined {
-	return typeof value === "string" ? value : undefined;
+	return typeof value === 'string' ? value : undefined;
 }
 
 export function getBoolean(value: unknown): boolean | undefined {
-	return typeof value === "boolean" ? value : undefined;
+	return typeof value === 'boolean' ? value : undefined;
 }
 
 export function getStringArray(value: unknown): string[] | undefined {
 	if (!Array.isArray(value)) return undefined;
-	const strings = value.filter((entry): entry is string => typeof entry === "string");
+	const strings = value.filter((entry): entry is string => typeof entry === 'string');
 	return strings.length === value.length ? strings : undefined;
 }
 
@@ -88,7 +88,7 @@ export function getRecordProperty(record: JsonRecord, key: string): JsonRecord |
 }
 
 export function getCompat(node: JsonRecord): JsonRecord | undefined {
-	return getRecordProperty(node, "__compat");
+	return getRecordProperty(node, '__compat');
 }
 
 /**
@@ -101,14 +101,14 @@ export function getCompat(node: JsonRecord): JsonRecord | undefined {
  * Extend this table when that happens — `parseBaselineDate` will warn on any
  * unknown prefix until it's added here.
  */
-const KNOWN_DATE_PREFIXES: Record<string, BaselineDate["qualifier"]> = {
-	"≤": "before",
-	"<": "before",
-	"<=": "before",
-	"≥": "after",
-	">": "after",
-	">=": "after",
-	"~": "approximately",
+const KNOWN_DATE_PREFIXES: Record<string, BaselineDate['qualifier']> = {
+	'≤': 'before',
+	'<': 'before',
+	'<=': 'before',
+	'≥': 'after',
+	'>': 'after',
+	'>=': 'after',
+	'~': 'approximately',
 };
 
 /**
@@ -168,7 +168,7 @@ export function parseBaselineDate(
 			stringifyUnknown(raw)
 		}) — treating as "approximately". Add it to KNOWN_DATE_PREFIXES if it should map to "before" or "after".`,
 	);
-	return { raw, date: isoDate, qualifier: "approximately" };
+	return { raw, date: isoDate, qualifier: 'approximately' };
 }
 
 /**
@@ -208,12 +208,12 @@ export function parseBaseline(
 	if (baselineValue === false) {
 		// "limited" tier normally has no dates; preserve any that
 		// upstream did include rather than dropping them.
-		return { status: "limited", low_date: low, high_date: high };
+		return { status: 'limited', low_date: low, high_date: high };
 	}
 
-	if (baselineValue === "high") {
+	if (baselineValue === 'high') {
 		return {
-			status: "widely",
+			status: 'widely',
 			since: high ? yearOfBaselineDate(high) : undefined,
 			since_qualifier: high?.qualifier,
 			low_date: low,
@@ -221,9 +221,9 @@ export function parseBaseline(
 		};
 	}
 
-	if (baselineValue === "low") {
+	if (baselineValue === 'low') {
 		return {
-			status: "newly",
+			status: 'newly',
 			since: low ? yearOfBaselineDate(low) : undefined,
 			since_qualifier: low?.qualifier,
 			low_date: low,
@@ -240,7 +240,7 @@ export function parseBaseline(
 		} for "${compatKey}". Falling back to "limited" and preserving as raw_status.`,
 	);
 	return {
-		status: "limited",
+		status: 'limited',
 		raw_status: stringifyUnknown(baselineValue),
 		low_date: low,
 		high_date: high,
@@ -256,25 +256,25 @@ export function extractBaseline(
 	const tags = getStringArray(compat.tags);
 	if (!tags) return undefined;
 
-	const featureTag = tags.find((tag) => tag.startsWith("web-features:"));
+	const featureTag = tags.find((tag) => tag.startsWith('web-features:'));
 	if (!featureTag) return undefined;
 
-	const featureId = featureTag.slice("web-features:".length);
+	const featureId = featureTag.slice('web-features:'.length);
 	const feature = getRecordProperty(featureMap, featureId);
 	if (!feature) return undefined;
 	const featureKind = getString(feature.kind);
 	if (featureKind !== WEB_FEATURE_KIND_FEATURE) {
 		warnOnce(
-			`wf-kind:${featureKind ?? "<missing>"}`,
+			`wf-kind:${featureKind ?? '<missing>'}`,
 			`svg-compat: unsupported web-features kind ${stringifyUnknown(featureKind)} for "${featureId}".`,
 		);
 		return undefined;
 	}
 
-	const status = getRecordProperty(feature, "status");
+	const status = getRecordProperty(feature, 'status');
 	if (!status) return undefined;
 
-	const byCompatKey = getRecordProperty(status, "by_compat_key");
+	const byCompatKey = getRecordProperty(status, 'by_compat_key');
 	const overrideStatus = byCompatKey ? getRecordProperty(byCompatKey, compatKey) : undefined;
 	if (overrideStatus) return parseBaseline(overrideStatus, compatKey);
 
@@ -287,13 +287,13 @@ export function extractBaseline(
  * before / at or after" semantics as baseline dates.
  */
 const KNOWN_VERSION_PREFIXES: Record<string, VersionQualifier> = {
-	"≤": "before",
-	"<": "before",
-	"<=": "before",
-	"≥": "after",
-	">": "after",
-	">=": "after",
-	"~": "approximately",
+	'≤': 'before',
+	'<': 'before',
+	'<=': 'before',
+	'≥': 'after',
+	'>': 'after',
+	'>=': 'after',
+	'~': 'approximately',
 };
 
 interface ParsedVersionString {
@@ -331,13 +331,13 @@ function parseBrowserVersionString(
 			stringifyUnknown(raw)
 		}) for "${compatKey}" — treating as "approximately". Add it to KNOWN_VERSION_PREFIXES if it should map to "before" or "after".`,
 	);
-	return { version: body, qualifier: "approximately" };
+	return { version: body, qualifier: 'approximately' };
 }
 
 function parseBrowserNotes(value: unknown): string[] | undefined {
-	if (typeof value === "string") return [value];
+	if (typeof value === 'string') return [value];
 	if (!Array.isArray(value)) return undefined;
-	const notes = value.filter((entry): entry is string => typeof entry === "string");
+	const notes = value.filter((entry): entry is string => typeof entry === 'string');
 	return notes.length > 0 ? notes : undefined;
 }
 
@@ -403,10 +403,10 @@ export function parseBrowserVersion(
 	}
 
 	const rawAdded = stmt.version_added;
-	let raw_value_added: BrowserVersion["raw_value_added"];
+	let raw_value_added: BrowserVersion['raw_value_added'];
 	if (
-		typeof rawAdded === "string"
-		|| typeof rawAdded === "boolean"
+		typeof rawAdded === 'string'
+		|| typeof rawAdded === 'boolean'
 		|| rawAdded === null
 	) {
 		raw_value_added = rawAdded;
@@ -422,7 +422,7 @@ export function parseBrowserVersion(
 
 	const result: BrowserVersion = { raw_value_added };
 
-	if (typeof raw_value_added === "string") {
+	if (typeof raw_value_added === 'string') {
 		const parsed = parseBrowserVersionString(raw_value_added, compatKey);
 		if (parsed) {
 			result.version_added = parsed.version;
@@ -462,13 +462,13 @@ export function extractBrowserSupport(
 	compat: JsonRecord,
 	compatKey: string,
 ): BrowserSupport | undefined {
-	const support = getRecordProperty(compat, "support");
+	const support = getRecordProperty(compat, 'support');
 	if (!support) return undefined;
 
-	const chrome = parseBrowserVersion(support.chrome, "chrome", compatKey);
-	const edge = parseBrowserVersion(support.edge, "edge", compatKey);
-	const firefox = parseBrowserVersion(support.firefox, "firefox", compatKey);
-	const safari = parseBrowserVersion(support.safari, "safari", compatKey);
+	const chrome = parseBrowserVersion(support.chrome, 'chrome', compatKey);
+	const edge = parseBrowserVersion(support.edge, 'edge', compatKey);
+	const firefox = parseBrowserVersion(support.firefox, 'firefox', compatKey);
+	const safari = parseBrowserVersion(support.safari, 'safari', compatKey);
 
 	if (
 		chrome === undefined
@@ -489,9 +489,9 @@ export function extractBrowserSupport(
 
 export function extractSpecUrls(compat: JsonRecord): string[] {
 	const url = compat.spec_url;
-	if (typeof url === "string") return [url];
+	if (typeof url === 'string') return [url];
 	if (!Array.isArray(url)) return [];
-	return url.filter((entry): entry is string => typeof entry === "string");
+	return url.filter((entry): entry is string => typeof entry === 'string');
 }
 
 /** Builds a {@linkcode CompatEntry} from a BCD `__compat` node and web-features lookup. */
@@ -500,7 +500,7 @@ export function makeCompatEntry(
 	featureMap: JsonRecord,
 	compatKey: string,
 ): CompatEntry {
-	const status = getRecordProperty(compat, "status");
+	const status = getRecordProperty(compat, 'status');
 	return {
 		description: getString(compat.description),
 		mdn_url: getString(compat.mdn_url),

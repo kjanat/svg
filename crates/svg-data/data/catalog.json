@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "commit": "3c69f0f79087ec4ac37a7653e25dbe2ebc7f04d1",
+  "core": {
+    "href": "catalog.core.json"
+  },
+  "compat": {
+    "href": "catalog.compat.json"
+  },
+  "graph": {
+    "href": "catalog.graph.json"
+  },
+  "snapshots": [
+    {
+      "profile": "Svg11Rec20030114",
+      "href": "snapshots/svg11-rec-20030114.json"
+    },
+    {
+      "profile": "Svg11Rec20110816",
+      "href": "snapshots/svg11-rec-20110816.json"
+    },
+    {
+      "profile": "Svg2Cr20181004",
+      "href": "snapshots/svg2-cr-20181004.json"
+    },
+    {
+      "profile": "Svg2EditorsDraft",
+      "href": "snapshots/svg2-editors-draft.json"
+    }
+  ]
+}

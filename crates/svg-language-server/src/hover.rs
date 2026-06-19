@@ -259,7 +259,9 @@ impl CompatMarkdownBuilder {
     }
 
     fn description(&mut self, line: String) -> &mut Self {
-        self.sections.push(HoverSection::Description(line));
+        if !line.is_empty() {
+            self.sections.push(HoverSection::Description(line));
+        }
         self
     }
 
@@ -346,8 +348,39 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
             format!("Alignments: `{}`", alignments.join("` | `")),
             format!("Scaling: `{}`", meet_or_slice.join("` | `")),
         ],
+        svg_data::AttributeValues::CssGrammar { grammar, graph } => {
+            let mut lines = vec![format!("Grammar: `{grammar}`")];
+            let keywords = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Keyword);
+            if !keywords.is_empty() {
+                lines.push(format!("Keywords: `{}`", keywords.join("` | `")));
+            }
+            let types = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Type);
+            if !types.is_empty() {
+                lines.push(format!("Types: `{}`", types.join("` | `")));
+            }
+            let functions = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Function);
+            if !functions.is_empty() {
+                lines.push(format!("Functions: `{}`", functions.join("` | `")));
+            }
+            lines
+        }
         _ => Vec::new(),
     }
+}
+
+fn css_graph_node_text(
+    graph: &svg_data::CssGrammarGraph,
+    kind: svg_data::CssGrammarNodeKind,
+) -> Vec<&'static str> {
+    let mut values: Vec<&'static str> = graph
+        .nodes
+        .iter()
+        .filter(|node| node.kind == kind)
+        .filter_map(|node| node.text)
+        .collect();
+    values.sort_unstable();
+    values.dedup();
+    values
 }
 
 pub fn format_element_hover_with_profile(
@@ -355,40 +388,41 @@ pub fn format_element_hover_with_profile(
     profile: SpecSnapshotId,
     profile_lifecycle: Option<String>,
     rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
     let baseline = rt
         .and_then(|r| r.baseline.as_ref())
         .or(el.baseline.as_ref());
-    // The pre-computed verdict is the single source of truth for
+    // The catalog-derived verdict is the single source of truth for
     // headline + status.
     let verdict = svg_data::compat_verdict_for_element(el, profile);
 
     let mut builder = CompatMarkdownBuilder::new();
 
-    if let Some(v) = verdict {
+    if let Some(v) = verdict.as_ref() {
         builder.headline(format_verdict_headline(v, el.name));
     }
     builder.description(el.description.to_owned());
 
-    if let Some(v) = verdict
-        && let Some(status) = format_verdict_status(v)
+    if native.is_some_and(|n| n.is_unsupported(svg_data::profile::ConstraintKind::Element, el.name))
     {
+        builder.status("⚠ Not supported by the SVG Native profile".to_owned());
+    }
+
+    if let Some(status) = reconciled_status(verdict.as_ref(), profile_lifecycle, rt) {
         builder.status(status);
-    } else if let Some(profile_lifecycle) = profile_lifecycle {
-        // Only fall back to the legacy profile lifecycle line when the
-        // verdict layer has nothing to say — avoids contradictions like
-        // "**Deprecated**" + "**Stable in Svg2EditorsDraft20250914**".
-        builder.status(profile_lifecycle);
     }
 
     if let Some(baseline) = baseline {
         builder.baseline(format_baseline(*baseline));
     }
 
-    builder.browser_chips(format_browser_support_line(
+    if let Some(line) = format_browser_support_line(
         el.browser_support.as_ref(),
         rt.and_then(|r| r.browser_support.as_ref()),
-    ));
+    ) {
+        builder.browser_chips(line);
+    }
 
     if let Some(notes) = format_browser_notes_list(el.browser_support.as_ref()) {
         builder.browser_notes(notes);
@@ -406,50 +440,159 @@ pub fn format_element_hover_with_profile(
 /// overrides surface in the hover panel, then layers profile-lifecycle text,
 /// baseline status, and browser-support chips (optionally overridden by the
 /// runtime compat overlay `rt`) on top.
-pub fn format_attribute_hover_with_profile(
+pub fn format_attribute_hover_with_profile_name(
     attr: &svg_data::AttributeDef,
+    display_name: &str,
+    element_name: Option<&str>,
     profile: SpecSnapshotId,
     profile_lifecycle: Option<String>,
     rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
-    let baseline = rt
-        .and_then(|r| r.baseline.as_ref())
-        .or(attr.baseline.as_ref());
-    let verdict = svg_data::compat_verdict_for_attribute(attr, profile);
+    let verdict = svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile);
+    format_attribute_hover_with_verdict(
+        attr,
+        display_name,
+        element_name,
+        profile,
+        profile_lifecycle,
+        rt,
+        native,
+        verdict.as_ref(),
+    )
+}
+
+pub struct UnsupportedAttributeHoverProfile<'a> {
+    pub profile: SpecSnapshotId,
+    pub known_in: &'static [SpecSnapshotId],
+    pub profile_lifecycle: Option<String>,
+    pub rt: Option<&'a CompatOverride>,
+    pub native: Option<&'a svg_data::profile::SvgNative>,
+}
+
+pub fn format_unsupported_attribute_hover_with_profile_name(
+    attr: &svg_data::AttributeDef,
+    display_name: &str,
+    element_name: Option<&str>,
+    profile: UnsupportedAttributeHoverProfile<'_>,
+) -> String {
+    let verdict = profile_unsupported_attribute_verdict(
+        attr,
+        element_name,
+        profile.profile,
+        profile.known_in,
+    );
+    format_attribute_hover_with_verdict(
+        attr,
+        display_name,
+        element_name,
+        profile.profile,
+        profile.profile_lifecycle,
+        profile.rt,
+        profile.native,
+        Some(&verdict),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn format_attribute_hover_with_verdict(
+    attr: &svg_data::AttributeDef,
+    display_name: &str,
+    element_name: Option<&str>,
+    profile: SpecSnapshotId,
+    profile_lifecycle: Option<String>,
+    rt: Option<&CompatOverride>,
+    native: Option<&svg_data::profile::SvgNative>,
+    verdict: Option<&svg_data::CompatVerdict>,
+) -> String {
+    let facts = attr.compat_facts_for_element(element_name);
+    let baseline = rt.and_then(|r| r.baseline).or(facts.baseline);
 
     let mut builder = CompatMarkdownBuilder::new();
 
     if let Some(v) = verdict {
-        builder.headline(format_verdict_headline(v, attr.name));
+        builder.headline(format_verdict_headline(v, display_name));
+    } else {
+        builder.headline(format!("`{display_name}`"));
     }
     builder.description(attr.description.to_owned());
 
-    if let Some(v) = verdict
-        && let Some(status) = format_verdict_status(v)
-    {
+    if native.is_some_and(|n| {
+        n.is_unsupported(svg_data::profile::ConstraintKind::Attribute, attr.name)
+            || n.is_unsupported(svg_data::profile::ConstraintKind::Property, attr.name)
+    }) {
+        builder.status("⚠ Not supported by the SVG Native profile".to_owned());
+    }
+
+    if let Some(status) = reconciled_status(verdict, profile_lifecycle, rt) {
         builder.status(status);
-    } else if let Some(profile_lifecycle) = profile_lifecycle {
-        builder.status(profile_lifecycle);
     }
 
     builder.value_constraints(value_constraints_lines(attr.values_for_profile(profile)));
 
     if let Some(baseline) = baseline {
-        builder.baseline(format_baseline(*baseline));
+        builder.baseline(format_baseline(baseline));
     }
 
-    builder.browser_chips(format_browser_support_line(
-        attr.browser_support.as_ref(),
+    if let Some(line) = format_browser_support_line(
+        facts.browser_support.as_ref(),
         rt.and_then(|r| r.browser_support.as_ref()),
-    ));
+    ) {
+        builder.browser_chips(line);
+    }
 
-    if let Some(notes) = format_browser_notes_list(attr.browser_support.as_ref()) {
+    if let Some(notes) = format_browser_notes_list(facts.browser_support.as_ref()) {
         builder.browser_notes(notes);
     }
 
     builder.links(hover_link_list(attr.mdn_url, attr.spec_url));
 
     builder.build()
+}
+
+fn profile_unsupported_attribute_verdict(
+    attr: &svg_data::AttributeDef,
+    element_name: Option<&str>,
+    profile: SpecSnapshotId,
+    known_in: &'static [SpecSnapshotId],
+) -> svg_data::CompatVerdict {
+    let mut reasons =
+        svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile)
+            .map(|verdict| verdict.reasons)
+            .unwrap_or_default();
+
+    if let Some(last_seen) = last_known_before_profile(profile, known_in)
+        && !reasons
+            .iter()
+            .any(|reason| matches!(reason, svg_data::VerdictReason::ProfileObsolete { .. }))
+    {
+        reasons.push(svg_data::VerdictReason::ProfileObsolete { last_seen });
+    }
+
+    let headline_template = if reasons
+        .iter()
+        .any(|reason| matches!(reason, svg_data::VerdictReason::ProfileObsolete { .. }))
+    {
+        "removed from the current SVG profile"
+    } else {
+        "not in the current SVG profile"
+    };
+
+    svg_data::CompatVerdict {
+        recommendation: svg_data::VerdictRecommendation::Forbid,
+        headline_template,
+        reasons,
+    }
+}
+
+fn last_known_before_profile(
+    profile: SpecSnapshotId,
+    known_in: &'static [SpecSnapshotId],
+) -> Option<SpecSnapshotId> {
+    let selected_index = snapshot_index(profile)?;
+    known_in.iter().rev().copied().find(|known| {
+        snapshot_index(*known).is_some_and(|known_index| known_index < selected_index)
+    })
 }
 
 pub fn profile_lifecycle_hover_line<T>(
@@ -775,7 +918,7 @@ fn format_browser_notes_list(baked: Option<&BrowserSupport>) -> Option<Vec<Strin
 /// a left border + muted background, a clean attention-grabber. Clients
 /// that strip quoting still get the glyph + feature name + template text
 /// on the first line.
-fn format_verdict_headline(verdict: svg_data::CompatVerdict, feature_name: &str) -> String {
+fn format_verdict_headline(verdict: &svg_data::CompatVerdict, feature_name: &str) -> String {
     let glyph = match verdict.recommendation {
         svg_data::VerdictRecommendation::Safe => "\u{2713}", // ✓
         svg_data::VerdictRecommendation::Caution => "\u{26A0}", // ⚠
@@ -795,11 +938,80 @@ fn format_verdict_headline(verdict: svg_data::CompatVerdict, feature_name: &str)
     format!("> {glyph} `{feature_name}` — {template}")
 }
 
+/// Reconcile the user-facing **status** line across the catalog-derived
+/// verdict, the
+/// profile-lifecycle fallback, and the runtime BCD overlay (`rt`).
+///
+/// The catalog-derived verdict is the primary source. On top of it, fresher
+/// runtime BCD can introduce a `deprecated` / `experimental` flag the baked
+/// snapshot did not yet carry — e.g. BCD marks a feature deprecated *after* the catalog was
+/// generated. Those runtime-only signals are appended so the hover reflects the
+/// newer state instead of a stale "stable" verdict.
+///
+/// Resolution order:
+/// 1. If the catalog-derived verdict has reason tags, render them and append any
+///    runtime-only deprecated/experimental tag the verdict does not already
+///    cover.
+/// 2. Otherwise, if the runtime overlay alone reports deprecated/experimental,
+///    render that.
+/// 3. Otherwise, fall back to the legacy profile-lifecycle line.
+fn reconciled_status(
+    verdict: Option<&svg_data::CompatVerdict>,
+    profile_lifecycle: Option<String>,
+    rt: Option<&CompatOverride>,
+) -> Option<String> {
+    let runtime_tags = runtime_status_tags(verdict, rt);
+
+    if let Some(v) = verdict
+        && let Some(base) = format_verdict_status(v)
+    {
+        if runtime_tags.is_empty() {
+            return Some(base);
+        }
+        return Some(format!("{base} · {}", runtime_tags.join(" · ")));
+    }
+
+    if !runtime_tags.is_empty() {
+        return Some(format!("**Status:** {}", runtime_tags.join(" · ")));
+    }
+
+    // Only fall back to the legacy profile lifecycle line when neither the
+    // verdict layer nor the runtime overlay has anything to say — avoids
+    // contradictions like "**Deprecated**" + "**Stable in Svg2EditorsDraft**".
+    profile_lifecycle
+}
+
+/// Runtime-only deprecated/experimental tags the catalog-derived `verdict` does not
+/// already include. Empty when the runtime overlay is absent or adds nothing
+/// new, so callers can cheaply skip the append.
+fn runtime_status_tags(
+    verdict: Option<&svg_data::CompatVerdict>,
+    rt: Option<&CompatOverride>,
+) -> Vec<String> {
+    let Some(rt) = rt else {
+        return Vec::new();
+    };
+    let verdict_has =
+        |reason: svg_data::VerdictReason| verdict.is_some_and(|v| v.reasons.contains(&reason));
+
+    let mut tags = Vec::new();
+    if rt.deprecated && !verdict_has(svg_data::VerdictReason::BcdDeprecated) {
+        tags.push("deprecated (current BCD)".to_owned());
+    }
+    if rt.experimental && !verdict_has(svg_data::VerdictReason::BcdExperimental) {
+        tags.push("experimental (current BCD)".to_owned());
+    }
+    if rt.standard_track == Some(false) && !verdict_has(svg_data::VerdictReason::BcdNonStandard) {
+        tags.push("non-standard (current BCD)".to_owned());
+    }
+    tags
+}
+
 /// Render the verdict status line — one or more reason tags joined by
 /// ` · `. This consolidates the old split between `**Deprecated**` and
-/// `**Stable in Svg2EditorsDraft20250914**` into a single non-contradictory
+/// `**Stable in Svg2EditorsDraft**` into a single non-contradictory
 /// phrase sourced from the pre-reconciled verdict.
-fn format_verdict_status(verdict: svg_data::CompatVerdict) -> Option<String> {
+fn format_verdict_status(verdict: &svg_data::CompatVerdict) -> Option<String> {
     if verdict.reasons.is_empty() {
         return None;
     }
@@ -815,6 +1027,7 @@ fn format_verdict_reason(reason: svg_data::VerdictReason) -> String {
     match reason {
         svg_data::VerdictReason::BcdDeprecated => "deprecated".to_string(),
         svg_data::VerdictReason::BcdExperimental => "experimental".to_string(),
+        svg_data::VerdictReason::BcdNonStandard => "non-standard".to_string(),
         svg_data::VerdictReason::ProfileObsolete { last_seen } => {
             format!("removed after `{}`", last_seen.as_str())
         }
@@ -850,7 +1063,11 @@ fn format_verdict_reason(reason: svg_data::VerdictReason) -> String {
 fn format_browser_support_line(
     baked: Option<&BrowserSupport>,
     runtime: Option<&RuntimeBrowserSupport>,
-) -> String {
+) -> Option<String> {
+    if baked.is_none() && runtime.is_none() {
+        return None;
+    }
+
     let fmt = |name: &str,
                baked_ver: Option<BrowserVersion>,
                rt_ver: RuntimeBrowserOverride<'_>|
@@ -859,8 +1076,10 @@ fn format_browser_support_line(
             BrowserVersionView::Unsupported => format!("{name} \u{2717}"),
             BrowserVersionView::SupportedUnknown => format!("{name} supported"),
             BrowserVersionView::Version { version, qualifier } => {
-                let glyph = format_baseline_qualifier(qualifier);
-                format!("{name} {glyph}{version}")
+                format!(
+                    "{name} {}",
+                    format_version_with_qualifier(version, qualifier)
+                )
             }
         }
     };
@@ -888,7 +1107,16 @@ fn format_browser_support_line(
 
     // Prose-friendly bullet separator. The earlier `|` worked for a
     // fixed-width grid but reads as table syntax in rendered markdown.
-    format!("{chrome} · {edge} · {firefox} · {safari}")
+    Some(format!("{chrome} · {edge} · {firefox} · {safari}"))
+}
+
+fn format_version_with_qualifier(version: &str, qualifier: Option<BaselineQualifier>) -> String {
+    let glyph = format_baseline_qualifier(qualifier);
+    if glyph.is_empty() || version.starts_with(glyph) {
+        version.to_owned()
+    } else {
+        format!("{glyph}{version}")
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -974,7 +1202,6 @@ mod tests {
 
     fn bv_unknown() -> BrowserVersion {
         BrowserVersion {
-            raw_value_added: svg_data::RawVersionAdded::Flag(true),
             supported: Some(true),
             ..BrowserVersion::EMPTY
         }
@@ -982,7 +1209,6 @@ mod tests {
 
     fn bv_version(version: &'static str) -> BrowserVersion {
         BrowserVersion {
-            raw_value_added: svg_data::RawVersionAdded::Text(version),
             version_added: Some(version),
             ..BrowserVersion::EMPTY
         }
@@ -1000,7 +1226,24 @@ mod tests {
         // New separator is ` · ` (prose bullet) instead of ` | `.
         assert_eq!(
             format_browser_support_line(Some(&baked), None),
-            "Chrome supported · Edge ✗ · Firefox ✗ · Safari ✗"
+            Some("Chrome supported · Edge ✗ · Firefox ✗ · Safari ✗".to_owned())
+        );
+    }
+
+    #[test]
+    fn absent_browser_support_omits_chip_row() {
+        assert_eq!(format_browser_support_line(None, None), None);
+    }
+
+    #[test]
+    fn qualified_browser_versions_are_not_double_prefixed() {
+        assert_eq!(
+            format_version_with_qualifier("≤80", Some(BaselineQualifier::Before)),
+            "≤80"
+        );
+        assert_eq!(
+            format_version_with_qualifier("80", Some(BaselineQualifier::Before)),
+            "≤80"
         );
     }
 
@@ -1021,7 +1264,7 @@ mod tests {
 
         assert_eq!(
             format_browser_support_line(Some(&baked), Some(&runtime)),
-            "Chrome 120 · Edge ✗ · Firefox ✗ · Safari ✗"
+            Some("Chrome 120 · Edge ✗ · Firefox ✗ · Safari ✗".to_owned())
         );
     }
 
@@ -1029,7 +1272,7 @@ mod tests {
     fn unsupported_profile_hover_line_marks_obsolete_after_last_known_snapshot() {
         assert_eq!(
             profile_lifecycle_hover_line(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
                 &ProfileLookup::<()>::UnsupportedInProfile {
                     known_in: &[
                         SpecSnapshotId::Svg11Rec20030114,
@@ -1045,13 +1288,76 @@ mod tests {
     fn present_profile_hover_line_uses_selected_profile_lifecycle() {
         assert_eq!(
             profile_lifecycle_hover_line(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
+                SpecSnapshotId::Svg2EditorsDraft,
                 &ProfileLookup::Present {
-                    value: (),
+                    value: &(),
                     lifecycle: SpecLifecycle::Experimental,
                 },
             ),
-            Some("**Experimental in Svg2EditorsDraft20250914**".to_owned())
+            Some("**Experimental in Svg2EditorsDraft**".to_owned())
+        );
+    }
+
+    fn rt_flags(deprecated: bool, experimental: bool) -> CompatOverride {
+        CompatOverride {
+            deprecated,
+            experimental,
+            standard_track: None,
+            baseline: None,
+            browser_support: None,
+        }
+    }
+
+    #[test]
+    fn runtime_deprecation_surfaces_when_catalog_verdict_silent() {
+        // No catalog-derived verdict, no profile lifecycle: a fresher BCD
+        // `deprecated` flag must still reach the hover status.
+        let rt = rt_flags(true, false);
+        assert_eq!(
+            reconciled_status(None, None, Some(&rt)),
+            Some("**Status:** deprecated (current BCD)".to_owned())
+        );
+    }
+
+    #[test]
+    fn runtime_flag_appends_to_catalog_verdict_status() {
+        let verdict = svg_data::CompatVerdict {
+            recommendation: svg_data::VerdictRecommendation::Caution,
+            headline_template: "",
+            reasons: vec![svg_data::VerdictReason::BaselineLimited],
+        };
+        let rt = rt_flags(true, false);
+        // Catalog-derived verdict has no BcdDeprecated reason, so the runtime
+        // tag is added.
+        assert_eq!(
+            reconciled_status(Some(&verdict), None, Some(&rt)),
+            Some("**Status:** limited baseline · deprecated (current BCD)".to_owned())
+        );
+    }
+
+    #[test]
+    fn runtime_flag_already_in_verdict_is_not_duplicated() {
+        let verdict = svg_data::CompatVerdict {
+            recommendation: svg_data::VerdictRecommendation::Avoid,
+            headline_template: "",
+            reasons: vec![svg_data::VerdictReason::BcdDeprecated],
+        };
+        let rt = rt_flags(true, false);
+        assert_eq!(
+            reconciled_status(Some(&verdict), None, Some(&rt)),
+            Some("**Status:** deprecated".to_owned())
+        );
+    }
+
+    #[test]
+    fn falls_back_to_profile_lifecycle_without_verdict_or_runtime() {
+        assert_eq!(
+            reconciled_status(
+                None,
+                Some("**Experimental in Svg2EditorsDraft**".to_owned()),
+                None
+            ),
+            Some("**Experimental in Svg2EditorsDraft**".to_owned())
         );
     }
 }

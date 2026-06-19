@@ -1,6 +1,13 @@
 {
+	"extends": [
+		"https://github.com/kjanat/kjanat/raw/83172bacbfaf02e8ea419492ed3899b5ce806a9d/configs/dprint.remote.json"
+	],
 	"useTabs": true,
-	"json": {},
+	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
+	"json": {
+		"trailingCommas": "maintain",
+		"associations": ["!schema.json", "!*.schema.json", "**/*.json", "**/*.jsonc"]
+	},
 	"markdown": { "textWrap": "maintain", "emphasisKind": "asterisks" },
 	"malva": {},
 	"markup": {
@@ -10,29 +17,25 @@
 	},
 	"yaml": { "printWidth": 160 },
 	"exec": {
+		"associations": ["justfile", "*.rs", "*.svg", "*.toml"],
 		"commands": [
 			{ "command": "tombi format - --stdin-filename {{file_path}}", "exts": ["toml"] },
 			{ "command": "rustfmt --edition 2024", "exts": ["rs"] },
 			{ "command": "just --dump --justfile {{file_path}}", "fileNames": ["justfile"] },
-			{ "command": "cargo run --bin=svg-format", "exts": ["svg"] },
-			// { "command": "svg-format", "exts": ["svg"] },
+			// { "command": "cargo fmt-svg", "exts": ["svg"] },
 		],
 	},
 	"excludes": [
 		"**/*.lock",
 		"**/node_modules",
-		"**/target",
-		"**/svgwg",
 		"**/samples/w3",
+		"catalog.json",
+		"**/svg-data/data/sources/**",
+		"**/svgwg",
+		"**/target",
 		".github/workflows/release.yml",
 	],
 	"plugins": [
-		"https://plugins.dprint.dev/json-0.21.3.wasm",
-		"https://plugins.dprint.dev/markdown-0.21.1.wasm",
-		"https://plugins.dprint.dev/typescript-0.95.15.wasm",
-		"https://plugins.dprint.dev/g-plane/malva-v0.15.2.wasm",
-		"https://plugins.dprint.dev/g-plane/markup_fmt-v0.27.0.wasm",
-		"https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
 		"https://plugins.dprint.dev/exec-0.6.2.json@df98f54ffd3092b8a841aedd6d098a2651f16d0a796a40535774f1a8b4b9d463",
 	],
 }

@@ -1,5 +1,5 @@
-import type { ComponentChildren } from "preact";
-import { DevReload } from "./DevReload.tsx";
+import type { ComponentChildren } from 'preact';
+import { DevReload } from './DevReload.tsx';
 
 interface Props {
 	dev: boolean;
@@ -29,16 +29,16 @@ interface Props {
  * by URL so multi-instance rendering is free.
  */
 export function Layout(
-	{ dev, boot, title = "SVG Compat", bare = false, mainStyle, children }: Props,
+	{ dev, boot, title = 'SVG Compat', bare = false, mainStyle, children }: Props,
 ) {
 	return (
-		<html lang="en">
+		<html lang='en'>
 			<head>
-				<meta charset="utf-8" />
-				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta charset='utf-8' />
+				<meta name='viewport' content='width=device-width, initial-scale=1' />
 				<title>{title}</title>
-				<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-				<link rel="stylesheet" href="/style.css" />
+				<link rel='icon' href='/favicon.svg' type='image/svg+xml' />
+				<link rel='stylesheet' href='/style.css' />
 			</head>
 			<body>
 				{bare ? children : <main style={mainStyle}>{children}</main>}

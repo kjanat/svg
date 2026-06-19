@@ -441,7 +441,7 @@ pub fn attribute_completion_items(
 ) -> Vec<CompletionItem> {
     svg_data::attributes_for_with_profile(profile, elem_name)
         .into_iter()
-        .filter(|attr| !existing.contains(attr.attribute.name))
+        .filter(|attr| !existing.contains(attr.name))
         .map(attribute_completion_item)
         .collect()
 }
@@ -551,8 +551,37 @@ pub fn value_completions(
             );
             items
         }
+        AttributeValues::CssGrammar { graph, .. } => css_grammar_value_completions(graph),
         _ => Vec::new(),
     }
+}
+
+fn css_grammar_value_completions(graph: &svg_data::CssGrammarGraph) -> Vec<CompletionItem> {
+    let mut items = Vec::new();
+    for node in graph.nodes {
+        let Some(text) = node.text else {
+            continue;
+        };
+        match node.kind {
+            svg_data::CssGrammarNodeKind::Keyword => {
+                items.push(completion_item(text.to_owned(), CompletionItemKind::VALUE));
+            }
+            svg_data::CssGrammarNodeKind::Function => {
+                items.push(snippet_completion_item(
+                    text.to_owned(),
+                    CompletionItemKind::FUNCTION,
+                    format!("{text}($0)"),
+                ));
+            }
+            svg_data::CssGrammarNodeKind::Root
+            | svg_data::CssGrammarNodeKind::Group
+            | svg_data::CssGrammarNodeKind::Type
+            | svg_data::CssGrammarNodeKind::Operator => {}
+        }
+    }
+    items.sort_by(|left, right| left.label.cmp(&right.label));
+    items.dedup_by(|left, right| left.label == right.label);
+    items
 }
 
 /// Dispatch completions for grammar-typed attribute value nodes.
@@ -715,9 +744,9 @@ fn lifecycle_completion_detail(description: &str, lifecycle: SpecLifecycle) -> S
 
 fn attribute_completion_item(attr: ProfiledAttribute) -> CompletionItem {
     detailed_snippet_completion_item(
-        attr.attribute.name,
+        attr.name,
         CompletionItemKind::PROPERTY,
-        format!("{}=\"$0\"", attr.attribute.name),
+        format!("{}=\"$0\"", attr.name),
         lifecycle_completion_detail(attr.attribute.description, attr.lifecycle),
     )
 }
@@ -758,15 +787,13 @@ mod tests {
         name: "demo",
         description: "Demo element.",
         mdn_url: "https://example.com/demo",
-        spec_lifecycle: SpecLifecycle::Stable,
+        spec_url: None,
         deprecated: false,
         experimental: false,
-        spec_url: None,
+        standard_track: None,
         baseline: None,
         browser_support: None,
-        verdicts: &[],
         content_model: ContentModel::Void,
-        required_attrs: &[],
         attrs: &[],
         global_attrs: false,
     };
@@ -775,15 +802,18 @@ mod tests {
         name: "demo-attr",
         description: "Demo attribute.",
         mdn_url: "https://example.com/demo-attr",
-        spec_lifecycle: SpecLifecycle::Stable,
+        spec_url: None,
         deprecated: false,
         experimental: false,
-        spec_url: None,
+        standard_track: None,
+        animatable: false,
+        presentation_attribute: None,
         baseline: None,
         browser_support: None,
-        verdicts: &[],
+        element_compat: &[],
         values: AttributeValues::FreeText,
-        elements: &["*"],
+        value_overrides: &[],
+        applicability: svg_data::AttributeApplicability::Global,
     };
 
     #[test]
@@ -801,6 +831,7 @@ mod tests {
     #[test]
     fn experimental_attribute_completion_is_annotated() {
         let item = attribute_completion_item(ProfiledAttribute {
+            name: TEST_ATTRIBUTE.name,
             attribute: &TEST_ATTRIBUTE,
             lifecycle: SpecLifecycle::Experimental,
         });

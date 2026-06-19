@@ -1,1098 +1,1036 @@
-//! Generated SVG catalog and browser-compat lookup APIs.
+//! Structured SVG specification data.
 //!
-//! This crate exposes the baked element and attribute metadata consumed by the
-//! language server, linter, and other workspace crates.
-//!
-//! # Examples
-//!
-//! ```rust
-//! let rect = svg_data::element("rect").expect("rect should exist");
-//! assert_eq!(rect.name, "rect");
-//!
-//! let attrs = svg_data::attributes_for("rect");
-//! assert!(attrs.iter().any(|a| a.name == "width"));
-//! ```
+//! The catalog is generated at build time from structured data extracted from
+//! the canonical SVG specification (fetched fresh by the regeneration step —
+//! never from a local checkout). This crate exposes a typed, profile-aware view
+//! of that data for the SVG language server and linter: element/attribute
+//! lookups, content models, compatibility verdicts, and spec permalinks.
 
-/// Browser-compat-data model types used by the generated SVG compatibility
-/// catalog.
-pub mod bcd;
-mod catalog;
-/// Category-based helpers for allowed-child and grouping queries.
-pub mod categories;
-/// Shared BCD JSON parsing helpers for runtime compat overlays.
 pub mod compat_parse;
-/// Derived union membership and adjacent snapshot overlay artifacts.
-pub mod derived;
-/// Shared manifest, cache, provenance, and dataset emission helpers.
-pub mod extraction;
-/// Deterministic audit helpers for checked-in snapshot reviews.
-pub mod review;
-/// Typed schema for normalized per-snapshot checked-in SVG data.
-pub mod snapshot_schema;
-/// Public catalog type definitions.
-pub mod types;
-/// Deserialization types for the svg-compat worker JSON output.
-pub mod worker_schema;
-/// `XLink` attribute name canonicalization (BCD underscore form to colon form).
+pub mod edition;
+pub mod inventory;
+pub mod profile;
 pub mod xlink;
 
-use std::{collections::HashMap, sync::LazyLock};
+mod catalog;
+pub mod types;
+
+pub use types::{
+    AttributeApplicability, AttributeDef, AttributeElementCompat, AttributeValues,
+    BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport, BrowserVersion, CatalogGraph,
+    CatalogGraphEdge, CatalogGraphEdgeKind, CatalogGraphNode, CatalogGraphNodeKind, CompatFacts,
+    CompatSubfeature, CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge,
+    CssGrammarEdgeKind, CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, ElementCategory,
+    ElementDef, FeatureLifecycle, ProfileLookup, ProfiledAttribute, ProfiledElement,
+    SnapshotLifecycle, SnapshotMetadata, SpecLifecycle, SpecSnapshotId, VerdictReason,
+    VerdictRecommendation,
+};
 
 use catalog::{
-    ATTRIBUTES, ELEMENTS, generated_attribute_names_for_profile,
-    generated_attribute_values_for_profile, generated_known_attribute_snapshots,
-    generated_known_element_snapshots,
-};
-pub use types::{
-    AttributeDef, AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport,
-    BrowserVersion, CompatVerdict, ContentModel, ElementCategory, ElementDef, ProfileLookup,
-    ProfiledAttribute, ProfiledElement, RawVersionAdded, SpecLifecycle, SpecSnapshotId,
-    SpecSnapshotMetadata, VerdictReason, VerdictRecommendation,
+    ATTRIBUTES, CATALOG_GRAPH, COMPAT_SUBFEATURES, ELEMENTS, LIFECYCLE_OVERLAYS, SNAPSHOT_METADATA,
 };
 
-const SVG11_REC_20030114_ALIASES: &[&str] = &[
-    "Svg11Rec20030114",
-    "Svg11FirstEdition",
-    "SVG 1.1 First Edition",
-    "SVG 1.1 Recommendation 2003-01-14",
-];
-
-const SVG11_REC_20110816_ALIASES: &[&str] = &[
-    "Svg1",
-    "Svg11",
-    "Svg11Rec20110816",
-    "Svg11SecondEdition",
-    "SVG 1",
-    "SVG 1.1",
-    "SVG 1.1 Second Edition",
-    "SVG 1.1 Recommendation 2011-08-16",
-];
-
-const SVG2_CR_20181004_ALIASES: &[&str] = &[
-    "Svg2",
-    "Svg2Cr20181004",
-    "Svg2CandidateRecommendation",
-    "SVG 2",
-    "SVG 2 CR",
-    "SVG 2 Candidate Recommendation",
-    "SVG 2 Candidate Recommendation 2018-10-04",
-];
-
-const SVG2_EDITORS_DRAFT_20250914_ALIASES: &[&str] = &[
-    "Svg2Draft",
-    "Svg2EditorsDraft20250914",
-    "Svg2EditorsDraft",
-    "SVG 2 Draft",
-    "SVG 2 Editor's Draft",
-    "SVG 2 Editors Draft",
-    "SVG 2 Editor's Draft 2025-09-14",
-];
-
-const ALL_SPEC_SNAPSHOTS: &[SpecSnapshotId] = &[
-    SpecSnapshotId::Svg11Rec20030114,
-    SpecSnapshotId::Svg11Rec20110816,
-    SpecSnapshotId::Svg2Cr20181004,
-    SpecSnapshotId::Svg2EditorsDraft20250914,
-];
-
-const SVG11_REC_20030114_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
-    canonical_id: SpecSnapshotId::Svg11Rec20030114,
-    aliases: SVG11_REC_20030114_ALIASES,
-    source_url: "https://www.w3.org/TR/2003/REC-SVG11-20030114/",
-    snapshot_date: "2003-01-14",
-    stable_base: None,
-    errata_folded: false,
-};
-
-const SVG11_REC_20110816_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
-    canonical_id: SpecSnapshotId::Svg11Rec20110816,
-    aliases: SVG11_REC_20110816_ALIASES,
-    source_url: "https://www.w3.org/TR/2011/REC-SVG11-20110816/",
-    snapshot_date: "2011-08-16",
-    stable_base: None,
-    errata_folded: true,
-};
-
-const SVG2_CR_20181004_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
-    canonical_id: SpecSnapshotId::Svg2Cr20181004,
-    aliases: SVG2_CR_20181004_ALIASES,
-    source_url: "https://www.w3.org/TR/2018/CR-SVG2-20181004/",
-    snapshot_date: "2018-10-04",
-    stable_base: None,
-    errata_folded: false,
-};
-
-const SVG2_EDITORS_DRAFT_20250914_METADATA: SpecSnapshotMetadata = SpecSnapshotMetadata {
-    canonical_id: SpecSnapshotId::Svg2EditorsDraft20250914,
-    aliases: SVG2_EDITORS_DRAFT_20250914_ALIASES,
-    source_url: "https://svgwg.org/svg2-draft/",
-    snapshot_date: "2025-09-14",
-    stable_base: Some(SpecSnapshotId::Svg2Cr20181004),
-    errata_folded: false,
-};
-
-static ELEMENT_MAP: LazyLock<HashMap<&'static str, &'static ElementDef>> =
-    LazyLock::new(|| ELEMENTS.iter().map(|e| (e.name, e)).collect());
-
-static ATTRIBUTE_MAP: LazyLock<HashMap<&'static str, &'static AttributeDef>> =
-    LazyLock::new(|| ATTRIBUTES.iter().map(|a| (a.name, a)).collect());
-
-/// Look up a single SVG element definition by tag name.
-#[must_use]
-pub fn element(name: &str) -> Option<&'static ElementDef> {
-    ELEMENT_MAP.get(name).copied()
-}
-
-/// Look up a single SVG attribute definition by attribute name.
-#[must_use]
-pub fn attribute(name: &str) -> Option<&'static AttributeDef> {
-    ATTRIBUTE_MAP
-        .get(name)
-        .or_else(|| {
-            let canonical_name = xlink::canonical_svg_attribute_name(name);
-            (canonical_name.as_ref() != name)
-                .then(|| ATTRIBUTE_MAP.get(canonical_name.as_ref()))
-                .flatten()
-        })
-        .copied()
-}
-
-/// Return the supported SVG spec snapshots in canonical order.
+/// All snapshots the catalog tracks, oldest first.
 #[must_use]
 pub const fn spec_snapshots() -> &'static [SpecSnapshotId] {
-    ALL_SPEC_SNAPSHOTS
+    &[
+        SpecSnapshotId::Svg11Rec20030114,
+        SpecSnapshotId::Svg11Rec20110816,
+        SpecSnapshotId::Svg2Cr20181004,
+        SpecSnapshotId::Svg2EditorsDraft,
+    ]
 }
 
-/// Return pinned metadata for a canonical SVG spec snapshot id.
+/// Look up an element definition by tag name.
 #[must_use]
-pub const fn snapshot_metadata(snapshot: SpecSnapshotId) -> &'static SpecSnapshotMetadata {
-    match snapshot {
-        SpecSnapshotId::Svg11Rec20030114 => &SVG11_REC_20030114_METADATA,
-        SpecSnapshotId::Svg11Rec20110816 => &SVG11_REC_20110816_METADATA,
-        SpecSnapshotId::Svg2Cr20181004 => &SVG2_CR_20181004_METADATA,
-        SpecSnapshotId::Svg2EditorsDraft20250914 => &SVG2_EDITORS_DRAFT_20250914_METADATA,
+pub fn element(name: &str) -> Option<&'static ElementDef> {
+    ELEMENTS.iter().find(|element| element.name == name)
+}
+
+/// Look up an attribute definition by (canonical) name.
+#[must_use]
+pub fn attribute(name: &str) -> Option<&'static AttributeDef> {
+    let canonical = xlink::canonical_svg_attribute_name(name);
+    attribute_by_catalog_name(canonical.as_ref())
+}
+
+fn attribute_by_catalog_name(name: &str) -> Option<&'static AttributeDef> {
+    ATTRIBUTES.iter().find(|attribute| attribute.name == name)
+}
+
+/// All element definitions in the union catalog.
+#[must_use]
+pub const fn elements() -> &'static [ElementDef] {
+    ELEMENTS
+}
+
+/// All attribute definitions in the union catalog.
+#[must_use]
+pub const fn attributes() -> &'static [AttributeDef] {
+    ATTRIBUTES
+}
+
+/// Generated per-snapshot inventories.
+#[must_use]
+pub const fn inventories() -> &'static [inventory::Inventory] {
+    inventory::generated()
+}
+
+/// Generated per-snapshot lifecycle overlays.
+#[must_use]
+pub const fn lifecycle_overlays() -> &'static [SnapshotLifecycle] {
+    LIFECYCLE_OVERLAYS
+}
+
+/// Derived graph view over the catalog.
+#[must_use]
+pub const fn catalog_graph() -> &'static CatalogGraph {
+    &CATALOG_GRAPH
+}
+
+/// BCD subfeatures retained for behavior/value-specific diagnostics.
+#[must_use]
+pub const fn compat_subfeatures() -> &'static [CompatSubfeature] {
+    COMPAT_SUBFEATURES
+}
+
+/// Look up one retained BCD subfeature by full compat key.
+#[must_use]
+pub fn compat_subfeature(compat_key: &str) -> Option<&'static CompatSubfeature> {
+    COMPAT_SUBFEATURES
+        .iter()
+        .find(|feature| feature.compat_key == compat_key)
+}
+
+/// Profile-aware element lookup.
+#[must_use]
+pub fn element_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup<ElementDef> {
+    if let Some(lifecycle) = element_lifecycle_for_profile(profile, name) {
+        if !lifecycle.present {
+            return ProfileLookup::UnsupportedInProfile {
+                known_in: lifecycle.known_in,
+            };
+        }
+        return element(name).map_or(ProfileLookup::Unknown, |value| ProfileLookup::Present {
+            value,
+            lifecycle: lifecycle.lifecycle,
+        });
     }
+    element(name).map_or(ProfileLookup::Unknown, |value| ProfileLookup::Present {
+        value,
+        lifecycle: SpecLifecycle::Stable,
+    })
 }
 
-/// Resolve a user-facing profile id, alias, or long-form synonym.
+/// Profile-aware attribute lookup.
 #[must_use]
-pub fn resolve_profile_id(input: &str) -> Option<SpecSnapshotId> {
-    let normalized_input = normalize_profile_key(input);
-    if normalized_input.is_empty() {
+pub fn attribute_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup<AttributeDef> {
+    if let Some(lifecycle) = attribute_lifecycle_for_profile(profile, name) {
+        if !lifecycle.present {
+            return ProfileLookup::UnsupportedInProfile {
+                known_in: lifecycle.known_in,
+            };
+        }
+        let catalog_name = lifecycle.catalog_name.unwrap_or(lifecycle.name);
+        return attribute_by_catalog_name(catalog_name).map_or(ProfileLookup::Unknown, |value| {
+            attribute_lookup_present_with_lifecycle(value, lifecycle.lifecycle)
+        });
+    }
+    attribute(name).map_or(ProfileLookup::Unknown, attribute_lookup_present)
+}
+
+const fn attribute_lookup_present(value: &'static AttributeDef) -> ProfileLookup<AttributeDef> {
+    attribute_lookup_present_with_lifecycle(value, SpecLifecycle::Stable)
+}
+
+const fn attribute_lookup_present_with_lifecycle(
+    value: &'static AttributeDef,
+    lifecycle: SpecLifecycle,
+) -> ProfileLookup<AttributeDef> {
+    if matches!(value.applicability, AttributeApplicability::None) {
+        return ProfileLookup::Unknown;
+    }
+    ProfileLookup::Present { value, lifecycle }
+}
+
+/// Attributes that apply to `elem_name` in `profile`.
+#[must_use]
+pub fn attributes_for_with_profile(
+    profile: SpecSnapshotId,
+    elem_name: &str,
+) -> Vec<ProfiledAttribute> {
+    let Some(element) = element(elem_name) else {
+        return Vec::new();
+    };
+    ATTRIBUTES
+        .iter()
+        .filter(|attribute| {
+            attribute
+                .applicability
+                .includes(elem_name, element.global_attrs)
+        })
+        .filter_map(|attribute| {
+            let (name, lifecycle) = attribute_profile_name_and_lifecycle(profile, attribute.name)?;
+            Some(ProfiledAttribute {
+                name,
+                attribute,
+                lifecycle,
+            })
+        })
+        .collect()
+}
+
+/// Concrete child elements allowed inside `parent` in `profile`.
+#[must_use]
+pub fn allowed_children_with_profile(
+    profile: SpecSnapshotId,
+    parent_name: &str,
+) -> Vec<ProfiledElement> {
+    let _ = profile;
+    let Some(parent) = element(parent_name) else {
+        return Vec::new();
+    };
+    allowed_child_names(&parent.content_model)
+        .into_iter()
+        .filter(|name| {
+            element_lifecycle_for_profile(profile, name).is_none_or(|lifecycle| lifecycle.present)
+        })
+        .filter_map(element)
+        .map(|element| ProfiledElement {
+            element,
+            lifecycle: element_lifecycle_for_profile(profile, element.name)
+                .map_or(SpecLifecycle::Stable, |lifecycle| lifecycle.lifecycle),
+        })
+        .collect()
+}
+
+fn element_lifecycle_for_profile(
+    profile: SpecSnapshotId,
+    name: &str,
+) -> Option<&'static FeatureLifecycle> {
+    lifecycle_overlay(profile)?
+        .elements
+        .iter()
+        .find(|entry| entry.name == name)
+}
+
+fn attribute_lifecycle_for_profile(
+    profile: SpecSnapshotId,
+    name: &str,
+) -> Option<&'static FeatureLifecycle> {
+    lifecycle_overlay(profile)?.attributes.iter().find(|entry| {
+        entry.name == name
+            || entry
+                .catalog_name
+                .is_some_and(|catalog_name| catalog_name == name && entry.present)
+    })
+}
+
+fn attribute_profile_name_and_lifecycle(
+    profile: SpecSnapshotId,
+    catalog_name: &'static str,
+) -> Option<(&'static str, SpecLifecycle)> {
+    if let Some(entry) = lifecycle_overlay(profile).and_then(|overlay| {
+        overlay.attributes.iter().find(|entry| {
+            entry.present
+                && (entry.name == catalog_name || entry.catalog_name == Some(catalog_name))
+        })
+    }) {
+        return Some((entry.name, entry.lifecycle));
+    }
+    if lifecycle_overlay(profile).is_some_and(|overlay| {
+        overlay
+            .attributes
+            .iter()
+            .any(|entry| !entry.present && entry.name == catalog_name)
+    }) {
         return None;
     }
-
-    spec_snapshots()
-        .iter()
-        .copied()
-        .find(|snapshot| profile_key_matches(*snapshot, &normalized_input))
+    Some((catalog_name, SpecLifecycle::Stable))
 }
 
-/// Map the literal string from an SVG root `version` attribute to the
-/// closest catalogued snapshot.
-///
-/// `"1.0"` and `"1.1"` collapse to the SVG 1.1 Second Edition; `"2"` /
-/// `"2.0"` resolve to the current SVG 2 editor's draft. Any other value
-/// (including SVG Tiny `"1.2"`, empty, or garbage) returns `None` so
-/// callers fall back to the configured profile.
-///
-/// Intentionally narrower than [`resolve_profile_id`]: version attribute
-/// values live in their own enumerated space, and treating bare `"1.1"`
-/// as a general profile alias would be ambiguous when the user sets it
-/// as a config value.
+fn lifecycle_overlay(profile: SpecSnapshotId) -> Option<&'static SnapshotLifecycle> {
+    LIFECYCLE_OVERLAYS
+        .iter()
+        .find(|overlay| overlay.snapshot == profile)
+}
+
+/// Whether `parent` hosts foreign-namespace (e.g. HTML) children.
 #[must_use]
-pub fn snapshot_for_svg_version_attr(value: &str) -> Option<SpecSnapshotId> {
-    match value.trim() {
-        "1.0" | "1.1" => Some(SpecSnapshotId::Svg11Rec20110816),
-        "2" | "2.0" => Some(SpecSnapshotId::Svg2EditorsDraft20250914),
+pub fn allows_foreign_children(parent_name: &str) -> bool {
+    element(parent_name)
+        .is_some_and(|element| matches!(element.content_model, ContentModel::Foreign))
+}
+
+/// The compat verdict for an element in a profile, when one was derived.
+#[must_use]
+pub fn compat_verdict_for_element(
+    element: &ElementDef,
+    profile: SpecSnapshotId,
+) -> Option<CompatVerdict> {
+    let _ = profile;
+    compat_verdict_from_facts(&CompatFacts {
+        deprecated: element.deprecated,
+        experimental: element.experimental,
+        standard_track: element.standard_track,
+        baseline: element.baseline,
+        browser_support: element.browser_support,
+    })
+}
+
+/// The compat verdict for an attribute in a profile, when one was derived.
+#[must_use]
+pub fn compat_verdict_for_attribute(
+    attribute: &AttributeDef,
+    profile: SpecSnapshotId,
+) -> Option<CompatVerdict> {
+    compat_verdict_for_attribute_on_element(attribute, None, profile)
+}
+
+/// The compat verdict for an attribute on a concrete element, when one was derived.
+#[must_use]
+pub fn compat_verdict_for_attribute_on_element(
+    attribute: &AttributeDef,
+    element_name: Option<&str>,
+    profile: SpecSnapshotId,
+) -> Option<CompatVerdict> {
+    let _ = profile;
+    compat_verdict_from_facts(&attribute.compat_facts_for_element(element_name))
+}
+
+/// The compat verdict for a retained behavior/value subfeature.
+#[must_use]
+pub fn compat_verdict_for_subfeature(
+    subfeature: &CompatSubfeature,
+    profile: SpecSnapshotId,
+) -> Option<CompatVerdict> {
+    let _ = profile;
+    compat_verdict_from_facts(&subfeature.facts)
+}
+
+/// Resolve a `version="…"` attribute value to a snapshot by major family.
+#[must_use]
+pub fn snapshot_for_svg_version_attr(version: &str) -> Option<SpecSnapshotId> {
+    match version.trim().split('.').next().unwrap_or_default() {
+        "1" => Some(SpecSnapshotId::Svg11Rec20110816),
+        "2" => Some(SpecSnapshotId::Svg2EditorsDraft),
         _ => None,
     }
 }
 
-/// Return the full generated SVG element catalog.
+/// Resolve a `version="…"` attribute value to an edition id.
 #[must_use]
-pub fn elements() -> &'static [ElementDef] {
-    ELEMENTS
+pub fn edition_for_svg_version_attr(version: &str) -> Option<inventory::EditionId> {
+    snapshot_for_svg_version_attr(version).map(inventory::EditionId::for_snapshot)
 }
 
-/// Return the full generated SVG attribute catalog.
+/// Metadata (aliases, …) for a snapshot.
 #[must_use]
-pub fn attributes() -> &'static [AttributeDef] {
-    ATTRIBUTES
-}
-
-/// Look up a single SVG element definition against a selected profile.
-#[must_use]
-pub fn element_for_profile(
-    profile: SpecSnapshotId,
-    name: &str,
-) -> ProfileLookup<&'static ElementDef> {
-    let Some(element) = element(name) else {
-        return ProfileLookup::Unknown;
-    };
-    let Some(known_in) = generated_known_element_snapshots(element.name) else {
-        return ProfileLookup::Unknown;
-    };
-    lookup_for_profile(profile, element, known_in)
-}
-
-/// Look up a single SVG attribute definition against a selected profile.
-#[must_use]
-pub fn attribute_for_profile(
-    profile: SpecSnapshotId,
-    name: &str,
-) -> ProfileLookup<&'static AttributeDef> {
-    let Some(attribute) = attribute(name) else {
-        return ProfileLookup::Unknown;
-    };
-    let Some(known_in) = generated_known_attribute_snapshots(attribute.name) else {
-        return ProfileLookup::Unknown;
-    };
-    lookup_for_profile(profile, attribute, known_in)
-}
-
-/// Look up the pre-computed [`CompatVerdict`] for an element against a
-/// selected profile.
-///
-/// Verdicts are baked into [`ElementDef::verdicts`] at build time, so
-/// this is a linear scan over a small slice (typically ≤4 entries, one
-/// per tracked snapshot). Returns `None` only when the element has no
-/// verdicts at all — a build-time invariant violation that should not
-/// happen for a covered snapshot. Callers that need a rendered fallback
-/// should treat `None` as "no verdict → no compat diagnostic".
-///
-/// Both the LSP hover and the lint rules consume this helper, so they
-/// cannot drift from one another's view of the same reconciled verdict.
-#[must_use]
-pub fn compat_verdict_for_element(
-    def: &ElementDef,
-    profile: SpecSnapshotId,
-) -> Option<CompatVerdict> {
-    verdict_for_profile(def.verdicts, profile)
-}
-
-/// Look up the pre-computed [`CompatVerdict`] for an attribute against
-/// a selected profile.
-///
-/// See [`compat_verdict_for_element`] for semantics — the only
-/// difference is the input type.
-#[must_use]
-pub fn compat_verdict_for_attribute(
-    def: &AttributeDef,
-    profile: SpecSnapshotId,
-) -> Option<CompatVerdict> {
-    verdict_for_profile(def.verdicts, profile)
-}
-
-/// Shared linear-scan over a pre-baked verdicts slice. Falls back to
-/// the first entry when the requested profile isn't tracked, so hover
-/// and lint always get *some* verdict for known features rather than
-/// silently dropping diagnostics.
-fn verdict_for_profile(
-    verdicts: &'static [(SpecSnapshotId, CompatVerdict)],
-    profile: SpecSnapshotId,
-) -> Option<CompatVerdict> {
-    verdicts
+pub fn snapshot_metadata(snapshot: SpecSnapshotId) -> SnapshotMetadata {
+    SNAPSHOT_METADATA
         .iter()
-        .find(|(snap, _)| *snap == profile)
-        .or_else(|| verdicts.first())
-        .map(|(_, verdict)| *verdict)
+        .find(|metadata| metadata.snapshot == snapshot)
+        .cloned()
+        .unwrap_or(SnapshotMetadata {
+            snapshot,
+            aliases: &[],
+        })
 }
 
-impl AttributeDef {
-    /// Resolve this attribute's value description for the given profile,
-    /// preferring the per-snapshot override (when the spec text diverges
-    /// between snapshots) over the union default baked into
-    /// [`AttributeDef::values`]. Skips the catalog name lookup that a
-    /// standalone helper would have to re-do internally.
-    #[must_use]
-    pub fn values_for_profile(&self, profile: SpecSnapshotId) -> &AttributeValues {
-        generated_attribute_values_for_profile(profile, self.name).unwrap_or(&self.values)
+/// Resolve a requested profile string (id or alias) to a snapshot.
+#[must_use]
+pub fn resolve_profile_id(requested: &str) -> Option<SpecSnapshotId> {
+    let requested = requested.trim();
+    spec_snapshots().iter().copied().find(|snapshot| {
+        snapshot.as_str().eq_ignore_ascii_case(requested)
+            || snapshot_metadata(*snapshot)
+                .aliases
+                .iter()
+                .any(|alias| alias.eq_ignore_ascii_case(requested))
+    })
+}
+
+/// Resolve a requested edition string to an edition id.
+#[must_use]
+pub fn resolve_edition_id(requested: &str) -> Option<inventory::EditionId> {
+    resolve_profile_id(requested).map(inventory::EditionId::for_snapshot)
+}
+
+fn compat_verdict_from_facts(facts: &CompatFacts) -> Option<CompatVerdict> {
+    let mut reasons = Vec::new();
+    if facts.deprecated {
+        reasons.push(VerdictReason::BcdDeprecated);
     }
-}
-
-/// Return all SVG elements available in the selected profile.
-#[must_use]
-pub fn elements_with_profile(profile: SpecSnapshotId) -> Vec<ProfiledElement> {
-    ELEMENTS
-        .iter()
-        .filter_map(|element| match element_for_profile(profile, element.name) {
-            ProfileLookup::Present { value, lifecycle } => Some(ProfiledElement {
-                element: value,
-                lifecycle,
-            }),
-            ProfileLookup::UnsupportedInProfile { .. } | ProfileLookup::Unknown => None,
-        })
-        .collect()
-}
-
-/// Return the concrete child element names allowed under `parent`.
-#[must_use]
-pub fn allowed_children(parent: &str) -> Vec<&'static str> {
-    categories::allowed_children(parent)
-}
-
-/// Return the child element defs allowed under `parent` in the selected profile.
-#[must_use]
-pub fn allowed_children_with_profile(
-    profile: SpecSnapshotId,
-    parent: &str,
-) -> Vec<ProfiledElement> {
-    let ProfileLookup::Present {
-        value: parent_element,
-        ..
-    } = element_for_profile(profile, parent)
-    else {
-        return Vec::new();
-    };
-
-    allowed_children(parent_element.name)
-        .into_iter()
-        .filter_map(|child| match element_for_profile(profile, child) {
-            ProfileLookup::Present { value, lifecycle } => Some(ProfiledElement {
-                element: value,
-                lifecycle,
-            }),
-            ProfileLookup::UnsupportedInProfile { .. } | ProfileLookup::Unknown => None,
-        })
-        .collect()
-}
-
-/// Return whether `parent` accepts foreign-namespace children.
-#[must_use]
-pub fn allows_foreign_children(parent: &str) -> bool {
-    element(parent).is_some_and(|el| matches!(el.content_model, ContentModel::Foreign))
-}
-
-fn attribute_applies_to(attr: &AttributeDef, element_name: &str) -> bool {
-    // Empty elements list means global — current codegen uses "*" but older
-    // build artifacts may still emit an empty list.
-    attr.elements.is_empty()
-        || attr.elements.contains(&"*")
-        || attr.elements.contains(&element_name)
-}
-
-/// Return all attributes that apply to `element_name`, including global ones.
-#[must_use]
-pub fn attributes_for(element_name: &str) -> Vec<&'static AttributeDef> {
-    let Some(el) = element(element_name) else {
-        return Vec::new();
-    };
-    let mut result: Vec<&'static AttributeDef> = Vec::new();
-    for attr in ATTRIBUTES {
-        if attribute_applies_to(attr, el.name) {
-            result.push(attr);
+    if facts.experimental {
+        reasons.push(VerdictReason::BcdExperimental);
+    }
+    if facts.standard_track == Some(false) {
+        reasons.push(VerdictReason::BcdNonStandard);
+    }
+    match facts.baseline {
+        Some(BaselineStatus::Limited) => reasons.push(VerdictReason::BaselineLimited),
+        Some(BaselineStatus::Newly { since, qualifier }) => {
+            reasons.push(VerdictReason::BaselineNewly { since, qualifier });
         }
+        Some(BaselineStatus::Widely { .. }) | None => {}
     }
-    result
+    if let Some(support) = facts.browser_support.as_ref() {
+        collect_browser_reasons(&mut reasons, "chrome", support.chrome);
+        collect_browser_reasons(&mut reasons, "edge", support.edge);
+        collect_browser_reasons(&mut reasons, "firefox", support.firefox);
+        collect_browser_reasons(&mut reasons, "safari", support.safari);
+    }
+    if reasons.is_empty() {
+        return None;
+    }
+    let recommendation = recommendation_for_reasons(&reasons);
+    Some(CompatVerdict {
+        recommendation,
+        headline_template: headline_for_recommendation(recommendation),
+        reasons,
+    })
 }
 
-/// Return all attributes that apply to `element_name` in the selected profile.
-#[must_use]
-pub fn attributes_for_with_profile(
-    profile: SpecSnapshotId,
-    element_name: &str,
-) -> Vec<ProfiledAttribute> {
-    let ProfileLookup::Present { value: element, .. } = element_for_profile(profile, element_name)
-    else {
-        return Vec::new();
+fn collect_browser_reasons(
+    reasons: &mut Vec<VerdictReason>,
+    browser: &'static str,
+    version: Option<BrowserVersion>,
+) {
+    let Some(version) = version else {
+        return;
     };
+    if version.supported == Some(false) {
+        reasons.push(VerdictReason::UnsupportedIn(browser));
+    }
+    if version.partial_implementation {
+        reasons.push(VerdictReason::PartialImplementationIn(browser));
+    }
+    if let Some(prefix) = version.prefix {
+        reasons.push(VerdictReason::PrefixRequiredIn { browser, prefix });
+    }
+    if !version.flags.is_empty() {
+        reasons.push(VerdictReason::BehindFlagIn(browser));
+    }
+    if let Some(version_removed) = version.version_removed {
+        reasons.push(VerdictReason::RemovedIn {
+            browser,
+            version: version_removed,
+            qualifier: version.version_removed_qualifier,
+        });
+    }
+}
 
-    generated_attribute_names_for_profile(profile, element.name)
+fn recommendation_for_reasons(reasons: &[VerdictReason]) -> VerdictRecommendation {
+    if reasons
         .iter()
-        .filter_map(|name| match attribute_for_profile(profile, name) {
-            ProfileLookup::Present { value, lifecycle } => Some(ProfiledAttribute {
-                attribute: value,
-                lifecycle,
-            }),
-            ProfileLookup::UnsupportedInProfile { .. } | ProfileLookup::Unknown => None,
-        })
-        .collect()
-}
-
-/// Return all element names belonging to the given catalog category.
-#[must_use]
-pub const fn elements_in_category(cat: ElementCategory) -> &'static [&'static str] {
-    categories::elements_in_category(cat)
-}
-
-fn profile_key_matches(snapshot: SpecSnapshotId, normalized_input: &str) -> bool {
-    let metadata = snapshot_metadata(snapshot);
-    normalize_profile_key(metadata.canonical_id.as_str()) == normalized_input
-        || metadata
-            .aliases
-            .iter()
-            .copied()
-            .any(|alias| normalize_profile_key(alias) == normalized_input)
-}
-
-fn lookup_for_profile<T: Copy>(
-    profile: SpecSnapshotId,
-    value: T,
-    known_in: &'static [SpecSnapshotId],
-) -> ProfileLookup<T> {
-    if !known_in.contains(&profile) {
-        return ProfileLookup::UnsupportedInProfile { known_in };
-    }
-
-    ProfileLookup::Present {
-        value,
-        lifecycle: lifecycle_for_profile(profile, known_in),
-    }
-}
-
-/// Compute the lifecycle signal for `profile` given the membership list.
-///
-/// Precondition: `profile` is in `known_in` (callers hit the
-/// `UnsupportedInProfile` branch otherwise). The function picks
-/// [`SpecLifecycle::Experimental`] when the feature lives only in an
-/// unstable tip ([`SpecSnapshotId::LATEST`]-only or
-/// draft-not-yet-in-stable-base), and [`SpecLifecycle::Stable`]
-/// everywhere else.
-///
-/// The union `spec_lifecycle` baked onto each catalog entry is
-/// "latest-relative" (`Obsolete` = absent from [`SpecSnapshotId::LATEST`]),
-/// which misreads older profiles in which a feature is still defined.
-/// Consulting per-profile membership directly avoids that asymmetry.
-///
-/// Mirrors `spec_facts_for_profile` in `build.rs`, which drives the
-/// hover verdict builder. Keeping the two definitions aligned prevents
-/// lint diagnostics and hover verdicts from disagreeing about whether a
-/// feature is obsolete in a given profile.
-fn lifecycle_for_profile(
-    profile: SpecSnapshotId,
-    known_in: &'static [SpecSnapshotId],
-) -> SpecLifecycle {
-    debug_assert!(
-        known_in.contains(&profile),
-        "lifecycle_for_profile called for profile absent from known_in"
-    );
-
-    // Latest-only membership = experimental in the tip.
-    if profile == SpecSnapshotId::LATEST && known_in == [SpecSnapshotId::LATEST] {
-        return SpecLifecycle::Experimental;
-    }
-
-    // Draft profile whose feature hasn't landed in the stable base yet.
-    if let Some(stable_base) = snapshot_metadata(profile).stable_base
-        && !known_in.contains(&stable_base)
+        .any(|reason| matches!(reason, VerdictReason::ProfileObsolete { .. }))
     {
-        return SpecLifecycle::Experimental;
+        return VerdictRecommendation::Forbid;
     }
-
-    SpecLifecycle::Stable
+    if reasons.iter().any(|reason| {
+        matches!(
+            reason,
+            VerdictReason::BcdDeprecated
+                | VerdictReason::BcdNonStandard
+                | VerdictReason::RemovedIn { .. }
+        )
+    }) {
+        return VerdictRecommendation::Avoid;
+    }
+    VerdictRecommendation::Caution
 }
 
-fn normalize_profile_key(input: &str) -> String {
-    input
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .map(|ch| ch.to_ascii_lowercase())
-        .collect()
+const fn headline_for_recommendation(recommendation: VerdictRecommendation) -> &'static str {
+    match recommendation {
+        VerdictRecommendation::Safe => "safe to use",
+        VerdictRecommendation::Caution => "use with care",
+        VerdictRecommendation::Avoid => "avoid in new work",
+        VerdictRecommendation::Forbid => "do not use",
+    }
+}
+
+fn allowed_child_names(content_model: &ContentModel) -> Vec<&'static str> {
+    match content_model {
+        ContentModel::Children {
+            categories,
+            elements,
+        } => {
+            let mut names: Vec<&'static str> = categories
+                .iter()
+                .flat_map(|category| elements_in_category(*category))
+                .copied()
+                .chain(elements.iter().copied())
+                .collect();
+            names.sort_unstable();
+            names.dedup();
+            names
+        }
+        ContentModel::ChildrenSet(names) => {
+            let mut names: Vec<&'static str> = (*names).to_vec();
+            names.sort_unstable();
+            names.dedup();
+            names
+        }
+        ContentModel::AnySvg => ELEMENTS.iter().map(|element| element.name).collect(),
+        ContentModel::Foreign | ContentModel::Void | ContentModel::Text => Vec::new(),
+    }
+}
+
+const fn elements_in_category(category: ElementCategory) -> &'static [&'static str] {
+    let _ = category;
+    // Category membership is part of the extracted data; empty until it lands.
+    &[]
 }
 
 #[cfg(test)]
-mod tests {
-    use std::error::Error;
-
+mod catalog_tests {
     use super::*;
 
-    const XLINK_ATTRIBUTE_NAMES: &[(&str, &str)] = &[
-        ("xlink_actuate", "xlink:actuate"),
-        ("xlink_arcrole", "xlink:arcrole"),
-        ("xlink_href", "xlink:href"),
-        ("xlink_role", "xlink:role"),
-        ("xlink_show", "xlink:show"),
-        ("xlink_title", "xlink:title"),
-        ("xlink_type", "xlink:type"),
-    ];
-    const EMITTED_XLINK_ATTRIBUTE_NAMES: &[(&str, &str)] = &[
-        ("xlink_actuate", "xlink:actuate"),
-        ("xlink_href", "xlink:href"),
-        ("xlink_show", "xlink:show"),
-        ("xlink_title", "xlink:title"),
-    ];
-
     #[test]
-    fn element_lookup() -> Result<(), Box<dyn Error>> {
-        let rect = element("rect").ok_or("rect should exist")?;
-        assert_eq!(rect.name, "rect");
-        assert!(!rect.deprecated);
-        assert!(matches!(rect.content_model, ContentModel::Void));
-        Ok(())
-    }
-
-    #[test]
-    fn linear_gradient_description_uses_lead_paragraph() -> Result<(), Box<dyn Error>> {
-        let linear = element("linearGradient").ok_or("linearGradient should exist")?;
+    fn circle_is_catalogued_with_real_content_model() {
+        let Some(circle) = element("circle") else {
+            panic!("circle missing from catalog");
+        };
+        assert!(circle.global_attrs, "circle carries core attributes");
         assert!(
-            linear
-                .description
-                .starts_with("Linear gradients are defined by a 'linearGradient' element."),
-            "unexpected linearGradient description: {}",
-            linear.description
+            circle.attrs.contains(&"pathLength"),
+            "circle has pathLength"
         );
-        Ok(())
+        assert!(circle.spec_url.is_some(), "circle has a spec permalink");
+
+        // The flattened content model resolves to real child elements.
+        let children = allowed_children_with_profile(SpecSnapshotId::LATEST, "circle");
+        let names: Vec<&str> = children.iter().map(|child| child.element.name).collect();
+        assert!(names.contains(&"animate"), "animation members are allowed");
+        assert!(names.contains(&"desc"), "descriptive members are allowed");
+        assert!(names.contains(&"clipPath"), "explicit children are allowed");
     }
 
     #[test]
-    fn rect_description_is_not_interface_object_prose() -> Result<(), Box<dyn Error>> {
-        let rect = element("rect").ok_or("rect should exist")?;
+    fn catalog_is_non_empty() {
+        assert!(elements().len() >= 60, "the element catalog is populated");
+    }
+
+    #[test]
+    fn catalog_graph_exposes_derived_relationships() {
+        let graph = catalog_graph();
+        assert!(graph.nodes.len() > elements().len());
+        assert!(graph.edges.len() > attributes().len());
+        assert!(graph.nodes.iter().any(|node| {
+            node.id == "element:circle"
+                && node.name == "circle"
+                && node.kind == CatalogGraphNodeKind::Element
+        }));
+        assert!(graph.nodes.iter().any(|node| {
+            node.id == "value:fill"
+                && node.name == "fill (color)"
+                && node.kind == CatalogGraphNodeKind::ValueGrammar
+        }));
+        assert!(graph.edges.iter().any(|edge| {
+            edge.from == "attribute:fill"
+                && edge.to == "css-property:fill"
+                && edge.kind == CatalogGraphEdgeKind::UsesCssProperty
+        }));
+        assert!(graph.edges.iter().any(|edge| {
+            edge.from == "attribute:fill"
+                && edge.to == "value:fill"
+                && edge.kind == CatalogGraphEdgeKind::HasValueGrammar
+        }));
+        assert!(graph.edges.iter().any(|edge| {
+            edge.from == "attribute:fill"
+                && edge.to == "element:circle"
+                && edge.kind == CatalogGraphEdgeKind::AppliesTo
+        }));
+        assert!(graph.edges.iter().any(|edge| {
+            edge.from == "element:circle"
+                && edge.to == "attribute-category:global"
+                && edge.kind == CatalogGraphEdgeKind::AcceptsGlobalAttributes
+        }));
+        assert!(graph.edges.iter().any(|edge| {
+            edge.from == "element:font"
+                && edge.to == "profile:Svg11Rec20110816"
+                && edge.kind == CatalogGraphEdgeKind::PresentIn
+        }));
+        assert!(!graph.edges.iter().any(|edge| {
+            edge.from == "element:font"
+                && edge.to == "profile:Svg2EditorsDraft"
+                && edge.kind == CatalogGraphEdgeKind::PresentIn
+        }));
+        assert!(!graph.edges.iter().any(|edge| {
+            edge.from == "attribute:fetchpriority" && edge.kind == CatalogGraphEdgeKind::PresentIn
+        }));
+    }
+
+    #[test]
+    fn generated_inventories_track_snapshot_presence() {
+        assert_eq!(inventories().len(), spec_snapshots().len());
+        let Some(svg11) = inventory::for_edition(&inventory::EditionId::for_snapshot(
+            SpecSnapshotId::Svg11Rec20110816,
+        )) else {
+            panic!("SVG 1.1 inventory is generated");
+        };
+        assert!(svg11.elements.iter().any(|element| element.name == "font"));
         assert!(
-            !rect
-                .description
-                .to_ascii_lowercase()
-                .contains("object represents"),
-            "rect description should not use interface-object prose: {}",
-            rect.description
+            svg11
+                .attributes_for_element("a")
+                .any(|attribute| attribute.name == "xlink:href")
         );
-        Ok(())
-    }
 
-    #[test]
-    fn element_not_found() {
-        assert!(element("notanelement").is_none());
-    }
-
-    #[test]
-    fn text_content_model() -> Result<(), Box<dyn Error>> {
-        let text = element("text").ok_or("text should exist")?;
-        assert!(matches!(text.content_model, ContentModel::Children(_)));
-        Ok(())
-    }
-
-    #[test]
-    fn foreign_object_content_model() -> Result<(), Box<dyn Error>> {
-        let foreign_object = element("foreignObject").ok_or("foreignObject should exist")?;
-        assert!(matches!(
-            foreign_object.content_model,
-            ContentModel::Foreign
-        ));
-        assert!(allows_foreign_children("foreignObject"));
-        Ok(())
-    }
-
-    #[test]
-    fn allowed_children_text() {
-        let children = allowed_children("text");
-        assert!(children.contains(&"tspan"), "text should allow tspan");
-        assert!(!children.contains(&"rect"), "text should not allow rect");
-    }
-
-    #[test]
-    fn allowed_children_void() {
-        let children = allowed_children("rect");
-        assert!(children.is_empty(), "void element should have no children");
-    }
-
-    #[test]
-    fn attribute_lookup() -> Result<(), Box<dyn Error>> {
-        let fill = attribute("fill").ok_or("fill should exist")?;
-        assert!(matches!(fill.values, AttributeValues::Color));
-        Ok(())
-    }
-
-    #[test]
-    fn attribute_d_on_path() -> Result<(), Box<dyn Error>> {
-        let d = attribute("d").ok_or("d should exist")?;
-        assert!(d.elements.contains(&"path"));
-        assert!(matches!(d.values, AttributeValues::PathData));
-        Ok(())
-    }
-
-    #[test]
-    fn attributes_for_rect() {
-        let attrs = attributes_for("rect");
-        let names: Vec<&str> = attrs.iter().map(|a| a.name).collect();
-        assert!(names.contains(&"fill"), "rect should accept fill");
-        assert!(names.contains(&"x"), "rect should accept x");
-        assert!(!names.contains(&"d"), "rect should not accept d");
-    }
-
-    #[test]
-    fn xlink_alias_helper_canonicalizes_known_legacy_names() {
-        for &(legacy_name, canonical_name) in XLINK_ATTRIBUTE_NAMES {
-            assert_eq!(
-                super::xlink::canonical_svg_attribute_name(legacy_name).as_ref(),
-                canonical_name
-            );
-            assert_eq!(
-                super::xlink::canonical_svg_attribute_name(canonical_name).as_ref(),
-                canonical_name
-            );
-        }
-    }
-
-    #[test]
-    fn xlink_attribute_lookup_is_canonical_and_backward_compatible() -> Result<(), Box<dyn Error>> {
-        for &(legacy_name, canonical_name) in EMITTED_XLINK_ATTRIBUTE_NAMES {
-            let canonical = attribute(canonical_name)
-                .ok_or_else(|| format!("{canonical_name} should exist"))?;
-            let legacy =
-                attribute(legacy_name).ok_or_else(|| format!("{legacy_name} should alias"))?;
-            assert!(std::ptr::eq(canonical, legacy));
-            assert_eq!(canonical.name, canonical_name);
-            assert!(
-                canonical.deprecated,
-                "{canonical_name} should be deprecated"
-            );
-        }
-
-        let href = attribute("xlink:href").ok_or("xlink:href should exist")?;
-        assert_eq!(
-            href.mdn_url,
-            "https://developer.mozilla.org/docs/Web/SVG/Attribute/xlink:href"
+        let Some(svg2) = inventory::for_edition(&inventory::EditionId::for_snapshot(
+            SpecSnapshotId::Svg2EditorsDraft,
+        )) else {
+            panic!("SVG 2 editor's draft inventory is generated");
+        };
+        assert!(!svg2.elements.iter().any(|element| element.name == "font"));
+        assert!(
+            svg2.attributes_for_element("a")
+                .any(|attribute| attribute.name == "href")
         );
-        Ok(())
     }
 
     #[test]
-    fn public_xlink_attribute_names_are_canonical() {
-        let xlink_names: Vec<&str> = attributes()
+    fn lifecycle_overlays_drive_profile_lookup() {
+        assert_eq!(lifecycle_overlays().len(), spec_snapshots().len());
+
+        let Some(latest) = lifecycle_overlays()
             .iter()
-            .filter(|attribute| attribute.name.starts_with("xlink"))
-            .map(|attribute| attribute.name)
-            .collect();
-
-        assert!(
-            !xlink_names.is_empty(),
-            "catalog must include deprecated xlink attributes for backwards compatibility"
-        );
-        assert!(
-            xlink_names.iter().all(|name| name.contains(':')),
-            "public xlink names should use canonical colon syntax: {xlink_names:?}"
-        );
-    }
-
-    #[test]
-    fn attributes_for_use_only_exposes_canonical_xlink_names() {
-        let attrs = attributes_for("use");
-        let names: Vec<&str> = attrs.iter().map(|a| a.name).collect();
-        assert!(names.contains(&"xlink:href"));
-        assert!(!names.contains(&"xlink_href"));
-    }
-
-    #[test]
-    fn empty_elements_list_is_treated_as_global() {
-        let attr = AttributeDef {
-            name: "legacy-global",
-            description: "",
-            mdn_url: "",
-            spec_lifecycle: SpecLifecycle::Stable,
-            deprecated: false,
-            experimental: false,
-            spec_url: None,
-            baseline: None,
-            browser_support: None,
-            verdicts: &[],
-            values: AttributeValues::FreeText,
-            elements: &[],
+            .find(|overlay| overlay.snapshot == SpecSnapshotId::Svg2EditorsDraft)
+        else {
+            panic!("latest lifecycle overlay");
         };
+        assert!(latest.elements.iter().any(|entry| {
+            entry.name == "font"
+                && !entry.present
+                && entry.lifecycle == SpecLifecycle::Obsolete
+                && entry.known_in
+                    == [
+                        SpecSnapshotId::Svg11Rec20030114,
+                        SpecSnapshotId::Svg11Rec20110816,
+                    ]
+        }));
+        assert!(latest.attributes.iter().any(|entry| {
+            entry.name == "mask-type"
+                && entry.present
+                && entry.lifecycle == SpecLifecycle::Experimental
+                && entry.known_in == [SpecSnapshotId::Svg2EditorsDraft]
+        }));
 
-        assert!(attribute_applies_to(&attr, "rect"));
-        assert!(attribute_applies_to(&attr, "svg"));
-    }
-
-    #[test]
-    fn elements_in_shape_category() {
-        let shapes = elements_in_category(ElementCategory::Shape);
-        assert!(shapes.contains(&"rect"));
-        assert!(shapes.contains(&"circle"));
-        assert!(shapes.contains(&"path"));
-        assert!(!shapes.contains(&"g"));
-    }
-
-    #[test]
-    fn all_elements_have_mdn_url() {
-        for el in elements() {
-            assert!(
-                el.mdn_url.starts_with("https://developer.mozilla.org/"),
-                "element {} missing MDN URL",
-                el.name
-            );
-        }
-    }
-
-    #[test]
-    fn profile_resolution_accepts_aliases_case_insensitively() {
-        assert_eq!(
-            resolve_profile_id("Svg2Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
-        );
-        assert_eq!(
-            resolve_profile_id("svg1"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-        assert_eq!(
-            resolve_profile_id("svg11rec20110816"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-    }
-
-    #[test]
-    fn profile_resolution_accepts_long_form_synonyms() {
-        assert_eq!(
-            resolve_profile_id("SVG 1.1 Second Edition"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-        assert_eq!(
-            resolve_profile_id("SVG 2 Editor's Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
-        );
-    }
-
-    #[test]
-    fn friendly_aliases_resolve_to_pinned_snapshots() {
-        assert_eq!(
-            resolve_profile_id("Svg1"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-        assert_eq!(
-            resolve_profile_id("Svg2Draft"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
-        );
-    }
-
-    #[test]
-    fn svg_version_attr_maps_known_literals() {
-        assert_eq!(
-            snapshot_for_svg_version_attr("1.0"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-        assert_eq!(
-            snapshot_for_svg_version_attr("1.1"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-        assert_eq!(
-            snapshot_for_svg_version_attr("2"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
-        );
-        assert_eq!(
-            snapshot_for_svg_version_attr("2.0"),
-            Some(SpecSnapshotId::Svg2EditorsDraft20250914)
-        );
-    }
-
-    #[test]
-    fn svg_version_attr_trims_whitespace() {
-        assert_eq!(
-            snapshot_for_svg_version_attr("  1.1 \n"),
-            Some(SpecSnapshotId::Svg11Rec20110816)
-        );
-    }
-
-    #[test]
-    fn svg_version_attr_returns_none_for_unknown_values() {
-        assert!(snapshot_for_svg_version_attr("").is_none());
-        assert!(snapshot_for_svg_version_attr("1.2").is_none());
-        assert!(snapshot_for_svg_version_attr("garbage").is_none());
-        assert!(snapshot_for_svg_version_attr("3.0").is_none());
-    }
-
-    #[test]
-    fn snapshot_metadata_tracks_stable_base_and_errata() {
-        let svg11 = snapshot_metadata(SpecSnapshotId::Svg11Rec20110816);
-        assert!(svg11.errata_folded);
-        assert_eq!(svg11.stable_base, None);
-
-        let draft = snapshot_metadata(SpecSnapshotId::Svg2EditorsDraft20250914);
-        assert_eq!(draft.stable_base, Some(SpecSnapshotId::Svg2Cr20181004));
-        assert!(!draft.errata_folded);
-    }
-
-    #[test]
-    fn draft_only_membership_derives_experimental_lifecycle() {
-        assert_eq!(
-            lifecycle_for_profile(
-                SpecSnapshotId::Svg2EditorsDraft20250914,
-                &[SpecSnapshotId::Svg2EditorsDraft20250914],
-            ),
-            SpecLifecycle::Experimental
-        );
-    }
-
-    #[test]
-    fn non_latest_profile_with_membership_is_stable_regardless_of_union() {
-        // Before the profile-aware fix, this would have returned Obsolete
-        // because the attribute isn't in the LATEST snapshot. Now the
-        // function consults per-profile membership directly: if you ask
-        // about SVG 1.1 for an attribute that exists in SVG 1.1, you get
-        // Stable.
-        assert_eq!(
-            lifecycle_for_profile(
-                SpecSnapshotId::Svg11Rec20110816,
-                &[
-                    SpecSnapshotId::Svg11Rec20030114,
-                    SpecSnapshotId::Svg11Rec20110816,
-                ],
-            ),
-            SpecLifecycle::Stable
-        );
-    }
-
-    #[test]
-    fn spec_lifecycle_is_separate_from_compat_deprecation() -> Result<(), Box<dyn Error>> {
-        let href = attribute("xlink:href").ok_or("xlink:href should exist")?;
-        assert_eq!(href.spec_lifecycle, SpecLifecycle::Obsolete);
-        assert!(href.deprecated, "compat deprecation should remain visible");
-        Ok(())
-    }
-
-    #[test]
-    fn element_profile_lookup_returns_present_for_stable_union_entries()
-    -> Result<(), Box<dyn Error>> {
-        let lookup = element_for_profile(SpecSnapshotId::Svg11Rec20030114, "rect");
-        let ProfileLookup::Present { value, lifecycle } = lookup else {
-            return Err("rect should be available in SVG 1.1".into());
-        };
-        assert_eq!(value.name, "rect");
-        assert_eq!(lifecycle, SpecLifecycle::Stable);
-        Ok(())
-    }
-
-    #[test]
-    fn bcd_only_fedropshadow_is_svg2_only() -> Result<(), Box<dyn Error>> {
-        let lookup = element_for_profile(SpecSnapshotId::Svg11Rec20110816, "feDropShadow");
-        let ProfileLookup::UnsupportedInProfile { known_in } = lookup else {
-            return Err("feDropShadow should be unsupported in SVG 1.1".into());
-        };
-
-        assert_eq!(
-            known_in,
-            &[
-                SpecSnapshotId::Svg2Cr20181004,
-                SpecSnapshotId::Svg2EditorsDraft20250914,
-            ]
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn attribute_profile_lookup_distinguishes_href_and_xlink_href() -> Result<(), Box<dyn Error>> {
-        let svg11_href = attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "href");
-        let ProfileLookup::UnsupportedInProfile { known_in } = svg11_href else {
-            return Err("href should be unsupported in SVG 1.1".into());
-        };
-        assert_eq!(
-            known_in,
-            &[
-                SpecSnapshotId::Svg2Cr20181004,
-                SpecSnapshotId::Svg2EditorsDraft20250914,
-            ]
-        );
-
-        let svg2_xlink = attribute_for_profile(SpecSnapshotId::Svg2Cr20181004, "xlink_href");
-        let ProfileLookup::UnsupportedInProfile { known_in } = svg2_xlink else {
-            return Err("xlink:href should be unsupported in SVG 2".into());
-        };
-        assert_eq!(
-            known_in,
-            &[
-                SpecSnapshotId::Svg11Rec20030114,
-                SpecSnapshotId::Svg11Rec20110816,
-            ]
-        );
-
-        let svg2_href = attribute_for_profile(SpecSnapshotId::Svg2Cr20181004, "href");
-        let ProfileLookup::Present { value, lifecycle } = svg2_href else {
-            return Err("href should be available in SVG 2".into());
-        };
-        assert_eq!(value.name, "href");
-        assert_eq!(lifecycle, SpecLifecycle::Stable);
-        Ok(())
-    }
-
-    #[test]
-    fn attributes_for_profile_swaps_href_forms_by_snapshot() {
-        let svg11_names: Vec<&str> =
-            attributes_for_with_profile(SpecSnapshotId::Svg11Rec20110816, "use")
-                .iter()
-                .map(|attribute| attribute.attribute.name)
-                .collect();
-        assert!(svg11_names.contains(&"xlink:href"));
-        assert!(!svg11_names.contains(&"href"));
-
-        let svg2_names: Vec<&str> =
-            attributes_for_with_profile(SpecSnapshotId::Svg2Cr20181004, "use")
-                .iter()
-                .map(|attribute| attribute.attribute.name)
-                .collect();
-        assert!(svg2_names.contains(&"href"));
-        assert!(!svg2_names.contains(&"xlink:href"));
-    }
-
-    #[test]
-    fn unknown_profile_lookup_stays_distinct_from_unsupported() {
         assert!(matches!(
-            attribute_for_profile(SpecSnapshotId::Svg2Cr20181004, "not-an-attribute"),
+            element_for_profile(SpecSnapshotId::Svg2EditorsDraft, "font"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == [SpecSnapshotId::Svg11Rec20030114, SpecSnapshotId::Svg11Rec20110816]
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "mask-type"),
+            ProfileLookup::Present { value, lifecycle: SpecLifecycle::Experimental }
+                if value.name == "mask-type"
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "baseProfile"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == [SpecSnapshotId::Svg11Rec20030114, SpecSnapshotId::Svg11Rec20110816]
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "mask-type"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == [SpecSnapshotId::Svg2EditorsDraft]
+        ));
+    }
+
+    #[test]
+    fn profile_aliases_resolve_from_generated_snapshot_metadata() {
+        assert!(
+            snapshot_metadata(SpecSnapshotId::Svg11Rec20110816)
+                .aliases
+                .contains(&"svg11")
+        );
+        assert!(
+            snapshot_metadata(SpecSnapshotId::Svg2EditorsDraft)
+                .aliases
+                .contains(&"latest")
+        );
+        assert_eq!(
+            resolve_profile_id("svg11"),
+            Some(SpecSnapshotId::Svg11Rec20110816)
+        );
+        assert_eq!(
+            resolve_profile_id("Svg2Draft"),
+            Some(SpecSnapshotId::Svg2EditorsDraft)
+        );
+        assert_eq!(
+            resolve_profile_id("Svg11Rec20030114"),
+            Some(SpecSnapshotId::Svg11Rec20030114)
+        );
+    }
+
+    #[test]
+    fn attribute_catalog_distinguishes_global_scoped_and_geometry_attrs() {
+        let Some(id) = attribute("id") else {
+            panic!("id missing from catalog");
+        };
+        assert_eq!(id.applicability, AttributeApplicability::Global);
+
+        let Some(href) = attribute("xlink:href") else {
+            panic!("href missing from catalog");
+        };
+        assert_eq!(href.name, "href");
+        assert!(matches!(
+            href.applicability,
+            AttributeApplicability::Elements(elements)
+                if elements.contains(&"a") && elements.contains(&"use")
+        ));
+
+        let Some(cx) = attribute("cx") else {
+            panic!("cx missing from catalog");
+        };
+        assert_eq!(cx.presentation_attribute, None);
+        assert!(matches!(
+            cx.applicability,
+            AttributeApplicability::Elements(elements)
+                if elements.contains(&"circle") && !elements.contains(&"rect")
+        ));
+
+        let circle_attrs = attributes_for_with_profile(SpecSnapshotId::LATEST, "circle");
+        assert!(
+            circle_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "id")
+        );
+        assert!(
+            circle_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "cx")
+        );
+
+        let rect_attrs = attributes_for_with_profile(SpecSnapshotId::LATEST, "rect");
+        assert!(
+            !rect_attrs
+                .iter()
+                .any(|profiled| profiled.attribute.name == "cx")
+        );
+    }
+
+    #[test]
+    fn href_alias_tracks_svg11_and_svg2_profiles() {
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "href"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == [SpecSnapshotId::Svg2Cr20181004, SpecSnapshotId::Svg2EditorsDraft]
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg11Rec20110816, "xlink:href"),
+            ProfileLookup::Present { value, lifecycle: SpecLifecycle::Stable }
+                if value.name == "href"
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "xlink:href"),
+            ProfileLookup::UnsupportedInProfile { known_in }
+                if known_in == [SpecSnapshotId::Svg11Rec20030114, SpecSnapshotId::Svg11Rec20110816]
+        ));
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "href"),
+            ProfileLookup::Present { value, lifecycle: SpecLifecycle::Stable }
+                if value.name == "href"
+        ));
+
+        let svg11_use_attrs = attributes_for_with_profile(SpecSnapshotId::Svg11Rec20110816, "use");
+        assert!(
+            svg11_use_attrs
+                .iter()
+                .any(|profiled| profiled.name == "xlink:href")
+        );
+        assert!(
+            !svg11_use_attrs
+                .iter()
+                .any(|profiled| profiled.name == "href")
+        );
+    }
+
+    #[test]
+    fn svg11_legacy_property_index_supplies_keyword_overrides() {
+        let override_count = attributes()
+            .iter()
+            .filter(|attribute| !attribute.value_overrides.is_empty())
+            .count();
+        assert!(
+            override_count >= 20,
+            "expected broad SVG 1.1 value override coverage, got {override_count}"
+        );
+
+        let Some(display) = attribute("display") else {
+            panic!("display missing from catalog");
+        };
+        assert!(matches!(
+            &display.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"inline-block") && !values.contains(&"run-in")
+        ));
+        assert!(matches!(
+            display.values_for_profile(SpecSnapshotId::Svg11Rec20110816),
+            AttributeValues::Enum(values)
+                if values.contains(&"run-in") && !values.contains(&"inline-block")
+        ));
+    }
+
+    #[test]
+    fn external_css_property_definitions_supply_latest_value_spaces() {
+        let Some(clip_rule) = attribute("clip-rule") else {
+            panic!("clip-rule missing from catalog");
+        };
+        assert!(matches!(
+            &clip_rule.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"evenodd") && values.contains(&"nonzero")
+        ));
+
+        let Some(font_style) = attribute("font-style") else {
+            panic!("font-style missing from catalog");
+        };
+        assert!(matches!(
+            &font_style.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"normal")
+                    && values.contains(&"italic")
+                    && values.contains(&"oblique")
+        ));
+
+        let Some(display) = attribute("display") else {
+            panic!("display missing from catalog");
+        };
+        assert!(matches!(
+            &display.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"inline")
+                    && values.contains(&"inline-block")
+                    && values.contains(&"none")
+                    && !values.contains(&"run-in")
+        ));
+
+        let Some(unicode_bidi) = attribute("unicode-bidi") else {
+            panic!("unicode-bidi missing from catalog");
+        };
+        assert!(matches!(
+            &unicode_bidi.values,
+            AttributeValues::Enum(values)
+                if values.contains(&"normal")
+                    && values.contains(&"embed")
+                    && values.contains(&"bidi-override")
+                    && values.contains(&"plaintext")
+        ));
+
+        let Some(clip_path) = attribute("clip-path") else {
+            panic!("clip-path missing from catalog");
+        };
+        assert!(matches!(
+            &clip_path.values,
+            AttributeValues::CssGrammar { grammar, graph }
+                if grammar.contains("<clip-source>")
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Type && node.text == Some("<clip-source>")
+                    )
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Type && node.text == Some("<basic-shape>")
+                    )
+                    && graph.nodes.iter().any(|node|
+                        node.kind == CssGrammarNodeKind::Group
+                    )
+        ));
+    }
+
+    #[test]
+    fn nowhere_supported_attributes_are_not_present_without_element_context() {
+        let Some(xlink_title) = attribute("xlink:title") else {
+            panic!("xlink:title missing from catalog");
+        };
+        assert_eq!(xlink_title.applicability, AttributeApplicability::None);
+        assert!(matches!(
+            attribute_for_profile(SpecSnapshotId::LATEST, "xlink:title"),
             ProfileLookup::Unknown
         ));
     }
 
     #[test]
-    fn reviewed_union_includes_view_element() -> Result<(), Box<dyn Error>> {
-        let view = element("view").ok_or("view should exist in reviewed union")?;
-        assert_eq!(view.name, "view");
-        Ok(())
-    }
+    fn compat_verdict_is_derived_from_objective_attribute_facts() {
+        let attribute = AttributeDef {
+            name: "demo",
+            description: "",
+            mdn_url: "",
+            spec_url: None,
+            deprecated: true,
+            experimental: false,
+            standard_track: Some(false),
+            animatable: false,
+            presentation_attribute: None,
+            baseline: Some(BaselineStatus::Limited),
+            browser_support: Some(BrowserSupport {
+                chrome: Some(BrowserVersion {
+                    partial_implementation: true,
+                    ..BrowserVersion::EMPTY
+                }),
+                edge: None,
+                firefox: None,
+                safari: Some(BrowserVersion {
+                    prefix: Some("-webkit-"),
+                    ..BrowserVersion::EMPTY
+                }),
+            }),
+            element_compat: &[],
+            values: AttributeValues::FreeText,
+            value_overrides: &[],
+            applicability: AttributeApplicability::Global,
+        };
 
-    // ---- Verdict pipeline tests ---------------------------------------
-    //
-    // These tests exercise the baked-in verdicts slice on real catalog
-    // entries. They don't unit-test the build-time compute logic in
-    // `build/verdict.rs` directly — instead they lock the *end-to-end*
-    // contract: the static catalog that consumers (hover, lint) actually
-    // read must carry the expected recommendation tier and reason set.
-    //
-    // Integration-style verdict tests are the right tool here because:
-    //
-    // 1. the compute logic lives in a build script (hard to test in
-    //    isolation without duplicating the type shadows);
-    // 2. the failure mode we care about is a drift between compute and
-    //    bake — which an isolated compute-unit test would miss;
-    // 3. the fixtures are concrete, named SVG features whose expected
-    //    verdicts are documented in the Phase 1 audit document.
+        let Some(verdict) = compat_verdict_for_attribute(&attribute, SpecSnapshotId::LATEST) else {
+            panic!("objective facts should produce a verdict");
+        };
 
-    #[test]
-    fn verdict_rect_is_safe_in_all_profiles() -> Result<(), Box<dyn Error>> {
-        // `<rect>` is the canonical "safe, widely available" fixture.
-        // Its verdict must be Safe with no reasons across every tracked
-        // snapshot — otherwise the Caution-or-worse tier would flood
-        // every document with spurious hints.
-        let rect = element("rect").ok_or("rect should exist")?;
-        for profile in spec_snapshots() {
-            let verdict = compat_verdict_for_element(rect, *profile)
-                .ok_or_else(|| format!("rect should have a verdict in {}", profile.as_str()))?;
-            assert_eq!(
-                verdict.recommendation,
-                VerdictRecommendation::Safe,
-                "rect must be Safe in {}: {verdict:?}",
-                profile.as_str()
-            );
-            assert!(
-                verdict.reasons.is_empty(),
-                "rect must have no reasons in {}: {verdict:?}",
-                profile.as_str()
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn verdict_xlink_href_under_declared_svg11_profile_omits_bcd_reasons()
-    -> Result<(), Box<dyn Error>> {
-        // xlink:href was the canonical SVG 1.1 linking attribute; its BCD
-        // `deprecated` flag only reflects its SVG 2 replacement by `href`.
-        // Under the user-declared SVG 1.1 profile, that latest-era advice
-        // is stripped: the verdict must NOT carry BcdDeprecated, and the
-        // hover tier must not escalate to Avoid from BCD alone. Caution
-        // tier signals from browser-support baseline remain legitimate.
-        let href = attribute("xlink:href").ok_or("xlink:href should exist")?;
-        let verdict = compat_verdict_for_attribute(href, SpecSnapshotId::Svg11Rec20110816)
-            .ok_or("xlink:href should have a verdict in SVG 1.1")?;
-
-        assert!(
-            !verdict
-                .reasons
-                .iter()
-                .any(|r| matches!(r, VerdictReason::BcdDeprecated)),
-            "xlink:href in SVG 1.1 must not carry BcdDeprecated: {verdict:?}"
-        );
-        assert!(
-            !matches!(
-                verdict.recommendation,
-                VerdictRecommendation::Avoid | VerdictRecommendation::Forbid
-            ),
-            "xlink:href in SVG 1.1 must not escalate to Avoid/Forbid from BCD: {verdict:?}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn verdict_xlink_href_is_forbid_in_svg2() -> Result<(), Box<dyn Error>> {
-        // In SVG 2 the attribute is absent from membership — verdict
-        // must escalate to Forbid with `ProfileObsolete` naming the
-        // last snapshot it was still in. This is the single source
-        // of truth both the hover `Forbid` headline and the lint
-        // `UnsupportedInProfile` diagnostic read from.
-        let href = attribute("xlink:href").ok_or("xlink:href should exist")?;
-        let verdict = compat_verdict_for_attribute(href, SpecSnapshotId::Svg2EditorsDraft20250914)
-            .ok_or("xlink:href should have a verdict in SVG 2")?;
-
-        assert_eq!(verdict.recommendation, VerdictRecommendation::Forbid);
+        assert_eq!(verdict.recommendation, VerdictRecommendation::Avoid);
+        assert!(verdict.reasons.contains(&VerdictReason::BcdDeprecated));
+        assert!(verdict.reasons.contains(&VerdictReason::BcdNonStandard));
+        assert!(verdict.reasons.contains(&VerdictReason::BaselineLimited));
         assert!(
             verdict
                 .reasons
-                .iter()
-                .any(|r| matches!(r, VerdictReason::ProfileObsolete { .. })),
-            "Forbid verdict must include ProfileObsolete reason: {verdict:?}"
+                .contains(&VerdictReason::PartialImplementationIn("chrome"))
         );
-        // `last_seen` must point at an SVG 1.1 snapshot since that's the
-        // latest profile xlink:href is still defined in.
-        for reason in verdict.reasons {
-            if let VerdictReason::ProfileObsolete { last_seen } = reason {
-                assert!(
-                    matches!(
-                        last_seen,
-                        SpecSnapshotId::Svg11Rec20030114 | SpecSnapshotId::Svg11Rec20110816
-                    ),
-                    "last_seen should be an SVG 1.1 snapshot, got {last_seen:?}"
-                );
+        assert!(verdict.reasons.contains(&VerdictReason::PrefixRequiredIn {
+            browser: "safari",
+            prefix: "-webkit-"
+        }));
+    }
+
+    #[test]
+    fn compat_verdict_is_absent_without_objective_caveats() {
+        let attribute = AttributeDef {
+            name: "demo",
+            description: "",
+            mdn_url: "",
+            spec_url: None,
+            deprecated: false,
+            experimental: false,
+            standard_track: Some(true),
+            animatable: false,
+            presentation_attribute: None,
+            baseline: Some(BaselineStatus::Widely {
+                since: 2020,
+                qualifier: None,
+            }),
+            browser_support: None,
+            element_compat: &[],
+            values: AttributeValues::FreeText,
+            value_overrides: &[],
+            applicability: AttributeApplicability::Global,
+        };
+
+        assert!(compat_verdict_for_attribute(&attribute, SpecSnapshotId::LATEST).is_none());
+    }
+
+    #[test]
+    fn fetchpriority_is_catalogued_from_bcd_only_data() {
+        let Some(fetchpriority) = attribute("fetchpriority") else {
+            panic!("fetchpriority missing from catalog");
+        };
+
+        assert_eq!(fetchpriority.spec_url, None);
+        assert_eq!(fetchpriority.standard_track, Some(false));
+        assert!(fetchpriority.experimental);
+        assert!(matches!(
+            fetchpriority.baseline,
+            Some(BaselineStatus::Limited)
+        ));
+        assert!(matches!(
+            fetchpriority.applicability,
+            AttributeApplicability::Elements(elements)
+                if elements == ["feImage", "image", "script"]
+        ));
+
+        let Some(verdict) = compat_verdict_for_attribute(fetchpriority, SpecSnapshotId::LATEST)
+        else {
+            panic!("fetchpriority objective facts should produce a verdict");
+        };
+        assert!(verdict.reasons.contains(&VerdictReason::BcdExperimental));
+        assert!(verdict.reasons.contains(&VerdictReason::BcdNonStandard));
+        assert!(verdict.reasons.contains(&VerdictReason::BaselineLimited));
+    }
+
+    #[test]
+    fn element_scoped_attribute_compat_does_not_flatten_by_name() {
+        let Some(path) = attribute("path") else {
+            panic!("path missing from catalog");
+        };
+
+        assert!(!path.experimental);
+        assert!(compat_verdict_for_attribute(path, SpecSnapshotId::LATEST).is_none());
+        assert!(
+            compat_verdict_for_attribute_on_element(
+                path,
+                Some("animateMotion"),
+                SpecSnapshotId::LATEST
+            )
+            .is_none()
+        );
+
+        let Some(text_path_verdict) =
+            compat_verdict_for_attribute_on_element(path, Some("textPath"), SpecSnapshotId::LATEST)
+        else {
+            panic!("textPath path facts should produce a verdict");
+        };
+        assert!(
+            text_path_verdict
+                .reasons
+                .contains(&VerdictReason::BcdExperimental)
+        );
+        assert!(
+            text_path_verdict
+                .reasons
+                .contains(&VerdictReason::UnsupportedIn("chrome"))
+        );
+    }
+
+    #[test]
+    fn bcd_behavior_subfeatures_are_retained_for_future_lints() {
+        let Some(data_uri) = compat_subfeature("svg.elements.use.data_uri") else {
+            panic!("use.data_uri subfeature missing");
+        };
+        assert_eq!(data_uri.kind, CompatSubfeatureKind::Behavior);
+        assert_eq!(data_uri.element, "use");
+        assert_eq!(data_uri.name, "data_uri");
+
+        let Some(verdict) = compat_verdict_for_subfeature(data_uri, SpecSnapshotId::LATEST) else {
+            panic!("use.data_uri facts should produce a verdict");
+        };
+        assert!(verdict.reasons.contains(&VerdictReason::BaselineLimited));
+        assert!(
+            verdict
+                .reasons
+                .contains(&VerdictReason::UnsupportedIn("safari"))
+        );
+        assert!(verdict.reasons.iter().any(|reason| matches!(
+            reason,
+            VerdictReason::RemovedIn {
+                browser: "chrome",
+                version: "120",
+                ..
             }
-        }
-        Ok(())
+        )));
+
+        let Some(xlink_href) = compat_subfeature("svg.elements.use.xlink_href") else {
+            panic!("use.xlink_href subfeature missing");
+        };
+        assert_eq!(xlink_href.kind, CompatSubfeatureKind::LegacyXlinkAlias);
     }
 
     #[test]
-    fn verdict_recommendation_tier_ordering_is_total() {
-        // The priority algorithm in `build/verdict.rs` relies on
-        // `VerdictRecommendation` forming a total order `Safe < Caution
-        // < Avoid < Forbid`. This test locks the derived ordering so
-        // a future enum reshuffle can't silently break the max-tier
-        // selection at build time.
-        assert!(VerdictRecommendation::Safe < VerdictRecommendation::Caution);
-        assert!(VerdictRecommendation::Caution < VerdictRecommendation::Avoid);
-        assert!(VerdictRecommendation::Avoid < VerdictRecommendation::Forbid);
-    }
-
-    #[test]
-    fn verdict_color_interpolation_has_partial_reason() -> Result<(), Box<dyn Error>> {
-        // `color-interpolation` has `partial_implementation: true` on
-        // chrome/edge/safari in live BCD. The verdict must carry at
-        // least one `PartialImplementationIn` reason so the lint
-        // `PartialImplementation` rule and the hover per-browser
-        // sub-bullet both have data to render.
-        let ci = attribute("color-interpolation").ok_or("color-interpolation should exist")?;
-        let verdict = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914)
-            .ok_or("color-interpolation should have a verdict")?;
-
+    fn foreign_object_hosts_foreign_content() {
+        let Some(foreign_object) = element("foreignObject") else {
+            panic!("foreignObject missing from catalog");
+        };
         assert!(
-            verdict
-                .reasons
-                .iter()
-                .any(|r| matches!(r, VerdictReason::PartialImplementationIn(_))),
-            "color-interpolation verdict should include PartialImplementationIn: {verdict:?}"
+            matches!(foreign_object.content_model, ContentModel::Foreign),
+            "the spec's `any` content model maps to Foreign"
         );
-        // Partial-only features should be at most Caution — never
-        // Avoid or Forbid, since the feature is still usable.
-        assert!(
-            verdict.recommendation <= VerdictRecommendation::Caution,
-            "partial-only features should stay at Caution or below: {verdict:?}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn verdict_hover_and_lint_share_the_same_source() -> Result<(), Box<dyn Error>> {
-        // Regression guard for the architectural linchpin: hover and
-        // lint both read through `compat_verdict_for_attribute`, so
-        // calling it twice must return byte-identical results. If a
-        // caller ever reaches into `def.verdicts` directly and picks
-        // a different entry, this test will fail.
-        let ci = attribute("color-interpolation").ok_or("color-interpolation should exist")?;
-        let a = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914);
-        let b = compat_verdict_for_attribute(ci, SpecSnapshotId::Svg2EditorsDraft20250914);
-        assert_eq!(a, b);
-        Ok(())
+        assert!(allows_foreign_children("foreignObject"));
+        // A regular element is not a foreign host.
+        assert!(!allows_foreign_children("circle"));
     }
 }

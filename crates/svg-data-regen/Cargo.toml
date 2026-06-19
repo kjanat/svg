@@ -1,0 +1,26 @@
+[package]
+name                 = "svg-data-regen"
+version.workspace    = true
+authors.workspace    = true
+edition.workspace    = true
+description          = "Deterministic regeneration pipeline: fetch the canonical SVG spec and extract structured data for svg-data"
+homepage.workspace   = true
+repository.workspace = true
+license.workspace    = true
+keywords.workspace   = true
+categories.workspace = true
+publish              = false
+
+[dependencies]
+json-schema-sort.workspace = true
+quick-xml.workspace        = true
+regex.workspace            = true
+schemars.workspace         = true
+serde.workspace            = true
+serde_json.workspace       = true
+sha1.workspace             = true
+tl.workspace               = true
+ureq.workspace             = true
+
+[lints]
+workspace = true

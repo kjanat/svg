@@ -1,1695 +1,1202 @@
-#![expect(
-    dead_code,
-    reason = "Build script defines types/functions not all code paths use"
-)]
-
-//! Build script that generates the baked SVG catalog from reviewed snapshot
-//! datasets and browser-compat overlays.
+//! Build script: generate the runtime catalog from the committed, extracted
+//! structured spec data.
 //!
-//! The generated Rust source is written into `OUT_DIR` and then included by
-//! the `svg-data` crate at compile time.
-
-#[path = "build/bcd.rs"]
-mod bcd;
-#[path = "build/codegen.rs"]
-mod codegen;
-#[path = "build/provenance_gate.rs"]
-mod provenance_gate;
-#[path = "build/reconcile.rs"]
-mod reconcile;
-#[path = "src/types.rs"]
-mod types;
-#[path = "build/verdict.rs"]
-mod verdict;
-#[path = "src/worker_schema.rs"]
-mod worker_schema;
+//! The extraction pipeline (a separate `regen` step) fetches canonical upstream
+//! and writes structured JSON under `data/`. This script reads that JSON and
+//! emits `catalog.rs` (static `ElementDef`/`AttributeDef` arrays) into `OUT_DIR`,
+//! which `src/catalog.rs` includes. When the data has not been generated yet,
+//! it emits an empty catalog so the crate still compiles.
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    error::Error,
+    env,
     fmt::Write as _,
     fs,
-    path::{Path, PathBuf},
-    time::SystemTime,
+    path::{Component, Path, PathBuf},
 };
 
-use codegen::{escape, format_baseline, format_browser_support, format_option_str, ident_from};
 use serde::Deserialize;
-use types::SpecSnapshotId;
 
-const CACHE_MAX_AGE_SECS: u64 = 24 * 60 * 60;
-const ALL_ELEMENT_CATEGORIES: &[&str] = &[
-    "Container",
-    "Shape",
-    "Text",
-    "Gradient",
-    "Filter",
-    "Descriptive",
-    "Structural",
-    "Animation",
-    "PaintServer",
-    "ClipMask",
-    "LightSource",
-    "FilterPrimitive",
-    "TransferFunction",
-    "MergeNode",
-    "MotionPath",
-    "NeverRendered",
-];
+const CATALOG_SCHEMA_VERSION: u16 = 1;
 
-/// Literal upstream `version_added` value mirrored at build time.
-#[derive(Clone)]
-enum RawVersionAddedValue {
-    Text(String),
-    Flag(bool),
-    Null,
+/// The committed root manifest, mirroring `svg-data-regen`'s output shape.
+#[derive(Deserialize)]
+struct CatalogManifest {
+    schema_version: u16,
+    core: CatalogRef,
+    #[serde(default)]
+    compat: Option<CatalogRef>,
+    graph: CatalogRef,
+    #[serde(default)]
+    snapshots: Vec<SnapshotRef>,
 }
 
-#[derive(Clone)]
-struct BrowserFlagValue {
-    flag_type: String,
+/// Reference from `catalog.json` to another catalog document.
+#[derive(Deserialize)]
+struct CatalogRef {
+    href: String,
+}
+
+/// Canonical latest catalog data.
+#[derive(Deserialize)]
+struct CatalogCore {
+    schema_version: u16,
+    elements: Vec<Element>,
+    #[serde(default)]
+    attributes: Vec<Attribute>,
+}
+
+/// Reference from `catalog.json` to a version-specific overlay document.
+#[derive(Deserialize)]
+struct SnapshotRef {
+    profile: SpecSnapshot,
+    href: String,
+}
+
+/// Browser-compat metadata from `catalog.compat.json`.
+#[derive(Deserialize)]
+struct CompatMetadata {
+    schema_version: u16,
+    #[serde(default)]
+    unmodeled_features: Vec<CompatSubfeature>,
+}
+
+/// Derived graph data from `catalog.graph.json`.
+#[derive(Deserialize)]
+struct CatalogGraphDocument {
+    schema_version: u16,
+    #[serde(flatten)]
+    graph: CatalogGraph,
+}
+
+/// A BCD feature kept out of the element/attribute catalog.
+#[derive(Deserialize)]
+struct CompatSubfeature {
+    compat_key: String,
+    kind: CompatSubfeatureKind,
+    element: String,
     name: String,
-    value_to_set: Option<String>,
+    #[serde(flatten)]
+    facts: CompatFacts,
 }
 
-#[derive(Clone)]
-struct BrowserVersionValue {
-    raw_value_added: RawVersionAddedValue,
-    version_added: Option<String>,
-    version_qualifier: Option<BaselineQualifierValue>,
-    supported: Option<bool>,
-    version_removed: Option<String>,
-    version_removed_qualifier: Option<BaselineQualifierValue>,
-    partial_implementation: bool,
-    prefix: Option<String>,
-    alternative_name: Option<String>,
-    flags: Vec<BrowserFlagValue>,
-    notes: Vec<String>,
+/// Why a BCD feature was kept out of the element/attribute catalog.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CompatSubfeatureKind {
+    Behavior,
+    LegacyXlinkAlias,
 }
 
-#[derive(Clone, Default)]
-struct BrowserSupportValue {
-    chrome: Option<BrowserVersionValue>,
-    edge: Option<BrowserVersionValue>,
-    firefox: Option<BrowserVersionValue>,
-    safari: Option<BrowserVersionValue>,
-}
-
-struct CompatEntry {
-    deprecated: bool,
-    experimental: bool,
+/// One element entry from `catalog.json`.
+#[derive(Deserialize)]
+struct Element {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    mdn_url: Option<String>,
     spec_url: Option<String>,
-    baseline: Option<BaselineValue>,
-    browser_support: Option<BrowserSupportValue>,
+    #[serde(default)]
+    deprecated: bool,
+    #[serde(default)]
+    experimental: bool,
+    #[serde(default)]
+    standard_track: Option<bool>,
+    #[serde(default)]
+    baseline: Option<BaselineStatus>,
+    #[serde(default)]
+    browser_support: Option<BrowserSupport>,
+    content_model: ContentModel,
+    attrs: Vec<String>,
+    global_attrs: bool,
 }
 
-/// Qualifier on a baseline year when the upstream date carries a
-/// comparison prefix. Mirrors `svg_data::BaselineQualifier` so the
-/// build-time and runtime representations stay identical.
-#[derive(Clone, Copy)]
-enum BaselineQualifierValue {
+/// The content-model shapes the catalog encodes (already flattened).
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum ContentModel {
+    ChildrenSet { elements: Vec<String> },
+    AnySvg,
+    Foreign,
+    Text,
+}
+
+/// One attribute entry from `catalog.json`.
+#[derive(Deserialize)]
+struct Attribute {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    mdn_url: Option<String>,
+    spec_url: Option<String>,
+    #[serde(default)]
+    deprecated: bool,
+    #[serde(default)]
+    experimental: bool,
+    #[serde(default)]
+    standard_track: Option<bool>,
+    animatable: bool,
+    #[serde(rename = "presentation_attribute")]
+    presentation: Option<String>,
+    #[serde(default)]
+    baseline: Option<BaselineStatus>,
+    #[serde(default)]
+    browser_support: Option<BrowserSupport>,
+    #[serde(default)]
+    element_compat: Vec<AttributeElementCompat>,
+    #[serde(default)]
+    value_overrides: Vec<AttributeValueOverride>,
+    values: AttributeValues,
+    applicability: AttributeApplicability,
+}
+
+/// Element-scoped compat facts for an attribute.
+#[derive(Deserialize)]
+struct AttributeElementCompat {
+    element: String,
+    #[serde(flatten)]
+    facts: CompatFacts,
+}
+
+/// Per-profile value-space override for one attribute.
+#[derive(Deserialize)]
+struct AttributeValueOverride {
+    profile: SpecSnapshot,
+    values: AttributeValues,
+}
+
+/// One generated per-snapshot inventory.
+#[derive(Clone, Deserialize)]
+struct Inventory {
+    profile: SpecSnapshot,
+    elements: Vec<InventoryElement>,
+}
+
+/// One generated snapshot overlay file.
+#[derive(Deserialize)]
+struct SnapshotDocument {
+    schema_version: u16,
+    profile: SpecSnapshot,
+    #[serde(default)]
+    aliases: Vec<String>,
+    inventory: SnapshotInventory,
+    #[serde(default)]
+    lifecycle: SnapshotLifecycle,
+    #[serde(default)]
+    value_overrides: Vec<SnapshotValueOverride>,
+}
+
+/// The lifecycle overlay payload inside one snapshot overlay.
+#[derive(Default, Deserialize)]
+struct SnapshotLifecycle {
+    #[serde(default)]
+    elements: Vec<LifecycleEntry>,
+    #[serde(default)]
+    attributes: Vec<LifecycleEntry>,
+}
+
+/// One feature lifecycle fact in a snapshot overlay.
+#[derive(Deserialize)]
+struct LifecycleEntry {
+    name: String,
+    #[serde(default)]
+    catalog_name: Option<String>,
+    present: bool,
+    lifecycle: LifecycleStatus,
+    #[serde(default)]
+    known_in: Vec<SpecSnapshot>,
+}
+
+/// Lifecycle statuses emitted by snapshot overlays.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum LifecycleStatus {
+    Stable,
+    Experimental,
+    Obsolete,
+    NotYetIntroduced,
+}
+
+/// The inventory payload inside one snapshot overlay.
+#[derive(Deserialize)]
+struct SnapshotInventory {
+    elements: Vec<InventoryElement>,
+}
+
+/// One value-space override scoped by the containing snapshot document.
+#[derive(Deserialize)]
+struct SnapshotValueOverride {
+    attribute: String,
+    values: AttributeValues,
+}
+
+/// One element's generated per-snapshot inventory.
+#[derive(Clone, Deserialize)]
+struct InventoryElement {
+    name: String,
+    attributes: Vec<String>,
+}
+
+/// SVG specification snapshots encoded in the catalog.
+#[derive(Clone, Copy, Deserialize, PartialEq, Eq, Debug)]
+enum SpecSnapshot {
+    Svg11Rec20030114,
+    Svg11Rec20110816,
+    Svg2Cr20181004,
+    Svg2EditorsDraft,
+}
+
+/// Objective browser-compat facts.
+#[derive(Clone, Deserialize)]
+struct CompatFacts {
+    #[serde(default)]
+    deprecated: bool,
+    #[serde(default)]
+    experimental: bool,
+    #[serde(default)]
+    standard_track: Option<bool>,
+    #[serde(default)]
+    baseline: Option<BaselineStatus>,
+    #[serde(default)]
+    browser_support: Option<BrowserSupport>,
+}
+
+/// Web-platform baseline status of a feature.
+#[derive(Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum BaselineStatus {
+    Widely {
+        since: u16,
+        qualifier: Option<BaselineQualifier>,
+    },
+    Newly {
+        since: u16,
+        qualifier: Option<BaselineQualifier>,
+    },
+    Limited,
+}
+
+/// Inexactness qualifier on a baseline / version date.
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BaselineQualifier {
     Before,
     After,
     Approximately,
 }
 
-#[derive(Clone)]
-enum BaselineValue {
-    Widely {
-        since: u16,
-        qualifier: Option<BaselineQualifierValue>,
-    },
-    Newly {
-        since: u16,
-        qualifier: Option<BaselineQualifierValue>,
-    },
-    Limited,
+/// Per-browser support across the four tracked engines.
+#[derive(Clone, Deserialize)]
+struct BrowserSupport {
+    #[serde(default)]
+    chrome: Option<BrowserVersion>,
+    #[serde(default)]
+    edge: Option<BrowserVersion>,
+    #[serde(default)]
+    firefox: Option<BrowserVersion>,
+    #[serde(default)]
+    safari: Option<BrowserVersion>,
 }
 
-impl BaselineValue {
-    const fn rank(&self) -> u8 {
-        match self {
-            Self::Limited => 0,
-            Self::Newly { .. } => 1,
-            Self::Widely { .. } => 2,
-        }
-    }
-
-    const fn since(&self) -> Option<u16> {
-        match self {
-            Self::Widely { since, .. } | Self::Newly { since, .. } => Some(*since),
-            Self::Limited => None,
-        }
-    }
+/// Baked support detail for one browser.
+#[derive(Clone, Deserialize)]
+struct BrowserVersion {
+    #[serde(default)]
+    supported: Option<bool>,
+    #[serde(default)]
+    partial_implementation: bool,
+    #[serde(default)]
+    notes: Vec<String>,
+    #[serde(default)]
+    prefix: Option<String>,
+    #[serde(default)]
+    alternative_name: Option<String>,
+    #[serde(default)]
+    flags: Vec<BrowserFlag>,
+    #[serde(default)]
+    version_added: Option<String>,
+    #[serde(default)]
+    version_qualifier: Option<BaselineQualifier>,
+    #[serde(default)]
+    version_removed: Option<String>,
+    #[serde(default)]
+    version_removed_qualifier: Option<BaselineQualifier>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct SnapshotElementRecord {
+/// Runtime flag a browser gates a feature behind.
+#[derive(Clone, Deserialize)]
+struct BrowserFlag {
     name: String,
-    title: String,
-    categories: Vec<String>,
-    content_model: ElementContentModelJson,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+/// The attribute value-space shapes the catalog encodes.
+#[derive(Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-enum ElementContentModelJson {
-    Empty,
-    TextOnly,
-    AnySvg,
-    CategorySet { categories: Vec<String> },
-    ElementSet { elements: Vec<String> },
-    ForeignNamespace,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct SnapshotAttributeRecord {
-    name: String,
-    title: String,
-    value_syntax: ValueSyntaxJson,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum ValueSyntaxJson {
-    GrammarRef { grammar_id: String },
-    ForeignRef { spec: String, target: String },
-    Opaque { display: String, reason: String },
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct GrammarFile {
-    grammars: Vec<GrammarDefinition>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct GrammarDefinition {
-    id: String,
-    root: GrammarNode,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum GrammarNode {
-    Keyword {
-        value: String,
-    },
-    DatatypeRef {
-        name: String,
-    },
-    GrammarRef {
-        name: String,
-    },
-    Sequence {
-        items: Vec<Self>,
-    },
-    Choice {
-        options: Vec<Self>,
-    },
-    Optional {
-        item: Box<Self>,
-    },
-    ZeroOrMore {
-        item: Box<Self>,
-    },
-    OneOrMore {
-        item: Box<Self>,
-    },
-    CommaSeparated {
-        item: Box<Self>,
-    },
-    SpaceSeparated {
-        item: Box<Self>,
-    },
-    CommaWspSeparated {
-        item: Box<Self>,
-    },
-    Repeat {
-        item: Box<Self>,
-        min: u16,
-        max: Option<u16>,
-    },
-    Literal {
-        value: String,
-    },
-    Opaque {
-        display: String,
-        reason: String,
-    },
-    ForeignRef {
-        spec: String,
-        target: String,
-    },
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ElementAttributeMatrixFile {
-    edges: Vec<ElementAttributeEdge>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ElementAttributeEdge {
-    element: String,
-    attribute: String,
-    requirement: AttributeRequirementJson,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum AttributeRequirementJson {
-    Required,
-    Optional,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ElementMembershipFile {
-    elements: Vec<FeatureMembershipRecord>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct AttributeMembershipFile {
-    attributes: Vec<FeatureMembershipRecord>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct FeatureMembershipRecord {
-    name: String,
-    present_in: Vec<SpecSnapshotId>,
-}
-
-#[derive(Debug, Clone)]
-struct SnapshotBuildData {
-    elements: HashMap<String, SnapshotElementRecord>,
-    attributes: HashMap<String, SnapshotAttributeRecord>,
-    grammars: HashMap<String, GrammarDefinition>,
-    element_attributes: BTreeMap<String, Vec<AttributeEdgeRecord>>,
-    attribute_elements: BTreeMap<String, Vec<String>>,
-    global_attributes: BTreeSet<String>,
-}
-
-#[derive(Debug, Clone)]
-struct AttributeEdgeRecord {
-    name: String,
-    required: bool,
-}
-
-#[derive(Debug, Clone)]
-struct UnionElement {
-    name: String,
-    description: String,
-    mdn_url: String,
-    spec_lifecycle: &'static str,
-    content_model: ElementContentModelJson,
-    required_attrs: Vec<String>,
-    attrs: Vec<String>,
-    global_attrs: bool,
-    categories: Vec<String>,
-    known_in: Vec<SpecSnapshotId>,
-}
-
-#[derive(Debug, Clone)]
-struct UnionAttribute {
-    name: String,
-    description: String,
-    mdn_url: String,
-    spec_lifecycle: &'static str,
-    values: UnionValues,
-    /// Per-snapshot value overrides for attributes whose spec-defined value
-    /// list genuinely differs between snapshots. Only populated for
-    /// divergent snapshots — snapshots matching `values` are omitted and
-    /// callers fall back to the union default.
-    per_snapshot_value_overrides: BTreeMap<SpecSnapshotId, UnionValues>,
-    elements: Vec<String>,
-    known_in: Vec<SpecSnapshotId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum UnionValues {
+enum AttributeValues {
     Enum {
         values: Vec<String>,
     },
-    FreeText,
+    Transform {
+        functions: Vec<String>,
+    },
     Color,
     Length,
     Url,
     NumberOrPercentage,
-    Transform {
-        functions: Vec<String>,
+    CssGrammar {
+        grammar: String,
+        graph: CssGrammarGraph,
     },
-    ViewBox,
-    PreserveAspectRatio {
-        alignments: Vec<String>,
-        meet_or_slice: Vec<String>,
-    },
-    Points,
-    PathData,
+    FreeText,
 }
 
-struct BuildInputs {
-    out_path: PathBuf,
-    elements: Vec<UnionElement>,
-    attributes: Vec<UnionAttribute>,
-    profile_attributes: Vec<(SpecSnapshotId, BTreeMap<String, Vec<String>>)>,
-    compat: bcd::CompatData,
+#[derive(Clone, Deserialize)]
+struct CssGrammarGraph {
+    root: u16,
+    nodes: Vec<CssGrammarNode>,
+    edges: Vec<CssGrammarEdge>,
 }
 
-/// Minimal record from `data/elements.json` used to augment the per-snapshot
-/// profile attribute mappings with curated element→attribute edges.
-#[derive(Debug, Deserialize)]
-struct CuratedElementRecord {
+#[derive(Clone, Deserialize)]
+struct CssGrammarNode {
+    id: u16,
+    kind: CssGrammarNodeKind,
+    #[serde(default)]
+    text: Option<String>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CssGrammarNodeKind {
+    Root,
+    Group,
+    Keyword,
+    Type,
+    Function,
+    Operator,
+}
+
+#[derive(Clone, Deserialize)]
+struct CssGrammarEdge {
+    from: u16,
+    to: u16,
+    kind: CssGrammarEdgeKind,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CssGrammarEdgeKind {
+    Contains,
+    Next,
+}
+
+/// Which elements the catalog says an attribute can appear on.
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum AttributeApplicability {
+    Global,
+    Elements { elements: Vec<String> },
+    None,
+}
+
+/// Derived graph view from `catalog.json`.
+#[derive(Deserialize)]
+struct CatalogGraph {
+    nodes: Vec<CatalogGraphNode>,
+    edges: Vec<CatalogGraphEdge>,
+}
+
+/// One graph node from `catalog.json`.
+#[derive(Deserialize)]
+struct CatalogGraphNode {
+    id: String,
+    kind: CatalogGraphNodeKind,
     name: String,
-    attrs: Vec<String>,
 }
 
-fn ensure_cached(url: &str, dest: &Path, offline: bool) -> Result<bool, String> {
-    if offline {
-        if dest.exists() {
-            println!(
-                "cargo::warning=compat: using existing cache (offline mode): {}",
-                dest.display()
-            );
-            return Ok(true);
-        }
-        println!(
-            "cargo::warning=compat: no cache and offline mode — skipping {}",
-            dest.display()
-        );
-        return Ok(false);
-    }
-
-    if dest.exists()
-        && let Ok(meta) = fs::metadata(dest)
-        && let Ok(modified) = meta.modified()
-        && let Ok(age) = SystemTime::now().duration_since(modified)
-        && age.as_secs() < CACHE_MAX_AGE_SECS
-    {
-        return Ok(true);
-    }
-
-    let mut response = ureq::get(url)
-        .call()
-        .map_err(|e| format!("fetch {url}: {e}"))?;
-
-    let body = response
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| format!("read body {url}: {e}"))?;
-
-    fs::write(dest, &body).map_err(|e| format!("write {}: {e}", dest.display()))?;
-
-    Ok(true)
+/// Catalog graph node kind.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CatalogGraphNodeKind {
+    Element,
+    Attribute,
+    ElementCategory,
+    AttributeCategory,
+    Profile,
+    CssProperty,
+    ValueGrammar,
+    CompatFeature,
 }
 
-fn emit_rerun_if_changed(path: &Path) -> Result<(), Box<dyn Error>> {
-    if !path.exists() {
-        return Ok(());
-    }
+/// One graph edge from `catalog.json`.
+#[derive(Deserialize)]
+struct CatalogGraphEdge {
+    from: String,
+    to: String,
+    kind: CatalogGraphEdgeKind,
+}
 
-    if path.is_file() {
+/// Catalog graph edge kind.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CatalogGraphEdgeKind {
+    AllowsChild,
+    HasAttribute,
+    AppliesTo,
+    MemberOf,
+    AcceptsGlobalAttributes,
+    UsesCssProperty,
+    HasValueGrammar,
+    OverridesValueInProfile,
+    Describes,
+    PresentIn,
+}
+
+fn main() {
+    let Some(out_dir) = env::var_os("OUT_DIR") else {
+        panic!("OUT_DIR must be set by cargo");
+    };
+    let out_dir = PathBuf::from(out_dir);
+    let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data");
+
+    println!("cargo::rerun-if-changed=data");
+    println!("cargo::rerun-if-changed=build.rs");
+
+    let catalog = generate_catalog(&data_dir);
+
+    let catalog_path = out_dir.join("catalog.rs");
+    if let Err(error) = fs::write(&catalog_path, catalog) {
+        panic!("write {}: {error}", catalog_path.display());
+    }
+}
+
+/// Generate the catalog source. Reads `data/catalog.json` when present, else
+/// emits an empty catalog so the crate still compiles before a regeneration.
+fn generate_catalog(data_dir: &Path) -> String {
+    let catalog_path = data_dir.join("catalog.json");
+    let Ok(json) = fs::read_to_string(&catalog_path) else {
+        return empty_catalog();
+    };
+    let manifest: CatalogManifest = match serde_json::from_str(&json) {
+        Ok(manifest) => manifest,
+        Err(error) => panic!("parse {}: {error}", catalog_path.display()),
+    };
+    assert_eq!(
+        manifest.schema_version,
+        CATALOG_SCHEMA_VERSION,
+        "{} has schema_version {}, expected {}",
+        catalog_path.display(),
+        manifest.schema_version,
+        CATALOG_SCHEMA_VERSION
+    );
+    let mut core = load_catalog_core(data_dir, &manifest.core);
+    let compat = manifest
+        .compat
+        .as_ref()
+        .map(|reference| load_catalog_compat(data_dir, reference));
+    let graph = load_catalog_graph(data_dir, &manifest.graph);
+    let snapshots = load_catalog_snapshots(data_dir, &manifest.snapshots);
+    apply_snapshot_value_overrides(&mut core.attributes, &snapshots);
+    let inventories = snapshot_inventories(&snapshots);
+    emit_catalog(&core, compat.as_ref(), &graph, &snapshots, &inventories)
+}
+
+/// Placeholder catalog used before any spec data has been extracted.
+fn empty_catalog() -> String {
+    [
+        "// Generated by build.rs - empty (no extracted data yet).",
+        "pub static ELEMENTS: &[crate::types::ElementDef] = &[];",
+        "pub static ATTRIBUTES: &[crate::types::AttributeDef] = &[];",
+        "pub static COMPAT_SUBFEATURES: &[crate::types::CompatSubfeature] = &[];",
+        "pub static SNAPSHOT_METADATA: &[crate::types::SnapshotMetadata] = &[];",
+        "pub static LIFECYCLE_OVERLAYS: &[crate::types::SnapshotLifecycle] = &[];",
+        "pub static INVENTORIES: &[crate::inventory::Inventory] = &[];",
+        "pub static CATALOG_GRAPH: crate::types::CatalogGraph = crate::types::CatalogGraph { nodes: &[], edges: &[] };",
+    ]
+    .join("\n")
+}
+
+fn load_catalog_core(data_dir: &Path, reference: &CatalogRef) -> CatalogCore {
+    let path = resolve_catalog_ref(data_dir, &reference.href);
+    println!("cargo::rerun-if-changed={}", path.display());
+    let json = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let core: CatalogCore = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    assert_schema_version(&path, core.schema_version);
+    core
+}
+
+fn load_catalog_compat(data_dir: &Path, reference: &CatalogRef) -> CompatMetadata {
+    let path = resolve_catalog_ref(data_dir, &reference.href);
+    println!("cargo::rerun-if-changed={}", path.display());
+    let json = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let compat: CompatMetadata = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    assert_schema_version(&path, compat.schema_version);
+    compat
+}
+
+fn load_catalog_graph(data_dir: &Path, reference: &CatalogRef) -> CatalogGraph {
+    let path = resolve_catalog_ref(data_dir, &reference.href);
+    println!("cargo::rerun-if-changed={}", path.display());
+    let json = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let document: CatalogGraphDocument = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    assert_schema_version(&path, document.schema_version);
+    document.graph
+}
+
+fn load_catalog_snapshots(data_dir: &Path, snapshots: &[SnapshotRef]) -> Vec<SnapshotDocument> {
+    let mut documents = Vec::new();
+    for snapshot in snapshots {
+        let path = resolve_catalog_ref(data_dir, &snapshot.href);
         println!("cargo::rerun-if-changed={}", path.display());
-        return Ok(());
+        let json = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+        let document: SnapshotDocument = serde_json::from_str(&json)
+            .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+        assert_schema_version(&path, document.schema_version);
+        assert_eq!(
+            document.profile,
+            snapshot.profile,
+            "{} profile {:?} does not match catalog ref {:?}",
+            path.display(),
+            document.profile,
+            snapshot.profile
+        );
+        documents.push(document);
     }
-
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        emit_rerun_if_changed(&entry.path())?;
-    }
-
-    Ok(())
+    documents
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let svg_compat_dir = manifest_dir.join("../../workers/svg-compat");
-
-    println!("cargo::rerun-if-changed=data/specs");
-    println!("cargo::rerun-if-changed=data/derived");
-    println!("cargo::rerun-if-changed=data/elements.json");
-    println!("cargo::rerun-if-changed=data/placeholder_attribute_names.txt");
-    println!("cargo::rerun-if-env-changed=SVG_DATA_OFFLINE");
-    println!("cargo::rerun-if-env-changed=SVG_COMPAT_FILE");
-    println!("cargo::rerun-if-env-changed=SVG_COMPAT_URL");
-    emit_rerun_if_changed(&svg_compat_dir.join("src"))?;
-    emit_rerun_if_changed(&svg_compat_dir.join("deno.json"))?;
-
-    // Provenance referential-integrity gate: fail the build early if any
-    // `source_id` in the checked-in snapshot data doesn't resolve to a
-    // `pinned_sources[].input_id` in the same snapshot's `snapshot.json`.
-    // Runs before `load_build_inputs()` so a bad snapshot edit surfaces
-    // before we even try to deserialize the catalog-building structures.
-    provenance_gate::run(manifest_dir, &canonical_snapshots())
-        .map_err(|e| -> Box<dyn Error> { e.into() })?;
-
-    let inputs = load_build_inputs()?;
-
-    // BCD ↔ spec reconciliation: fail the build early if any feature is
-    // BCD-deprecated AND still present in the latest spec snapshot
-    // without a documented exception. Runs before any code emission so
-    // a failure short-circuits before generating a stale catalog.
-    if !inputs.compat.elements.is_empty() || !inputs.compat.attributes.is_empty() {
-        let element_facts: Vec<reconcile::UnionElementFacts> = inputs
-            .elements
-            .iter()
-            .map(|el| reconcile::UnionElementFacts {
-                name: el.name.clone(),
-                present_in: el.known_in.clone(),
-            })
-            .collect();
-        let attribute_facts: Vec<reconcile::UnionAttributeFacts> = inputs
-            .attributes
-            .iter()
-            .map(|attr| reconcile::UnionAttributeFacts {
-                name: attr.name.clone(),
-                present_in: attr.known_in.clone(),
-                elements: attr.elements.clone(),
-            })
-            .collect();
-        reconcile::run(
-            manifest_dir,
-            &inputs.compat,
-            &element_facts,
-            &attribute_facts,
-            LATEST_SNAPSHOT,
-            &inputs.compat.bcd_version,
-        )
-        .map_err(|e| -> Box<dyn Error> { e.into() })?;
+fn snapshot_inventories(snapshots: &[SnapshotDocument]) -> Vec<Inventory> {
+    let mut inventories = Vec::new();
+    for snapshot in snapshots {
+        inventories.push(Inventory {
+            profile: snapshot.profile,
+            elements: snapshot.inventory.elements.clone(),
+        });
     }
-
-    let mut out = String::with_capacity(64 * 1024);
-    let element_idents = element_idents(&inputs.elements);
-    let attribute_idents = attribute_idents(&inputs.attributes);
-
-    writeln!(out, "// @generated by build.rs -- do not edit")?;
-    writeln!(out)?;
-
-    write_element_statics(&mut out, &inputs.elements, &element_idents)?;
-    write_attribute_statics(&mut out, &inputs.attributes, &attribute_idents)?;
-    write_elements_array(&mut out, &inputs.elements, &element_idents, &inputs.compat)?;
-    write_attributes_array(
-        &mut out,
-        &inputs.attributes,
-        &attribute_idents,
-        &inputs.compat,
-    )?;
-    write_category_mapping(&mut out, &inputs.elements)?;
-    write_membership_lookup(
-        &mut out,
-        &inputs.elements,
-        &inputs.attributes,
-        &element_idents,
-        &attribute_idents,
-    )?;
-    write_profile_attribute_lookup(&mut out, &inputs.profile_attributes)?;
-    write_attribute_values_profile_lookup(&mut out, &inputs.attributes, &attribute_idents)?;
-
-    fs::write(&inputs.out_path, out)?;
-    Ok(())
+    inventories
 }
 
-fn load_build_inputs() -> Result<BuildInputs, Box<dyn Error>> {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR")?);
-    let out_path = out_dir.join("catalog.rs");
-    let compat = bcd::fetch_compat_data(&out_dir);
+fn apply_snapshot_value_overrides(attributes: &mut [Attribute], snapshots: &[SnapshotDocument]) {
+    for snapshot in snapshots {
+        for override_ in &snapshot.value_overrides {
+            let Some(attribute) = attributes
+                .iter_mut()
+                .find(|attribute| attribute.name == override_.attribute)
+            else {
+                panic!(
+                    "snapshot {:?} value override references unknown attribute {}",
+                    snapshot.profile, override_.attribute
+                );
+            };
+            attribute.value_overrides.push(AttributeValueOverride {
+                profile: snapshot.profile,
+                values: override_.values.clone(),
+            });
+        }
+    }
+}
 
-    let snapshots = canonical_snapshots();
-    let snapshot_data: HashMap<SpecSnapshotId, SnapshotBuildData> = snapshots
+fn assert_schema_version(path: &Path, schema_version: u16) {
+    assert_eq!(
+        schema_version,
+        CATALOG_SCHEMA_VERSION,
+        "{} has schema_version {}, expected {}",
+        path.display(),
+        schema_version,
+        CATALOG_SCHEMA_VERSION
+    );
+}
+
+fn resolve_catalog_ref(data_dir: &Path, href: &str) -> PathBuf {
+    let relative = Path::new(href);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        panic!("catalog ref must be a clean relative path: {href}");
+    }
+
+    let path = data_dir.join(relative);
+    let canonical_data_dir = data_dir
+        .canonicalize()
+        .unwrap_or_else(|error| panic!("canonicalize {}: {error}", data_dir.display()));
+    let canonical_path = path
+        .canonicalize()
+        .unwrap_or_else(|error| panic!("canonicalize {}: {error}", path.display()));
+    assert!(
+        canonical_path.starts_with(&canonical_data_dir),
+        "catalog ref escaped data directory: {href}"
+    );
+    canonical_path
+}
+
+/// Emit the catalog as Rust source: static `ElementDef` and `AttributeDef`
+/// arrays, plus the still-empty snapshot array (populated by later phases).
+fn emit_catalog(
+    core: &CatalogCore,
+    compat: Option<&CompatMetadata>,
+    graph: &CatalogGraph,
+    snapshots: &[SnapshotDocument],
+    inventories: &[Inventory],
+) -> String {
+    let mut out = String::from("// Generated by build.rs from data/catalog.json.\n");
+    out.push_str("pub static ELEMENTS: &[crate::types::ElementDef] = &[\n");
+    for element in &core.elements {
+        emit_element(&mut out, element);
+    }
+    out.push_str("];\n");
+    out.push_str("pub static ATTRIBUTES: &[crate::types::AttributeDef] = &[\n");
+    for attribute in &core.attributes {
+        emit_attribute(&mut out, attribute);
+    }
+    out.push_str("];\n");
+    out.push_str("pub static COMPAT_SUBFEATURES: &[crate::types::CompatSubfeature] = &[\n");
+    if let Some(compat) = compat {
+        for subfeature in &compat.unmodeled_features {
+            emit_compat_subfeature(&mut out, subfeature);
+        }
+    }
+    out.push_str("];\n");
+    out.push_str("pub static SNAPSHOT_METADATA: &[crate::types::SnapshotMetadata] = &[\n");
+    for snapshot in snapshots {
+        emit_snapshot_metadata(&mut out, snapshot);
+    }
+    out.push_str("];\n");
+    out.push_str("pub static LIFECYCLE_OVERLAYS: &[crate::types::SnapshotLifecycle] = &[\n");
+    for snapshot in snapshots {
+        emit_snapshot_lifecycle(&mut out, snapshot);
+    }
+    out.push_str("];\n");
+    out.push_str("pub static INVENTORIES: &[crate::inventory::Inventory] = &[\n");
+    for inventory in inventories {
+        emit_inventory(&mut out, inventory);
+    }
+    out.push_str("];\n");
+    let _ = writeln!(
+        out,
+        "pub static CATALOG_GRAPH: crate::types::CatalogGraph = {};",
+        emit_catalog_graph(graph)
+    );
+    out
+}
+
+/// Append one generated snapshot metadata entry.
+fn emit_snapshot_metadata(out: &mut String, snapshot: &SnapshotDocument) {
+    let _ = writeln!(
+        out,
+        "    crate::types::SnapshotMetadata {{ snapshot: {}, aliases: &[{}] }},",
+        emit_spec_snapshot(snapshot.profile),
+        quote_list(&snapshot.aliases),
+    );
+}
+
+/// Append one generated snapshot lifecycle overlay.
+fn emit_snapshot_lifecycle(out: &mut String, snapshot: &SnapshotDocument) {
+    let elements = snapshot
+        .lifecycle
+        .elements
         .iter()
-        .copied()
-        .map(|snapshot| {
-            load_snapshot_build_data(manifest_dir, snapshot).map(|data| (snapshot, data))
-        })
-        .collect::<Result<_, _>>()?;
-
-    let element_membership: ElementMembershipFile =
-        read_json(&manifest_dir.join("data/derived/union/elements.json"))?;
-    let attribute_membership: AttributeMembershipFile =
-        read_json(&manifest_dir.join("data/derived/union/attributes.json"))?;
-
-    let curated_elements: Vec<CuratedElementRecord> =
-        read_json(&manifest_dir.join("data/elements.json"))?;
-
-    let elements = build_union_elements(&snapshot_data, &element_membership)?;
-    let attributes = build_union_attributes(&snapshot_data, &attribute_membership)?;
-    let profile_attributes =
-        build_profile_attributes(&snapshots, &snapshot_data, &curated_elements);
-
-    Ok(BuildInputs {
-        out_path,
+        .map(emit_lifecycle_entry)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let attributes = snapshot
+        .lifecycle
+        .attributes
+        .iter()
+        .map(emit_lifecycle_entry)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        out,
+        "    crate::types::SnapshotLifecycle {{ snapshot: {}, elements: &[{}], attributes: &[{}] }},",
+        emit_spec_snapshot(snapshot.profile),
         elements,
         attributes,
-        profile_attributes,
-        compat,
-    })
+    );
 }
 
-/// Build-script alias for [`SpecSnapshotId::LATEST`], the single source
-/// of truth for the tip of the catalogued snapshot timeline. Bump
-/// [`SpecSnapshotId::LATEST`] and append to `canonical_snapshots`
-/// together when a new snapshot lands.
-const LATEST_SNAPSHOT: SpecSnapshotId = SpecSnapshotId::LATEST;
-
-fn canonical_snapshots() -> Vec<SpecSnapshotId> {
-    vec![
-        SpecSnapshotId::Svg11Rec20030114,
-        SpecSnapshotId::Svg11Rec20110816,
-        SpecSnapshotId::Svg2Cr20181004,
-        LATEST_SNAPSHOT,
-    ]
-}
-
-fn load_snapshot_build_data(
-    manifest_dir: &Path,
-    snapshot: SpecSnapshotId,
-) -> Result<SnapshotBuildData, Box<dyn Error>> {
-    let root = manifest_dir.join("data/specs").join(snapshot.as_str());
-    let elements: Vec<SnapshotElementRecord> = read_json(&root.join("elements.json"))?;
-    let attributes: Vec<SnapshotAttributeRecord> = read_json(&root.join("attributes.json"))?;
-    let grammars: GrammarFile = read_json(&root.join("grammars.json"))?;
-    let matrix: ElementAttributeMatrixFile =
-        read_json(&root.join("element_attribute_matrix.json"))?;
-
-    let element_names: HashSet<String> = elements
+fn emit_lifecycle_entry(entry: &LifecycleEntry) -> String {
+    let catalog_name = entry
+        .catalog_name
+        .as_ref()
+        .map_or_else(|| "None".to_owned(), |name| format!("Some({name:?})"));
+    let known_in = entry
+        .known_in
         .iter()
-        .map(|element| element.name.clone())
-        .collect();
-    let attribute_names: HashSet<String> = attributes
+        .map(|snapshot| emit_spec_snapshot(*snapshot))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "crate::types::FeatureLifecycle {{ name: {:?}, catalog_name: {catalog_name}, present: {}, lifecycle: {}, known_in: &[{}] }}",
+        entry.name,
+        entry.present,
+        emit_lifecycle_status(&entry.lifecycle),
+        known_in,
+    )
+}
+
+const fn emit_lifecycle_status(status: &LifecycleStatus) -> &'static str {
+    match status {
+        LifecycleStatus::Stable => "crate::types::SpecLifecycle::Stable",
+        LifecycleStatus::Experimental => "crate::types::SpecLifecycle::Experimental",
+        LifecycleStatus::Obsolete | LifecycleStatus::NotYetIntroduced => {
+            "crate::types::SpecLifecycle::Obsolete"
+        }
+    }
+}
+
+/// Append one generated edition inventory.
+fn emit_inventory(out: &mut String, inventory: &Inventory) {
+    let elements = inventory
+        .elements
         .iter()
-        .map(|attribute| attribute.name.clone())
-        .collect();
-    let mut element_attributes: BTreeMap<String, Vec<AttributeEdgeRecord>> = BTreeMap::new();
-    let mut attribute_elements: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut attribute_counts: HashMap<String, usize> = HashMap::new();
-    let mut seen_edges: HashSet<(String, String)> = HashSet::new();
-
-    for edge in matrix.edges {
-        if is_placeholder_attribute_name(&edge.attribute) {
-            continue;
-        }
-        // Referential integrity: every non-placeholder edge must name a real
-        // element and attribute from this snapshot. A dangling edge would
-        // otherwise silently seed a phantom catalog entry — fail the build.
-        assert!(
-            element_names.contains(&edge.element),
-            "matrix edge references unknown element <{}> (attribute `{}`) in snapshot {}",
-            edge.element,
-            edge.attribute,
-            snapshot.as_str(),
-        );
-        assert!(
-            attribute_names.contains(&edge.attribute),
-            "matrix edge references unknown attribute `{}` (on element <{}>) in snapshot {}",
-            edge.attribute,
-            edge.element,
-            snapshot.as_str(),
-        );
-        if !seen_edges.insert((edge.element.clone(), edge.attribute.clone())) {
-            return Err(format!(
-                "duplicate matrix edge <{}> ↔ `{}` in snapshot {}",
-                edge.element,
-                edge.attribute,
-                snapshot.as_str(),
-            )
-            .into());
-        }
-        element_attributes
-            .entry(edge.element.clone())
-            .or_default()
-            .push(AttributeEdgeRecord {
-                name: edge.attribute.clone(),
-                required: edge.requirement == AttributeRequirementJson::Required,
-            });
-        attribute_elements
-            .entry(edge.attribute.clone())
-            .or_default()
-            .push(edge.element);
-        *attribute_counts.entry(edge.attribute).or_default() += 1;
-    }
-
-    for edges in element_attributes.values_mut() {
-        edges.sort_by(|left, right| left.name.cmp(&right.name));
-    }
-    for elements in attribute_elements.values_mut() {
-        elements.sort();
-    }
-
-    let global_attributes = attribute_counts
-        .into_iter()
-        .filter(|(_, count)| *count == element_names.len())
-        .map(|(name, _)| name)
-        .collect();
-
-    Ok(SnapshotBuildData {
-        elements: collect_unique(
-            elements,
-            |element| element.name.clone(),
-            "element",
-            snapshot,
-        )?,
-        attributes: collect_unique(
-            attributes,
-            |attribute| attribute.name.clone(),
-            "attribute",
-            snapshot,
-        )?,
-        grammars: collect_unique(
-            grammars.grammars,
-            |grammar| grammar.id.clone(),
-            "grammar",
-            snapshot,
-        )?,
-        element_attributes,
-        attribute_elements,
-        global_attributes,
-    })
+        .map(emit_inventory_element)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        out,
+        "    crate::inventory::Inventory {{ edition: crate::inventory::EditionId::for_snapshot({}), elements: &[{}] }},",
+        emit_spec_snapshot(inventory.profile),
+        elements,
+    );
 }
 
-/// Collect items into a map keyed by `key`, failing the build on a duplicate
-/// key instead of silently overwriting. The current data has no duplicates, so
-/// this only guards against future data-entry mistakes.
-fn collect_unique<T>(
-    items: impl IntoIterator<Item = T>,
-    key: impl Fn(&T) -> String,
-    kind: &str,
-    snapshot: SpecSnapshotId,
-) -> Result<HashMap<String, T>, Box<dyn Error>> {
-    let mut map = HashMap::new();
-    for item in items {
-        let name = key(&item);
-        if map.insert(name.clone(), item).is_some() {
-            return Err(format!(
-                "duplicate {kind} `{name}` in snapshot {}",
-                snapshot.as_str()
-            )
-            .into());
-        }
-    }
-    Ok(map)
+fn emit_inventory_element(element: &InventoryElement) -> String {
+    let attributes = element
+        .attributes
+        .iter()
+        .map(|attribute| format!("crate::inventory::Attribute {{ name: {attribute:?} }}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "crate::inventory::Element {{ name: {:?}, attributes: &[{}] }}",
+        element.name, attributes
+    )
 }
 
-fn build_union_elements(
-    snapshot_data: &HashMap<SpecSnapshotId, SnapshotBuildData>,
-    membership: &ElementMembershipFile,
-) -> Result<Vec<UnionElement>, Box<dyn Error>> {
-    let mut elements = Vec::with_capacity(membership.elements.len());
-
-    for feature in &membership.elements {
-        let snapshot = latest_present_snapshot(&feature.present_in)
-            .ok_or_else(|| format!("element {} has no present snapshots", feature.name))?;
-        let data = snapshot_data
-            .get(&snapshot)
-            .ok_or_else(|| format!("missing snapshot data for {}", snapshot.as_str()))?;
-        let element = data
-            .elements
-            .get(&feature.name)
-            .ok_or_else(|| format!("missing element {} in {}", feature.name, snapshot.as_str()))?;
-        let edges = data
-            .element_attributes
-            .get(&feature.name)
-            .cloned()
-            .unwrap_or_default();
-        let attrs: Vec<String> = edges.iter().map(|edge| edge.name.clone()).collect();
-        let required_attrs: Vec<String> = edges
+/// Render the derived catalog graph as Rust source.
+fn emit_catalog_graph(graph: &CatalogGraph) -> String {
+    format!(
+        "crate::types::CatalogGraph {{ nodes: &[{}], edges: &[{}] }}",
+        graph
+            .nodes
             .iter()
-            .filter(|edge| edge.required)
-            .map(|edge| edge.name.clone())
-            .collect();
-        let attr_set: BTreeSet<String> = attrs.iter().cloned().collect();
-        let global_attrs = !data.global_attributes.is_empty()
-            && data
-                .global_attributes
-                .iter()
-                .all(|attribute| attr_set.contains(attribute));
-
-        elements.push(UnionElement {
-            name: element.name.clone(),
-            description: element.title.clone(),
-            mdn_url: format!(
-                "https://developer.mozilla.org/docs/Web/SVG/Element/{}",
-                element.name
-            ),
-            spec_lifecycle: union_lifecycle_expr(&feature.present_in),
-            content_model: element.content_model.clone(),
-            required_attrs,
-            attrs,
-            global_attrs,
-            categories: element
-                .categories
-                .iter()
-                .map(|category| map_category_name(category))
-                .collect::<Result<Vec<_>, _>>()?,
-            known_in: feature.present_in.clone(),
-        });
-    }
-
-    elements.sort_by(|left, right| left.name.cmp(&right.name));
-    Ok(elements)
+            .map(emit_catalog_graph_node)
+            .collect::<Vec<_>>()
+            .join(", "),
+        graph
+            .edges
+            .iter()
+            .map(emit_catalog_graph_edge)
+            .collect::<Vec<_>>()
+            .join(", "),
+    )
 }
 
-/// Shared blocklist of upstream BCD/web-features IDs that do not
-/// correspond to valid serialized SVG attribute names. Read from a plain
-/// text file at compile time so `examples/generate_snapshot_seed.rs` can
-/// `include_str!` the same source of truth without crossing the
-/// lib-vs-build-script boundary.
-const PLACEHOLDER_ATTRIBUTE_NAMES_RAW: &str = include_str!("data/placeholder_attribute_names.txt");
-
-fn is_placeholder_attribute_name(name: &str) -> bool {
-    PLACEHOLDER_ATTRIBUTE_NAMES_RAW
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .any(|blocked| blocked == name)
+fn emit_catalog_graph_node(node: &CatalogGraphNode) -> String {
+    format!(
+        "crate::types::CatalogGraphNode {{ id: {:?}, kind: {}, name: {:?} }}",
+        node.id,
+        emit_catalog_graph_node_kind(&node.kind),
+        node.name,
+    )
 }
 
-fn build_union_attributes(
-    snapshot_data: &HashMap<SpecSnapshotId, SnapshotBuildData>,
-    membership: &AttributeMembershipFile,
-) -> Result<Vec<UnionAttribute>, Box<dyn Error>> {
-    let mut attributes = Vec::with_capacity(membership.attributes.len());
-
-    for feature in &membership.attributes {
-        if is_placeholder_attribute_name(&feature.name) {
-            continue;
+const fn emit_catalog_graph_node_kind(kind: &CatalogGraphNodeKind) -> &'static str {
+    match kind {
+        CatalogGraphNodeKind::Element => "crate::types::CatalogGraphNodeKind::Element",
+        CatalogGraphNodeKind::Attribute => "crate::types::CatalogGraphNodeKind::Attribute",
+        CatalogGraphNodeKind::ElementCategory => {
+            "crate::types::CatalogGraphNodeKind::ElementCategory"
         }
-        let snapshot = latest_present_snapshot(&feature.present_in)
-            .ok_or_else(|| format!("attribute {} has no present snapshots", feature.name))?;
-        let data = snapshot_data
-            .get(&snapshot)
-            .ok_or_else(|| format!("missing snapshot data for {}", snapshot.as_str()))?;
-        let attribute = data.attributes.get(&feature.name).ok_or_else(|| {
+        CatalogGraphNodeKind::AttributeCategory => {
+            "crate::types::CatalogGraphNodeKind::AttributeCategory"
+        }
+        CatalogGraphNodeKind::Profile => "crate::types::CatalogGraphNodeKind::Profile",
+        CatalogGraphNodeKind::CssProperty => "crate::types::CatalogGraphNodeKind::CssProperty",
+        CatalogGraphNodeKind::ValueGrammar => "crate::types::CatalogGraphNodeKind::ValueGrammar",
+        CatalogGraphNodeKind::CompatFeature => "crate::types::CatalogGraphNodeKind::CompatFeature",
+    }
+}
+
+fn emit_catalog_graph_edge(edge: &CatalogGraphEdge) -> String {
+    format!(
+        "crate::types::CatalogGraphEdge {{ from: {:?}, to: {:?}, kind: {} }}",
+        edge.from,
+        edge.to,
+        emit_catalog_graph_edge_kind(&edge.kind),
+    )
+}
+
+const fn emit_catalog_graph_edge_kind(kind: &CatalogGraphEdgeKind) -> &'static str {
+    match kind {
+        CatalogGraphEdgeKind::AllowsChild => "crate::types::CatalogGraphEdgeKind::AllowsChild",
+        CatalogGraphEdgeKind::HasAttribute => "crate::types::CatalogGraphEdgeKind::HasAttribute",
+        CatalogGraphEdgeKind::AppliesTo => "crate::types::CatalogGraphEdgeKind::AppliesTo",
+        CatalogGraphEdgeKind::MemberOf => "crate::types::CatalogGraphEdgeKind::MemberOf",
+        CatalogGraphEdgeKind::AcceptsGlobalAttributes => {
+            "crate::types::CatalogGraphEdgeKind::AcceptsGlobalAttributes"
+        }
+        CatalogGraphEdgeKind::UsesCssProperty => {
+            "crate::types::CatalogGraphEdgeKind::UsesCssProperty"
+        }
+        CatalogGraphEdgeKind::HasValueGrammar => {
+            "crate::types::CatalogGraphEdgeKind::HasValueGrammar"
+        }
+        CatalogGraphEdgeKind::OverridesValueInProfile => {
+            "crate::types::CatalogGraphEdgeKind::OverridesValueInProfile"
+        }
+        CatalogGraphEdgeKind::Describes => "crate::types::CatalogGraphEdgeKind::Describes",
+        CatalogGraphEdgeKind::PresentIn => "crate::types::CatalogGraphEdgeKind::PresentIn",
+    }
+}
+
+/// Append one `ElementDef` literal.
+fn emit_element(out: &mut String, element: &Element) {
+    let description = element.description.as_deref().unwrap_or_default();
+    let mdn_url = element.mdn_url.as_deref().unwrap_or_default();
+    let spec_url = element
+        .spec_url
+        .as_ref()
+        .map_or_else(|| "None".to_owned(), |url| format!("Some({url:?})"));
+    let baseline = emit_baseline(element.baseline.as_ref());
+    let browser_support = emit_browser_support(element.browser_support.as_ref());
+    let content_model = match &element.content_model {
+        ContentModel::ChildrenSet { elements } => {
             format!(
-                "missing attribute {} in {}",
-                feature.name,
-                snapshot.as_str()
+                "crate::types::ContentModel::ChildrenSet(&[{}])",
+                quote_list(elements)
             )
-        })?;
-        let elements = data
-            .attribute_elements
-            .get(&feature.name)
-            .cloned()
-            .unwrap_or_default();
-
-        let base_values = union_values_from_syntax(&attribute.value_syntax, &data.grammars);
-
-        // Detect per-snapshot value divergence: compute union_values for
-        // every snapshot where the attribute is present and keep only
-        // entries whose value list differs from the latest-snapshot base.
-        // See `examples/generate_snapshot_seed.rs` for the consumer that
-        // relies on snapshot-specific values (e.g. SVG 1.1
-        // `dominant-baseline` keywords differ from SVG 2 / CSS Inline 3).
-        let mut per_snapshot_value_overrides: BTreeMap<SpecSnapshotId, UnionValues> =
-            BTreeMap::new();
-        for present_snapshot in &feature.present_in {
-            if *present_snapshot == snapshot {
-                continue;
-            }
-            let Some(snap_data) = snapshot_data.get(present_snapshot) else {
-                continue;
-            };
-            let Some(snap_attribute) = snap_data.attributes.get(&feature.name) else {
-                continue;
-            };
-            let snap_values =
-                union_values_from_syntax(&snap_attribute.value_syntax, &snap_data.grammars);
-            if snap_values != base_values {
-                per_snapshot_value_overrides.insert(*present_snapshot, snap_values);
-            }
         }
-
-        attributes.push(UnionAttribute {
-            name: attribute.name.clone(),
-            description: attribute.title.clone(),
-            mdn_url: format!(
-                "https://developer.mozilla.org/docs/Web/SVG/Attribute/{}",
-                attribute.name
-            ),
-            spec_lifecycle: union_lifecycle_expr(&feature.present_in),
-            values: base_values,
-            per_snapshot_value_overrides,
-            elements,
-            known_in: feature.present_in.clone(),
-        });
-    }
-
-    attributes.sort_by(|left, right| left.name.cmp(&right.name));
-    Ok(attributes)
+        ContentModel::AnySvg => "crate::types::ContentModel::AnySvg".to_owned(),
+        ContentModel::Foreign => "crate::types::ContentModel::Foreign".to_owned(),
+        ContentModel::Text => "crate::types::ContentModel::Text".to_owned(),
+    };
+    let _ = writeln!(
+        out,
+        "    crate::types::ElementDef {{ name: {:?}, description: {description:?}, mdn_url: {mdn_url:?}, \
+         spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, baseline: {baseline}, \
+         browser_support: {browser_support}, content_model: {content_model}, \
+         attrs: &[{}], global_attrs: {} }},",
+        element.name,
+        element.deprecated,
+        element.experimental,
+        emit_option_bool(element.standard_track),
+        quote_list(&element.attrs),
+        element.global_attrs,
+    );
 }
 
-fn build_profile_attributes(
-    snapshots: &[SpecSnapshotId],
-    snapshot_data: &HashMap<SpecSnapshotId, SnapshotBuildData>,
-    curated_elements: &[CuratedElementRecord],
-) -> Vec<(SpecSnapshotId, BTreeMap<String, Vec<String>>)> {
-    snapshots
+/// Append one `AttributeDef` literal.
+fn emit_attribute(out: &mut String, attribute: &Attribute) {
+    let description = attribute.description.as_deref().unwrap_or_default();
+    let mdn_url = attribute.mdn_url.as_deref().unwrap_or_default();
+    let spec_url = attribute
+        .spec_url
+        .as_ref()
+        .map_or_else(|| "None".to_owned(), |url| format!("Some({url:?})"));
+    let presentation_attribute = attribute
+        .presentation
+        .as_ref()
+        .map_or_else(|| "None".to_owned(), |name| format!("Some({name:?})"));
+    let base_facts = CompatFacts {
+        deprecated: attribute.deprecated,
+        experimental: attribute.experimental,
+        standard_track: attribute.standard_track,
+        baseline: attribute.baseline.clone(),
+        browser_support: attribute.browser_support.clone(),
+    };
+    let baseline = emit_baseline(base_facts.baseline.as_ref());
+    let browser_support = emit_browser_support(base_facts.browser_support.as_ref());
+    let element_compat = emit_attribute_element_compat(&attribute.element_compat);
+    let value_overrides = emit_attribute_value_overrides(&attribute.value_overrides);
+    let values = emit_attribute_values(&attribute.values);
+    let applicability = emit_attribute_applicability(&attribute.applicability);
+    let _ = writeln!(
+        out,
+        "    crate::types::AttributeDef {{ name: {:?}, description: {description:?}, mdn_url: {mdn_url:?}, \
+         spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, animatable: {}, \
+         presentation_attribute: {presentation_attribute}, baseline: {baseline}, browser_support: {browser_support}, \
+         element_compat: {element_compat}, values: {values}, value_overrides: {value_overrides}, applicability: {applicability} }},",
+        attribute.name,
+        attribute.deprecated,
+        attribute.experimental,
+        emit_option_bool(attribute.standard_track),
+        attribute.animatable,
+    );
+}
+
+fn emit_attribute_value_overrides(overrides: &[AttributeValueOverride]) -> String {
+    if overrides.is_empty() {
+        return "&[]".to_owned();
+    }
+    let entries = overrides
         .iter()
-        .copied()
-        .map(|snapshot| {
-            let Some(data) = snapshot_data.get(&snapshot) else {
-                return (snapshot, BTreeMap::default());
-            };
-
-            let mut mapping: BTreeMap<String, Vec<String>> = data
-                .element_attributes
-                .iter()
-                .map(|(element, edges)| {
-                    (
-                        element.clone(),
-                        edges.iter().map(|edge| edge.name.clone()).collect(),
-                    )
-                })
-                .collect();
-
-            // Augment with edges from the curated catalog (data/elements.json).
-            // An attr is included only when it already has a record in this
-            // snapshot's attributes.json — so version-specific attrs like `href`
-            // (SVG 2 only) and `xlink:href` (SVG 1.1 only) are filtered correctly
-            // without any explicit per-snapshot logic.
-            for curated in curated_elements {
-                if !data.elements.contains_key(&curated.name) {
-                    continue;
-                }
-                let entry = mapping.entry(curated.name.clone()).or_default();
-                for attr in &curated.attrs {
-                    if data.attributes.contains_key(attr) {
-                        let already_present = entry.iter().any(|e| e == attr);
-                        if !already_present {
-                            entry.push(attr.clone());
-                        }
-                    }
-                }
-                entry.sort();
-            }
-
-            (snapshot, mapping)
+        .map(|override_| {
+            format!(
+                "({}, {})",
+                emit_spec_snapshot(override_.profile),
+                emit_attribute_values(&override_.values)
+            )
         })
         .collect::<Vec<_>>()
+        .join(", ");
+    format!("&[{entries}]")
 }
 
-fn read_json<T>(path: &Path) -> Result<T, Box<dyn Error>>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let text = fs::read_to_string(path)?;
-    Ok(serde_json::from_str(&text)?)
-}
-
-fn latest_present_snapshot(present_in: &[SpecSnapshotId]) -> Option<SpecSnapshotId> {
-    canonical_snapshots()
-        .into_iter()
-        .rev()
-        .find(|snapshot| present_in.contains(snapshot))
-}
-
-fn union_lifecycle_expr(present_in: &[SpecSnapshotId]) -> &'static str {
-    if !present_in.contains(&LATEST_SNAPSHOT) {
-        "SpecLifecycle::Obsolete"
-    } else if present_in == [LATEST_SNAPSHOT] {
-        "SpecLifecycle::Experimental"
-    } else {
-        "SpecLifecycle::Stable"
+const fn emit_spec_snapshot(snapshot: SpecSnapshot) -> &'static str {
+    match snapshot {
+        SpecSnapshot::Svg11Rec20030114 => "crate::types::SpecSnapshotId::Svg11Rec20030114",
+        SpecSnapshot::Svg11Rec20110816 => "crate::types::SpecSnapshotId::Svg11Rec20110816",
+        SpecSnapshot::Svg2Cr20181004 => "crate::types::SpecSnapshotId::Svg2Cr20181004",
+        SpecSnapshot::Svg2EditorsDraft => "crate::types::SpecSnapshotId::Svg2EditorsDraft",
     }
 }
 
-/// Enum variant companion to [`union_lifecycle_expr`]. Used by the verdict
-/// builder, which needs a real [`SpecLifecycle`] value (not its emitted
-/// source form) to drive rule branches.
-fn union_lifecycle_enum(present_in: &[SpecSnapshotId]) -> types::SpecLifecycle {
-    if !present_in.contains(&LATEST_SNAPSHOT) {
-        types::SpecLifecycle::Obsolete
-    } else if present_in == [LATEST_SNAPSHOT] {
-        types::SpecLifecycle::Experimental
-    } else {
-        types::SpecLifecycle::Stable
+fn emit_attribute_element_compat(overrides: &[AttributeElementCompat]) -> String {
+    if overrides.is_empty() {
+        return "&[]".to_owned();
     }
-}
-
-/// Build the [`verdict::SpecFacts`] for an entry in a specific profile.
-///
-/// Returns `None` when the feature is absent from the given profile (caller
-/// still emits a Forbid verdict via the Obsolete branch below). Otherwise
-/// returns facts suitable for `verdict::compute`.
-fn spec_facts_for_profile(
-    present_in: &[SpecSnapshotId],
-    profile: SpecSnapshotId,
-) -> verdict::SpecFacts {
-    let is_latest_profile = profile == LATEST_SNAPSHOT;
-    if present_in.contains(&profile) {
-        // Feature is defined in this profile: lifecycle is Stable unless
-        // the feature only exists in the latest experimental snapshot.
-        let lifecycle = if present_in == [LATEST_SNAPSHOT] && profile == LATEST_SNAPSHOT {
-            types::SpecLifecycle::Experimental
-        } else {
-            types::SpecLifecycle::Stable
-        };
-        verdict::SpecFacts {
-            lifecycle,
-            last_seen: None,
-            is_latest_profile,
-        }
-    } else {
-        // Not present in this profile: obsolete. `last_seen` is the most
-        // recent snapshot in which the feature was still defined (typed as
-        // `SpecSnapshotId` so codegen can't emit a malformed variant).
-        let last_seen = latest_present_snapshot(present_in);
-        verdict::SpecFacts {
-            lifecycle: types::SpecLifecycle::Obsolete,
-            last_seen,
-            is_latest_profile,
-        }
-    }
-}
-
-/// Compute one [`verdict::Verdict`] per canonical snapshot.
-///
-/// Returned as tuples of `(snapshot_ident, verdict)` suitable for
-/// `verdict::format_verdicts_slice`. Snapshots where the feature is
-/// tracked-but-removed (e.g. `xlink:href` in SVG 2) get an Obsolete
-/// verdict; snapshots where the feature is defined get a verdict whose
-/// priority reflects BCD/browser signals.
-fn verdicts_for_all_profiles(
-    compat: Option<&CompatEntry>,
-    present_in: &[SpecSnapshotId],
-) -> Vec<(&'static str, verdict::Verdict)> {
-    canonical_snapshots()
-        .into_iter()
-        .map(|profile| {
-            let facts = spec_facts_for_profile(present_in, profile);
-            let verdict = verdict::compute(compat, facts);
-            (profile.as_str(), verdict)
+    let entries = overrides
+        .iter()
+        .map(|override_| {
+            format!(
+                "crate::types::AttributeElementCompat {{ element: {:?}, facts: {} }}",
+                override_.element,
+                emit_compat_facts(&override_.facts)
+            )
         })
-        .collect()
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("&[{entries}]")
 }
 
-fn map_category_name(value: &str) -> Result<String, Box<dyn Error>> {
-    let category = match value {
-        "container" => "Container",
-        "shape" => "Shape",
-        "text" => "Text",
-        "gradient" => "Gradient",
-        "filter" => "Filter",
-        "descriptive" => "Descriptive",
-        "structural" => "Structural",
-        "animation" => "Animation",
-        "paint_server" => "PaintServer",
-        "clip_mask" => "ClipMask",
-        "light_source" => "LightSource",
-        "filter_primitive" => "FilterPrimitive",
-        "transfer_function" => "TransferFunction",
-        "merge_node" => "MergeNode",
-        "motion_path" => "MotionPath",
-        "never_rendered" => "NeverRendered",
-        _ => return Err(format!("unknown element category {value}").into()),
+fn emit_compat_facts(facts: &CompatFacts) -> String {
+    format!(
+        "crate::types::CompatFacts {{ deprecated: {}, experimental: {}, standard_track: {}, baseline: {}, browser_support: {} }}",
+        facts.deprecated,
+        facts.experimental,
+        emit_option_bool(facts.standard_track),
+        emit_baseline(facts.baseline.as_ref()),
+        emit_browser_support(facts.browser_support.as_ref()),
+    )
+}
+
+fn emit_compat_subfeature(out: &mut String, subfeature: &CompatSubfeature) {
+    let kind = match subfeature.kind {
+        CompatSubfeatureKind::Behavior => "crate::types::CompatSubfeatureKind::Behavior",
+        CompatSubfeatureKind::LegacyXlinkAlias => {
+            "crate::types::CompatSubfeatureKind::LegacyXlinkAlias"
+        }
     };
-    Ok(category.to_string())
-}
-
-fn union_values_from_syntax(
-    syntax: &ValueSyntaxJson,
-    grammars: &HashMap<String, GrammarDefinition>,
-) -> UnionValues {
-    match syntax {
-        ValueSyntaxJson::GrammarRef { grammar_id } => grammar_values(grammar_id, grammars),
-        ValueSyntaxJson::ForeignRef { spec, target } => match (spec.as_str(), target.as_str()) {
-            ("css-color-4", "<color>") => UnionValues::Color,
-            ("css-values-3", "<length>") => UnionValues::Length,
-            ("css-values-3", "<number-or-percentage>") => UnionValues::NumberOrPercentage,
-            // Url-valued attributes in SVG 2 that forward to CSS specs.
-            // Without these the runtime catalog would fall back to FreeText
-            // and the LSP would lose `url(#id)` completion for clip-path /
-            // mask / filter.
-            ("css-masking-1", "clip-path" | "mask") | ("filter-effects-1", "filter") => {
-                UnionValues::Url
-            }
-            _ => UnionValues::FreeText,
-        },
-        ValueSyntaxJson::Opaque { .. } => UnionValues::FreeText,
-    }
-}
-
-fn grammar_values(grammar_id: &str, grammars: &HashMap<String, GrammarDefinition>) -> UnionValues {
-    if grammar_id == "path-data" {
-        return UnionValues::PathData;
-    }
-    if grammar_id == "color" {
-        return UnionValues::Color;
-    }
-    if grammar_id == "length" {
-        return UnionValues::Length;
-    }
-    if grammar_id == "number-or-percentage" {
-        return UnionValues::NumberOrPercentage;
-    }
-    if grammar_id == "points" {
-        return UnionValues::Points;
-    }
-    if grammar_id == "url-reference" {
-        return UnionValues::Url;
-    }
-    if grammar_id == "view-box" {
-        return UnionValues::ViewBox;
-    }
-
-    let Some(grammar) = grammars.get(grammar_id) else {
-        return UnionValues::FreeText;
-    };
-
-    if let Some(values) = enum_values(&grammar.root) {
-        return UnionValues::Enum { values };
-    }
-    if grammar_id == "preserve-aspect-ratio"
-        && let Some((alignments, meet_or_slice)) = preserve_aspect_ratio_values(&grammar.root)
-    {
-        return UnionValues::PreserveAspectRatio {
-            alignments,
-            meet_or_slice,
-        };
-    }
-    if grammar_id.starts_with("transform-list-")
-        && let Some(functions) = transform_functions(&grammar.root)
-    {
-        return UnionValues::Transform { functions };
-    }
-
-    UnionValues::FreeText
-}
-
-fn enum_values(root: &GrammarNode) -> Option<Vec<String>> {
-    let GrammarNode::Choice { options } = root else {
-        return None;
-    };
-    let mut values = Vec::new();
-    for option in options {
-        collect_enum_keywords(option, &mut values)?;
-    }
-    Some(values)
-}
-
-/// Flatten a keyword-only choice branch into its keyword tokens.
-///
-/// Handles `text-decoration`-style `none | [ underline || overline ||
-/// line-through || blink ]` shapes, where the combinable keywords live under a
-/// `one_or_more` wrapping a nested `choice`. Returns `None` for any branch that
-/// is not purely keywords (datatype/grammar refs, sequences, literals), so
-/// non-enum grammars still fall through to their specialised handlers.
-fn collect_enum_keywords(node: &GrammarNode, out: &mut Vec<String>) -> Option<()> {
-    match node {
-        GrammarNode::Keyword { value } => {
-            out.push(value.clone());
-            Some(())
-        }
-        GrammarNode::Choice { options } => {
-            for option in options {
-                collect_enum_keywords(option, out)?;
-            }
-            Some(())
-        }
-        GrammarNode::OneOrMore { item } => collect_enum_keywords(item, out),
-        _ => None,
-    }
-}
-
-fn preserve_aspect_ratio_values(root: &GrammarNode) -> Option<(Vec<String>, Vec<String>)> {
-    let GrammarNode::Sequence { items } = root else {
-        return None;
-    };
-    // SVG 1.1 uses `[defer] <align> [<meetOrSlice>]` — a 3-item sequence
-    // starting with an optional `defer` keyword. SVG 2 dropped `defer`
-    // and uses `<align> [<meetOrSlice>]`. Strip the optional defer prefix
-    // when present so both shapes parse into the same
-    // (alignments, meet_or_slice) tuple.
-    let rest = match items.as_slice() {
-        [GrammarNode::Optional { item }, rest @ ..]
-            if matches!(
-                item.as_ref(),
-                GrammarNode::Keyword { value } if value == "defer"
-            ) =>
-        {
-            rest
-        }
-        items => items,
-    };
-    let [alignments, meet_or_slice] = rest else {
-        return None;
-    };
-    let alignments = enum_values(alignments)?;
-    let meet_or_slice = match meet_or_slice {
-        GrammarNode::Optional { item } => enum_values(item)?,
-        _ => return None,
-    };
-    Some((alignments, meet_or_slice))
-}
-
-fn transform_functions(root: &GrammarNode) -> Option<Vec<String>> {
-    // Transform lists use `comma-wsp` separators per the SVG BNF. Older seed
-    // data used `space_separated`, so we still accept that form to avoid
-    // breaking any ungenerated snapshots.
-    let (GrammarNode::CommaWspSeparated { item } | GrammarNode::SpaceSeparated { item }) = root
-    else {
-        return None;
-    };
-    let GrammarNode::Choice { options } = item.as_ref() else {
-        return None;
-    };
-
-    options
-        .iter()
-        .map(|option| match option {
-            GrammarNode::DatatypeRef { name } => {
-                name.strip_suffix("-transform-function").map(str::to_string)
-            }
-            _ => None,
-        })
-        .collect()
-}
-
-fn element_idents(elements: &[UnionElement]) -> HashMap<&str, String> {
-    elements
-        .iter()
-        .map(|element| (element.name.as_str(), ident_from(&element.name)))
-        .collect()
-}
-
-fn attribute_idents(attributes: &[UnionAttribute]) -> HashMap<&str, String> {
-    attributes
-        .iter()
-        .map(|attribute| (attribute.name.as_str(), ident_from(&attribute.name)))
-        .collect()
-}
-
-fn write_static_str_slice(out: &mut String, name: &str, values: &[String]) -> std::fmt::Result {
-    write!(out, "static {name}: &[&str] = &[")?;
-    for (index, value) in values.iter().enumerate() {
-        if index > 0 {
-            out.push_str(", ");
-        }
-        write!(out, "\"{}\"", escape(value))?;
-    }
-    writeln!(out, "];")
-}
-
-fn write_snapshot_slice(
-    out: &mut String,
-    name: &str,
-    values: &[SpecSnapshotId],
-) -> std::fmt::Result {
-    write!(out, "static {name}: &[SpecSnapshotId] = &[")?;
-    for (index, value) in values.iter().enumerate() {
-        if index > 0 {
-            out.push_str(", ");
-        }
-        write!(out, "SpecSnapshotId::{}", value.as_str())?;
-    }
-    writeln!(out, "];")
-}
-
-fn write_element_statics(
-    out: &mut String,
-    elements: &[UnionElement],
-    element_idents: &HashMap<&str, String>,
-) -> std::fmt::Result {
-    for element in elements {
-        let id = &element_idents[element.name.as_str()];
-        write_static_str_slice(
-            out,
-            &format!("EL_{id}_REQUIRED_ATTRS"),
-            &element.required_attrs,
-        )?;
-        write_static_str_slice(out, &format!("EL_{id}_ATTRS"), &element.attrs)?;
-        write_snapshot_slice(out, &format!("EL_{id}_SNAPSHOTS"), &element.known_in)?;
-        match &element.content_model {
-            ElementContentModelJson::CategorySet { categories } => {
-                write!(out, "static EL_{id}_CHILDREN: &[ElementCategory] = &[")?;
-                for (index, category) in categories.iter().enumerate() {
-                    if index > 0 {
-                        out.push_str(", ");
-                    }
-                    write!(
-                        out,
-                        "ElementCategory::{}",
-                        map_category_name(category).map_err(|_| std::fmt::Error)?
-                    )?;
-                }
-                writeln!(out, "];")?;
-            }
-            ElementContentModelJson::ElementSet { elements } => {
-                write_static_str_slice(out, &format!("EL_{id}_CHILDREN_SET"), elements)?;
-            }
-            ElementContentModelJson::Empty
-            | ElementContentModelJson::TextOnly
-            | ElementContentModelJson::AnySvg
-            | ElementContentModelJson::ForeignNamespace => {}
-        }
-        writeln!(out)?;
-    }
-
-    Ok(())
-}
-
-fn write_attribute_statics(
-    out: &mut String,
-    attributes: &[UnionAttribute],
-    attribute_idents: &HashMap<&str, String>,
-) -> std::fmt::Result {
-    for attribute in attributes {
-        let id = &attribute_idents[attribute.name.as_str()];
-        write_static_str_slice(out, &format!("ATTR_{id}_ELEMENTS"), &attribute.elements)?;
-        write_snapshot_slice(out, &format!("ATTR_{id}_SNAPSHOTS"), &attribute.known_in)?;
-        match &attribute.values {
-            UnionValues::Enum { values } => {
-                write_static_str_slice(out, &format!("ATTR_{id}_VALUES"), values)?;
-            }
-            UnionValues::Transform { functions } => {
-                write_static_str_slice(out, &format!("ATTR_{id}_FUNCTIONS"), functions)?;
-            }
-            UnionValues::PreserveAspectRatio {
-                alignments,
-                meet_or_slice,
-            } => {
-                write_static_str_slice(out, &format!("ATTR_{id}_ALIGNMENTS"), alignments)?;
-                write_static_str_slice(out, &format!("ATTR_{id}_MEET_OR_SLICE"), meet_or_slice)?;
-            }
-            UnionValues::FreeText
-            | UnionValues::Color
-            | UnionValues::Length
-            | UnionValues::Url
-            | UnionValues::NumberOrPercentage
-            | UnionValues::ViewBox
-            | UnionValues::Points
-            | UnionValues::PathData => {}
-        }
-        for (snapshot, override_values) in &attribute.per_snapshot_value_overrides {
-            let static_name = format!(
-                "ATTR_{id}_VALUES_OVERRIDE_{}",
-                snapshot.as_str().to_uppercase()
-            );
-            write_attribute_values_static(out, &static_name, override_values)?;
-        }
-        writeln!(out)?;
-    }
-
-    Ok(())
-}
-
-fn write_attribute_values_static(
-    out: &mut String,
-    name: &str,
-    values: &UnionValues,
-) -> std::fmt::Result {
-    write!(out, "static {name}: AttributeValues = ")?;
-    match values {
-        UnionValues::Enum { values } => {
-            out.push_str("AttributeValues::Enum(&[");
-            for (index, value) in values.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                write!(out, "\"{}\"", escape(value))?;
-            }
-            writeln!(out, "]);")
-        }
-        UnionValues::FreeText => writeln!(out, "AttributeValues::FreeText;"),
-        UnionValues::Color => writeln!(out, "AttributeValues::Color;"),
-        UnionValues::Length => writeln!(out, "AttributeValues::Length;"),
-        UnionValues::Url => writeln!(out, "AttributeValues::Url;"),
-        UnionValues::NumberOrPercentage => writeln!(out, "AttributeValues::NumberOrPercentage;"),
-        UnionValues::Transform { functions } => {
-            out.push_str("AttributeValues::Transform(&[");
-            for (index, function) in functions.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                write!(out, "\"{}\"", escape(function))?;
-            }
-            writeln!(out, "]);")
-        }
-        UnionValues::ViewBox => writeln!(out, "AttributeValues::ViewBox;"),
-        UnionValues::PreserveAspectRatio {
-            alignments,
-            meet_or_slice,
-        } => {
-            out.push_str("AttributeValues::PreserveAspectRatio { alignments: &[");
-            for (index, alignment) in alignments.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                write!(out, "\"{}\"", escape(alignment))?;
-            }
-            out.push_str("], meet_or_slice: &[");
-            for (index, keyword) in meet_or_slice.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                write!(out, "\"{}\"", escape(keyword))?;
-            }
-            writeln!(out, "] }};")
-        }
-        UnionValues::Points => writeln!(out, "AttributeValues::Points;"),
-        UnionValues::PathData => writeln!(out, "AttributeValues::PathData;"),
-    }
-}
-
-fn write_attribute_values_profile_lookup(
-    out: &mut String,
-    attributes: &[UnionAttribute],
-    attribute_idents: &HashMap<&str, String>,
-) -> std::fmt::Result {
-    writeln!(
+    let facts = emit_compat_facts(&subfeature.facts);
+    let _ = writeln!(
         out,
-        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
-    )?;
-    writeln!(
-        out,
-        "pub fn generated_attribute_values_for_profile(snapshot: SpecSnapshotId, name: &str) -> Option<&'static AttributeValues> {{"
-    )?;
-    writeln!(out, "    match name {{")?;
-    for attribute in attributes {
-        if attribute.per_snapshot_value_overrides.is_empty() {
-            continue;
-        }
-        let id = &attribute_idents[attribute.name.as_str()];
-        writeln!(
-            out,
-            "        \"{}\" => match snapshot {{",
-            escape(&attribute.name)
-        )?;
-        for snapshot in attribute.per_snapshot_value_overrides.keys() {
-            let snapshot_id = snapshot.as_str();
-            let snapshot_upper = snapshot_id.to_uppercase();
-            writeln!(
-                out,
-                "            SpecSnapshotId::{snapshot_id} => Some(&ATTR_{id}_VALUES_OVERRIDE_{snapshot_upper}),",
-            )?;
-        }
-        writeln!(out, "            _ => None,")?;
-        writeln!(out, "        }},")?;
-    }
-    writeln!(out, "        _ => None,")?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
-    writeln!(out)
-}
-
-fn write_elements_array(
-    out: &mut String,
-    elements: &[UnionElement],
-    element_idents: &HashMap<&str, String>,
-    compat: &bcd::CompatData,
-) -> std::fmt::Result {
-    writeln!(out, "pub static ELEMENTS: &[ElementDef] = &[")?;
-
-    for element in elements {
-        let id = &element_idents[element.name.as_str()];
-        let content_model = match &element.content_model {
-            ElementContentModelJson::Empty => "ContentModel::Void".to_string(),
-            ElementContentModelJson::TextOnly => "ContentModel::Text".to_string(),
-            ElementContentModelJson::AnySvg => "ContentModel::AnySvg".to_string(),
-            ElementContentModelJson::CategorySet { .. } => {
-                format!("ContentModel::Children(EL_{id}_CHILDREN)")
-            }
-            ElementContentModelJson::ElementSet { .. } => {
-                format!("ContentModel::ChildrenSet(EL_{id}_CHILDREN_SET)")
-            }
-            ElementContentModelJson::ForeignNamespace => "ContentModel::Foreign".to_string(),
-        };
-        let compat_entry = compat.elements.get(&element.name);
-        let (deprecated, experimental, spec_url_str, baseline_str, browser_support_str) =
-            compat_entry.map_or_else(
-                || {
-                    (
-                        false,
-                        false,
-                        "None".to_string(),
-                        "None".to_string(),
-                        "None".to_string(),
-                    )
-                },
-                |entry| {
-                    (
-                        entry.deprecated,
-                        entry.experimental,
-                        format_option_str(entry.spec_url.as_deref()),
-                        format_baseline(entry.baseline.as_ref()),
-                        format_browser_support(entry.browser_support.as_ref()),
-                    )
-                },
-            );
-        let profile_verdicts = verdicts_for_all_profiles(compat_entry, &element.known_in);
-        let verdicts_str = verdict::format_verdicts_slice(&profile_verdicts);
-        let name = escape(&element.name);
-        let description = escape(&element.description);
-        let mdn_url = escape(&element.mdn_url);
-
-        write!(
-            out,
-            r#"    ElementDef {{
-        name: "{name}",
-        description: "{description}",
-        mdn_url: "{mdn_url}",
-        spec_lifecycle: {},
-        deprecated: {deprecated},
-        experimental: {experimental},
-        spec_url: {spec_url_str},
-        baseline: {baseline_str},
-        browser_support: {browser_support_str},
-        verdicts: {verdicts_str},
-        content_model: {content_model},
-        required_attrs: EL_{id}_REQUIRED_ATTRS,
-        attrs: EL_{id}_ATTRS,
-        global_attrs: {},
-    }},
-"#,
-            element.spec_lifecycle, element.global_attrs
-        )?;
-    }
-
-    writeln!(out, "];")?;
-    writeln!(out)
-}
-
-fn write_attributes_array(
-    out: &mut String,
-    attributes: &[UnionAttribute],
-    attribute_idents: &HashMap<&str, String>,
-    compat: &bcd::CompatData,
-) -> std::fmt::Result {
-    writeln!(out, "pub static ATTRIBUTES: &[AttributeDef] = &[")?;
-
-    for attribute in attributes {
-        let id = &attribute_idents[attribute.name.as_str()];
-        let values = attribute_values_expr(id, &attribute.values);
-        let bcd_compat_entry = compat.attributes.get(&attribute.name).map(|a| &a.compat);
-        let (deprecated, experimental, spec_url_str, baseline_str, browser_support_str) =
-            bcd_compat_entry.map_or_else(
-                || {
-                    (
-                        false,
-                        false,
-                        "None".to_string(),
-                        "None".to_string(),
-                        "None".to_string(),
-                    )
-                },
-                |entry| {
-                    (
-                        entry.deprecated,
-                        entry.experimental,
-                        format_option_str(entry.spec_url.as_deref()),
-                        format_baseline(entry.baseline.as_ref()),
-                        format_browser_support(entry.browser_support.as_ref()),
-                    )
-                },
-            );
-        let profile_verdicts = verdicts_for_all_profiles(bcd_compat_entry, &attribute.known_in);
-        let verdicts_str = verdict::format_verdicts_slice(&profile_verdicts);
-        let name = escape(&attribute.name);
-        let description = escape(&attribute.description);
-        let mdn_url = escape(&attribute.mdn_url);
-
-        write!(
-            out,
-            r#"    AttributeDef {{
-        name: "{name}",
-        description: "{description}",
-        mdn_url: "{mdn_url}",
-        spec_lifecycle: {},
-        deprecated: {deprecated},
-        experimental: {experimental},
-        spec_url: {spec_url_str},
-        baseline: {baseline_str},
-        browser_support: {browser_support_str},
-        verdicts: {verdicts_str},
-        values: {values},
-        elements: ATTR_{id}_ELEMENTS,
-    }},
-"#,
-            attribute.spec_lifecycle
-        )?;
-    }
-
-    writeln!(out, "];")?;
-    writeln!(out)
-}
-
-fn write_category_mapping(out: &mut String, elements: &[UnionElement]) -> std::fmt::Result {
-    let mut category_map: HashMap<&str, Vec<&str>> = HashMap::new();
-    for element in elements {
-        for category in &element.categories {
-            category_map
-                .entry(category.as_str())
-                .or_default()
-                .push(element.name.as_str());
-        }
-    }
-
-    let mut unknown_categories: Vec<&str> = category_map
-        .keys()
-        .copied()
-        .filter(|category| !ALL_ELEMENT_CATEGORIES.contains(category))
-        .collect();
-    unknown_categories.sort_unstable();
-    assert!(
-        unknown_categories.is_empty(),
-        "unknown element categories in reviewed snapshot data: {unknown_categories:?}"
+        "    crate::types::CompatSubfeature {{ compat_key: {:?}, kind: {kind}, element: {:?}, name: {:?}, facts: {facts} }},",
+        subfeature.compat_key, subfeature.element, subfeature.name,
     );
-
-    writeln!(
-        out,
-        "pub const fn generated_elements_in_category(cat: ElementCategory) -> &'static [&'static str] {{"
-    )?;
-    writeln!(out, "    match cat {{")?;
-    for names in category_map.values_mut() {
-        names.sort_unstable();
-    }
-    for category in ALL_ELEMENT_CATEGORIES {
-        if let Some(names) = category_map.get(category) {
-            let names_str = names
-                .iter()
-                .map(|name| format!("\"{}\"", escape(name)))
-                .collect::<Vec<_>>()
-                .join(", ");
-            writeln!(
-                out,
-                "        ElementCategory::{category} => &[{names_str}],"
-            )?;
-        } else {
-            writeln!(out, "        ElementCategory::{category} => &[],")?;
-        }
-    }
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")
 }
 
-fn write_membership_lookup(
-    out: &mut String,
-    elements: &[UnionElement],
-    attributes: &[UnionAttribute],
-    element_idents: &HashMap<&str, String>,
-    attribute_idents: &HashMap<&str, String>,
-) -> std::fmt::Result {
-    writeln!(
-        out,
-        "pub fn generated_known_element_snapshots(name: &str) -> Option<&'static [SpecSnapshotId]> {{"
-    )?;
-    writeln!(out, "    match name {{")?;
-    for element in elements {
-        let id = &element_idents[element.name.as_str()];
-        writeln!(
-            out,
-            "        \"{}\" => Some(EL_{id}_SNAPSHOTS),",
-            escape(&element.name)
-        )?;
-    }
-    writeln!(out, "        _ => None,")?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
-    writeln!(out)?;
-
-    writeln!(
-        out,
-        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
-    )?;
-    writeln!(
-        out,
-        "pub fn generated_known_attribute_snapshots(name: &str) -> Option<&'static [SpecSnapshotId]> {{"
-    )?;
-    writeln!(out, "    match name {{")?;
-    for attribute in attributes {
-        let id = &attribute_idents[attribute.name.as_str()];
-        writeln!(
-            out,
-            "        \"{}\" => Some(ATTR_{id}_SNAPSHOTS),",
-            escape(&attribute.name)
-        )?;
-    }
-    writeln!(out, "        _ => None,")?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
-    writeln!(out)
-}
-
-fn write_profile_attribute_lookup(
-    out: &mut String,
-    profile_attributes: &[(SpecSnapshotId, BTreeMap<String, Vec<String>>)],
-) -> std::fmt::Result {
-    for (snapshot, elements) in profile_attributes {
-        let snapshot_id = ident_from(snapshot.as_str());
-        for (element, attributes) in elements {
-            let element_id = ident_from(element);
-            write_static_str_slice(
-                out,
-                &format!("PROFILE_{snapshot_id}_EL_{element_id}_ATTRS"),
-                attributes,
-            )?;
-        }
-    }
-    writeln!(out)?;
-
-    writeln!(
-        out,
-        "#[allow(clippy::too_many_lines, reason = \"generated catalog builder; length is inherent to the baked-in data\")]"
-    )?;
-    writeln!(
-        out,
-        "pub fn generated_attribute_names_for_profile(snapshot: SpecSnapshotId, element_name: &str) -> &'static [&'static str] {{"
-    )?;
-    writeln!(out, "    match snapshot {{")?;
-    for (snapshot, elements) in profile_attributes {
-        let snapshot_id = ident_from(snapshot.as_str());
-        writeln!(
-            out,
-            "        SpecSnapshotId::{} => match element_name {{",
-            snapshot.as_str()
-        )?;
-        for element in elements.keys() {
-            let element_id = ident_from(element);
-            writeln!(
-                out,
-                "            \"{}\" => PROFILE_{}_EL_{element_id}_ATTRS,",
-                escape(element),
-                snapshot_id
-            )?;
-        }
-        writeln!(out, "            _ => &[],")?;
-        writeln!(out, "        }},")?;
-    }
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")
-}
-
-fn attribute_values_expr(id: &str, values: &UnionValues) -> String {
-    match values {
-        UnionValues::Enum { .. } => format!("AttributeValues::Enum(ATTR_{id}_VALUES)"),
-        UnionValues::FreeText => "AttributeValues::FreeText".to_string(),
-        UnionValues::Color => "AttributeValues::Color".to_string(),
-        UnionValues::Length => "AttributeValues::Length".to_string(),
-        UnionValues::Url => "AttributeValues::Url".to_string(),
-        UnionValues::NumberOrPercentage => "AttributeValues::NumberOrPercentage".to_string(),
-        UnionValues::Transform { .. } => format!("AttributeValues::Transform(ATTR_{id}_FUNCTIONS)"),
-        UnionValues::ViewBox => "AttributeValues::ViewBox".to_string(),
-        UnionValues::PreserveAspectRatio { .. } => format!(
-            "AttributeValues::PreserveAspectRatio {{ alignments: ATTR_{id}_ALIGNMENTS, meet_or_slice: ATTR_{id}_MEET_OR_SLICE }}"
+/// Render a baseline literal.
+fn emit_baseline(baseline: Option<&BaselineStatus>) -> String {
+    match baseline {
+        Some(BaselineStatus::Widely { since, qualifier }) => format!(
+            "Some(crate::types::BaselineStatus::Widely {{ since: {since}, qualifier: {} }})",
+            emit_baseline_qualifier(qualifier.as_ref())
         ),
-        UnionValues::Points => "AttributeValues::Points".to_string(),
-        UnionValues::PathData => "AttributeValues::PathData".to_string(),
+        Some(BaselineStatus::Newly { since, qualifier }) => format!(
+            "Some(crate::types::BaselineStatus::Newly {{ since: {since}, qualifier: {} }})",
+            emit_baseline_qualifier(qualifier.as_ref())
+        ),
+        Some(BaselineStatus::Limited) => "Some(crate::types::BaselineStatus::Limited)".to_owned(),
+        None => "None".to_owned(),
     }
+}
+
+/// Render a baseline/version qualifier literal.
+fn emit_baseline_qualifier(qualifier: Option<&BaselineQualifier>) -> String {
+    match qualifier {
+        Some(BaselineQualifier::Before) => {
+            "Some(crate::types::BaselineQualifier::Before)".to_owned()
+        }
+        Some(BaselineQualifier::After) => "Some(crate::types::BaselineQualifier::After)".to_owned(),
+        Some(BaselineQualifier::Approximately) => {
+            "Some(crate::types::BaselineQualifier::Approximately)".to_owned()
+        }
+        None => "None".to_owned(),
+    }
+}
+
+/// Render per-browser support as a Rust literal.
+fn emit_browser_support(support: Option<&BrowserSupport>) -> String {
+    let Some(support) = support else {
+        return "None".to_owned();
+    };
+    format!(
+        "Some(crate::types::BrowserSupport {{ chrome: {}, edge: {}, firefox: {}, safari: {} }})",
+        emit_browser_version(support.chrome.as_ref()),
+        emit_browser_version(support.edge.as_ref()),
+        emit_browser_version(support.firefox.as_ref()),
+        emit_browser_version(support.safari.as_ref()),
+    )
+}
+
+/// Render one browser support record as a Rust literal.
+fn emit_browser_version(version: Option<&BrowserVersion>) -> String {
+    let Some(version) = version else {
+        return "None".to_owned();
+    };
+    format!(
+        "Some(crate::types::BrowserVersion {{ supported: {}, partial_implementation: {}, notes: &[{}], \
+         prefix: {}, alternative_name: {}, flags: &[{}], version_added: {}, version_qualifier: {}, \
+         version_removed: {}, version_removed_qualifier: {} }})",
+        emit_option_bool(version.supported),
+        version.partial_implementation,
+        quote_list(&version.notes),
+        emit_option_str(version.prefix.as_deref()),
+        emit_option_str(version.alternative_name.as_deref()),
+        emit_browser_flags(&version.flags),
+        emit_option_str(version.version_added.as_deref()),
+        emit_baseline_qualifier(version.version_qualifier.as_ref()),
+        emit_option_str(version.version_removed.as_deref()),
+        emit_baseline_qualifier(version.version_removed_qualifier.as_ref()),
+    )
+}
+
+fn emit_browser_flags(flags: &[BrowserFlag]) -> String {
+    flags
+        .iter()
+        .map(|flag| format!("crate::types::BrowserFlag {{ name: {:?} }}", flag.name))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+const fn emit_option_bool(value: Option<bool>) -> &'static str {
+    match value {
+        Some(true) => "Some(true)",
+        Some(false) => "Some(false)",
+        None => "None",
+    }
+}
+
+fn emit_option_str(value: Option<&str>) -> String {
+    value.map_or_else(|| "None".to_owned(), |value| format!("Some({value:?})"))
+}
+
+/// Render an attribute value-space literal.
+fn emit_attribute_values(values: &AttributeValues) -> String {
+    match values {
+        AttributeValues::Enum { values } => {
+            format!(
+                "crate::types::AttributeValues::Enum(&[{}])",
+                quote_list(values)
+            )
+        }
+        AttributeValues::Transform { functions } => {
+            format!(
+                "crate::types::AttributeValues::Transform(&[{}])",
+                quote_list(functions)
+            )
+        }
+        AttributeValues::Color => "crate::types::AttributeValues::Color".to_owned(),
+        AttributeValues::Length => "crate::types::AttributeValues::Length".to_owned(),
+        AttributeValues::Url => "crate::types::AttributeValues::Url".to_owned(),
+        AttributeValues::NumberOrPercentage => {
+            "crate::types::AttributeValues::NumberOrPercentage".to_owned()
+        }
+        AttributeValues::CssGrammar { grammar, graph } => {
+            format!(
+                "crate::types::AttributeValues::CssGrammar {{ grammar: {grammar:?}, graph: {} }}",
+                emit_css_grammar_graph(graph)
+            )
+        }
+        AttributeValues::FreeText => "crate::types::AttributeValues::FreeText".to_owned(),
+    }
+}
+
+fn emit_css_grammar_graph(graph: &CssGrammarGraph) -> String {
+    format!(
+        "crate::types::CssGrammarGraph {{ root: {}, nodes: &[{}], edges: &[{}] }}",
+        graph.root,
+        graph
+            .nodes
+            .iter()
+            .map(emit_css_grammar_node)
+            .collect::<Vec<_>>()
+            .join(", "),
+        graph
+            .edges
+            .iter()
+            .map(emit_css_grammar_edge)
+            .collect::<Vec<_>>()
+            .join(", "),
+    )
+}
+
+fn emit_css_grammar_node(node: &CssGrammarNode) -> String {
+    format!(
+        "crate::types::CssGrammarNode {{ id: {}, kind: {}, text: {} }}",
+        node.id,
+        emit_css_grammar_node_kind(&node.kind),
+        emit_option_str(node.text.as_deref())
+    )
+}
+
+const fn emit_css_grammar_node_kind(kind: &CssGrammarNodeKind) -> &'static str {
+    match kind {
+        CssGrammarNodeKind::Root => "crate::types::CssGrammarNodeKind::Root",
+        CssGrammarNodeKind::Group => "crate::types::CssGrammarNodeKind::Group",
+        CssGrammarNodeKind::Keyword => "crate::types::CssGrammarNodeKind::Keyword",
+        CssGrammarNodeKind::Type => "crate::types::CssGrammarNodeKind::Type",
+        CssGrammarNodeKind::Function => "crate::types::CssGrammarNodeKind::Function",
+        CssGrammarNodeKind::Operator => "crate::types::CssGrammarNodeKind::Operator",
+    }
+}
+
+fn emit_css_grammar_edge(edge: &CssGrammarEdge) -> String {
+    format!(
+        "crate::types::CssGrammarEdge {{ from: {}, to: {}, kind: {} }}",
+        edge.from,
+        edge.to,
+        emit_css_grammar_edge_kind(&edge.kind)
+    )
+}
+
+const fn emit_css_grammar_edge_kind(kind: &CssGrammarEdgeKind) -> &'static str {
+    match kind {
+        CssGrammarEdgeKind::Contains => "crate::types::CssGrammarEdgeKind::Contains",
+        CssGrammarEdgeKind::Next => "crate::types::CssGrammarEdgeKind::Next",
+    }
+}
+
+/// Render an attribute applicability literal.
+fn emit_attribute_applicability(applicability: &AttributeApplicability) -> String {
+    match applicability {
+        AttributeApplicability::Global => "crate::types::AttributeApplicability::Global".to_owned(),
+        AttributeApplicability::Elements { elements } => {
+            format!(
+                "crate::types::AttributeApplicability::Elements(&[{}])",
+                quote_list(elements)
+            )
+        }
+        AttributeApplicability::None => "crate::types::AttributeApplicability::None".to_owned(),
+    }
+}
+
+/// Render a slice of strings as comma-separated Rust string literals.
+fn quote_list(items: &[String]) -> String {
+    items
+        .iter()
+        .map(|item| format!("{item:?}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }

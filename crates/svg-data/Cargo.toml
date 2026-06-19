@@ -3,32 +3,30 @@ name                 = "svg-data"
 version.workspace    = true
 authors.workspace    = true
 edition.workspace    = true
-description          = "Compile-time SVG spec catalog from MDN browser-compat-data"
-documentation        = "https://svg-compat.kjanat.com/"
-readme               = "README.md"
-homepage             = "https://github.com/kjanat/svg-language-server/tree/master/crates/svg-data"
+description          = "Structured SVG specification data, extracted from canonical upstream"
+homepage.workspace   = true
 repository.workspace = true
 license.workspace    = true
-keywords             = ["browser-compat-data", "codegen", "mdn", "spec", "svg"]
-categories           = ["development-tools::build-utils", "web-programming"]
+keywords.workspace   = true
+categories.workspace = true
 build                = "build.rs"
 
-[dependencies]
-schemars.workspace   = true
-serde.workspace      = true
-serde_json.workspace = true
-sha2.workspace       = true
-toml.workspace       = true
+[[bin]]
+name              = "spec-freshness"
+path              = "src/bin/spec-freshness.rs"
+required-features = ["freshness-cli"]
 
-[dev-dependencies]
-tempfile.workspace = true
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+ureq       = { workspace = true, optional = true }
 
 [build-dependencies]
-schemars.workspace   = true
-serde.workspace      = true
-serde_json.workspace = true
-toml.workspace       = true
-ureq.workspace       = true
+serde      = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+freshness-cli = ["ureq"]
 
 [lints]
 workspace = true

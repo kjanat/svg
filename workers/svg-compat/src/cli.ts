@@ -27,12 +27,13 @@
  * @module
  */
 
-import { cli, command, flag, group, type Out } from "@kjanat/dreamcli";
+import type { Out } from '@kjanat/dreamcli';
+import { cli, command, flag, group } from '@kjanat/dreamcli';
 
-import { renderDataSummary, renderSchemaSummary } from "./cli_render.ts";
-import { buildOutput, buildSnapshot, SVG_COMPAT_SCHEMA } from "./lib/mod.ts";
-import { defaultSourceSelection, loadSourceDataForSelection } from "./sources.ts";
-import { scanSvg2Spec } from "./spec_scan.ts";
+import { renderDataSummary, renderSchemaSummary } from './cli_render.ts';
+import { buildOutput, buildSnapshot, SVG_COMPAT_SCHEMA } from './lib/mod.ts';
+import { defaultSourceSelection, loadSourceDataForSelection } from './sources.ts';
+import { scanSvg2Spec } from './spec_scan.ts';
 
 const FILE_INDENT = 2;
 
@@ -48,7 +49,7 @@ async function writePrettyJsonFile(
 	path: string,
 	value: unknown,
 ): Promise<void> {
-	const body = JSON.stringify(value, null, FILE_INDENT) + "\n";
+	const body = JSON.stringify(value, null, FILE_INDENT) + '\n';
 	await Deno.writeTextFile(path, body);
 	out.log(`svg-compat: wrote ${body.length} bytes to ${path}`);
 }
@@ -57,23 +58,23 @@ async function writePrettyJsonFile(
 // (e.g. "7.3.11", "3.23.0") rather than an opaque sentinel.
 const DEFAULTS = defaultSourceSelection();
 
-export const dataCommand = command("data")
-	.description("Emit /data.json equivalent — summary on TTY, JSON when piped.")
+export const dataCommand = command('data')
+	.description('Emit /data.json equivalent — summary on TTY, JSON when piped.')
 	.flag(
-		"bcd",
+		'bcd',
 		flag.string()
 			.default(DEFAULTS.bcd)
 			.describe("BCD version (e.g. '7.3.11') or 'latest'"),
 	)
 	.flag(
-		"wf",
+		'wf',
 		flag.string()
 			.default(DEFAULTS.wf)
 			.describe("web-features version or 'latest'"),
 	)
 	.flag(
-		"out",
-		flag.string().describe("Also write pretty JSON to this file path"),
+		'out',
+		flag.string().describe('Also write pretty JSON to this file path'),
 	)
 	.action(async ({ flags, out }) => {
 		const sourceData = await loadSourceDataForSelection({
@@ -93,11 +94,11 @@ export const dataCommand = command("data")
 		renderDataSummary(out, output);
 	});
 
-export const schemaCommand = command("schema")
-	.description("Emit the /data.json JSON Schema — summary on TTY, JSON when piped.")
+export const schemaCommand = command('schema')
+	.description('Emit the /data.json JSON Schema — summary on TTY, JSON when piped.')
 	.flag(
-		"out",
-		flag.string().describe("Also write pretty JSON to this file path"),
+		'out',
+		flag.string().describe('Also write pretty JSON to this file path'),
 	)
 	.action(async ({ flags, out }) => {
 		if (flags.out) await writePrettyJsonFile(out, flags.out, SVG_COMPAT_SCHEMA);
@@ -128,27 +129,27 @@ export const schemaCommand = command("schema")
  * Pin the output via the commit hash recorded in `source_pin.commit` —
  * `git rev-parse HEAD` inside the clone is the source of truth.
  */
-export const scanSpecCommand = command("scan-spec")
-	.description("Scan a local svgwg checkout for SVG 2 feature removals.")
+export const scanSpecCommand = command('scan-spec')
+	.description('Scan a local svgwg checkout for SVG 2 feature removals.')
 	.flag(
-		"svgwg-path",
+		'svgwg-path',
 		flag.string()
-			.default("./svgwg")
-			.describe("Path to a local clone of https://github.com/w3c/svgwg (auto-cloned if missing)"),
+			.default('./svgwg')
+			.describe('Path to a local clone of https://github.com/w3c/svgwg (auto-cloned if missing)'),
 	)
 	.flag(
-		"no-bootstrap",
+		'no-bootstrap',
 		flag.boolean()
 			.default(false)
-			.describe("Fail instead of auto-cloning when the svgwg path is missing"),
+			.describe('Fail instead of auto-cloning when the svgwg path is missing'),
 	)
 	.flag(
-		"out",
-		flag.string().describe("Also write pretty JSON to this file path"),
+		'out',
+		flag.string().describe('Also write pretty JSON to this file path'),
 	)
 	.action(async ({ flags, out }) => {
-		const svgwgRoot = flags["svgwg-path"];
-		await ensureSvgwgClone(out, svgwgRoot, flags["no-bootstrap"]);
+		const svgwgRoot = flags['svgwg-path'];
+		await ensureSvgwgClone(out, svgwgRoot, flags['no-bootstrap']);
 		const { commit, commitDate } = await readSvgwgCommit(svgwgRoot);
 		const report = await scanSvg2Spec({ svgwgRoot, commit, commitDate });
 
@@ -160,7 +161,7 @@ export const scanSpecCommand = command("scan-spec")
 		}
 
 		out.log(`svg-compat spec-scan · ${report.source_pin.repository}@${commit.slice(0, 10)}`);
-		out.log("");
+		out.log('');
 		out.log(`  defined elements   : ${report.defined_elements.length}`);
 		out.log(`  defined attributes : ${report.defined_attributes.length}`);
 		out.log(`  defined properties : ${report.defined_properties.length}`);
@@ -168,24 +169,24 @@ export const scanSpecCommand = command("scan-spec")
 		out.log(`  obsoleted properties: ${report.obsoleted_properties.length}`);
 		out.log(`  changelog removals : ${report.changelog_removals.length}`);
 		if (report.removed_properties.length > 0) {
-			out.log("");
-			out.log("removed properties (from text.html `has been removed in SVG 2`):");
+			out.log('');
+			out.log('removed properties (from text.html `has been removed in SVG 2`):');
 			for (const fact of report.removed_properties) {
 				out.log(`  - ${fact.name}  [${fact.provenance.file}:${fact.provenance.line}]`);
 			}
 		}
 		if (report.obsoleted_properties.length > 0) {
-			out.log("");
-			out.log("obsoleted properties (from text.html `has been obsoleted`):");
+			out.log('');
+			out.log('obsoleted properties (from text.html `has been obsoleted`):');
 			for (const fact of report.obsoleted_properties) {
 				out.log(`  - ${fact.name}  [${fact.provenance.file}:${fact.provenance.line}]`);
 			}
 		}
-		out.log("");
-		out.log("(pass --json or pipe stdout for the full JSON report)");
+		out.log('');
+		out.log('(pass --json or pipe stdout for the full JSON report)');
 	});
 
-const SVGWG_REMOTE = "https://github.com/w3c/svgwg.git";
+const SVGWG_REMOTE = 'https://github.com/w3c/svgwg.git';
 
 /**
  * Ensure an svgwg working tree exists at `svgwgRoot`. If absent and
@@ -204,7 +205,7 @@ async function ensureSvgwgClone(
 	svgwgRoot: string,
 	noBootstrap: boolean,
 ): Promise<void> {
-	const masterDir = `${svgwgRoot.replace(/\/$/, "")}/master`;
+	const masterDir = `${svgwgRoot.replace(/\/$/, '')}/master`;
 	try {
 		const stat = await Deno.stat(masterDir);
 		if (stat.isDirectory) return;
@@ -222,10 +223,10 @@ async function ensureSvgwgClone(
 	out.log(`svg-compat scan-spec: bootstrapping svgwg clone at ${svgwgRoot}`);
 	out.log(`  git clone --depth=1 ${SVGWG_REMOTE} ${svgwgRoot}`);
 
-	const cloneResult = await new Deno.Command("git", {
-		args: ["clone", "--depth=1", SVGWG_REMOTE, svgwgRoot],
-		stdout: "inherit",
-		stderr: "inherit",
+	const cloneResult = await new Deno.Command('git', {
+		args: ['clone', '--depth=1', SVGWG_REMOTE, svgwgRoot],
+		stdout: 'inherit',
+		stderr: 'inherit',
 	}).output();
 	if (!cloneResult.success) {
 		throw new Error(
@@ -244,11 +245,11 @@ async function ensureSvgwgClone(
 async function readSvgwgCommit(
 	svgwgRoot: string,
 ): Promise<{ commit: string; commitDate: string | undefined }> {
-	const commitResult = await new Deno.Command("git", {
-		args: ["rev-parse", "HEAD"],
+	const commitResult = await new Deno.Command('git', {
+		args: ['rev-parse', 'HEAD'],
 		cwd: svgwgRoot,
-		stdout: "piped",
-		stderr: "piped",
+		stdout: 'piped',
+		stderr: 'piped',
 	}).output();
 	if (!commitResult.success) {
 		const stderr = new TextDecoder().decode(commitResult.stderr);
@@ -258,11 +259,11 @@ async function readSvgwgCommit(
 	}
 	const commit = new TextDecoder().decode(commitResult.stdout).trim();
 
-	const dateResult = await new Deno.Command("git", {
-		args: ["log", "-1", "--format=%cI", "HEAD"],
+	const dateResult = await new Deno.Command('git', {
+		args: ['log', '-1', '--format=%cI', 'HEAD'],
 		cwd: svgwgRoot,
-		stdout: "piped",
-		stderr: "piped",
+		stdout: 'piped',
+		stderr: 'piped',
 	}).output();
 	const commitDate = dateResult.success
 		? new TextDecoder().decode(dateResult.stdout).trim() || undefined
@@ -271,14 +272,14 @@ async function readSvgwgCommit(
 	return { commit, commitDate };
 }
 
-export const emitGroup = group("emit")
-	.description("Emit data or schema as JSON (or a human summary on a TTY)")
+export const emitGroup = group('emit')
+	.description('Emit data or schema as JSON (or a human summary on a TTY)')
 	.command(dataCommand)
 	.command(schemaCommand);
 
-export const app = cli("svg-compat")
-	.version("1.0.0")
-	.description("Inspect and dump SVG browser compatibility data.")
+export const app = cli('svg-compat')
+	.version('1.0.0')
+	.description('Inspect and dump SVG browser compatibility data.')
 	.command(emitGroup)
 	.command(scanSpecCommand)
 	.completions();

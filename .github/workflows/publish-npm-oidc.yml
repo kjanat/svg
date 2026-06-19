@@ -18,21 +18,20 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Fetch npm packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: artifacts-*
           path: dist-npm/
           merge-multiple: true
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24.x"
-          registry-url: "https://registry.npmjs.org"
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with: { node-version: "latest", registry-url: "https://registry.npmjs.org" }
       - name: Publish dist npm installers
         shell: bash
         run: |
           set -euo pipefail
 
-          npm install -g npm@latest
+          # Use the npm bundled with the latest Node, which supports OIDC
+          # trusted publishing + `--provenance`.
 
           publish_pkg() {
             local source="$1"
@@ -43,7 +42,18 @@ jobs:
             fi
           }
 
-          for release in $(echo "$PLAN" | jq --compact-output '.releases[] | select([.artifacts[] | endswith("-npm-package.tar.gz")] | any)'); do
-            pkg=$(echo "$release" | jq '.artifacts[] | select(endswith("-npm-package.tar.gz"))' --raw-output)
+          mapfile -t packages < <(
+            jq -r '
+              .releases[].artifacts[]?
+              | select(type == "string" and endswith("-npm-package.tar.gz"))
+              | split("/")[-1]
+            ' <<< "$PLAN" | sort -u
+          )
+
+          for pkg in "${packages[@]}"; do
+            if [[ ! "$pkg" =~ ^[A-Za-z0-9._@+-]+-npm-package\.tar\.gz$ ]]; then
+              echo "::error::unexpected npm artifact filename: ${pkg}"
+              exit 1
+            fi
             publish_pkg "./dist-npm/${pkg}"
           done

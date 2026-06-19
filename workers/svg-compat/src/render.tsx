@@ -6,17 +6,18 @@
  * @module
  */
 
-import { render } from "preact-render-to-string";
+import { render } from 'preact-render-to-string';
 
-import { AttributesTable } from "./components/AttributesTable.tsx";
-import { ElementsTable } from "./components/ElementsTable.tsx";
-import { ErrorPage } from "./components/ErrorPage.tsx";
-import { Hero } from "./components/Hero.tsx";
-import { Layout } from "./components/Layout.tsx";
-import { TableSection } from "./components/TableSection.tsx";
-import { UpstreamSources } from "./components/UpstreamSources.tsx";
-import type { SvgCompatOutput } from "./main.ts";
-import { BROWSER_KEYS, type BrowserMaxChars, buildPageModel } from "./view.ts";
+import { AttributesTable } from './components/AttributesTable.tsx';
+import { ElementsTable } from './components/ElementsTable.tsx';
+import { ErrorPage } from './components/ErrorPage.tsx';
+import { Hero } from './components/Hero.tsx';
+import { Layout } from './components/Layout.tsx';
+import { TableSection } from './components/TableSection.tsx';
+import { UpstreamSources } from './components/UpstreamSources.tsx';
+import type { SvgCompatOutput } from './main.ts';
+import type { BrowserMaxChars } from './view.ts';
+import { BROWSER_KEYS, buildPageModel } from './view.ts';
 
 /**
  * Builds the inline `<main style>` string carrying per-browser chip
@@ -32,7 +33,7 @@ import { BROWSER_KEYS, type BrowserMaxChars, buildPageModel } from "./view.ts";
 function buildChipColumnStyle(maxChars: BrowserMaxChars): string {
 	const perBrowser = BROWSER_KEYS.map((key) => `--chip-chars-${key}:${maxChars[key]}`);
 	const globalMax = Math.max(...BROWSER_KEYS.map((key) => maxChars[key]));
-	return [...perBrowser, `--chip-chars-max:${globalMax}`].join(";");
+	return [...perBrowser, `--chip-chars-max:${globalMax}`].join(';');
 }
 
 /**
@@ -55,38 +56,38 @@ export function renderHtml(
 			<Hero model={model} />
 			<UpstreamSources sources={model.sources} />
 			<TableSection
-				id="elements"
-				title="Elements"
-				description="All elements with baseline and browser floor."
+				id='elements'
+				title='Elements'
+				description='All elements with baseline and browser floor.'
 				total={model.elements.length}
-				placeholder="Filter elements…"
+				placeholder='Filter elements…'
 			>
 				<ElementsTable rows={model.elements} />
 			</TableSection>
 			<TableSection
-				id="attributes"
-				title="Attributes"
-				description="All attributes with scope and baseline."
+				id='attributes'
+				title='Attributes'
+				description='All attributes with scope and baseline.'
 				total={model.attributes.length}
-				placeholder="Filter attributes…"
+				placeholder='Filter attributes…'
 			>
 				<AttributesTable rows={model.attributes} />
 			</TableSection>
 			<TableSection
-				id="deprecated"
-				title="Deprecated elements"
-				description="Quick smoke panel for legacy SVG pieces."
+				id='deprecated'
+				title='Deprecated elements'
+				description='Quick smoke panel for legacy SVG pieces.'
 				total={model.deprecatedElements.length}
-				placeholder="Filter deprecated…"
+				placeholder='Filter deprecated…'
 			>
 				<ElementsTable rows={model.deprecatedElements} />
 			</TableSection>
 			<TableSection
-				id="limited-attributes"
-				title="Limited attributes"
-				description="Useful for cross-browser pain radar."
+				id='limited-attributes'
+				title='Limited attributes'
+				description='Useful for cross-browser pain radar.'
 				total={model.limitedAttributes.length}
-				placeholder="Filter limited…"
+				placeholder='Filter limited…'
 			>
 				<AttributesTable rows={model.limitedAttributes} />
 			</TableSection>
@@ -103,7 +104,7 @@ export function renderErrorHtml(
 	boot = 0,
 ): string {
 	const body = render(
-		<Layout dev={dev} boot={boot} bare title="SVG Compat Error">
+		<Layout dev={dev} boot={boot} bare title='SVG Compat Error'>
 			<ErrorPage status={status} message={message} />
 		</Layout>,
 	);

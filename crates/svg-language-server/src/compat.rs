@@ -25,6 +25,7 @@ pub struct RuntimeBrowserSupport {
 pub struct CompatOverride {
     pub deprecated: bool,
     pub experimental: bool,
+    pub standard_track: Option<bool>,
     pub baseline: Option<BaselineStatus>,
     pub browser_support: Option<RuntimeBrowserSupport>,
 }
@@ -53,6 +54,61 @@ impl RuntimeCompat {
                 .collect()
         };
         svg_lint::LintOverrides {
+            elements: convert(&self.elements),
+            attributes: convert(&self.attributes),
+        }
+    }
+
+    /// Build runtime verdict overrides for the status dimensions of the
+    /// advisory compat verdict.
+    ///
+    /// Runtime BCD can mark a construct deprecated, experimental, or
+    /// non-standard even when the baked objective facts (from the catalog's BCD
+    /// snapshot) do not. Entries without advisory status contribute no
+    /// override, so the catalog-derived verdict stands.
+    pub fn to_verdict_overrides(&self) -> svg_lint::VerdictOverrides {
+        use svg_data::{CompatVerdict, VerdictReason, VerdictRecommendation};
+
+        let verdict = |co: &CompatOverride| {
+            let mut reasons = Vec::new();
+            if co.deprecated {
+                reasons.push(VerdictReason::BcdDeprecated);
+            }
+            if co.experimental {
+                reasons.push(VerdictReason::BcdExperimental);
+            }
+            if co.standard_track == Some(false) {
+                reasons.push(VerdictReason::BcdNonStandard);
+            }
+            if reasons.is_empty() {
+                return None;
+            }
+            let avoid = reasons.iter().any(|reason| {
+                matches!(
+                    reason,
+                    VerdictReason::BcdDeprecated | VerdictReason::BcdNonStandard
+                )
+            });
+            Some(CompatVerdict {
+                recommendation: if avoid {
+                    VerdictRecommendation::Avoid
+                } else {
+                    VerdictRecommendation::Caution
+                },
+                headline_template: if avoid {
+                    "not recommended in current compat data"
+                } else {
+                    "experimental in current compat data"
+                },
+                reasons,
+            })
+        };
+        let convert = |map: &HashMap<String, CompatOverride>| {
+            map.iter()
+                .filter_map(|(name, co)| verdict(co).map(|verdict| (name.clone(), verdict)))
+                .collect()
+        };
+        svg_lint::VerdictOverrides {
             elements: convert(&self.elements),
             attributes: convert(&self.attributes),
         }
@@ -149,13 +205,15 @@ fn collect_element_attribute_overrides(
                 continue;
             };
 
-            let canonical_name = svg_data::xlink::canonical_svg_attribute_name(attribute_name);
+            let Some(canonical_name) = bcd_attribute_name(attribute_name, compat) else {
+                continue;
+            };
             let new_override = compat_override(
                 compat,
                 wf_features,
                 &format!("svg.elements.{element_name}.{attribute_name}"),
             );
-            merge_compat_override(attributes.entry(canonical_name.into_owned()), new_override);
+            merge_compat_override(attributes.entry(canonical_name), new_override);
         }
     }
 
@@ -183,13 +241,15 @@ fn apply_global_attribute_overrides(
         let Some(compat) = attribute_data.pointer("/__compat") else {
             continue;
         };
-        let canonical_name = svg_data::xlink::canonical_svg_attribute_name(attribute_name);
+        let Some(canonical_name) = bcd_attribute_name(attribute_name, compat) else {
+            continue;
+        };
         let new_override = compat_override(
             compat,
             wf_features,
             &format!("svg.global_attributes.{attribute_name}"),
         );
-        merge_compat_override(attributes.entry(canonical_name.into_owned()), new_override);
+        merge_compat_override(attributes.entry(canonical_name), new_override);
     }
 }
 
@@ -225,9 +285,45 @@ fn compat_override(
             .pointer("/status/experimental")
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(false),
+        standard_track: compat
+            .pointer("/status/standard_track")
+            .and_then(serde_json::Value::as_bool),
         baseline: svg_data::compat_parse::resolve_baseline(compat, wf_features, compat_key),
         browser_support,
     }
+}
+
+fn bcd_attribute_name(attribute_name: &str, compat: &serde_json::Value) -> Option<String> {
+    if !is_bcd_attribute_feature(attribute_name, compat) {
+        return None;
+    }
+    match attribute_name {
+        "data_attributes" => Some("data-*".to_owned()),
+        "xlink_actuate" => Some("xlink:actuate".to_owned()),
+        "xlink_href" => None,
+        "xlink_show" => Some("xlink:show".to_owned()),
+        "xlink_title" => Some("xlink:title".to_owned()),
+        "xml_lang" => Some("xml:lang".to_owned()),
+        "xml_space" => Some("xml:space".to_owned()),
+        "referrerPolicy" => Some("referrerpolicy".to_owned()),
+        other => Some(svg_data::xlink::canonical_svg_attribute_name(other).into_owned()),
+    }
+}
+
+fn is_bcd_attribute_feature(attribute_name: &str, compat: &serde_json::Value) -> bool {
+    compat
+        .get("mdn_url")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|url| url.contains("/Attribute/"))
+        || matches!(
+            attribute_name,
+            "data_attributes"
+                | "xlink_actuate"
+                | "xlink_show"
+                | "xlink_title"
+                | "xml_lang"
+                | "xml_space"
+        )
 }
 
 fn merge_compat_override(
@@ -242,12 +338,19 @@ fn merge_compat_override(
             if new_override.experimental {
                 existing.experimental = true;
             }
+            merge_standard_track(&mut existing.standard_track, new_override.standard_track);
             merge_baseline(&mut existing.baseline, new_override.baseline);
             if let Some(new_browser_support) = &new_override.browser_support {
                 merge_runtime_browser_support(&mut existing.browser_support, new_browser_support);
             }
         })
         .or_insert(new_override);
+}
+
+const fn merge_standard_track(existing: &mut Option<bool>, new: Option<bool>) {
+    if matches!(new, Some(false)) || existing.is_none() {
+        *existing = new;
+    }
 }
 
 const fn merge_baseline(existing: &mut Option<BaselineStatus>, new: Option<BaselineStatus>) {
@@ -362,14 +465,75 @@ const fn baseline_since(baseline: BaselineStatus) -> u16 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::{
-        BaselineStatus, RuntimeBrowserSupport, RuntimeBrowserVersion,
-        apply_global_attribute_overrides, collect_element_attribute_overrides, merge_baseline,
-        merge_runtime_browser_support,
+        BaselineStatus, CompatOverride, RuntimeBrowserSupport, RuntimeBrowserVersion,
+        RuntimeCompat, apply_global_attribute_overrides, collect_element_attribute_overrides,
+        merge_baseline, merge_runtime_browser_support,
     };
 
     fn known(version: &str) -> RuntimeBrowserVersion {
         RuntimeBrowserVersion::Version(version.to_owned())
+    }
+
+    fn override_with(deprecated: bool, experimental: bool) -> CompatOverride {
+        CompatOverride {
+            deprecated,
+            experimental,
+            standard_track: None,
+            baseline: None,
+            browser_support: None,
+        }
+    }
+
+    #[test]
+    fn verdict_overrides_reflect_runtime_deprecation_and_experimental() {
+        use svg_data::VerdictRecommendation;
+
+        let runtime = RuntimeCompat {
+            elements: HashMap::from([("marker".to_owned(), override_with(true, false))]),
+            attributes: HashMap::from([
+                ("rx".to_owned(), override_with(false, true)),
+                ("fill".to_owned(), override_with(false, false)),
+                (
+                    "fetchpriority".to_owned(),
+                    CompatOverride {
+                        deprecated: false,
+                        experimental: true,
+                        standard_track: Some(false),
+                        baseline: None,
+                        browser_support: None,
+                    },
+                ),
+            ]),
+        };
+        let overrides = runtime.to_verdict_overrides();
+
+        // Deprecated element -> Avoid verdict.
+        let Some(marker) = overrides.elements.get("marker") else {
+            panic!("marker should have a runtime verdict override");
+        };
+        assert_eq!(marker.recommendation, VerdictRecommendation::Avoid);
+
+        // Experimental attribute -> Caution verdict.
+        let Some(rx) = overrides.attributes.get("rx") else {
+            panic!("rx should have a runtime verdict override");
+        };
+        assert_eq!(rx.recommendation, VerdictRecommendation::Caution);
+
+        let Some(fetchpriority) = overrides.attributes.get("fetchpriority") else {
+            panic!("fetchpriority should have a runtime verdict override");
+        };
+        assert_eq!(fetchpriority.recommendation, VerdictRecommendation::Avoid);
+        assert!(
+            fetchpriority
+                .reasons
+                .contains(&svg_data::VerdictReason::BcdNonStandard)
+        );
+
+        // No advisory status -> no override (catalog verdict stands).
+        assert!(!overrides.attributes.contains_key("fill"));
     }
 
     #[test]
@@ -507,6 +671,7 @@ mod tests {
                         },
                         "fill": {
                             "__compat": {
+                                "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill",
                                 "support": { "chrome": { "version_added": "10" } },
                                 "status": { "deprecated": false, "experimental": false }
                             }
@@ -516,6 +681,7 @@ mod tests {
                 "global_attributes": {
                     "fill": {
                         "__compat": {
+                            "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill",
                             "support": { "chrome": { "version_added": "50" } },
                             "status": { "deprecated": false, "experimental": false }
                         }

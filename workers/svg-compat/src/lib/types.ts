@@ -10,7 +10,7 @@
  * @module
  */
 
-import type { SourceInfo, SvgCompatSources } from "../sources.ts";
+import type { SourceInfo, SvgCompatSources } from '../sources.ts';
 
 export type { SourceInfo, SvgCompatSources };
 
@@ -44,13 +44,13 @@ export interface BaselineDate {
 	 *   prefixes also trigger a one-time warning so future schema
 	 *   changes can't slip through unnoticed.
 	 */
-	qualifier?: "before" | "after" | "approximately";
+	qualifier?: 'before' | 'after' | 'approximately';
 }
 
 /** Web-platform baseline status resolved from the `web-features` dataset. */
 export interface Baseline {
 	/** Baseline tier: widely available, newly available, or limited support. */
-	status: "widely" | "newly" | "limited";
+	status: 'widely' | 'newly' | 'limited';
 	/**
 	 * Set when the upstream `baseline` value was something other
 	 * than `false` / `"high"` / `"low"`. The original value is
@@ -71,7 +71,7 @@ export interface Baseline {
 	 * from, so the badge can render `≤2021` without reaching into
 	 * the date sub-object.
 	 */
-	since_qualifier?: BaselineDate["qualifier"];
+	since_qualifier?: BaselineDate['qualifier'];
 	/** When the feature first reached baseline (low tier). */
 	low_date?: BaselineDate;
 	/** When the feature reached baseline high tier. */
@@ -84,7 +84,7 @@ export interface Baseline {
  * `BaselineDate.qualifier` — one mental model for every inexact
  * upstream value.
  */
-export type VersionQualifier = "before" | "after" | "approximately";
+export type VersionQualifier = 'before' | 'after' | 'approximately';
 
 /**
  * A per-browser flag declaration — BCD's `FlagStatement` mirrored

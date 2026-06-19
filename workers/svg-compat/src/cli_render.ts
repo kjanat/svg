@@ -13,11 +13,10 @@
  * @module
  */
 
-import type { Out } from "@kjanat/dreamcli";
+import type { Out } from '@kjanat/dreamcli';
+import type { CompatEntry, SvgCompatOutput } from './lib/mod.ts';
 
-import type { CompatEntry, SvgCompatOutput } from "./lib/mod.ts";
-
-type BaselineBucket = "widely" | "newly" | "limited" | "unknown";
+type BaselineBucket = 'widely' | 'newly' | 'limited' | 'unknown';
 
 // Index signature is required for dreamcli's
 // `out.table<T extends Record<string, unknown>>` constraint — a finite-key
@@ -33,7 +32,7 @@ interface BaselineCounts {
 }
 
 function bucketOf(entry: CompatEntry): BaselineBucket {
-	return entry.baseline?.status ?? "unknown";
+	return entry.baseline?.status ?? 'unknown';
 }
 
 function countBuckets(entries: Record<string, CompatEntry>): BaselineCounts {
@@ -58,34 +57,34 @@ function countBuckets(entries: Record<string, CompatEntry>): BaselineCounts {
  */
 export function renderDataSummary(out: Out, data: SvgCompatOutput): void {
 	out.log(`svg-compat · generated ${data.generated_at}`);
-	out.log("");
+	out.log('');
 
-	out.log("sources");
+	out.log('sources');
 	out.table([
 		{
-			role: "bcd",
+			role: 'bcd',
 			package: data.sources.bcd.package,
 			resolved: data.sources.bcd.resolved,
 			mode: data.sources.bcd.mode,
 		},
 		{
-			role: "web-features",
+			role: 'web-features',
 			package: data.sources.web_features.package,
 			resolved: data.sources.web_features.resolved,
 			mode: data.sources.web_features.mode,
 		},
 	]);
-	out.log("");
+	out.log('');
 
-	out.log("elements (baseline buckets)");
+	out.log('elements (baseline buckets)');
 	out.table([countBuckets(data.elements)]);
-	out.log("");
+	out.log('');
 
-	out.log("attributes (baseline buckets)");
+	out.log('attributes (baseline buckets)');
 	out.table([countBuckets(data.attributes)]);
-	out.log("");
+	out.log('');
 
-	out.log("(pass --json or pipe stdout for the full structured dump)");
+	out.log('(pass --json or pipe stdout for the full structured dump)');
 }
 
 interface SchemaShape {
@@ -96,15 +95,15 @@ interface SchemaShape {
 }
 
 function asString(value: unknown): string | undefined {
-	return typeof value === "string" ? value : undefined;
+	return typeof value === 'string' ? value : undefined;
 }
 
 function asStringArray(value: unknown): readonly string[] {
-	return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+	return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
 function propertyNames(value: unknown): readonly string[] {
-	return value !== null && typeof value === "object" ? Object.keys(value as object) : [];
+	return value !== null && typeof value === 'object' ? Object.keys(value as object) : [];
 }
 
 /**
@@ -115,25 +114,25 @@ function propertyNames(value: unknown): readonly string[] {
  */
 export function renderSchemaSummary(out: Out, schema: unknown): void {
 	const shape = (schema ?? {}) as SchemaShape;
-	const title = asString(shape.title) ?? "(untitled schema)";
-	const draft = asString(shape.$schema) ?? "(no $schema)";
+	const title = asString(shape.title) ?? '(untitled schema)';
+	const draft = asString(shape.$schema) ?? '(no $schema)';
 	const required = asStringArray(shape.required);
 	const props = propertyNames(shape.properties);
 
 	out.log(`svg-compat schema · ${title}`);
 	out.log(`draft: ${draft}`);
-	out.log("");
+	out.log('');
 
 	if (props.length > 0) {
-		out.log("top-level properties");
+		out.log('top-level properties');
 		out.table(
 			props.map((name) => ({
 				name,
-				required: required.includes(name) ? "yes" : "no",
+				required: required.includes(name) ? 'yes' : 'no',
 			})),
 		);
-		out.log("");
+		out.log('');
 	}
 
-	out.log("(pass --json or pipe stdout for the full schema dump)");
+	out.log('(pass --json or pipe stdout for the full schema dump)');
 }

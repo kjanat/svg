@@ -1,9 +1,9 @@
-import { serveDir } from "@std/http";
-import { contentType as mediaTypeFromExtension } from "@std/media-types";
+import { serveDir } from '@std/http';
+import { contentType as mediaTypeFromExtension } from '@std/media-types';
 
 function readDeploymentId(): string | undefined {
 	try {
-		return Deno.env.get("DENO_DEPLOYMENT_ID");
+		return Deno.env.get('DENO_DEPLOYMENT_ID');
 	} catch {
 		return undefined;
 	}
@@ -21,15 +21,15 @@ interface CachePolicyOptions {
 
 function buildCacheControl(options: CachePolicyOptions): string {
 	const directives = [
-		"public",
+		'public',
 		`max-age=${options.maxAge}`,
 		options.sharedMaxAge !== undefined ? `s-maxage=${options.sharedMaxAge}` : undefined,
 		options.staleWhileRevalidate !== undefined
 			? `stale-while-revalidate=${options.staleWhileRevalidate}`
 			: undefined,
-		options.immutable ? "immutable" : undefined,
+		options.immutable ? 'immutable' : undefined,
 	];
-	return directives.filter((value): value is string => value !== undefined).join(", ");
+	return directives.filter((value): value is string => value !== undefined).join(', ');
 }
 
 function mediaTypeOrFallback(extension: string, fallback: string): string {
@@ -54,12 +54,12 @@ export const CACHE_POLICY = {
 } as const;
 
 export const MIME = {
-	json: mediaTypeOrFallback(".json", "application/json; charset=utf-8"),
-	html: mediaTypeOrFallback(".html", "text/html; charset=utf-8"),
-	text: mediaTypeOrFallback(".txt", "text/plain; charset=utf-8"),
-	schema: "application/schema+json; charset=utf-8",
-	svg: mediaTypeOrFallback(".svg", "image/svg+xml"),
-	ico: mediaTypeOrFallback(".ico", "image/x-icon"),
+	json: mediaTypeOrFallback('.json', 'application/json; charset=utf-8'),
+	html: mediaTypeOrFallback('.html', 'text/html; charset=utf-8'),
+	text: mediaTypeOrFallback('.txt', 'text/plain; charset=utf-8'),
+	schema: 'application/schema+json; charset=utf-8',
+	svg: mediaTypeOrFallback('.svg', 'image/svg+xml'),
+	ico: mediaTypeOrFallback('.ico', 'image/x-icon'),
 } as const;
 
 const CSP_SCRIPT_SRC = DEV ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'";
@@ -74,9 +74,9 @@ const CONTENT_SECURITY_POLICY = [
 	"base-uri 'none'",
 	"form-action 'none'",
 	"frame-ancestors 'none'",
-].join("; ");
+].join('; ');
 
-export type NegotiatedFormat = "json" | "html" | "not-acceptable";
+export type NegotiatedFormat = 'json' | 'html' | 'not-acceptable';
 
 export interface StaticAsset {
 	body: Uint8Array;
@@ -99,12 +99,12 @@ export function hashString(value: string): string {
 }
 
 export function requestMatchesCache(request: Request, etag: string, lastModified: string): boolean {
-	const ifNoneMatch = request.headers.get("if-none-match");
+	const ifNoneMatch = request.headers.get('if-none-match');
 	if (ifNoneMatch) {
-		return ifNoneMatch.split(",").map((value) => value.trim()).includes(etag);
+		return ifNoneMatch.split(',').map((value) => value.trim()).includes(etag);
 	}
 
-	const ifModifiedSince = request.headers.get("if-modified-since");
+	const ifModifiedSince = request.headers.get('if-modified-since');
 	if (!ifModifiedSince) return false;
 	const requestTime = Date.parse(ifModifiedSince);
 	const modifiedTime = Date.parse(lastModified);
@@ -119,20 +119,20 @@ export function loadStaticAsset(fileName: string, fallbackContentType: string): 
 	const mtime = stat.mtime?.getTime() ?? BOOT;
 	return {
 		body,
-		contentType: mediaTypeFromExtension(`.${fileName.split(".").pop()}`) ?? fallbackContentType,
+		contentType: mediaTypeFromExtension(`.${fileName.split('.').pop()}`) ?? fallbackContentType,
 		etag: entityTag(`asset:${fileName}:${mtime}:${body.byteLength}`),
 		lastModified: new Date(mtime).toUTCString(),
 	};
 }
 
 export function applyCommonSecurityHeaders(headers: Headers): void {
-	headers.set("x-content-type-options", "nosniff");
-	headers.set("referrer-policy", "strict-origin-when-cross-origin");
+	headers.set('x-content-type-options', 'nosniff');
+	headers.set('referrer-policy', 'strict-origin-when-cross-origin');
 }
 
 export function applyHtmlSecurityHeaders(headers: Headers): void {
 	applyCommonSecurityHeaders(headers);
-	headers.set("content-security-policy", CONTENT_SECURITY_POLICY);
+	headers.set('content-security-policy', CONTENT_SECURITY_POLICY);
 }
 
 export function cachedResponse(
@@ -144,15 +144,15 @@ export function cachedResponse(
 	lastModified: string,
 	status = 200,
 ): Response {
-	const responseCacheControl = DEV ? "no-store" : cacheControl;
+	const responseCacheControl = DEV ? 'no-store' : cacheControl;
 	const headers = new Headers({
-		"content-type": responseContentType,
-		"cache-control": responseCacheControl,
+		'content-type': responseContentType,
+		'cache-control': responseCacheControl,
 		etag,
-		"last-modified": lastModified,
-		vary: "accept",
+		'last-modified': lastModified,
+		vary: 'accept',
 	});
-	if (responseContentType.includes("text/html")) {
+	if (responseContentType.includes('text/html')) {
 		applyHtmlSecurityHeaders(headers);
 	} else {
 		applyCommonSecurityHeaders(headers);
@@ -166,16 +166,16 @@ export function cachedResponse(
 
 export function staticAssetResponse(request: Request, asset: StaticAsset): Response {
 	const headers = new Headers({
-		"content-type": asset.contentType,
-		"cache-control": DEV ? "no-store" : CACHE_POLICY.staticAsset,
+		'content-type': asset.contentType,
+		'cache-control': DEV ? 'no-store' : CACHE_POLICY.staticAsset,
 		etag: asset.etag,
-		"last-modified": asset.lastModified,
+		'last-modified': asset.lastModified,
 	});
 	applyCommonSecurityHeaders(headers);
 	if (!DEV && requestMatchesCache(request, asset.etag, asset.lastModified)) {
 		return new Response(null, { status: 304, headers });
 	}
-	if (request.method === "HEAD") {
+	if (request.method === 'HEAD') {
 		return new Response(null, { headers });
 	}
 	const body = new Uint8Array(asset.body.byteLength);
@@ -185,8 +185,8 @@ export function staticAssetResponse(request: Request, asset: StaticAsset): Respo
 
 export function textResponse(body: string, status = 200): Response {
 	const headers = new Headers({
-		"content-type": MIME.text,
-		"cache-control": "no-store",
+		'content-type': MIME.text,
+		'cache-control': 'no-store',
 	});
 	applyCommonSecurityHeaders(headers);
 	return new Response(body, { status, headers });
@@ -194,8 +194,8 @@ export function textResponse(body: string, status = 200): Response {
 
 export function jsonErrorResponse(status: number, message: string, jsonIndent = 2): Response {
 	const headers = new Headers({
-		"content-type": MIME.json,
-		"cache-control": "no-store",
+		'content-type': MIME.json,
+		'cache-control': 'no-store',
 	});
 	applyCommonSecurityHeaders(headers);
 	return new Response(JSON.stringify({ error: { status, message } }, null, jsonIndent), {
@@ -205,29 +205,29 @@ export function jsonErrorResponse(status: number, message: string, jsonIndent = 
 }
 
 export function wantsJson(request: Request, url: URL): boolean {
-	if (url.pathname === "/data.json") return true;
-	if (url.pathname === "/schema.json") return true;
-	if (url.searchParams.get("format") === "json") return true;
-	const accept = request.headers.get("accept");
+	if (url.pathname === '/data.json') return true;
+	if (url.pathname === '/schema.json') return true;
+	if (url.searchParams.get('format') === 'json') return true;
+	const accept = request.headers.get('accept');
 	if (!accept) return false;
-	return accept.includes("application/json") || accept.includes("application/*+json");
+	return accept.includes('application/json') || accept.includes('application/*+json');
 }
 
 export function wantsHtml(request: Request): boolean {
-	const accept = request.headers.get("accept");
+	const accept = request.headers.get('accept');
 	if (!accept) return true;
-	return accept.includes("text/html") || accept.includes("*/*");
+	return accept.includes('text/html') || accept.includes('*/*');
 }
 
 export function negotiateFormat(request: Request, url: URL): NegotiatedFormat {
-	if (wantsJson(request, url)) return "json";
-	if (wantsHtml(request)) return "html";
-	return "not-acceptable";
+	if (wantsJson(request, url)) return 'json';
+	if (wantsHtml(request)) return 'html';
+	return 'not-acceptable';
 }
 
-export async function serveStaticRoute(request: Request, urlRoot = "static"): Promise<Response> {
+export async function serveStaticRoute(request: Request, urlRoot = 'static'): Promise<Response> {
 	const response = await serveDir(request, {
-		fsRoot: new URL("../static", import.meta.url).pathname,
+		fsRoot: new URL('../static', import.meta.url).pathname,
 		urlRoot,
 	});
 	applyCommonSecurityHeaders(response.headers);

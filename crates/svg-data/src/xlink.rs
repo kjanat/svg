@@ -1,20 +1,16 @@
+//! Canonicalization of legacy `xlink:` attribute names.
+
 use std::borrow::Cow;
 
-/// Map legacy underscore-delimited xlink attribute names (as found in BCD data)
-/// to their canonical colon-delimited SVG namespace form.
+/// Map a legacy `xlink:`-namespaced attribute to its canonical SVG 2 name.
 ///
-/// Unrecognized names pass through unchanged.
-#[inline]
+/// Only `xlink:href` has a clean canonical replacement (`href`); other
+/// `xlink:*` attributes are returned unchanged. Returns a [`Cow`] so callers can
+/// take ownership without forcing an allocation on the common (unchanged) path.
 #[must_use]
 pub fn canonical_svg_attribute_name(name: &str) -> Cow<'_, str> {
     match name {
-        "xlink_actuate" => Cow::Borrowed("xlink:actuate"),
-        "xlink_arcrole" => Cow::Borrowed("xlink:arcrole"),
-        "xlink_href" => Cow::Borrowed("xlink:href"),
-        "xlink_role" => Cow::Borrowed("xlink:role"),
-        "xlink_show" => Cow::Borrowed("xlink:show"),
-        "xlink_title" => Cow::Borrowed("xlink:title"),
-        "xlink_type" => Cow::Borrowed("xlink:type"),
-        _ => Cow::Borrowed(name),
+        "xlink:href" => Cow::Borrowed("href"),
+        other => Cow::Borrowed(other),
     }
 }

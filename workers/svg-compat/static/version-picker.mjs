@@ -1,10 +1,10 @@
 /** @type {NodeListOf<HTMLInputElement>} */
-const inputs = document.querySelectorAll("input.ver[data-pkg]");
+const inputs = document.querySelectorAll('input.ver[data-pkg]');
 const searchParams = new URLSearchParams(location.search);
 
 /** @param {string} key */
 function paramAliases(key) {
-	if (key === "wf") return ["wf", "web_features"];
+	if (key === 'wf') return ['wf', 'web_features'];
 	return [key];
 }
 
@@ -50,37 +50,45 @@ function navigate() {
 }
 
 for (const input of inputs) {
-	const list = input.nextElementSibling;
-	let allVersions = [];
+	const sibling = input.nextElementSibling;
+	if (!(sibling instanceof HTMLElement)) continue;
+	const list = sibling;
+	let allVersions = /** @type {string[]} */ ([]);
 	let active = -1;
 
-	input.setAttribute("role", "combobox");
-	input.setAttribute("aria-autocomplete", "list");
-	input.setAttribute("aria-expanded", "false");
-	list.setAttribute("role", "listbox");
+	input.setAttribute('role', 'combobox');
+	input.setAttribute('aria-autocomplete', 'list');
+	input.setAttribute('aria-expanded', 'false');
+	list.setAttribute('role', 'listbox');
 
 	const CACHE_TTL = 30 * 60 * 1000;
 	const cacheKey = `ver:${input.dataset.pkg}`;
 
 	try {
-		const cached = JSON.parse(localStorage.getItem(cacheKey));
+		const raw = localStorage.getItem(cacheKey);
+		const cached = raw ? JSON.parse(raw) : null;
 		if (cached && Date.now() < cached.exp) allVersions = cached.v;
-	} catch {}
+	} catch {
+		// Ignore unreadable or malformed cache entries.
+	}
 
 	if (!allVersions.length) {
-		fetch("https://data.jsdelivr.com/v1/package/npm/" + input.dataset.pkg)
+		fetch('https://data.jsdelivr.com/v1/package/npm/' + input.dataset.pkg)
 			.then((r) => r.json())
 			.then((data) => {
 				allVersions = data.versions;
 				try {
 					localStorage.setItem(cacheKey, JSON.stringify({ v: allVersions, exp: Date.now() + CACHE_TTL }));
-				} catch {}
+				} catch {
+					// Ignore storage failures (quota exceeded, private mode).
+				}
 			})
 			.catch(() => {});
 	}
 
-	function show(filter) {
-		list.innerHTML = "";
+	/** @param {string} filter */
+	const show = (filter) => {
+		list.innerHTML = '';
 		active = -1;
 		const q = filter.toLowerCase();
 		const matches = q
@@ -90,16 +98,16 @@ for (const input of inputs) {
 					const as = a.startsWith(q),
 						bs = b.startsWith(q);
 					if (as !== bs) return as ? -1 : 1;
-					const ap = a.includes("-"),
-						bp = b.includes("-");
+					const ap = a.includes('-'),
+						bp = b.includes('-');
 					if (ap !== bp) return ap ? 1 : -1;
 					return 0;
 				})
 			: allVersions;
 		for (const v of matches.slice(0, 100)) {
-			const li = document.createElement("li");
+			const li = document.createElement('li');
 			li.textContent = v;
-			li.setAttribute("role", "option");
+			li.setAttribute('role', 'option');
 			li.onmousedown = (e) => {
 				e.preventDefault();
 				pick(v);
@@ -108,58 +116,61 @@ for (const input of inputs) {
 		}
 		const open = matches.length > 0;
 		list.hidden = !open;
-		input.setAttribute("aria-expanded", String(open));
-	}
+		input.setAttribute('aria-expanded', String(open));
+	};
 
-	function pick(v) {
+	/** @param {string} v */
+	const pick = (v) => {
 		input.value = v;
 		list.hidden = true;
-		input.setAttribute("aria-expanded", "false");
+		input.setAttribute('aria-expanded', 'false');
 		active = -1;
 		navigate();
-	}
+	};
 
-	function highlight(idx) {
+	/** @param {number} idx */
+	const highlight = (idx) => {
 		const items = list.children;
 		if (!items.length) return;
-		if (active >= 0 && items[active]) items[active].classList.remove("active");
+		if (active >= 0 && items[active]) items[active].classList.remove('active');
 		active = ((idx % items.length) + items.length) % items.length;
-		items[active].classList.add("active");
-		items[active].scrollIntoView({ block: "nearest" });
-	}
+		items[active].classList.add('active');
+		items[active].scrollIntoView({ block: 'nearest' });
+	};
 
-	input.addEventListener("focus", () => show(input.value));
-	input.addEventListener("input", () => show(input.value));
-	input.addEventListener("blur", () => {
+	input.addEventListener('focus', () => show(input.value));
+	input.addEventListener('input', () => show(input.value));
+	input.addEventListener('blur', () => {
 		list.hidden = true;
-		input.setAttribute("aria-expanded", "false");
+		input.setAttribute('aria-expanded', 'false');
 		active = -1;
 	});
-	input.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" && active < 0) {
+	input.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' && active < 0) {
 			navigate();
 			return;
 		}
-		if (list.hidden && e.key !== "ArrowDown" && e.key !== "Tab") return;
+		if (list.hidden && e.key !== 'ArrowDown' && e.key !== 'Tab') return;
 		if (
-			e.key === "ArrowDown"
-			|| (e.key === "Tab" && !e.shiftKey && !list.hidden)
+			e.key === 'ArrowDown'
+			|| (e.key === 'Tab' && !e.shiftKey && !list.hidden)
 		) {
 			e.preventDefault();
 			if (list.hidden) show(input.value);
 			else highlight(active + 1);
 		} else if (
-			e.key === "ArrowUp"
-			|| (e.key === "Tab" && e.shiftKey && !list.hidden)
+			e.key === 'ArrowUp'
+			|| (e.key === 'Tab' && e.shiftKey && !list.hidden)
 		) {
 			e.preventDefault();
 			highlight(active - 1);
-		} else if (e.key === "Enter" && active >= 0) {
+		} else if (e.key === 'Enter' && active >= 0) {
 			e.preventDefault();
-			pick(list.children[active].textContent);
-		} else if (e.key === "Escape") {
+			const choice = list.children[active].textContent;
+			if (choice !== null) pick(choice);
+		} else if (e.key === 'Escape') {
 			list.hidden = true;
-			input.setAttribute("aria-expanded", "false");
+			input.setAttribute('aria-expanded', 'false');
 			active = -1;
 		}
 	});

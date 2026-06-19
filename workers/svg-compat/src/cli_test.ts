@@ -13,12 +13,12 @@
  * @module
  */
 
-import { runCommand } from "@kjanat/dreamcli/testkit";
-import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
+import { runCommand } from '@kjanat/dreamcli/testkit';
+import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 
-import { dataCommand, schemaCommand } from "./cli.ts";
+import { dataCommand, schemaCommand } from './cli.ts';
 
-const CLI = ["run", "-A", "src/cli.ts"] as const;
+const CLI = ['run', '-A', 'src/cli.ts'] as const;
 
 interface SubprocessResult {
 	code: number;
@@ -27,10 +27,10 @@ interface SubprocessResult {
 }
 
 async function runCli(args: string[]): Promise<SubprocessResult> {
-	const cmd = new Deno.Command("deno", {
+	const cmd = new Deno.Command('deno', {
 		args: [...CLI, ...args],
-		stdout: "piped",
-		stderr: "piped",
+		stdout: 'piped',
+		stderr: 'piped',
 	});
 	const { code, stdout, stderr } = await cmd.output();
 	return {
@@ -40,42 +40,42 @@ async function runCli(args: string[]): Promise<SubprocessResult> {
 	};
 }
 
-Deno.test("cli emit schema (piped) produces parseable JSON with new baselineDate def", async () => {
-	const { code, stdout } = await runCli(["emit", "schema"]);
+Deno.test('cli emit schema (piped) produces parseable JSON with new baselineDate def', async () => {
+	const { code, stdout } = await runCli(['emit', 'schema']);
 	assertEquals(code, 0);
 	const parsed = JSON.parse(stdout);
-	assertEquals(parsed.title, "SVG Compat Output");
+	assertEquals(parsed.title, 'SVG Compat Output');
 	assertExists(parsed.$defs.baselineDate);
-	assertEquals(parsed.$defs.baselineDate.required, ["raw"]);
+	assertEquals(parsed.$defs.baselineDate.required, ['raw']);
 	assertEquals(parsed.$defs.baselineDate.properties.qualifier.enum, [
-		"before",
-		"after",
-		"approximately",
+		'before',
+		'after',
+		'approximately',
 	]);
 	assertEquals(
 		parsed.$defs.baseline.properties.high_date,
-		{ "$ref": "#/$defs/baselineDate" },
+		{ '$ref': '#/$defs/baselineDate' },
 	);
 });
 
-Deno.test("cli emit data (piped) preserves ≤ qualifier on feGaussianBlur", async () => {
-	const { code, stdout } = await runCli(["emit", "data"]);
+Deno.test('cli emit data (piped) preserves ≤ qualifier on feGaussianBlur', async () => {
+	const { code, stdout } = await runCli(['emit', 'data']);
 	assertEquals(code, 0);
 	const parsed = JSON.parse(stdout);
 	const blur = parsed.elements.feGaussianBlur;
 	assertExists(blur.baseline);
-	assertEquals(blur.baseline.status, "widely");
+	assertEquals(blur.baseline.status, 'widely');
 	assertEquals(blur.baseline.since, 2021);
-	assertEquals(blur.baseline.since_qualifier, "before");
-	assertEquals(blur.baseline.high_date.raw, "≤2021-04-02");
-	assertEquals(blur.baseline.high_date.date, "2021-04-02");
-	assertEquals(blur.baseline.high_date.qualifier, "before");
+	assertEquals(blur.baseline.since_qualifier, 'before');
+	assertEquals(blur.baseline.high_date.raw, '≤2021-04-02');
+	assertEquals(blur.baseline.high_date.date, '2021-04-02');
+	assertEquals(blur.baseline.high_date.qualifier, 'before');
 });
 
-Deno.test("cli emit data --out writes pretty JSON and logs status to stderr", async () => {
-	const outPath = await Deno.makeTempFile({ prefix: "svg-compat-", suffix: ".json" });
+Deno.test('cli emit data --out writes pretty JSON and logs status to stderr', async () => {
+	const outPath = await Deno.makeTempFile({ prefix: 'svg-compat-', suffix: '.json' });
 	try {
-		const { code, stdout, stderr } = await runCli(["emit", "data", "--out", outPath]);
+		const { code, stdout, stderr } = await runCli(['emit', 'data', '--out', outPath]);
 		assertEquals(code, 0);
 
 		// Subprocess stdout is piped → auto jsonMode → minified JSON dump.
@@ -89,8 +89,8 @@ Deno.test("cli emit data --out writes pretty JSON and logs status to stderr", as
 		// File contents must be pretty-printed (2-space indent + trailing
 		// newline) and structurally identical to the stdout dump.
 		const fileBody = await Deno.readTextFile(outPath);
-		assertEquals(fileBody.startsWith("{\n  \"generated_at\""), true);
-		assertEquals(fileBody.endsWith("}\n"), true);
+		assertEquals(fileBody.startsWith('{\n  "generated_at"'), true);
+		assertEquals(fileBody.endsWith('}\n'), true);
 		const fromFile = JSON.parse(fileBody);
 		assertEquals(fromFile.elements.feGaussianBlur, fromStdout.elements.feGaussianBlur);
 	} finally {
@@ -98,45 +98,45 @@ Deno.test("cli emit data --out writes pretty JSON and logs status to stderr", as
 	}
 });
 
-Deno.test("dataCommand (in-process, TTY mode) renders human summary, not JSON", async () => {
+Deno.test('dataCommand (in-process, TTY mode) renders human summary, not JSON', async () => {
 	const result = await runCommand(dataCommand, [], { isTTY: true, jsonMode: false });
 	assertEquals(result.exitCode, 0);
-	const stdout = result.stdout.join("");
+	const stdout = result.stdout.join('');
 	// Human summary markers — header + section labels + footer hint.
-	assertStringIncludes(stdout, "svg-compat · generated ");
-	assertStringIncludes(stdout, "sources");
-	assertStringIncludes(stdout, "elements (baseline buckets)");
-	assertStringIncludes(stdout, "attributes (baseline buckets)");
-	assertStringIncludes(stdout, "(pass --json or pipe stdout for the full structured dump)");
+	assertStringIncludes(stdout, 'svg-compat · generated ');
+	assertStringIncludes(stdout, 'sources');
+	assertStringIncludes(stdout, 'elements (baseline buckets)');
+	assertStringIncludes(stdout, 'attributes (baseline buckets)');
+	assertStringIncludes(stdout, '(pass --json or pipe stdout for the full structured dump)');
 	// No JSON dump bled through — stdout should not start with '{'.
-	assertEquals(stdout.trimStart().startsWith("{"), false);
+	assertEquals(stdout.trimStart().startsWith('{'), false);
 });
 
-Deno.test("dataCommand (in-process, jsonMode) emits minified JSON to stdout", async () => {
+Deno.test('dataCommand (in-process, jsonMode) emits minified JSON to stdout', async () => {
 	const result = await runCommand(dataCommand, [], { isTTY: false, jsonMode: true });
 	assertEquals(result.exitCode, 0);
-	const stdout = result.stdout.join("");
+	const stdout = result.stdout.join('');
 	// stdout is exactly one JSON document + trailing newline.
 	const parsed = JSON.parse(stdout);
 	assertExists(parsed.elements.feGaussianBlur);
 	assertExists(parsed.sources.bcd);
 });
 
-Deno.test("schemaCommand (in-process, TTY mode) renders schema summary", async () => {
+Deno.test('schemaCommand (in-process, TTY mode) renders schema summary', async () => {
 	const result = await runCommand(schemaCommand, [], { isTTY: true, jsonMode: false });
 	assertEquals(result.exitCode, 0);
-	const stdout = result.stdout.join("");
-	assertStringIncludes(stdout, "svg-compat schema · SVG Compat Output");
-	assertStringIncludes(stdout, "draft: https://json-schema.org/draft/2020-12/schema");
-	assertStringIncludes(stdout, "top-level properties");
-	assertStringIncludes(stdout, "generated_at");
-	assertStringIncludes(stdout, "(pass --json or pipe stdout for the full schema dump)");
+	const stdout = result.stdout.join('');
+	assertStringIncludes(stdout, 'svg-compat schema · SVG Compat Output');
+	assertStringIncludes(stdout, 'draft: https://json-schema.org/draft/2020-12/schema');
+	assertStringIncludes(stdout, 'top-level properties');
+	assertStringIncludes(stdout, 'generated_at');
+	assertStringIncludes(stdout, '(pass --json or pipe stdout for the full schema dump)');
 });
 
-Deno.test("schemaCommand (in-process, jsonMode) emits the raw schema", async () => {
+Deno.test('schemaCommand (in-process, jsonMode) emits the raw schema', async () => {
 	const result = await runCommand(schemaCommand, [], { isTTY: false, jsonMode: true });
 	assertEquals(result.exitCode, 0);
-	const parsed = JSON.parse(result.stdout.join(""));
-	assertEquals(parsed.title, "SVG Compat Output");
+	const parsed = JSON.parse(result.stdout.join(''));
+	assertEquals(parsed.title, 'SVG Compat Output');
 	assertExists(parsed.$defs.baselineDate);
 });

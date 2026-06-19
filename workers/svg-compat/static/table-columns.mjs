@@ -10,8 +10,8 @@
 
 const DEFAULT_MIN_COL_WIDTH = 96;
 const RESIZE_HOTZONE_PX = 44;
-const BROWSER_CHIPS_MODE_TWO = "browser-chips--two";
-const BROWSER_CHIPS_MODE_FOUR = "browser-chips--four";
+const BROWSER_CHIPS_MODE_TWO = 'browser-chips--two';
+const BROWSER_CHIPS_MODE_FOUR = 'browser-chips--four';
 
 /** @param {string} value */
 function parsePixels(value) {
@@ -57,7 +57,7 @@ function syncBrowserChipLayout(list) {
  * @param {ParentNode} root
  */
 function syncBrowserChipLayouts(root) {
-	for (const node of root.querySelectorAll(".browser-chips")) {
+	for (const node of root.querySelectorAll('.browser-chips')) {
 		if (node instanceof HTMLElement) syncBrowserChipLayout(node);
 	}
 }
@@ -69,14 +69,14 @@ function ensureColgroup(table) {
 	const columnCount = headerRow.cells.length;
 	if (columnCount === 0) return null;
 
-	let colgroup = table.querySelector("colgroup");
+	let colgroup = table.querySelector('colgroup');
 	if (!colgroup) {
-		colgroup = document.createElement("colgroup");
+		colgroup = document.createElement('colgroup');
 		table.insertBefore(colgroup, table.firstChild);
 	}
 
 	while (colgroup.children.length < columnCount) {
-		colgroup.appendChild(document.createElement("col"));
+		colgroup.appendChild(document.createElement('col'));
 	}
 	while (colgroup.children.length > columnCount) {
 		colgroup.lastElementChild?.remove();
@@ -111,7 +111,7 @@ function moveColumn(table, from, to) {
 		row.insertBefore(moving, ref);
 	}
 
-	const colgroup = table.querySelector("colgroup");
+	const colgroup = table.querySelector('colgroup');
 	if (!colgroup) return;
 	const cols = Array.from(colgroup.children);
 	if (cols.length !== count) return;
@@ -136,7 +136,7 @@ function initializeWidths(table) {
 	if (!cols || headers.length !== cols.length) return;
 
 	headers.forEach((th, i) => {
-		const min = Number.parseFloat(th.dataset.colMinWidth ?? "") || DEFAULT_MIN_COL_WIDTH;
+		const min = Number.parseFloat(th.dataset.colMinWidth ?? '') || DEFAULT_MIN_COL_WIDTH;
 		const width = Math.max(min, Math.ceil(th.getBoundingClientRect().width));
 		cols[i].style.width = `${width}px`;
 		cols[i].style.minWidth = `${min}px`;
@@ -146,6 +146,8 @@ function initializeWidths(table) {
 /**
  * @param {HTMLTableElement} table
  * @param {HTMLTableCellElement} th
+ * @param {number} startX
+ * @param {number | undefined} pointerId
  */
 function startColumnResize(table, th, startX, pointerId) {
 	const colIndex = getColumnIndex(table, th);
@@ -155,12 +157,12 @@ function startColumnResize(table, th, startX, pointerId) {
 	if (!cols) return;
 
 	const col = cols[colIndex];
-	const min = Number.parseFloat(th.dataset.colMinWidth ?? "") || DEFAULT_MIN_COL_WIDTH;
+	const min = Number.parseFloat(th.dataset.colMinWidth ?? '') || DEFAULT_MIN_COL_WIDTH;
 	const startWidth = col.getBoundingClientRect().width;
 	const wasDraggable = th.draggable;
 
-	document.body.classList.add("is-col-resizing");
-	th.classList.add("is-resizing");
+	document.body.classList.add('is-col-resizing');
+	th.classList.add('is-resizing');
 	th.draggable = false;
 	if (pointerId !== undefined) {
 		try {
@@ -179,8 +181,8 @@ function startColumnResize(table, th, startX, pointerId) {
 	};
 
 	const onUp = () => {
-		document.body.classList.remove("is-col-resizing");
-		th.classList.remove("is-resizing");
+		document.body.classList.remove('is-col-resizing');
+		th.classList.remove('is-resizing');
 		th.draggable = wasDraggable;
 		if (pointerId !== undefined) {
 			try {
@@ -189,12 +191,12 @@ function startColumnResize(table, th, startX, pointerId) {
 				// Pointer might already be released.
 			}
 		}
-		window.removeEventListener("pointermove", onMove);
-		window.removeEventListener("pointerup", onUp);
+		globalThis.removeEventListener('pointermove', onMove);
+		globalThis.removeEventListener('pointerup', onUp);
 	};
 
-	window.addEventListener("pointermove", onMove);
-	window.addEventListener("pointerup", onUp);
+	globalThis.addEventListener('pointermove', onMove);
+	globalThis.addEventListener('pointerup', onUp);
 }
 
 /**
@@ -211,18 +213,18 @@ function inResizeHotzone(th, event) {
  * @param {HTMLTableCellElement} th
  */
 function attachResizeHandle(table, th) {
-	const handle = document.createElement("span");
-	handle.className = "col-resize-handle";
-	handle.setAttribute("aria-hidden", "true");
+	const handle = document.createElement('span');
+	handle.className = 'col-resize-handle';
+	handle.setAttribute('aria-hidden', 'true');
 	th.appendChild(handle);
 
-	handle.addEventListener("pointerdown", (event) => {
+	handle.addEventListener('pointerdown', (event) => {
 		event.preventDefault();
 		event.stopPropagation();
 		startColumnResize(table, th, event.clientX, event.pointerId);
 	});
 
-	th.addEventListener("pointerdown", (event) => {
+	th.addEventListener('pointerdown', (event) => {
 		if (!event.isPrimary || event.button !== 0) return;
 		if (!inResizeHotzone(th, event)) return;
 		event.preventDefault();
@@ -242,52 +244,52 @@ function enhanceTable(table) {
 
 	for (const headerCell of headers) {
 		const th = /** @type {HTMLTableCellElement} */ (headerCell);
-		th.classList.add("table-col-header");
+		th.classList.add('table-col-header');
 		th.draggable = true;
 
 		attachResizeHandle(table, th);
 
-		th.addEventListener("dragstart", (event) => {
+		th.addEventListener('dragstart', (event) => {
 			if (
-				(event.target instanceof Element && event.target.classList.contains("col-resize-handle"))
-				|| th.classList.contains("is-resizing")
-				|| document.body.classList.contains("is-col-resizing")
+				(event.target instanceof Element && event.target.classList.contains('col-resize-handle'))
+				|| th.classList.contains('is-resizing')
+				|| document.body.classList.contains('is-col-resizing')
 			) {
 				event.preventDefault();
 				return;
 			}
 			dragIndex = getColumnIndex(table, th);
 			if (dragIndex < 0) return;
-			th.classList.add("is-dragging");
+			th.classList.add('is-dragging');
 			if (event.dataTransfer) {
-				event.dataTransfer.effectAllowed = "move";
-				event.dataTransfer.setData("text/plain", String(dragIndex));
+				event.dataTransfer.effectAllowed = 'move';
+				event.dataTransfer.setData('text/plain', String(dragIndex));
 			}
 		});
 
-		th.addEventListener("dragend", () => {
+		th.addEventListener('dragend', () => {
 			dragIndex = -1;
-			th.classList.remove("is-dragging", "is-drop-target");
+			th.classList.remove('is-dragging', 'is-drop-target');
 			for (const other of headers) {
-				other.classList.remove("is-drop-target");
+				other.classList.remove('is-drop-target');
 			}
 		});
 
-		th.addEventListener("dragover", (event) => {
+		th.addEventListener('dragover', (event) => {
 			if (dragIndex < 0) return;
 			event.preventDefault();
-			th.classList.add("is-drop-target");
+			th.classList.add('is-drop-target');
 		});
 
-		th.addEventListener("dragleave", () => {
-			th.classList.remove("is-drop-target");
+		th.addEventListener('dragleave', () => {
+			th.classList.remove('is-drop-target');
 		});
 
-		th.addEventListener("drop", (event) => {
+		th.addEventListener('drop', (event) => {
 			if (dragIndex < 0) return;
 			event.preventDefault();
 			const dropIndex = getColumnIndex(table, th);
-			th.classList.remove("is-drop-target");
+			th.classList.remove('is-drop-target');
 			if (dropIndex < 0 || dropIndex === dragIndex) return;
 			moveColumn(table, dragIndex, dropIndex);
 			syncBrowserChipLayouts(table);
@@ -296,7 +298,7 @@ function enhanceTable(table) {
 	}
 }
 
-const resizeObserver = typeof ResizeObserver === "function"
+const resizeObserver = typeof ResizeObserver === 'function'
 	? new ResizeObserver((entries) => {
 		for (const entry of entries) {
 			if (entry.target instanceof Element) {
@@ -306,11 +308,11 @@ const resizeObserver = typeof ResizeObserver === "function"
 	})
 	: null;
 
-for (const table of document.querySelectorAll("section[data-searchable] table")) {
+for (const table of document.querySelectorAll('section[data-searchable] table')) {
 	if (!(table instanceof HTMLTableElement)) continue;
 	enhanceTable(table);
-	const resizeTarget = table.closest(".table-scroll") ?? table;
+	const resizeTarget = table.closest('.table-scroll') ?? table;
 	resizeObserver?.observe(resizeTarget);
 }
 
-window.addEventListener("resize", () => syncBrowserChipLayouts(document));
+globalThis.addEventListener('resize', () => syncBrowserChipLayouts(document));

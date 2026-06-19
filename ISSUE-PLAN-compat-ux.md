@@ -400,7 +400,7 @@ function baselineTitle(baseline: Baseline): string {
 	if (baseline.raw_status) {
 		parts.push(`(unknown upstream status: ${baseline.raw_status})`);
 	}
-	return parts.join(" · ");
+	return parts.join(' · ');
 }
 ```
 
