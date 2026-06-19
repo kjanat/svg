@@ -276,6 +276,16 @@ Deno.test('parseChangesLog accepts both single and double quoted span class', ()
 	assertEquals(names, ['a', 'b']);
 });
 
+Deno.test('parseChangesLog provenance omits non-text HTML nodes', () => {
+	const fixture = `<ul>
+  <li>Removed the <!-- hidden --> <span class='property'>'kerning'</span><![CDATA[ignored]]> property <em>from SVG 2</em>.</li>
+</ul>
+`;
+	const facts = parseChangesLog(fixture, 'changes.html');
+	assertEquals(facts.length, 1);
+	assertEquals(facts[0].provenance.text, "'kerning' property from SVG 2.");
+});
+
 Deno.test('parseDefinitionsXml provenance line numbers match the source', () => {
 	const fixture = `line1
 line2

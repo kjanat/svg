@@ -383,12 +383,57 @@ export function parseChangesLog(
 
 /** Strip HTML tags, comments, and CDATA for provenance display. */
 function stripHtml(input: string): string {
-	return input
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.replace(/<!\[CDATA\[[\s\S]*?\]\]>/gi, '')
-		.replace(/<[^>]+>/g, '')
-		.replace(/\s+/g, ' ')
-		.trim();
+	const commentOpen = '<!--';
+	const commentClose = '-->';
+	const cdataOpen = '<![CDATA[';
+	const cdataClose = ']]>';
+	let output = '';
+	let pendingSpace = false;
+	let index = 0;
+
+	while (index < input.length) {
+		if (input.startsWith(commentOpen, index)) {
+			const close = input.indexOf(commentClose, index + commentOpen.length);
+			if (close < 0) break;
+			index = close + commentClose.length;
+			continue;
+		}
+
+		if (input.slice(index, index + cdataOpen.length).toUpperCase() === cdataOpen) {
+			const close = input.indexOf(cdataClose, index + cdataOpen.length);
+			if (close < 0) break;
+			index = close + cdataClose.length;
+			continue;
+		}
+
+		const char = input[index];
+		if (char === '<') {
+			const close = input.indexOf('>', index + 1);
+			if (close < 0) break;
+			index = close + 1;
+			continue;
+		}
+
+		if (isCollapsedWhitespace(char)) {
+			pendingSpace = output.length > 0;
+			index += 1;
+			continue;
+		}
+
+		if (pendingSpace) {
+			output += ' ';
+			pendingSpace = false;
+		}
+		output += char;
+		index += 1;
+	}
+
+	return output;
+}
+
+function isCollapsedWhitespace(char: string): boolean {
+	const code = char.charCodeAt(0);
+	return code === 32 || code === 160 || code >= 9 && code <= 13;
 }
 
 /**
