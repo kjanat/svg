@@ -40,8 +40,9 @@
 	],
 	"scripts": {
 		"fmt": "dprint fmt",
+		"lint": "biome lint",
 		"helix:sync": "DIR=\"${HOME}/.config/helix/runtime/queries/svg\"; mkdir -p \"${DIR}\" && cp queries/*.scm \"${DIR}\"",
-		"install": "node-gyp-build",
+		"postinstall": "bun scripts/ensure-native.mjs",
 		"prestart": "tree-sitter build --wasm",
 		"start": "tree-sitter playground --quiet",
 		"test": "node --test bindings/node/*_test.js",
@@ -60,6 +61,7 @@
 		"node-gyp-build": "^4.8.4"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^2.5",
 		"@types/bun": "^1.3.14",
 		"prebuildify": "^6.0.1",
 		"runner-run": "^0.12.0",
@@ -77,6 +79,10 @@
 	},
 	"packageManager": "bun@1.3.14",
 	"volta": {
-		"node": "22.22.1"
+		"node": "25.9.0",
+		"npm": "11.13.0"
+	},
+	"patchedDependencies": {
+		"tree-sitter@0.25.0": "patches/tree-sitter@0.25.0.patch"
 	}
 }

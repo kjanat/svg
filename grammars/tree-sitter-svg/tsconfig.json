@@ -8,7 +8,7 @@
 		"skipLibCheck": true,
 		"resolveJsonModule": true,
 		"allowImportingTsExtensions": true,
-		"types": ["bun-types"]
+		"types": ["bun", "tree-sitter-cli/dsl"]
 	},
-	"include": ["bindings/node/index.d.ts", "test/**/*.ts"]
+	"include": ["bindings/node", "test", "grammar.js"]
 }

@@ -13,6 +13,8 @@
 			],
 			"injection-regex": "^svg$",
 			"class-name": "TreeSitterSvg",
+			"external-files": ["src/scanner.c"],
+			"path": ".",
 			"highlights": ["queries/highlights.scm"],
 			"injections": ["queries/injections.scm"],
 			"locals": ["queries/locals.scm"],

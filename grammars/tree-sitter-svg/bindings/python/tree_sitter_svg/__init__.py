@@ -1,39 +1,53 @@
 """SVG grammar for Tree-sitter"""
 
 from importlib.resources import files as _files
+from typing import TYPE_CHECKING
 
 from ._binding import language
 
+if TYPE_CHECKING:
+    HIGHLIGHTS_QUERY: str
+    INJECTIONS_QUERY: str
+    LOCALS_QUERY: str
+    TAGS_QUERY: str
 
-def _get_query(name, file):
+
+def _get_query(file: str) -> str:
     query = _files(f"{__package__}") / file
-    globals()[name] = query.read_text()
-    return globals()[name]
+    return query.read_text()
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> str:
     if name == "HIGHLIGHTS_QUERY":
-        return _get_query("HIGHLIGHTS_QUERY", "queries/highlights.scm")
+        query = _get_query("queries/highlights.scm")
+        globals()[name] = query
+        return query
     if name == "INJECTIONS_QUERY":
-        return _get_query("INJECTIONS_QUERY", "queries/injections.scm")
+        query = _get_query("queries/injections.scm")
+        globals()[name] = query
+        return query
     if name == "LOCALS_QUERY":
-        return _get_query("LOCALS_QUERY", "queries/locals.scm")
+        query = _get_query("queries/locals.scm")
+        globals()[name] = query
+        return query
     if name == "TAGS_QUERY":
-        return _get_query("TAGS_QUERY", "queries/tags.scm")
+        query = _get_query("queries/tags.scm")
+        globals()[name] = query
+        return query
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
-    "language",
     "HIGHLIGHTS_QUERY",
     "INJECTIONS_QUERY",
     "LOCALS_QUERY",
     "TAGS_QUERY",
+    "language",
 ]
 
 
-def __dir__():
+def __dir__() -> list[str]:
     return sorted(
         __all__
         + [

@@ -21,10 +21,28 @@ Homepage = "https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg"
 [project.optional-dependencies]
 core = ["tree-sitter~=0.25"]
 
+[dependency-groups]
+dev = [
+  "basedpyright",
+  "ruff",
+  "setuptools>=77.0.0",
+  "tree-sitter~=0.25",
+  "ty",
+  "wheel",
+]
+
 [build-system]
 requires      = ["setuptools>=77.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.basedpyright]
+include  = ["bindings/python"]
+venvPath = "."
+venv     = ".venv"
+
 [tool.cibuildwheel]
 build          = "cp310-*"
 build-frontend = "build"
+
+[tool.ty.environment]
+python = ".venv"
