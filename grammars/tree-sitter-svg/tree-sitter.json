@@ -34,7 +34,7 @@
 			}
 		],
 		"links": {
-			"repository": "https://github.com/kjanat/svg/tree/master/grammars/tree-sitter-svg",
+			"repository": "https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg",
 			"funding": "https://github.com/kjanat/funding"
 		}
 	},

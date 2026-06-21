@@ -18,26 +18,26 @@ High:
 
 Medium:
 
-4. Full spec inventory is not wired into LSP/lint behavior.
-5. SVG Native/profile constraints are data-only in LSP.
-6. Freshness automation detects drift but does not update data.
-7. `spec_scan` omits `definitions-animations.xml`.
-8. `spec_scan_repro` picks an arbitrary `svgwg-*` source dir.
-9. Deno worker/deploy checks are outside `just verify`.
-10. No general PR CI runs the project verification gate.
-11. Freshness CI ignores BCD/web-features drift.
-12. Freshness sentinel network calls/workflow lack timeouts.
-13. SVG autodetection only honors root `version`.
-14. LSP config cannot select edition-keyed inventories beyond `SpecSnapshotId`.
+1. Full spec inventory is not wired into LSP/lint behavior.
+2. SVG Native/profile constraints are data-only in LSP.
+3. Freshness automation detects drift but does not update data.
+4. `spec_scan` omits `definitions-animations.xml`.
+5. `spec_scan_repro` picks an arbitrary `svgwg-*` source dir.
+6. Deno worker/deploy checks are outside `just verify`.
+7. No general PR CI runs the project verification gate.
+8. Freshness CI ignores BCD/web-features drift.
+9. Freshness sentinel network calls/workflow lack timeouts.
+10. SVG autodetection only honors root `version`.
+11. LSP config cannot select edition-keyed inventories beyond `SpecSnapshotId`.
 
 Low:
 
-15. Freshness uses SVGWG repo HEAD, causing path-irrelevant false positives.
-16. Runtime compat fetch has no setting/opt-out.
-17. Publish workflow uses moving Node `latest`.
-18. `svg-data` inventory docs are stale after inventory expansion.
-19. `svg-data/build/AGENTS.md` still says `spec.rs` is orphaned.
-20. `refresh-spec.yml` comment still says SVGWG `master`.
+1. Freshness uses SVGWG repo HEAD, causing path-irrelevant false positives.
+2. Runtime compat fetch has no setting/opt-out.
+3. Publish workflow uses moving Node `latest`.
+4. `svg-data` inventory docs are stale after inventory expansion.
+5. `svg-data/build/AGENTS.md` still says `spec.rs` is orphaned.
+6. `refresh-spec.yml` comment still says SVGWG `master`.
 
 ## Findings
 
@@ -152,7 +152,7 @@ Suggested fix: model configured target as a real ADT, for example
 `Snapshot(SpecSnapshotId)` versus `Profile(SvgNative)`, then apply profile
 constraints in lint/completion/hover.
 
-### 6. RESOLVED - Medium - freshness automation detects drift but does not update data
+### 6. RESOLVED - Medium - freshness automation now updates data
 
 Status: RESOLVED - `.github/workflows/refresh-spec.yml` now includes an
 auto-refresh path that re-vendors sources, regenerates schemas, gates on tests,
@@ -281,7 +281,7 @@ Suggested fix: add a compat freshness sentinel that compares the vendored
 versions against latest `@mdn/browser-compat-data` and `web-features`, and
 include it in the scheduled workflow.
 
-### 12. PARTIAL / STALE - Medium - freshness sentinel network calls/workflow lack timeouts
+### 12. PARTIAL / STALE - Medium - freshness timeout evidence is stale
 
 Status: PARTIAL / STALE - the workflow now has `timeout-minutes`; the referenced
 `crates/svg-data/src/bin/spec-freshness.rs` path is not present in the current

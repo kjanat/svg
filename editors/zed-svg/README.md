@@ -37,5 +37,3 @@ Point Zed to `editors/zed-svg`.
 
 [Install]: zed://extension/svg "Install in Zed"
 [`tree-sitter-svg`]: ../../grammars/tree-sitter-svg
-
-<!-- markdownlint-disable-file no-inline-html -->

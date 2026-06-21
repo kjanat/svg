@@ -11,7 +11,7 @@
 	<name>JTreeSitter Svg</name>
 	<version>0.1.0</version>
 	<description>SVG grammar for Tree-sitter</description>
-	<url>https://github.com/kjanat/svg/tree/master/grammars/tree-sitter-svg</url>
+	<url>https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg</url>
 	<licenses>
 		<license>
 			<name>MIT</name>
@@ -30,7 +30,7 @@
 		</developer>
 	</developers>
 	<scm>
-		<url>https://github.com/kjanat/svg/tree/master/grammars/tree-sitter-svg</url>
+		<url>https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg</url>
 		<connection>scm:git:git://github.com/kjanat/svg.git</connection>
 		<developerConnection>scm:git:ssh://github.com/kjanat/svg.git</developerConnection>
 	</scm>

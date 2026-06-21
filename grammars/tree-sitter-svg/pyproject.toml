@@ -16,7 +16,7 @@ classifiers     = [
 
 [project.urls]
 # Funding  = "https://github.com/kjanat/funding"
-Homepage = "https://github.com/kjanat/svg/tree/master/grammars/tree-sitter-svg"
+Homepage = "https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg"
 
 [project.optional-dependencies]
 core = ["tree-sitter~=0.25"]

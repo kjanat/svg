@@ -18,10 +18,6 @@ impl SvgExtension {
         version: &str,
         expected_path: &str,
     ) -> zed::Result<()> {
-        if Self::file_exists(expected_path) {
-            return Ok(());
-        }
-
         zed::npm_install_package(package_name, version)?;
         if !Self::file_exists(expected_path) {
             Err(format!(
@@ -44,16 +40,23 @@ impl SvgExtension {
         &mut self,
         language_server_id: &zed::LanguageServerId,
     ) -> zed::Result<String> {
-        if Self::file_exists(LSP_RUN_PATH) {
-            return Self::npm_managed_server_path();
-        }
-
+        let has_local_server = Self::file_exists(LSP_RUN_PATH);
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
 
-        let lsp_version = zed::npm_package_latest_version(LSP_PACKAGE_NAME)?;
+        let lsp_version = match zed::npm_package_latest_version(LSP_PACKAGE_NAME) {
+            Ok(version) => version,
+            Err(_) if has_local_server => return Self::npm_managed_server_path(),
+            Err(error) => return Err(error),
+        };
+
+        let installed_version =
+            zed::npm_package_installed_version(LSP_PACKAGE_NAME).unwrap_or(None);
+        if has_local_server && installed_version.as_deref() == Some(lsp_version.as_str()) {
+            return Self::npm_managed_server_path();
+        }
 
         zed::set_language_server_installation_status(
             language_server_id,

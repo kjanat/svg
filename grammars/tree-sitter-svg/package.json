@@ -8,7 +8,7 @@
 		"tree-sitter",
 		"svg"
 	],
-	"homepage": "https://github.com/kjanat/svg/tree/master/grammars/tree-sitter-svg#readme",
+	"homepage": "https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg#readme",
 	"bugs": {
 		"url": "https://github.com/kjanat/svg/issues"
 	},

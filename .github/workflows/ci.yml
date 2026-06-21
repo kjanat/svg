@@ -1,15 +1,6 @@
 name: CI
 
-# General pull-request / master quality gate. Mirrors `just verify`, but
-# invokes the underlying tools directly so the job does not need the
-# cargo-dist toolchain that `just verify` pulls in via `release-config-check`.
-# The release pipeline lives in release.yml.
-
-on:
-  pull_request: {}
-  push:
-    branches: [master]
-
+on: { pull_request: {}, push: { branches: [master] } }
 permissions: { contents: read }
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
