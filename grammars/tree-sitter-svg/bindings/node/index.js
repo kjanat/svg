@@ -8,12 +8,7 @@ const nodeGypBuild = require('node-gyp-build');
 
 function loadBunBinding() {
 	const prebuild = `${root}/prebuilds/${process.platform}-${process.arch}/tree-sitter-svg.node`;
-
-	try {
-		return require(prebuild);
-	} catch {
-		return nodeGypBuild(root);
-	}
+	return require(prebuild);
 }
 
 const binding = typeof process.versions.bun === 'string'
@@ -40,7 +35,11 @@ for (const [prop, path] of queries) {
 			delete binding[prop];
 			try {
 				binding[prop] = readFileSync(path, 'utf8');
-			} catch {}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.error(`Failed to load ${prop} from ${path}: ${message}`);
+				throw err;
+			}
 			return binding[prop];
 		},
 	});

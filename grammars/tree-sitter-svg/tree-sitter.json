@@ -13,7 +13,7 @@
 			],
 			"injection-regex": "^svg$",
 			"class-name": "TreeSitterSvg",
-			"external-files": ["src/scanner.c"],
+			"external-files": ["./src/scanner.c", "../../crates/svg-data/data/catalog.tree-sitter.json", "./grammar.json"],
 			"path": ".",
 			"highlights": ["queries/highlights.scm"],
 			"injections": ["queries/injections.scm"],

@@ -10,5 +10,5 @@
 		"allowImportingTsExtensions": true,
 		"types": ["bun", "tree-sitter-cli/dsl"]
 	},
-	"include": ["bindings/node", "test", "grammar.js"]
+	"include": ["bindings/node", "test", "scripts", "*.ts", "*.json"]
 }

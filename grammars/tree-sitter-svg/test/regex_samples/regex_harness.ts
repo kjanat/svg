@@ -302,6 +302,6 @@ export async function runHarness(candidates: readonly Candidate[]): Promise<Cand
 
 export const strictRootOnlyCandidate: Candidate = {
 	name: "strict_root_only",
-	firstLineRegex: String.raw`^\s*(?:<!DOCTYPE\s+svg\b|<(?:[A-Za-z_][\w.-]*:)?svg\b)`,
-	contentRegex: String.raw`(?is)^\s*(?:<\?xml\b[^>]*\?>\s*)?(?:(?:<!--(?:[^-]|-(?!->))*-->|<\?[^>]*\?>)\s*)*(?:<!DOCTYPE\s+svg\b[^>]*>\s*)?<(?:[A-Za-z_][\w.-]*:)?svg\b`,
+	firstLineRegex: String.raw`^\s*<(?:[A-Za-z_][\w.-]*:)?svg\b`,
+	contentRegex: String.raw`(?s)^\s*(?:<\?xml\b[^>]*\?>\s*)?(?:(?:<!--(?:[^-]|-(?!->))*-->|<\?[^>]*\?>)\s*)*(?:<!DOCTYPE\s+svg\b[^>]*>\s*)?<(?:[A-Za-z_][\w.-]*:)?svg\b`,
 };

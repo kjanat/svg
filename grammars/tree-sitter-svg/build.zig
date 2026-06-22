@@ -20,12 +20,12 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    lib.addCSourceFile(.{
+    lib.root_module.addCSourceFile(.{
         .file = b.path("src/parser.c"),
         .flags = &.{"-std=c11"},
     });
     if (fileExists(b, "src/scanner.c")) {
-        lib.addCSourceFile(.{
+        lib.root_module.addCSourceFile(.{
             .file = b.path("src/scanner.c"),
             .flags = &.{"-std=c11"},
         });
@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) !void {
         lib.root_module.addCMacro("TREE_SITTER_DEBUG", "");
     }
 
-    lib.addIncludePath(b.path("src"));
+    lib.root_module.addIncludePath(b.path("src"));
 
     b.installArtifact(lib);
     b.installFile("src/node-types.json", "node-types.json");
@@ -68,19 +68,6 @@ pub fn build(b: *std.Build) !void {
     });
     tests.root_module.addImport(library_name, module);
 
-    // HACK: fetch tree-sitter dependency only when testing this module
-    if (b.pkg_hash.len == 0) {
-        var args = try std.process.argsWithAllocator(b.allocator);
-        defer args.deinit();
-        while (args.next()) |a| {
-            if (std.mem.eql(u8, a, "test")) {
-                const ts_dep = b.lazyDependency("tree_sitter", .{}) orelse continue;
-                tests.root_module.addImport("tree-sitter", ts_dep.module("tree-sitter"));
-                break;
-            }
-        }
-    }
-
     const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
@@ -88,6 +75,6 @@ pub fn build(b: *std.Build) !void {
 
 inline fn fileExists(b: *std.Build, filename: []const u8) bool {
     const dir = b.build_root.handle;
-    dir.access(filename, .{}) catch return false;
+    dir.access(b.graph.io, filename, .{}) catch return false;
     return true;
 }
