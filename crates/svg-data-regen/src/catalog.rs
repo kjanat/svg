@@ -2552,8 +2552,7 @@ fn is_spec_prose_value_grammar(value: &str) -> bool {
     let unwrapped = trimmed
         .strip_prefix('(')
         .and_then(|inner| inner.strip_suffix(')'))
-        .map(str::trim)
-        .unwrap_or(trimmed);
+        .map_or(trimmed, str::trim);
     let lower = unwrapped.to_ascii_lowercase();
     lower == "see below" || lower.starts_with("see ") || has_trailing_spec_citation(unwrapped)
 }
