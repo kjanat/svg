@@ -95,9 +95,10 @@ pub fn declares_default_namespace(source: &[u8], tag: Node) -> bool {
 pub fn expand_element_name<'a>(raw_name: &'a str, scope: &NamespaceScope<'a>) -> ExpandedName<'a> {
     let (prefix, local_name) = split_qualified_name(raw_name);
     ExpandedName {
-        namespace_uri: prefix
-            .and_then(|qualified_prefix| scope.resolve_prefix(qualified_prefix))
-            .or_else(|| scope.default_namespace()),
+        namespace_uri: match prefix {
+            Some(qualified_prefix) => scope.resolve_prefix(qualified_prefix),
+            None => scope.default_namespace(),
+        },
         local_name,
     }
 }
@@ -210,5 +211,21 @@ mod tests {
         assert_eq!(scope.default_namespace(), Some(SVG_NAMESPACE_URI));
         assert_eq!(scope.resolve_prefix("xlink"), Some(XLINK_NAMESPACE_URI));
         Ok(())
+    }
+
+    #[test]
+    fn prefixed_element_without_binding_does_not_inherit_default_namespace() {
+        let scope = NamespaceScope {
+            default_namespace: Some(SVG_NAMESPACE_URI),
+            prefixes: Vec::new(),
+        };
+
+        assert_eq!(
+            expand_element_name("sodipodi:namedview", &scope),
+            ExpandedName {
+                namespace_uri: None,
+                local_name: "namedview",
+            }
+        );
     }
 }

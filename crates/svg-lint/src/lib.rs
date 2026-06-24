@@ -220,6 +220,44 @@ mod tests {
     }
 
     #[test]
+    fn foreign_prefixed_elements_are_not_linted_as_svg() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">
+                <sodipodi:namedview id="namedview1"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::UnknownElement),
+            "foreign prefixed elements must not be flagged as unknown SVG: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn foreign_default_namespace_on_same_tag_skips_svg_linting() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <link href="style.css"
+                      rel="stylesheet"
+                      type="text/css"
+                      xmlns="http://www.w3.org/1999/xhtml"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::UnknownElement),
+            "same-tag foreign default namespace must not be flagged as unknown SVG: {diags:?}"
+        );
+    }
+
+    #[test]
     fn namespace_reset_stops_svg_linting() {
         let src = br#"<svg xmlns="http://www.w3.org/2000/svg"><g xmlns=""><rect><banana/></rect></g></svg>"#;
         let diags = lint(src);
