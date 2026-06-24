@@ -95,10 +95,10 @@ pub fn declares_default_namespace(source: &[u8], tag: Node) -> bool {
 pub fn expand_element_name<'a>(raw_name: &'a str, scope: &NamespaceScope<'a>) -> ExpandedName<'a> {
     let (prefix, local_name) = split_qualified_name(raw_name);
     ExpandedName {
-        namespace_uri: match prefix {
-            Some(qualified_prefix) => scope.resolve_prefix(qualified_prefix),
-            None => scope.default_namespace(),
-        },
+        namespace_uri: prefix.map_or_else(
+            || scope.default_namespace(),
+            |qualified_prefix| scope.resolve_prefix(qualified_prefix),
+        ),
         local_name,
     }
 }
