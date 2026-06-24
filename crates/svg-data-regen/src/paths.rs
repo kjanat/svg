@@ -176,7 +176,7 @@ fn production_header_name(line: &str) -> Option<&str> {
 /// Characters allowed in an EBNF production name. The SVG grammar uses both `_`
 /// (`horizontal_lineto`) and `-` (`fractional-constant`), so both must count or
 /// a hyphenated production is not recognised as a boundary.
-fn is_production_name_char(ch: char) -> bool {
+const fn is_production_name_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'
 }
 
