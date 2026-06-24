@@ -59,8 +59,10 @@ Script and style CDATA forms
 ==================
 
 <svg>
-  <style><![CDATA[.x { fill: blue; }]]></style>
-  <script><![CDATA[window.answer = 42;]]></script>
+  <style>
+    <![CDATA[.x { fill: blue; }]]></style>
+  <script>
+    <![CDATA[window.answer = 42;]]></script>
 </svg>
 
 ---
@@ -74,6 +76,7 @@ Script and style CDATA forms
     (element
       (start_tag
         name: (name))
+      (raw_text)
       (cdata_section
         (cdata_text))
       (end_tag
@@ -82,8 +85,44 @@ Script and style CDATA forms
     (element
       (start_tag
         name: (name))
+      (raw_text)
       (cdata_section
         (cdata_text))
+      (end_tag
+        name: (name)))
+    (text)
+    (end_tag
+      name: (name)))
+  (text))
+
+==================
+Script and style false CDATA prefixes stay raw
+==================
+
+<svg>
+  <style><!foo .x { fill: blue; }</style>
+  <script><!foo window.answer = 42;</script>
+</svg>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (start_tag
+      name: (name))
+    (text)
+    (element
+      (start_tag
+        name: (name))
+      (raw_text)
+      (end_tag
+        name: (name)))
+    (text)
+    (element
+      (start_tag
+        name: (name))
+      (raw_text)
       (end_tag
         name: (name)))
     (text)

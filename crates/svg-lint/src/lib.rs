@@ -230,10 +230,8 @@ mod tests {
         let diags = lint(src);
 
         assert!(
-            !diags
-                .iter()
-                .any(|d| d.code == DiagnosticCode::UnknownElement),
-            "foreign prefixed elements must not be flagged as unknown SVG: {diags:?}"
+            diags.is_empty(),
+            "foreign prefixed elements must not be linted as SVG: {diags:?}"
         );
     }
 
@@ -250,10 +248,8 @@ mod tests {
         let diags = lint(src);
 
         assert!(
-            !diags
-                .iter()
-                .any(|d| d.code == DiagnosticCode::UnknownElement),
-            "same-tag foreign default namespace must not be flagged as unknown SVG: {diags:?}"
+            diags.is_empty(),
+            "same-tag foreign default namespace must not be linted as SVG: {diags:?}"
         );
     }
 

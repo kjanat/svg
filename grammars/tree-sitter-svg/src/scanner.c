@@ -193,6 +193,10 @@ static bool scan_end_tag_name(TagStack *tags, TSLexer *lexer, const bool *valid_
   return false;
 }
 
+static inline bool is_wsp(int32_t c) {
+  return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
 static bool scan_raw_text(TagStack *tags, TSLexer *lexer) {
   if (tags->size == 0) {
     return false;
@@ -202,13 +206,14 @@ static bool scan_raw_text(TagStack *tags, TSLexer *lexer) {
 
   // Consume everything until we see `</` followed by the matching tag name
   bool has_content = false;
+  bool has_non_wsp_content = false;
 
   while (lexer->lookahead != 0) {
     if (lexer->lookahead == '<') {
       lexer->mark_end(lexer);
       advance(lexer);
 
-      if (!has_content && lexer->lookahead == '!') {
+      if (!has_non_wsp_content && lexer->lookahead == '!') {
         const char *cdata_start = "![CDATA[";
         bool is_cdata = true;
         for (uint32_t i = 0; cdata_start[i] != '\0'; i++) {
@@ -220,6 +225,10 @@ static bool scan_raw_text(TagStack *tags, TSLexer *lexer) {
         }
 
         if (is_cdata) {
+          if (has_content) {
+            lexer->result_symbol = RAW_TEXT;
+            return true;
+          }
           return false;
         }
       }
@@ -258,6 +267,9 @@ static bool scan_raw_text(TagStack *tags, TSLexer *lexer) {
       has_content = true;
     } else {
       has_content = true;
+      if (!is_wsp(lexer->lookahead)) {
+        has_non_wsp_content = true;
+      }
       advance(lexer);
     }
   }
@@ -320,10 +332,6 @@ static bool scan_cdata_text(TSLexer *lexer) {
   lexer->mark_end(lexer);
   lexer->result_symbol = CDATA_TEXT;
   return true;
-}
-
-static inline bool is_wsp(int32_t c) {
-  return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
 // Peek past optional comma/whitespace separator. If a number follows,
