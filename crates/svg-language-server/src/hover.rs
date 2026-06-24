@@ -348,6 +348,36 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
             format!("Alignments: `{}`", alignments.join("` | `")),
             format!("Scaling: `{}`", meet_or_slice.join("` | `")),
         ],
+        svg_data::AttributeValues::Boolean => vec!["Value: HTML boolean attribute".to_owned()],
+        svg_data::AttributeValues::TokenList => vec!["Value: space-separated tokens".to_owned()],
+        svg_data::AttributeValues::CommaTokenList => {
+            vec!["Value: comma-separated tokens".to_owned()]
+        }
+        svg_data::AttributeValues::UrlTokenList => {
+            vec!["Value: space-separated URL tokens".to_owned()]
+        }
+        svg_data::AttributeValues::LanguageTag => vec!["Value: BCP 47 language tag".to_owned()],
+        svg_data::AttributeValues::Integer => vec!["Value: integer".to_owned()],
+        svg_data::AttributeValues::MediaType => vec!["Value: media type".to_owned()],
+        svg_data::AttributeValues::MediaQueryList => vec!["Value: CSS media query list".to_owned()],
+        svg_data::AttributeValues::CssDeclarationList => {
+            vec!["Value: CSS declaration list".to_owned()]
+        }
+        svg_data::AttributeValues::Id => vec!["Value: non-empty ID without whitespace".to_owned()],
+        svg_data::AttributeValues::ReferrerPolicy => vec!["Value: referrer policy".to_owned()],
+        svg_data::AttributeValues::SuggestedFileName => {
+            vec!["Value: suggested download file name".to_owned()]
+        }
+        svg_data::AttributeValues::PathData => vec!["Value: SVG path data".to_owned()],
+        svg_data::AttributeValues::SemicolonNumberList => {
+            vec!["Value: semicolon-separated number list".to_owned()]
+        }
+        svg_data::AttributeValues::CoordinatePair => {
+            vec!["Value: coordinate pair".to_owned()]
+        }
+        svg_data::AttributeValues::CoordinatePairList => {
+            vec!["Value: semicolon-separated coordinate pairs".to_owned()]
+        }
         svg_data::AttributeValues::CssGrammar { grammar, graph } => {
             let mut lines = vec![format!("Grammar: `{grammar}`")];
             let keywords = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Keyword);
@@ -1236,8 +1266,16 @@ mod tests {
     }
 
     #[test]
-    fn prose_value_grammars_do_not_render_constraints() {
-        for name in ["class", "id"] {
+    fn semantic_value_shapes_render_without_fake_grammar() {
+        let cases = [
+            ("id", "Value: non-empty ID without whitespace"),
+            ("class", "Value: space-separated tokens"),
+            ("lang", "Value: BCP 47 language tag"),
+            ("tabindex", "Value: integer"),
+            ("style", "Value: CSS declaration list"),
+            ("referrerpolicy", "Value: referrer policy"),
+        ];
+        for (name, label) in cases {
             let Some(attribute) = svg_data::attribute(name) else {
                 panic!("missing {name} attribute");
             };
@@ -1251,6 +1289,7 @@ mod tests {
                 None,
             );
 
+            assert!(hover.contains(label), "{name}: {hover}");
             assert!(!hover.contains("Grammar:"), "{name}: {hover}");
             assert!(!hover.contains("Keywords:"), "{name}: {hover}");
         }

@@ -1600,6 +1600,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "rotate_attribute"
+        },
+        {
+          "type": "SYMBOL",
           "name": "stroke_dasharray_attribute"
         },
         {
@@ -6371,6 +6375,10 @@
           },
           {
             "type": "STRING",
+            "value": "tabindex"
+          },
+          {
+            "type": "STRING",
             "value": "targetX"
           },
           {
@@ -6698,6 +6706,116 @@
         }
       ]
     },
+    "rotate_attribute": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "rotate_attribute_name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_eq"
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "rotate_attribute_value"
+          }
+        }
+      ]
+    },
+    "rotate_attribute_name": {
+      "type": "STRING",
+      "value": "rotate"
+    },
+    "rotate_attribute_value": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "\""
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "number_list"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "auto"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "auto-reverse"
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "\""
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "'"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "number_list"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "auto"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "auto-reverse"
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "'"
+            }
+          ]
+        }
+      ]
+    },
     "stroke_dasharray_attribute": {
       "type": "SEQ",
       "members": [
@@ -6847,6 +6965,10 @@
           },
           {
             "type": "STRING",
+            "value": "calcMode"
+          },
+          {
+            "type": "STRING",
             "value": "clip-rule"
           },
           {
@@ -6951,6 +7073,10 @@
           },
           {
             "type": "STRING",
+            "value": "origin"
+          },
+          {
+            "type": "STRING",
             "value": "overflow"
           },
           {
@@ -7032,6 +7158,10 @@
           {
             "type": "STRING",
             "value": "xChannelSelector"
+          },
+          {
+            "type": "STRING",
+            "value": "xml:space"
           },
           {
             "type": "STRING",
@@ -7230,18 +7360,6 @@
           },
           {
             "type": "STRING",
-            "value": "onbegin"
-          },
-          {
-            "type": "STRING",
-            "value": "onend"
-          },
-          {
-            "type": "STRING",
-            "value": "onrepeat"
-          },
-          {
-            "type": "STRING",
             "value": "orient"
           },
           {
@@ -7274,15 +7392,7 @@
           },
           {
             "type": "STRING",
-            "value": "tabindex"
-          },
-          {
-            "type": "STRING",
             "value": "target"
-          },
-          {
-            "type": "STRING",
-            "value": "title"
           },
           {
             "type": "STRING",
@@ -7291,10 +7401,6 @@
           {
             "type": "STRING",
             "value": "xlink:title"
-          },
-          {
-            "type": "STRING",
-            "value": "xml:space"
           }
         ]
       }
@@ -7412,7 +7518,7 @@
           },
           {
             "type": "STRING",
-            "value": "rotate"
+            "value": "keyPoints"
           },
           {
             "type": "STRING",
@@ -7448,6 +7554,10 @@
                     {
                       "type": "SYMBOL",
                       "name": "semicolon_number_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "semicolon_coordinate_pair_list"
                     }
                   ]
                 },
@@ -7482,6 +7592,10 @@
                     {
                       "type": "SYMBOL",
                       "name": "semicolon_number_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "semicolon_coordinate_pair_list"
                     }
                   ]
                 },
@@ -7898,6 +8012,137 @@
               }
             ]
           }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "wsp"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                },
+                {
+                  "type": "STRING",
+                  "value": ";"
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "wsp"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "semicolon_coordinate_pair_list": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "coordinate_pair"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "wsp"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "STRING",
+                "value": ";"
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "wsp"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "SYMBOL",
+                "name": "coordinate_pair"
+              }
+            ]
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "wsp"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                },
+                {
+                  "type": "STRING",
+                  "value": ";"
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "wsp"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -9326,6 +9571,10 @@
     [
       "number_list",
       "semicolon_number_list"
+    ],
+    [
+      "coordinate_pair",
+      "number_list"
     ]
   ],
   "precedences": [],

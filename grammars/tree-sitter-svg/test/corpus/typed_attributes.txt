@@ -520,10 +520,10 @@ Identity and language attributes
         name: (attribute_name)
         value: (quoted_attribute_value
           (attribute_text_double)))
-      (css_text_attribute
-        name: (css_text_attribute_name)
-        value: (css_text_attribute_value
-          content: (css_attribute_text_double))))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value))))
     (end_tag
       name: (name)))
   (text))

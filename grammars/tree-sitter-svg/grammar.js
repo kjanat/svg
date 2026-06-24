@@ -30,6 +30,9 @@ function quoted(value) {
 // flags as unnecessary.
 /** @param {readonly RuleOrLiteral[]} members */
 function oneOf(members) {
+	if (members.length === 0) {
+		return token(/\x00/);
+	}
 	const [first, ...rest] = members;
 	return token(rest.length === 0 ? first : choice(first, ...rest));
 }
@@ -60,7 +63,10 @@ export default grammar({
 	// `semicolon_number_list` (SMIL animation context). Both are valid for the
 	// `values` attribute; the GLR parser keeps both stacks until the first
 	// separator selects the arm.
-	conflicts: $ => [[$.number_list, $.semicolon_number_list]],
+	conflicts: $ => [
+		[$.number_list, $.semicolon_number_list],
+		[$.coordinate_pair, $.number_list],
+	],
 
 	// Each rule here was a visible `choice` wrapper over single named symbols;
 	// promoting it to a supertype makes that wrapper node TRANSPARENT in the
@@ -444,6 +450,7 @@ export default grammar({
 				$.number_attribute,
 				$.number_optional_number_attribute,
 				$.length_list_attribute,
+				$.rotate_attribute,
 				$.stroke_dasharray_attribute,
 				$.keyword_attribute,
 				$.css_text_attribute,
@@ -1338,6 +1345,22 @@ export default grammar({
 				repeat(seq($.comma_wsp, $.length_or_percentage)),
 			),
 
+		// ─── rotate attribute ────────────────────────────────────────
+
+		rotate_attribute: $ =>
+			seq(
+				field('name', $.rotate_attribute_name),
+				$._eq,
+				field('value', $.rotate_attribute_value),
+			),
+
+		rotate_attribute_name: _ => 'rotate',
+
+		// `rotate` is scoped: text/tspan accept number lists, animateMotion accepts
+		// one numeric angle or `auto`/`auto-reverse`. The grammar is not
+		// element-aware, so parse the valid union under one dedicated node.
+		rotate_attribute_value: $ => quoted(choice($.number_list, 'auto', 'auto-reverse')),
+
 		// ─── stroke-dasharray attribute (none or length list) ───────
 
 		stroke_dasharray_attribute: $ =>
@@ -1406,7 +1429,12 @@ export default grammar({
 		// when the same `values` attribute drives SMIL animation
 		// (`values="0;10;20"`). Accept either separator style; a single number is
 		// the list-of-one shared by both arms.
-		number_list_attribute_value: $ => quoted(choice($.number_list, $.semicolon_number_list)),
+		number_list_attribute_value: $ =>
+			quoted(choice(
+				$.number_list,
+				$.semicolon_number_list,
+				$.semicolon_coordinate_pair_list,
+			)),
 
 		number_list: $ =>
 			seq(
@@ -1459,6 +1487,14 @@ export default grammar({
 			seq(
 				$.number,
 				repeat(seq(optional($.wsp), ';', optional($.wsp), $.number)),
+				optional(seq(optional($.wsp), ';', optional($.wsp))),
+			),
+
+		semicolon_coordinate_pair_list: $ =>
+			seq(
+				$.coordinate_pair,
+				repeat(seq(optional($.wsp), ';', optional($.wsp), $.coordinate_pair)),
+				optional(seq(optional($.wsp), ';', optional($.wsp))),
 			),
 
 		// ─── keySplines attribute (semicolon-separated 4-tuples) ────

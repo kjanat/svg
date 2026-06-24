@@ -15,6 +15,7 @@
 	"attribute_buckets": {
 		"keyword": [
 			"alignment-baseline",
+			"calcMode",
 			"clip-rule",
 			"clipPathUnits",
 			"color-interpolation",
@@ -41,6 +42,7 @@
 			"method",
 			"mode",
 			"operator",
+			"origin",
 			"overflow",
 			"paint-order",
 			"patternContentUnits",
@@ -62,6 +64,7 @@
 			"visibility",
 			"writing-mode",
 			"xChannelSelector",
+			"xml:space",
 			"yChannelSelector"
 		],
 		"color": [
@@ -138,6 +141,7 @@
 			"specularExponent",
 			"stroke-miterlimit",
 			"surfaceScale",
+			"tabindex",
 			"targetX",
 			"targetY",
 			"z"
@@ -151,7 +155,7 @@
 		],
 		"number_list": [
 			"kernelMatrix",
-			"rotate",
+			"keyPoints",
 			"tableValues",
 			"values"
 		],
@@ -192,9 +196,6 @@
 			"in2",
 			"lang",
 			"media",
-			"onbegin",
-			"onend",
-			"onrepeat",
 			"orient",
 			"ping",
 			"referrerpolicy",
@@ -203,12 +204,9 @@
 			"result",
 			"role",
 			"systemLanguage",
-			"tabindex",
 			"target",
-			"title",
 			"type",
-			"xlink:title",
-			"xml:space"
+			"xlink:title"
 		]
 	},
 	"tokens": {

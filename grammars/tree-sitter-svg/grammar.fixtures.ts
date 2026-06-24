@@ -21,6 +21,7 @@ export const GRAMMAR_DEDICATED_ATTRIBUTE_NAMES: readonly string[] = [
 	'preserveAspectRatio',
 	'repeatCount',
 	'repeatDur',
+	'rotate',
 	'style',
 	'transform',
 	'xlink:href',

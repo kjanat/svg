@@ -22,7 +22,7 @@
  *   --check    regenerate in memory and fail if the on-disk file is stale
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -47,12 +47,43 @@ const DIVIDER = '='.repeat(40);
 /** A keyword bucket attribute's value space, taken from the core catalog. */
 type AttributeValues =
 	| { readonly kind: 'enum'; readonly values: readonly string[] }
+	| { readonly kind: 'transform'; readonly functions: readonly string[] }
+	| { readonly kind: 'color' }
+	| { readonly kind: 'length' }
+	| { readonly kind: 'url' }
+	| { readonly kind: 'boolean' }
+	| { readonly kind: 'token_list' }
+	| { readonly kind: 'comma_token_list' }
+	| { readonly kind: 'url_token_list' }
+	| { readonly kind: 'language_tag' }
+	| { readonly kind: 'integer' }
+	| { readonly kind: 'media_type' }
+	| { readonly kind: 'media_query_list' }
+	| { readonly kind: 'css_declaration_list' }
+	| { readonly kind: 'id' }
+	| { readonly kind: 'referrer_policy' }
+	| { readonly kind: 'suggested_file_name' }
+	| { readonly kind: 'path_data' }
+	| { readonly kind: 'semicolon_number_list' }
+	| { readonly kind: 'coordinate_pair' }
+	| { readonly kind: 'coordinate_pair_list' }
+	| { readonly kind: 'number_or_percentage' }
 	| { readonly kind: 'free_text' }
-	| { readonly kind: 'css_grammar'; readonly grammar: string; readonly graph: unknown };
+	| { readonly kind: 'css_grammar'; readonly grammar: string; readonly graph: CssGrammarGraph };
+
+type CssGrammarGraph = {
+	readonly nodes?: readonly { readonly kind?: string; readonly text?: string }[];
+};
+
+type ElementValues = {
+	readonly element: string;
+	readonly values: AttributeValues;
+};
 
 type CoreAttribute = {
 	readonly name: string;
 	readonly values?: AttributeValues;
+	readonly element_values?: readonly ElementValues[];
 };
 
 type CoreElement = {
@@ -90,6 +121,13 @@ const BUCKET_SAMPLE: Readonly<Record<string, string>> = {
 	functional_iri: 'url(#f)',
 	css_text: 'sans-serif',
 };
+
+const SYNTAX_FIRST_BUCKETS = new Set([
+	'coordinate_pair_list',
+	'path_data',
+	'view_box',
+	'functional_iri',
+]);
 
 function displayPath(path: string): string {
 	const rel = relative(repoRoot, path);
@@ -132,6 +170,133 @@ function keywordSample(attr: CoreAttribute | undefined): string | null {
 	return null;
 }
 
+function valuesForElement(attr: CoreAttribute | undefined, elementName: string): AttributeValues | undefined {
+	return attr?.element_values?.find((elementValues) => elementValues.element === elementName)?.values
+		?? attr?.values;
+}
+
+function firstKeyword(values: AttributeValues): string | null {
+	if (values.kind === 'enum' && values.values.length > 0) {
+		return [...values.values].sort()[0] ?? null;
+	}
+	if (values.kind !== 'css_grammar') {
+		return null;
+	}
+	const keywords = (values.graph.nodes ?? [])
+		.filter((node) => node.kind === 'keyword' && node.text !== undefined)
+		.map((node) => node.text ?? '')
+		.sort();
+	return keywords[0] ?? null;
+}
+
+function cssGrammarSample(values: Extract<AttributeValues, { readonly kind: 'css_grammar' }>): string | null {
+	const grammar = values.grammar.toLowerCase();
+	const keyword = firstKeyword(values);
+	if (keyword !== null) {
+		return keyword;
+	}
+	if (grammar.includes('<number-optional-number>')) {
+		return '2 3';
+	}
+	if (grammar.includes('<number>') && (grammar.includes('+') || grammar.includes('#'))) {
+		return '0 1 0';
+	}
+	if (grammar.includes('<length') && (grammar.includes('+') || grammar.includes('#'))) {
+		return '1 2 3';
+	}
+	if (grammar.includes('<number>')) {
+		return '0.5';
+	}
+	if (grammar.includes('<integer>')) {
+		return '1';
+	}
+	if (grammar.includes('<length') || grammar.includes('<angle>')) {
+		return '5';
+	}
+	if (grammar.includes('<url') || grammar.includes('<iri')) {
+		return 'url(#f)';
+	}
+	if (grammar.includes('<color') || grammar.includes('<paint')) {
+		return 'red';
+	}
+	return null;
+}
+
+function semanticSample(values: AttributeValues | undefined): string | null {
+	if (values === undefined) {
+		return null;
+	}
+	switch (values.kind) {
+		case 'enum':
+			return firstKeyword(values);
+		case 'transform':
+			return 'translate(1 2)';
+		case 'color':
+			return 'red';
+		case 'length':
+			return '5';
+		case 'url':
+			return '#target';
+		case 'boolean':
+			return 'true';
+		case 'token_list':
+			return 'alpha beta';
+		case 'comma_token_list':
+			return 'alpha,beta';
+		case 'url_token_list':
+			return '#a #b';
+		case 'language_tag':
+			return 'en';
+		case 'integer':
+			return '1';
+		case 'media_type':
+			return 'text/css';
+		case 'media_query_list':
+			return 'screen';
+		case 'css_declaration_list':
+			return 'fill: red';
+		case 'id':
+			return 'sample-id';
+		case 'referrer_policy':
+			return 'no-referrer';
+		case 'suggested_file_name':
+			return 'example.svg';
+		case 'path_data':
+			return 'M0 0 L1 1';
+		case 'semicolon_number_list':
+			return '0; 0.5; 1';
+		case 'coordinate_pair':
+			return '0,0';
+		case 'coordinate_pair_list':
+			return '0,0; 1,1';
+		case 'number_or_percentage':
+			return '0.5';
+		case 'css_grammar':
+			return cssGrammarSample(values);
+		case 'free_text':
+			return 'text';
+	}
+}
+
+function attributeSemanticSample(
+	attributeName: string,
+	elementName: string,
+	values: AttributeValues | undefined,
+): string | null {
+	if (attributeName === 'type' && values?.kind === 'media_type') {
+		if (elementName === 'script') {
+			return 'application/ecmascript';
+		}
+		if (elementName === 'style') {
+			return 'text/css';
+		}
+		if (elementName === 'a') {
+			return 'text/html';
+		}
+	}
+	return semanticSample(values);
+}
+
 /**
  * Pick one representative attribute per distinct bucket the element carries.
  * Deterministic: buckets are visited in catalog-key order, and within a bucket
@@ -142,31 +307,32 @@ function selectAttributes(
 	bucketIndex: Map<string, string>,
 	coreByName: Map<string, CoreAttribute>,
 ): { name: string; value: string }[] {
-	const perBucket = new Map<string, string>();
+	const perBucket = new Map<string, { name: string; value: string }>();
 	for (const name of [...(element.attrs ?? [])].sort()) {
 		const bucket = bucketIndex.get(name);
 		if (bucket === undefined || perBucket.has(bucket)) {
 			continue;
 		}
+		const attr = coreByName.get(name);
 		let value: string | null;
 		if (bucket === 'keyword') {
-			value = keywordSample(coreByName.get(name));
+			value = keywordSample(attr);
+		} else if (SYNTAX_FIRST_BUCKETS.has(bucket)) {
+			value = BUCKET_SAMPLE[bucket]
+				?? attributeSemanticSample(name, element.name, valuesForElement(attr, element.name));
 		} else {
-			value = BUCKET_SAMPLE[bucket] ?? null;
+			value = attributeSemanticSample(name, element.name, valuesForElement(attr, element.name))
+				?? BUCKET_SAMPLE[bucket]
+				?? null;
 		}
 		if (value !== null) {
-			perBucket.set(bucket, name);
+			perBucket.set(bucket, { name, value });
 		}
 	}
 
 	const chosen: { name: string; value: string }[] = [];
-	for (const [bucket, name] of perBucket) {
-		const value = bucket === 'keyword'
-			? keywordSample(coreByName.get(name))
-			: (BUCKET_SAMPLE[bucket] ?? null);
-		if (value !== null) {
-			chosen.push({ name, value });
-		}
+	for (const attr of perBucket.values()) {
+		chosen.push(attr);
 	}
 	chosen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 	return chosen;
@@ -206,21 +372,29 @@ function parseSnippet(snippet: string, workdir: string): ParseResult {
 	// With `extras: () => []` that trailing `\n` surfaces as a final `(text)`.
 	writeFileSync(file, `${snippet}\n`);
 
-	const summaryRaw = execFileSync(
+	const summaryResult = spawnSync(
 		'tree-sitter',
 		['parse', '--json-summary', '--quiet', file],
 		{ cwd: grammarRoot, encoding: 'utf8' },
 	);
-	const summary = JSON.parse(summaryRaw) as {
+	const summaryRaw = summaryResult.stdout;
+	const jsonStart = summaryRaw.indexOf('{');
+	if (jsonStart === -1) {
+		throw new Error(
+			`tree-sitter parse did not emit JSON summary for: ${snippet}\n${summaryRaw}${summaryResult.stderr}`,
+		);
+	}
+	const summary = JSON.parse(summaryRaw.slice(jsonStart)) as {
 		parse_summaries: { successful: boolean }[];
 	};
 	const summarySuccessful = summary.parse_summaries.every((s) => s.successful);
 
-	const sexp = execFileSync(
+	const sexpResult = spawnSync(
 		'tree-sitter',
 		['parse', '--no-ranges', file],
 		{ cwd: grammarRoot, encoding: 'utf8' },
-	).trimEnd();
+	);
+	const sexp = sexpResult.stdout.trimEnd();
 
 	const clean = summarySuccessful && !/\b(ERROR|MISSING)\b/.test(sexp)
 		&& !sexp.includes('erroneous');

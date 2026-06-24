@@ -75,10 +75,10 @@ Animation attribute set
             (time_value
               (number)
               (time_unit))))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))
         (key_times_attribute
           name: (key_times_attribute_name)
           value: (key_times_attribute_value
@@ -135,6 +135,51 @@ Animation attribute set
           value: (quoted_attribute_value
             (attribute_text_double)))))
     (text)
+    (end_tag
+      name: (name)))
+  (text))
+
+===============================
+AnimateMotion coordinate values
+===============================
+
+<svg><animateMotion from="0,0" to="10,10" by="1,1" values="0,0; 10,10;"/></svg>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (start_tag
+      name: (name))
+    (element
+      (self_closing_tag
+        name: (name)
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))
+        (number_list_attribute
+          name: (number_list_attribute_name)
+          value: (number_list_attribute_value
+            (semicolon_coordinate_pair_list
+              (coordinate_pair
+                (number)
+                (comma_wsp)
+                (number))
+              (wsp)
+              (coordinate_pair
+                (number)
+                (comma_wsp)
+                (number)))))))
     (end_tag
       name: (name)))
   (text))
@@ -419,9 +464,9 @@ Text layout and typography attributes
               (length_or_percentage
                 (length
                   (number))))))
-        (number_list_attribute
-          name: (number_list_attribute_name)
-          value: (number_list_attribute_value
+        (rotate_attribute
+          name: (rotate_attribute_name)
+          value: (rotate_attribute_value
             (number_list
               (number)
               (comma_wsp
@@ -495,7 +540,7 @@ Coord system and linking/media attributes
   orient="auto-start-reverse"
   zoomAndPan="magnify"
   fr="50%"
-  origin="center">
+  origin="default">
   <a
     crossorigin="anonymous"
     download="diagram.svg"
@@ -570,10 +615,10 @@ Coord system and linking/media attributes
             (length_or_percentage
               (percentage
                 (number))))))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double))))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value))))
     (text)
     (element
       (self_closing_tag
@@ -732,10 +777,10 @@ Other regular long-tail attributes
         name: (attribute_name)
         value: (quoted_attribute_value
           (attribute_text_double)))
-      (css_text_attribute
-        name: (css_text_attribute_name)
-        value: (css_text_attribute_value
-          content: (css_attribute_text_double)))
+      (generic_attribute
+        name: (attribute_name)
+        value: (quoted_attribute_value
+          (attribute_text_double)))
       (css_text_attribute
         name: (css_text_attribute_name)
         value: (css_text_attribute_value

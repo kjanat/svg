@@ -113,7 +113,14 @@
         }
       },
       "content_model": {
-        "kind": "any_svg"
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "mpath",
+          "script",
+          "title"
+        ]
       },
       "attrs": [
         "keyPoints",
@@ -5124,7 +5131,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "boolean"
       },
       "applicability": {
         "kind": "global"
@@ -5691,6 +5698,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "coordinate_pair"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -5762,7 +5777,13 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "discrete",
+          "linear",
+          "paced",
+          "spline"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -5805,7 +5826,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "token_list"
       },
       "applicability": {
         "kind": "global"
@@ -8002,179 +8023,7 @@
         }
       ],
       "values": {
-        "kind": "css_grammar",
-        "grammar": "any value (if non-empty, value represents a suggested file name)",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "keyword",
-              "text": "any"
-            },
-            {
-              "id": 2,
-              "kind": "keyword",
-              "text": "value"
-            },
-            {
-              "id": 3,
-              "kind": "keyword",
-              "text": "if"
-            },
-            {
-              "id": 4,
-              "kind": "keyword",
-              "text": "non-empty"
-            },
-            {
-              "id": 5,
-              "kind": "operator",
-              "text": ","
-            },
-            {
-              "id": 6,
-              "kind": "keyword",
-              "text": "value"
-            },
-            {
-              "id": 7,
-              "kind": "keyword",
-              "text": "represents"
-            },
-            {
-              "id": 8,
-              "kind": "keyword",
-              "text": "a"
-            },
-            {
-              "id": 9,
-              "kind": "keyword",
-              "text": "suggested"
-            },
-            {
-              "id": 10,
-              "kind": "keyword",
-              "text": "file"
-            },
-            {
-              "id": 11,
-              "kind": "keyword",
-              "text": "name"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 4,
-              "kind": "contains"
-            },
-            {
-              "from": 3,
-              "to": 4,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 5,
-              "kind": "contains"
-            },
-            {
-              "from": 4,
-              "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 5,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 6,
-              "to": 7,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 8,
-              "kind": "contains"
-            },
-            {
-              "from": 7,
-              "to": 8,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 9,
-              "kind": "contains"
-            },
-            {
-              "from": 8,
-              "to": 9,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 10,
-              "kind": "contains"
-            },
-            {
-              "from": 9,
-              "to": 10,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 11,
-              "kind": "contains"
-            },
-            {
-              "from": 10,
-              "to": 11,
-              "kind": "next"
-            }
-          ]
-        }
+        "kind": "suggested_file_name"
       },
       "applicability": {
         "kind": "elements",
@@ -12175,6 +12024,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "coordinate_pair"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -13386,16 +13243,8 @@
           }
         }
       ],
-      "element_values": [
-        {
-          "element": "feImage",
-          "values": {
-            "kind": "url"
-          }
-        }
-      ],
       "values": {
-        "kind": "free_text"
+        "kind": "url"
       },
       "applicability": {
         "kind": "elements",
@@ -13473,7 +13322,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "language_tag"
       },
       "applicability": {
         "kind": "elements",
@@ -13526,7 +13375,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "id"
       },
       "applicability": {
         "kind": "global"
@@ -15443,7 +15292,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "semicolon_number_list"
       },
       "applicability": {
         "kind": "elements",
@@ -15519,7 +15368,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "language_tag"
       },
       "applicability": {
         "kind": "global"
@@ -17012,7 +16861,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "media_query_list"
       },
       "applicability": {
         "kind": "elements",
@@ -21114,7 +20963,10 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "default"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -21507,44 +21359,7 @@
         }
       ],
       "values": {
-        "kind": "css_grammar",
-        "grammar": "path data",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "keyword",
-              "text": "path"
-            },
-            {
-              "id": 2,
-              "kind": "keyword",
-              "text": "data"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            }
-          ]
-        }
+        "kind": "path_data"
       },
       "applicability": {
         "kind": "elements",
@@ -22037,7 +21852,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "url_token_list"
       },
       "applicability": {
         "kind": "elements",
@@ -23516,7 +23331,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "referrer_policy"
       },
       "applicability": {
         "kind": "elements",
@@ -23583,7 +23398,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "token_list"
       },
       "applicability": {
         "kind": "elements",
@@ -23715,7 +23530,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "token_list"
       },
       "applicability": {
         "kind": "elements",
@@ -23824,7 +23639,7 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "free_text"
+        "kind": "token_list"
       },
       "applicability": {
         "kind": "elements",
@@ -23937,6 +23752,96 @@
             "safari": {
               "supported": true,
               "version_added": "3"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "auto | auto-reverse | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "auto"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "auto-reverse"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -26467,7 +26372,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_declaration_list"
       },
       "applicability": {
         "kind": "global"
@@ -27277,7 +27182,7 @@
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "comma_token_list"
       },
       "applicability": {
         "kind": "elements",
@@ -27353,7 +27258,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "integer"
       },
       "applicability": {
         "kind": "global"
@@ -28581,6 +28486,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "coordinate_pair"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -29645,10 +29558,23 @@
               "turbulence"
             ]
           }
+        },
+        {
+          "element": "animateTransform",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "translate",
+              "scale",
+              "rotate",
+              "skewX",
+              "skewY"
+            ]
+          }
         }
       ],
       "values": {
-        "kind": "free_text"
+        "kind": "media_type"
       },
       "applicability": {
         "kind": "elements",
@@ -29813,6 +29739,14 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "coordinate_pair_list"
           }
         }
       ],
@@ -31979,7 +31913,11 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "default",
+          "preserve"
+        ]
       },
       "applicability": {
         "kind": "global"

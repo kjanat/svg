@@ -114,6 +114,38 @@ pub enum AttributeValues {
     Length,
     /// A URL / fragment reference.
     Url,
+    /// A boolean attribute as defined by HTML.
+    Boolean,
+    /// A space-separated token list.
+    TokenList,
+    /// A comma-separated token list.
+    CommaTokenList,
+    /// A space-separated list of URL tokens.
+    UrlTokenList,
+    /// A BCP 47 / ABNF language tag.
+    LanguageTag,
+    /// An integer value.
+    Integer,
+    /// A MIME media type.
+    MediaType,
+    /// A CSS media query list.
+    MediaQueryList,
+    /// A CSS declaration list, as used by inline `style`.
+    CssDeclarationList,
+    /// An SVG element ID value.
+    Id,
+    /// A referrer policy string.
+    ReferrerPolicy,
+    /// A suggested download file name.
+    SuggestedFileName,
+    /// SVG path data.
+    PathData,
+    /// A semicolon-separated number list.
+    SemicolonNumberList,
+    /// One motion-animation coordinate pair.
+    CoordinatePair,
+    /// A semicolon-separated list of motion-animation coordinate pairs.
+    CoordinatePairList,
     /// A number or percentage.
     NumberOrPercentage,
     /// A CSS value grammar graph for mixed or richer grammars.
@@ -429,6 +461,15 @@ pub struct AttributeElementCompat {
     pub facts: CompatFacts,
 }
 
+/// Attribute value space scoped to one element bearer.
+#[derive(Debug, Clone)]
+pub struct AttributeElementValues {
+    /// Element name this value-space record applies to.
+    pub element: &'static str,
+    /// Value space for this attribute on `element`.
+    pub values: AttributeValues,
+}
+
 /// A BCD feature below an SVG element that is not modeled as an element or
 /// attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -583,6 +624,8 @@ pub struct AttributeDef {
     pub browser_support: Option<BrowserSupport>,
     /// Element-scoped compat facts for this attribute.
     pub element_compat: &'static [AttributeElementCompat],
+    /// Element-scoped value spaces for attributes whose grammar differs by bearer.
+    pub element_values: &'static [AttributeElementValues],
     /// Value space.
     pub values: AttributeValues,
     /// Per-snapshot value overrides, when the value space differs by profile.
@@ -592,6 +635,19 @@ pub struct AttributeDef {
 }
 
 impl AttributeDef {
+    /// The value space for `element_name`, falling back to the canonical value
+    /// when no element-scoped override exists.
+    #[must_use]
+    pub fn values_for_element(&self, element_name: Option<&str>) -> &AttributeValues {
+        element_name
+            .and_then(|element_name| {
+                self.element_values
+                    .iter()
+                    .find_map(|values| (values.element == element_name).then_some(&values.values))
+            })
+            .unwrap_or(&self.values)
+    }
+
     /// The value space for `profile`, honoring per-snapshot overrides.
     #[must_use]
     pub fn values_for_profile(&self, profile: SpecSnapshotId) -> &AttributeValues {

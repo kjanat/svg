@@ -94,6 +94,7 @@ const EXPECTED_FUNCTIONAL_IRI_ATTRIBUTES: &[&str] = &[
 ];
 const EXPECTED_POINTS_ATTRIBUTES: &[&str] = &["points"];
 const EXPECTED_VIEW_BOX_ATTRIBUTES: &[&str] = &["viewBox"];
+const EXPECTED_LENGTH_LIST_ATTRIBUTES: &[&str] = &["dx", "dy"];
 
 /// CSS primitive types that terminate value-grammar resolution. This is the
 /// projection's intentional output alphabet, not a heuristic: every reachable
@@ -144,6 +145,7 @@ const GRAMMAR_DEDICATED_ATTRIBUTE_NAMES: &[&str] = &[
     "preserveAspectRatio",
     "repeatCount",
     "repeatDur",
+    "rotate",
     "style",
     "transform",
     "xlink:href",
@@ -380,14 +382,39 @@ fn attribute_bucket(
     paths: &PathsGrammarFacts,
 ) -> Option<AttributeBucket> {
     let canonical = attribute_values_bucket(attribute, &attribute.values, css, paths);
-    let overrides_match = attribute.element_values.iter().all(|element_values| {
-        attribute_values_bucket(attribute, &element_values.values, css, paths) == canonical
+    let canonical_bucket = canonical?;
+    let overrides_fit = attribute.element_values.iter().all(|element_values| {
+        attribute_values_bucket(attribute, &element_values.values, css, paths)
+            .is_some_and(|bucket| bucket_accepts(canonical_bucket, bucket))
     });
-    if overrides_match {
-        canonical
+    if overrides_fit {
+        Some(canonical_bucket)
     } else {
         Some(AttributeBucket::CssText)
     }
+}
+
+fn bucket_accepts(superset: AttributeBucket, subset: AttributeBucket) -> bool {
+    superset == subset
+        || matches!(
+            (superset, subset),
+            (AttributeBucket::CssText, _)
+                | (
+                    AttributeBucket::LengthList,
+                    AttributeBucket::Length
+                        | AttributeBucket::Number
+                        | AttributeBucket::NumberOptionalNumber
+                        | AttributeBucket::NumberOrPercentage,
+                )
+                | (
+                    AttributeBucket::Length | AttributeBucket::NumberOrPercentage,
+                    AttributeBucket::Number,
+                )
+                | (
+                    AttributeBucket::NumberList,
+                    AttributeBucket::CoordinatePairList
+                )
+        )
 }
 
 fn attribute_values_bucket(
@@ -402,6 +429,23 @@ fn attribute_values_bucket(
         CatalogAttributeValues::Length => Some(AttributeBucket::Length),
         CatalogAttributeValues::NumberOrPercentage => Some(AttributeBucket::NumberOrPercentage),
         CatalogAttributeValues::Url => Some(AttributeBucket::FunctionalIri),
+        CatalogAttributeValues::Integer => Some(AttributeBucket::Number),
+        CatalogAttributeValues::PathData => Some(AttributeBucket::PathData),
+        CatalogAttributeValues::SemicolonNumberList => Some(AttributeBucket::NumberList),
+        CatalogAttributeValues::CoordinatePair | CatalogAttributeValues::CoordinatePairList => {
+            Some(AttributeBucket::CoordinatePairList)
+        }
+        CatalogAttributeValues::Boolean
+        | CatalogAttributeValues::TokenList
+        | CatalogAttributeValues::CommaTokenList
+        | CatalogAttributeValues::UrlTokenList
+        | CatalogAttributeValues::LanguageTag
+        | CatalogAttributeValues::MediaType
+        | CatalogAttributeValues::MediaQueryList
+        | CatalogAttributeValues::CssDeclarationList
+        | CatalogAttributeValues::Id
+        | CatalogAttributeValues::ReferrerPolicy
+        | CatalogAttributeValues::SuggestedFileName => Some(AttributeBucket::CssText),
         CatalogAttributeValues::CssGrammar { graph, .. } => {
             let analysis = GrammarAnalysis::from_graph(graph);
             if analysis.is_path_data(attribute, paths) {
@@ -439,6 +483,9 @@ fn attribute_values_bucket(
                 // bucket. Genuine single-number attributes (`bias`, `divisor`, …)
                 // land here.
                 return Some(AttributeBucket::Number);
+            }
+            if analysis.is_length_number_list() {
+                return Some(AttributeBucket::LengthList);
             }
             if analysis.is_length_like(css) {
                 if analysis.is_list_like(css) && analysis.keywords.contains("none") {
@@ -636,6 +683,11 @@ impl GrammarAnalysis {
                     || css.resolves_to_number(name, &mut BTreeSet::new())
                     || css.resolves_to_number_or_percentage(name, &mut BTreeSet::new())
             })
+    }
+
+    fn is_length_number_list(&self) -> bool {
+        self.is_list_like
+            && self.types == BTreeSet::from(["length-percentage".to_owned(), "number".to_owned()])
     }
 
     fn is_color(&self, css: &WebrefCssIndex) -> bool {
@@ -1287,6 +1339,11 @@ fn validate_attribute_buckets(buckets: &CatalogTreeSitterAttributeBuckets) -> Fa
     )?;
     assert_bucket_contains("view_box", &buckets.view_box, EXPECTED_VIEW_BOX_ATTRIBUTES)?;
     assert_bucket_contains(
+        "length_list",
+        &buckets.length_list,
+        EXPECTED_LENGTH_LIST_ATTRIBUTES,
+    )?;
+    assert_bucket_contains(
         "path_data",
         &buckets.path_data,
         EXPECTED_PATH_DATA_ATTRIBUTES,
@@ -1565,6 +1622,21 @@ mod tests {
         assert!(document.attribute_buckets.length.is_empty());
     }
 
+    #[test]
+    fn compatible_element_values_keep_structured_superset_bucket() {
+        let mut attribute = attribute("dx", length_number_list_css());
+        attribute
+            .element_values
+            .push(CatalogAttributeElementValues {
+                element: "feOffset".to_owned(),
+                values: css("<number>"),
+            });
+        let inputs = GrammarProjectionInputs::for_tests();
+        let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
+        assert_eq!(document.attribute_buckets.length_list, ["dx"]);
+        assert!(document.attribute_buckets.css_text.is_empty());
+    }
+
     fn attribute(name: &str, values: CatalogAttributeValues) -> CatalogAttribute {
         CatalogAttribute {
             name: name.to_owned(),
@@ -1620,6 +1692,19 @@ mod tests {
         CatalogAttributeValues::CssGrammar {
             grammar,
             graph: graph_of_kinds(tokens),
+        }
+    }
+
+    fn length_number_list_css() -> CatalogAttributeValues {
+        CatalogAttributeValues::CssGrammar {
+            grammar: "[ [ <length-percentage> | <number> ]+ ]#".to_owned(),
+            graph: graph_of_kinds([
+                (CatalogCssGrammarNodeKind::Type, "<length-percentage>"),
+                (CatalogCssGrammarNodeKind::Operator, "|"),
+                (CatalogCssGrammarNodeKind::Type, "<number>"),
+                (CatalogCssGrammarNodeKind::Operator, "+"),
+                (CatalogCssGrammarNodeKind::Operator, "#"),
+            ]),
         }
     }
 

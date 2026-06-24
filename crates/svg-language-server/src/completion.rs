@@ -552,7 +552,27 @@ pub fn value_completions(
             items
         }
         AttributeValues::CssGrammar { graph, .. } => css_grammar_value_completions(graph),
-        _ => Vec::new(),
+        AttributeValues::Color
+        | AttributeValues::Length
+        | AttributeValues::Url
+        | AttributeValues::Boolean
+        | AttributeValues::TokenList
+        | AttributeValues::CommaTokenList
+        | AttributeValues::UrlTokenList
+        | AttributeValues::LanguageTag
+        | AttributeValues::Integer
+        | AttributeValues::MediaType
+        | AttributeValues::MediaQueryList
+        | AttributeValues::CssDeclarationList
+        | AttributeValues::Id
+        | AttributeValues::ReferrerPolicy
+        | AttributeValues::SuggestedFileName
+        | AttributeValues::PathData
+        | AttributeValues::SemicolonNumberList
+        | AttributeValues::CoordinatePair
+        | AttributeValues::CoordinatePairList
+        | AttributeValues::NumberOrPercentage
+        | AttributeValues::FreeText => Vec::new(),
     }
 }
 
@@ -599,6 +619,12 @@ fn typed_value_completions(value_kind: &str) -> Option<Vec<CompletionItem>> {
             items
         }
         "number_attribute_value" | "number_list_attribute_value" => number_completions(),
+        "rotate_attribute_value" => {
+            let mut items = number_completions();
+            items.push(completion_item("auto", CompletionItemKind::KEYWORD));
+            items.push(completion_item("auto-reverse", CompletionItemKind::KEYWORD));
+            items
+        }
         "offset_attribute_value" | "opacity_attribute_value" => number_or_percentage_completions(),
         "viewbox_attribute_value" => viewbox_completions(),
 
@@ -811,6 +837,7 @@ mod tests {
         baseline: None,
         browser_support: None,
         element_compat: &[],
+        element_values: &[],
         values: AttributeValues::FreeText,
         value_overrides: &[],
         applicability: svg_data::AttributeApplicability::Global,

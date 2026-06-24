@@ -16,14 +16,14 @@ mod catalog;
 pub mod types;
 
 pub use types::{
-    AttributeApplicability, AttributeDef, AttributeElementCompat, AttributeValues,
-    BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport, BrowserVersion, CatalogGraph,
-    CatalogGraphEdge, CatalogGraphEdgeKind, CatalogGraphNode, CatalogGraphNodeKind, CompatFacts,
-    CompatSubfeature, CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge,
-    CssGrammarEdgeKind, CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, ElementCategory,
-    ElementDef, FeatureLifecycle, ProfileLookup, ProfiledAttribute, ProfiledElement,
-    SnapshotLifecycle, SnapshotMetadata, SpecLifecycle, SpecSnapshotId, VerdictReason,
-    VerdictRecommendation,
+    AttributeApplicability, AttributeDef, AttributeElementCompat, AttributeElementValues,
+    AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport,
+    BrowserVersion, CatalogGraph, CatalogGraphEdge, CatalogGraphEdgeKind, CatalogGraphNode,
+    CatalogGraphNodeKind, CompatFacts, CompatSubfeature, CompatSubfeatureKind, CompatVerdict,
+    ContentModel, CssGrammarEdge, CssGrammarEdgeKind, CssGrammarGraph, CssGrammarNode,
+    CssGrammarNodeKind, ElementCategory, ElementDef, FeatureLifecycle, ProfileLookup,
+    ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata, SpecLifecycle,
+    SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{
@@ -838,6 +838,88 @@ mod catalog_tests {
     }
 
     #[test]
+    fn prose_and_referenced_values_get_semantic_shapes() {
+        let cases = [
+            ("id", "id"),
+            ("class", "token_list"),
+            ("lang", "language_tag"),
+            ("tabindex", "integer"),
+            ("style", "css_declaration_list"),
+            ("referrerpolicy", "referrer_policy"),
+            ("download", "suggested_file_name"),
+            ("calcMode", "enum"),
+            ("keyPoints", "semicolon_number_list"),
+            ("origin", "enum"),
+            ("path", "path_data"),
+        ];
+        for (name, expected) in cases {
+            let Some(attribute) = attribute(name) else {
+                panic!("{name} missing from catalog");
+            };
+            let actual = match &attribute.values {
+                AttributeValues::TokenList => "token_list",
+                AttributeValues::LanguageTag => "language_tag",
+                AttributeValues::Integer => "integer",
+                AttributeValues::CssDeclarationList => "css_declaration_list",
+                AttributeValues::Id => "id",
+                AttributeValues::ReferrerPolicy => "referrer_policy",
+                AttributeValues::SuggestedFileName => "suggested_file_name",
+                AttributeValues::PathData => "path_data",
+                AttributeValues::SemicolonNumberList => "semicolon_number_list",
+                AttributeValues::Enum(_) => "enum",
+                _ => "other",
+            };
+            assert_eq!(actual, expected, "{name} value shape");
+        }
+
+        let Some(xml_space) = attribute("xml:space") else {
+            panic!("xml:space missing from catalog");
+        };
+        assert!(matches!(
+            &xml_space.values,
+            AttributeValues::Enum(values)
+                if *values == ["default", "preserve"]
+        ));
+    }
+
+    #[test]
+    fn animate_motion_uses_motion_specific_value_shapes() {
+        let Some(animate_motion) = element("animateMotion") else {
+            panic!("animateMotion missing from catalog");
+        };
+        assert!(matches!(
+            &animate_motion.content_model,
+            ContentModel::ChildrenSet(elements)
+                if *elements == ["desc", "metadata", "mpath", "script", "title"]
+        ));
+
+        let cases = [
+            ("by", "coordinate_pair"),
+            ("from", "coordinate_pair"),
+            ("to", "coordinate_pair"),
+            ("values", "coordinate_pair_list"),
+        ];
+        for (name, expected) in cases {
+            let Some(attribute) = attribute(name) else {
+                panic!("{name} missing from catalog");
+            };
+            let Some(scoped) = attribute
+                .element_values
+                .iter()
+                .find(|values| values.element == "animateMotion")
+            else {
+                panic!("{name} missing animateMotion scoped values");
+            };
+            let actual = match &scoped.values {
+                AttributeValues::CoordinatePair => "coordinate_pair",
+                AttributeValues::CoordinatePairList => "coordinate_pair_list",
+                _ => "other",
+            };
+            assert_eq!(actual, expected, "{name} animateMotion value shape");
+        }
+    }
+
+    #[test]
     fn nowhere_supported_attributes_are_not_present_without_element_context() {
         let Some(xlink_title) = attribute("xlink:title") else {
             panic!("xlink:title missing from catalog");
@@ -875,6 +957,7 @@ mod catalog_tests {
                 }),
             }),
             element_compat: &[],
+            element_values: &[],
             values: AttributeValues::FreeText,
             value_overrides: &[],
             applicability: AttributeApplicability::Global,
@@ -917,6 +1000,7 @@ mod catalog_tests {
             }),
             browser_support: None,
             element_compat: &[],
+            element_values: &[],
             values: AttributeValues::FreeText,
             value_overrides: &[],
             applicability: AttributeApplicability::Global,

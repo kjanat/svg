@@ -4424,7 +4424,7 @@
     {
       "id": "value:autofocus",
       "kind": "value_grammar",
-      "name": "autofocus (free_text)"
+      "name": "autofocus (boolean)"
     },
     {
       "id": "value:azimuth",
@@ -4484,12 +4484,12 @@
     {
       "id": "value:calcMode",
       "kind": "value_grammar",
-      "name": "calcMode (free_text)"
+      "name": "calcMode (enum)"
     },
     {
       "id": "value:class",
       "kind": "value_grammar",
-      "name": "class (free_text)"
+      "name": "class (token_list)"
     },
     {
       "id": "value:clip",
@@ -4664,7 +4664,7 @@
     {
       "id": "value:download",
       "kind": "value_grammar",
-      "name": "download (css_grammar)"
+      "name": "download (suggested_file_name)"
     },
     {
       "id": "value:dur",
@@ -4914,12 +4914,12 @@
     {
       "id": "value:href",
       "kind": "value_grammar",
-      "name": "href (free_text)"
+      "name": "href (url)"
     },
     {
       "id": "value:hreflang",
       "kind": "value_grammar",
-      "name": "hreflang (free_text)"
+      "name": "hreflang (language_tag)"
     },
     {
       "id": "value:hyphens",
@@ -4929,7 +4929,7 @@
     {
       "id": "value:id",
       "kind": "value_grammar",
-      "name": "id (free_text)"
+      "name": "id (id)"
     },
     {
       "id": "value:image-rendering",
@@ -5014,7 +5014,7 @@
     {
       "id": "value:keyPoints",
       "kind": "value_grammar",
-      "name": "keyPoints (free_text)"
+      "name": "keyPoints (semicolon_number_list)"
     },
     {
       "id": "value:keySplines",
@@ -5029,7 +5029,7 @@
     {
       "id": "value:lang",
       "kind": "value_grammar",
-      "name": "lang (free_text)"
+      "name": "lang (language_tag)"
     },
     {
       "id": "value:lengthAdjust",
@@ -5134,7 +5134,7 @@
     {
       "id": "value:media",
       "kind": "value_grammar",
-      "name": "media (free_text)"
+      "name": "media (media_query_list)"
     },
     {
       "id": "value:method",
@@ -5574,7 +5574,7 @@
     {
       "id": "value:origin",
       "kind": "value_grammar",
-      "name": "origin (free_text)"
+      "name": "origin (enum)"
     },
     {
       "id": "value:outline",
@@ -5609,7 +5609,7 @@
     {
       "id": "value:path",
       "kind": "value_grammar",
-      "name": "path (css_grammar)"
+      "name": "path (path_data)"
     },
     {
       "id": "value:path-length",
@@ -5639,7 +5639,7 @@
     {
       "id": "value:ping",
       "kind": "value_grammar",
-      "name": "ping (free_text)"
+      "name": "ping (url_token_list)"
     },
     {
       "id": "value:playbackorder",
@@ -5719,12 +5719,12 @@
     {
       "id": "value:referrerpolicy",
       "kind": "value_grammar",
-      "name": "referrerpolicy (free_text)"
+      "name": "referrerpolicy (referrer_policy)"
     },
     {
       "id": "value:rel",
       "kind": "value_grammar",
-      "name": "rel (free_text)"
+      "name": "rel (token_list)"
     },
     {
       "id": "value:repeatCount",
@@ -5739,7 +5739,7 @@
     {
       "id": "value:requiredExtensions",
       "kind": "value_grammar",
-      "name": "requiredExtensions (free_text)"
+      "name": "requiredExtensions (token_list)"
     },
     {
       "id": "value:restart",
@@ -5754,7 +5754,7 @@
     {
       "id": "value:role",
       "kind": "value_grammar",
-      "name": "role (free_text)"
+      "name": "role (token_list)"
     },
     {
       "id": "value:rotate",
@@ -5914,7 +5914,7 @@
     {
       "id": "value:style",
       "kind": "value_grammar",
-      "name": "style (free_text)"
+      "name": "style (css_declaration_list)"
     },
     {
       "id": "value:surfaceScale",
@@ -5924,7 +5924,7 @@
     {
       "id": "value:systemLanguage",
       "kind": "value_grammar",
-      "name": "systemLanguage (free_text)"
+      "name": "systemLanguage (comma_token_list)"
     },
     {
       "id": "value:tab-size",
@@ -5934,7 +5934,7 @@
     {
       "id": "value:tabindex",
       "kind": "value_grammar",
-      "name": "tabindex (free_text)"
+      "name": "tabindex (integer)"
     },
     {
       "id": "value:tableValues",
@@ -6079,7 +6079,7 @@
     {
       "id": "value:type",
       "kind": "value_grammar",
-      "name": "type (free_text)"
+      "name": "type (media_type)"
     },
     {
       "id": "value:unicode-bidi",
@@ -6224,7 +6224,7 @@
     {
       "id": "value:xml:space",
       "kind": "value_grammar",
-      "name": "xml:space (free_text)"
+      "name": "xml:space (enum)"
     },
     {
       "id": "value:y",
@@ -51330,212 +51330,7 @@
     },
     {
       "from": "element:animateMotion",
-      "to": "element:a",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:animate",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:animateMotion",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:animateTransform",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:circle",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:clipPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:defs",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
       "to": "element:desc",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:ellipse",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feBlend",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feColorMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feComponentTransfer",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feComposite",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feConvolveMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feDiffuseLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feDisplacementMap",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feDistantLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feDropShadow",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feFlood",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feFuncA",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feFuncB",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feFuncG",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feFuncR",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feGaussianBlur",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feImage",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feMerge",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feMergeNode",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feMorphology",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feOffset",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:fePointLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feSpecularLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feSpotLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feTile",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:feTurbulence",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:filter",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:foreignObject",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:g",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:image",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:line",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:linearGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:marker",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:mask",
       "kind": "allows_child"
     },
     {
@@ -51550,97 +51345,12 @@
     },
     {
       "from": "element:animateMotion",
-      "to": "element:path",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:pattern",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:polygon",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:polyline",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:radialGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:rect",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
       "to": "element:script",
       "kind": "allows_child"
     },
     {
       "from": "element:animateMotion",
-      "to": "element:set",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:stop",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:style",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:svg",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:switch",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:symbol",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:text",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:textPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
       "to": "element:title",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:tspan",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:use",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:animateMotion",
-      "to": "element:view",
       "kind": "allows_child"
     },
     {

@@ -15,6 +15,7 @@
   "attribute_buckets": {
     "keyword": [
       "alignment-baseline",
+      "calcMode",
       "clip-rule",
       "clipPathUnits",
       "color-interpolation",
@@ -41,6 +42,7 @@
       "method",
       "mode",
       "operator",
+      "origin",
       "overflow",
       "paint-order",
       "patternContentUnits",
@@ -62,6 +64,7 @@
       "visibility",
       "writing-mode",
       "xChannelSelector",
+      "xml:space",
       "yChannelSelector"
     ],
     "color": [
@@ -105,7 +108,10 @@
       "y1",
       "y2"
     ],
-    "length_list": [],
+    "length_list": [
+      "dx",
+      "dy"
+    ],
     "length_list_or_none": [
       "stroke-dasharray"
     ],
@@ -135,6 +141,7 @@
       "specularExponent",
       "stroke-miterlimit",
       "surfaceScale",
+      "tabindex",
       "targetX",
       "targetY",
       "z"
@@ -148,7 +155,7 @@
     ],
     "number_list": [
       "kernelMatrix",
-      "rotate",
+      "keyPoints",
       "tableValues",
       "values"
     ],
@@ -180,15 +187,23 @@
       "mask"
     ],
     "css_text": [
+      "autofocus",
       "download",
-      "dx",
-      "dy",
       "font-family",
       "font-size",
+      "hreflang",
       "in",
       "in2",
+      "lang",
+      "media",
       "orient",
+      "ping",
+      "referrerpolicy",
+      "rel",
+      "requiredExtensions",
       "result",
+      "role",
+      "systemLanguage",
       "target",
       "type",
       "xlink:title"

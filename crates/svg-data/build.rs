@@ -146,6 +146,8 @@ struct Attribute {
     #[serde(default)]
     element_compat: Vec<AttributeElementCompat>,
     #[serde(default)]
+    element_values: Vec<AttributeElementValues>,
+    #[serde(default)]
     value_overrides: Vec<AttributeValueOverride>,
     values: AttributeValues,
     applicability: AttributeApplicability,
@@ -157,6 +159,13 @@ struct AttributeElementCompat {
     element: String,
     #[serde(flatten)]
     facts: CompatFacts,
+}
+
+/// Element-scoped value-space facts for an attribute.
+#[derive(Deserialize)]
+struct AttributeElementValues {
+    element: String,
+    values: AttributeValues,
 }
 
 /// Per-profile value-space override for one attribute.
@@ -343,6 +352,22 @@ enum AttributeValues {
     Color,
     Length,
     Url,
+    Boolean,
+    TokenList,
+    CommaTokenList,
+    UrlTokenList,
+    LanguageTag,
+    Integer,
+    MediaType,
+    MediaQueryList,
+    CssDeclarationList,
+    Id,
+    ReferrerPolicy,
+    SuggestedFileName,
+    PathData,
+    SemicolonNumberList,
+    CoordinatePair,
+    CoordinatePairList,
     NumberOrPercentage,
     CssGrammar {
         grammar: String,
@@ -918,6 +943,7 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
     let baseline = emit_baseline(base_facts.baseline.as_ref());
     let browser_support = emit_browser_support(base_facts.browser_support.as_ref());
     let element_compat = emit_attribute_element_compat(&attribute.element_compat);
+    let element_values = emit_attribute_element_values(&attribute.element_values);
     let value_overrides = emit_attribute_value_overrides(&attribute.value_overrides);
     let values = emit_attribute_values(&attribute.values);
     let applicability = emit_attribute_applicability(&attribute.applicability);
@@ -926,13 +952,31 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
         "    crate::types::AttributeDef {{ name: {:?}, description: {description:?}, mdn_url: {mdn_url:?}, \
          spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, animatable: {}, \
          presentation_attribute: {presentation_attribute}, baseline: {baseline}, browser_support: {browser_support}, \
-         element_compat: {element_compat}, values: {values}, value_overrides: {value_overrides}, applicability: {applicability} }},",
+         element_compat: {element_compat}, element_values: {element_values}, values: {values}, value_overrides: {value_overrides}, applicability: {applicability} }},",
         attribute.name,
         attribute.deprecated,
         attribute.experimental,
         emit_option_bool(attribute.standard_track),
         attribute.animatable,
     );
+}
+
+fn emit_attribute_element_values(overrides: &[AttributeElementValues]) -> String {
+    if overrides.is_empty() {
+        return "&[]".to_owned();
+    }
+    let entries = overrides
+        .iter()
+        .map(|override_| {
+            format!(
+                "crate::types::AttributeElementValues {{ element: {:?}, values: {} }}",
+                override_.element,
+                emit_attribute_values(&override_.values)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("&[{entries}]")
 }
 
 fn emit_attribute_value_overrides(overrides: &[AttributeValueOverride]) -> String {
@@ -1110,6 +1154,38 @@ fn emit_attribute_values(values: &AttributeValues) -> String {
         AttributeValues::Color => "crate::types::AttributeValues::Color".to_owned(),
         AttributeValues::Length => "crate::types::AttributeValues::Length".to_owned(),
         AttributeValues::Url => "crate::types::AttributeValues::Url".to_owned(),
+        AttributeValues::Boolean => "crate::types::AttributeValues::Boolean".to_owned(),
+        AttributeValues::TokenList => "crate::types::AttributeValues::TokenList".to_owned(),
+        AttributeValues::CommaTokenList => {
+            "crate::types::AttributeValues::CommaTokenList".to_owned()
+        }
+        AttributeValues::UrlTokenList => "crate::types::AttributeValues::UrlTokenList".to_owned(),
+        AttributeValues::LanguageTag => "crate::types::AttributeValues::LanguageTag".to_owned(),
+        AttributeValues::Integer => "crate::types::AttributeValues::Integer".to_owned(),
+        AttributeValues::MediaType => "crate::types::AttributeValues::MediaType".to_owned(),
+        AttributeValues::MediaQueryList => {
+            "crate::types::AttributeValues::MediaQueryList".to_owned()
+        }
+        AttributeValues::CssDeclarationList => {
+            "crate::types::AttributeValues::CssDeclarationList".to_owned()
+        }
+        AttributeValues::Id => "crate::types::AttributeValues::Id".to_owned(),
+        AttributeValues::ReferrerPolicy => {
+            "crate::types::AttributeValues::ReferrerPolicy".to_owned()
+        }
+        AttributeValues::SuggestedFileName => {
+            "crate::types::AttributeValues::SuggestedFileName".to_owned()
+        }
+        AttributeValues::PathData => "crate::types::AttributeValues::PathData".to_owned(),
+        AttributeValues::SemicolonNumberList => {
+            "crate::types::AttributeValues::SemicolonNumberList".to_owned()
+        }
+        AttributeValues::CoordinatePair => {
+            "crate::types::AttributeValues::CoordinatePair".to_owned()
+        }
+        AttributeValues::CoordinatePairList => {
+            "crate::types::AttributeValues::CoordinatePairList".to_owned()
+        }
         AttributeValues::NumberOrPercentage => {
             "crate::types::AttributeValues::NumberOrPercentage".to_owned()
         }
