@@ -8,7 +8,14 @@
 		"root": "../../"
 	},
 	"files": {
-		"includes": ["./grammar.js", "./grammar/**/*.*{j,t}s", "./bindings/node/*.*{j,t}s", "./src/**"],
+		"includes": [
+			"./grammar.js",
+			"./grammar.*.ts",
+			"./grammar/**/*.*{j,t}s",
+			"./bindings/node/*.*{j,t}s",
+			"./src/**",
+			"./test/**/*.ts"
+		],
 		"ignoreUnknown": true
 	},
 	"formatter": {

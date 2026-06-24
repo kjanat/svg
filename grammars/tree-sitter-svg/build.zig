@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) !void {
         b.installDirectory(.{
             .source_dir = b.path("queries"),
             .install_dir = .prefix,
-            .install_subdir = "queries",
+            .install_subdir = "tree-sitter/queries/svg",
             .include_extensions = &.{"scm"},
         });
     }

@@ -48,6 +48,7 @@ export const GENERATED_ATTRIBUTE_BUCKET_KEYS: readonly string[] = [
 	'length_list_or_none',
 	'number',
 	'number_list',
+	'number_optional_number',
 	'number_or_percentage',
 	'coordinate_pair_list',
 	'view_box',

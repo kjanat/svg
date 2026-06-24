@@ -34,8 +34,7 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
-      - name: dprint check
-        run: dprint check
+      - run: dprint check
 
   deno:
     name: Deno typecheck

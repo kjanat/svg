@@ -13,6 +13,7 @@ classifiers     = [
   "Topic :: Text Processing :: Linguistic",
   "Typing :: Typed",
 ]
+dependencies    = ["typing_extensions>=4.12"]
 
 [project.urls]
 # Funding  = "https://github.com/kjanat/funding"

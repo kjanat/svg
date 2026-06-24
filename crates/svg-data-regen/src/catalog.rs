@@ -2391,9 +2391,10 @@ fn resolve_property_values(
 fn parse_see_reference(value: &str) -> Option<&str> {
     let trimmed = value.trim();
     let inner = trimmed.strip_prefix('(')?.strip_suffix(')')?.trim();
-    let rest = inner
-        .strip_prefix("see ")
-        .or_else(|| inner.strip_prefix("See "))?;
+    let (prefix, rest) = inner.split_once(char::is_whitespace)?;
+    if !prefix.eq_ignore_ascii_case("see") {
+        return None;
+    }
     let mut tokens = rest.split_whitespace();
     let name = tokens.next()?;
     // The closing keyword must be exactly `attribute` and nothing may follow.
@@ -3675,6 +3676,7 @@ mod tests {
             parse_see_reference("  (See  Fill  attribute) "),
             Some("Fill")
         );
+        assert_eq!(parse_see_reference("(SEE in attribute)"), Some("in"));
         assert_eq!(parse_see_reference("<filter-primitive-reference>"), None);
         assert_eq!(parse_see_reference("a | b"), None);
         assert_eq!(parse_see_reference("(see in)"), None);

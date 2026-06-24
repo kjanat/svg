@@ -55,7 +55,7 @@
 						"fileMatch": [".markdownlint.json", ".markdownlint.jsonc", "markdownlint.json", "markdownlint.jsonc"],
 						"url": "https://raw.githubusercontent.com/DavidAnson/markdownlint/HEAD/schema/markdownlint-config-schema.json"
 					}, {
-						"fileMatch": "tree-sitter.json",
+						"fileMatch": ["tree-sitter.json"],
 						"url": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json"
 					}, {
 						"fileMatch": [".dprint.json", ".dprint.jsonc", "dprint.json", "dprint.jsonc"],

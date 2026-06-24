@@ -379,7 +379,24 @@ fn attribute_bucket(
     css: &WebrefCssIndex,
     paths: &PathsGrammarFacts,
 ) -> Option<AttributeBucket> {
-    match &attribute.values {
+    let canonical = attribute_values_bucket(attribute, &attribute.values, css, paths);
+    let overrides_match = attribute.element_values.iter().all(|element_values| {
+        attribute_values_bucket(attribute, &element_values.values, css, paths) == canonical
+    });
+    if overrides_match {
+        canonical
+    } else {
+        Some(AttributeBucket::CssText)
+    }
+}
+
+fn attribute_values_bucket(
+    attribute: &CatalogAttribute,
+    values: &CatalogAttributeValues,
+    css: &WebrefCssIndex,
+    paths: &PathsGrammarFacts,
+) -> Option<AttributeBucket> {
+    match values {
         CatalogAttributeValues::Enum { .. } => Some(AttributeBucket::Keyword),
         CatalogAttributeValues::Color => Some(AttributeBucket::Color),
         CatalogAttributeValues::Length => Some(AttributeBucket::Length),
@@ -1358,8 +1375,9 @@ fn assert_bucket_contains(bucket: &str, extracted: &[String], expected: &[&str])
 mod tests {
     use super::*;
     use crate::catalog::{
-        CatalogAttributeApplicability, CatalogCssGrammarEdge, CatalogCssGrammarEdgeKind,
-        CatalogCssGrammarGraph, CatalogCssGrammarNode, CatalogCssGrammarNodeKind,
+        CatalogAttributeApplicability, CatalogAttributeElementValues, CatalogCssGrammarEdge,
+        CatalogCssGrammarEdgeKind, CatalogCssGrammarGraph, CatalogCssGrammarNode,
+        CatalogCssGrammarNodeKind,
     };
 
     fn panic_projection(result: Fallible<CatalogTreeSitterDocument>) -> CatalogTreeSitterDocument {
@@ -1529,6 +1547,22 @@ mod tests {
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.keyword, ["crossorigin"]);
         assert!(document.attribute_buckets.css_text.is_empty());
+    }
+
+    #[test]
+    fn divergent_element_values_fall_back_to_css_text_bucket() {
+        let mut attribute = attribute("operator", alternation_css(["over", "in"]));
+        attribute
+            .element_values
+            .push(CatalogAttributeElementValues {
+                element: "feMorphology".to_owned(),
+                values: css("<length-percentage>"),
+            });
+        let inputs = GrammarProjectionInputs::for_tests();
+        let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
+        assert_eq!(document.attribute_buckets.css_text, ["operator"]);
+        assert!(document.attribute_buckets.keyword.is_empty());
+        assert!(document.attribute_buckets.length.is_empty());
     }
 
     fn attribute(name: &str, values: CatalogAttributeValues) -> CatalogAttribute {

@@ -550,7 +550,10 @@ fn attrdef_assignment_value_from_raw_html(raw: &str) -> String {
     if let Some(production) = number_list_prose_production(&stripped) {
         return production;
     }
-    css_production_assignment_value(raw).unwrap_or(stripped)
+    match css_production_assignment_value(raw) {
+        Some(production) if production == stripped => production,
+        _ => stripped,
+    }
 }
 
 /// Canonicalize the SVG spec's prose "list of numbers" idiom into a real CSS
@@ -1660,6 +1663,7 @@ table-cell | table-caption | none | <a href="cascade.html#value-def-inherit" cla
 
         assert_eq!(properties.len(), 1);
         assert_eq!(properties[0].name, "x");
+        assert_eq!(properties[0].dfn_for.as_deref(), Some("mask"));
         assert_eq!(properties[0].id.as_deref(), Some("element-attrdef-mask-x"));
         assert_eq!(properties[0].value.as_deref(), Some("<length-percentage>"));
     }
@@ -1736,6 +1740,8 @@ table-cell | table-caption | none | <a href="cascade.html#value-def-inherit" cla
   <dd data-md><p>The matrix values.</p>
   <dt data-md><dfn class="dfn-paneled" data-dfn-type="element-attr" data-export id="element-attrdef-fecomponenttransfer-tablevalues"><code>tableValues</code></dfn> = "<em>(list of <a class="css production" data-link-type="type" href="#typedef-number">&lt;number></a>s)</em>"
   <dd data-md><p>The transfer function table.</p>
+  <dt data-md><dfn class="dfn-paneled" data-dfn-type="element-attr" data-export id="element-attrdef-mask-width"><code>width</code></dfn> = "auto | <a class="css production" data-link-type="type" href="#typedef-length-percentage">&lt;length-percentage></a>"
+  <dd data-md><p>The mask width.</p>
 </dl>
 "##;
         let values: std::collections::BTreeMap<_, _> = extract_property_definitions(html)
@@ -1758,6 +1764,10 @@ table-cell | table-caption | none | <a href="cascade.html#value-def-inherit" cla
         assert_eq!(
             values.get("tableValues").and_then(Option::as_deref),
             Some("<number>+")
+        );
+        assert_eq!(
+            values.get("width").and_then(Option::as_deref),
+            Some("auto | <length-percentage>")
         );
     }
 

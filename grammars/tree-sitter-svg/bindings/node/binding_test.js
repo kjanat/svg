@@ -9,10 +9,6 @@ function ensureBunPrebuild(packageRoot, builtName, prebuildName) {
 	const prebuildDir = join(packageRoot, 'prebuilds', `${process.platform}-${process.arch}`);
 	const prebuildPath = join(prebuildDir, `${prebuildName}.node`);
 
-	if (existsSync(prebuildPath)) {
-		return;
-	}
-
 	const builtPath = join(packageRoot, 'build', 'Release', builtName);
 	assert.equal(existsSync(builtPath), true, `Missing runtime binding: ${builtPath}`);
 
