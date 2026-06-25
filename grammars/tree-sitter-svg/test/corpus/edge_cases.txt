@@ -903,10 +903,10 @@ Script element with attributes and raw text
     (element
       (start_tag
         name: (name)
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double))))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double))))
       (raw_text)
       (end_tag
         name: (name)))
@@ -930,10 +930,10 @@ Style element with media attribute
     (element
       (start_tag
         name: (name)
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double)))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))
         (css_text_attribute
           name: (css_text_attribute_name)
           value: (css_text_attribute_value

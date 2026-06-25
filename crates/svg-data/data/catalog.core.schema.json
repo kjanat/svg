@@ -1119,7 +1119,7 @@
     }
   },
   "title": "svg-data core catalog v1",
-  "description": "Canonical latest catalog data.",
+  "description": "Canonical latest catalog data after semantic projection.\n\nThis document is the runtime-facing catalog, not a raw upstream XML/HTML\nmirror.",
   "type": "object",
   "required": [
     "attributes",

@@ -130,10 +130,16 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         modules: all_defs,
         macros,
         sample,
+        animate_motion,
     } = extracted;
 
     if let Some(element) = &sample {
         println!("\n## sample extracted element (as JSON)");
+        println!("{}", serde_json::to_string_pretty(element)?);
+    }
+
+    if let Some(element) = &animate_motion {
+        println!("\n## extracted animateMotion element (as JSON)");
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
@@ -144,12 +150,20 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         .unwrap_or_default();
     let chapter_report = report_chapters(provenance, graph, &macros, want_sample.as_deref())?;
     let external_properties = fetch_and_report_external_property_defs(&all_defs, editors_draft)?;
+    let external_svg_properties = fetch_and_report_external_svg_module_attr_defs(
+        graph,
+        &all_defs,
+        &macros,
+        want_sample.as_deref(),
+    )?;
     let compat = fetch_and_report_compat()?;
     let legacy = fetch_and_report_legacy_value_overrides()?;
     let inventories = fetch_and_report_inventories(&all_defs)?;
     let grammar_inputs =
         fetch_and_report_grammar_projection_inputs(REPO_SLUG, &provenance.commit_sha)?;
-    let chapter_report = chapter_report.with_external_properties(external_properties.properties);
+    let chapter_report = chapter_report
+        .with_external_properties(external_properties.properties)
+        .with_external_properties(external_svg_properties);
 
     let built = build_committed_catalog(
         &all_defs,
@@ -173,6 +187,7 @@ struct DefinitionsExtraction {
     modules: Vec<extract::Definitions>,
     macros: chapter::MacroIndex,
     sample: Option<extract::ElementDef>,
+    animate_motion: Option<extract::ElementDef>,
 }
 
 fn extract_definitions_modules(
@@ -183,6 +198,7 @@ fn extract_definitions_modules(
     println!("\n## definitions extraction (at pinned commit)");
     let mut totals = Totals::default();
     let mut sample = None;
+    let mut animate_motion = None;
     let mut macros = chapter::MacroIndex::default();
     let mut modules = Vec::new();
     for module in &graph.definitions {
@@ -205,6 +221,13 @@ fn extract_definitions_modules(
                 None => defs.elements.first().cloned(),
             };
         }
+        if animate_motion.is_none() {
+            animate_motion = defs
+                .elements
+                .iter()
+                .find(|element| element.name == "animateMotion")
+                .cloned();
+        }
         modules.push(defs);
     }
     println!(
@@ -220,6 +243,7 @@ fn extract_definitions_modules(
         modules,
         macros,
         sample,
+        animate_motion,
     })
 }
 
@@ -286,6 +310,77 @@ fn fetch_and_report_external_property_defs(
         extracted.requested_count,
     );
     Ok(extracted)
+}
+
+fn fetch_and_report_external_svg_module_attr_defs(
+    graph: &PublishGraph,
+    modules: &[extract::Definitions],
+    macros: &chapter::MacroIndex,
+    want: Option<&str>,
+) -> Fallible<Vec<chapter::PropertyValueDef>> {
+    println!("\n## external SVG module attribute definition extraction");
+    let mut urls: BTreeSet<String> = BTreeSet::new();
+    let mut sample_property = None;
+    for module in modules {
+        if let Some(base) = module.anchor_base.as_deref()
+            && base.starts_with("https://svgwg.org/specs/")
+        {
+            urls.insert(base.to_owned());
+        }
+    }
+    for module in &graph.definitions {
+        if let Some(spec_name) = external_svg_spec_name(&module.href) {
+            urls.insert(format!("https://svgwg.org/specs/{spec_name}/"));
+        }
+    }
+
+    let mut properties = Vec::new();
+    for url in &urls {
+        let html = fetch::url_text(url, "text/html")?;
+        let extracted = chapter::extract_chapter(url, &html, macros)?;
+        println!(
+            "  {} -> {} attribute definition(s)",
+            url,
+            extracted.properties.len(),
+        );
+        if sample_property.is_none() {
+            sample_property = want.and_then(|name| {
+                extracted
+                    .properties
+                    .iter()
+                    .find(|property| property.name == name)
+                    .cloned()
+            });
+        }
+        if want.is_some() {
+            let names = extracted
+                .properties
+                .iter()
+                .map(|property| format!("{:?}", property.name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("    extracted attribute names: {names}");
+        }
+        properties.extend(extracted.properties);
+    }
+    println!(
+        "  {:-<44} {:>3} attribute definition(s)",
+        "TOTAL ",
+        properties.len(),
+    );
+    if let Some(property) = &sample_property {
+        println!("\n## sample external SVG module attribute (as JSON)");
+        println!("{}", serde_json::to_string_pretty(property)?);
+    }
+    Ok(properties)
+}
+
+fn external_svg_spec_name(href: &str) -> Option<&str> {
+    let rest = href
+        .strip_prefix("../specs/")
+        .or_else(|| href.strip_prefix("specs/"))?;
+    let (name, tail) = rest.split_once('/')?;
+    (tail == "master/definitions.xml").then_some(name)
 }
 
 fn fetch_and_report_legacy_value_overrides() -> Fallible<legacy::LegacyValueOverrides> {

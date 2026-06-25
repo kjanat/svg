@@ -637,6 +637,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "_animate_motion_element"
+        },
+        {
+          "type": "SYMBOL",
           "name": "self_closing_tag"
         },
         {
@@ -974,24 +978,45 @@
       "type": "CHOICE",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "cdata_section"
-        },
-        {
           "type": "SEQ",
           "members": [
             {
-              "type": "ALIAS",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_raw_text"
-              },
-              "named": true,
-              "value": "raw_text"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_raw_text"
+                  },
+                  "named": true,
+                  "value": "raw_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             },
             {
               "type": "SYMBOL",
               "name": "cdata_section"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_raw_text"
+                  },
+                  "named": true,
+                  "value": "raw_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             }
           ]
         },
@@ -1351,6 +1376,406 @@
         }
       ]
     },
+    "_animate_motion_element": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "animate_motion_self_closing_tag"
+          },
+          "named": true,
+          "value": "self_closing_tag"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "animate_motion_start_tag"
+              },
+              "named": true,
+              "value": "start_tag"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_content"
+              }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "animate_motion_end_tag"
+                  },
+                  "named": true,
+                  "value": "end_tag"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "erroneous_end_tag"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "animate_motion_start_tag": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_animate_motion_start_tag_name"
+            },
+            "named": true,
+            "value": "name"
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_s"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "animate_motion_attribute"
+              }
+            ]
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_s"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": ">"
+        }
+      ]
+    },
+    "animate_motion_end_tag": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "</"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_animate_motion_end_tag_name"
+            },
+            "named": true,
+            "value": "name"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_s"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": ">"
+        }
+      ]
+    },
+    "animate_motion_self_closing_tag": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_animate_motion_start_tag_name"
+            },
+            "named": true,
+            "value": "name"
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_s"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "animate_motion_attribute"
+              }
+            ]
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_s"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "/>"
+        }
+      ]
+    },
+    "animate_motion_attribute": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "animate_motion_coordinate_attribute"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "animate_motion_values_attribute"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "attribute"
+        }
+      ]
+    },
+    "animate_motion_coordinate_attribute": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "animate_motion_coordinate_attribute_name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_eq"
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "animate_motion_coordinate_attribute_value"
+          }
+        }
+      ]
+    },
+    "animate_motion_coordinate_attribute_name": {
+      "type": "TOKEN",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "by"
+          },
+          {
+            "type": "STRING",
+            "value": "from"
+          },
+          {
+            "type": "STRING",
+            "value": "to"
+          }
+        ]
+      }
+    },
+    "animate_motion_coordinate_attribute_value": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "\""
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "coordinate_pair"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "\""
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "'"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "coordinate_pair"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "'"
+            }
+          ]
+        }
+      ]
+    },
+    "animate_motion_values_attribute": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "animate_motion_values_attribute_name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_eq"
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "animate_motion_values_attribute_value"
+          }
+        }
+      ]
+    },
+    "animate_motion_values_attribute_name": {
+      "type": "STRING",
+      "value": "values"
+    },
+    "animate_motion_values_attribute_value": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "\""
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "semicolon_coordinate_pair_list"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "\""
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "'"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "semicolon_coordinate_pair_list"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "STRING",
+              "value": "'"
+            }
+          ]
+        }
+      ]
+    },
     "start_tag": {
       "type": "SEQ",
       "members": [
@@ -1608,11 +2033,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "keyword_attribute"
+          "name": "css_text_attribute"
         },
         {
           "type": "SYMBOL",
-          "name": "css_text_attribute"
+          "name": "keyword_attribute"
         },
         {
           "type": "SYMBOL",
@@ -6961,6 +7386,14 @@
         "members": [
           {
             "type": "STRING",
+            "value": "accumulate"
+          },
+          {
+            "type": "STRING",
+            "value": "additive"
+          },
+          {
+            "type": "STRING",
             "value": "alignment-baseline"
           },
           {
@@ -7093,6 +7526,10 @@
           },
           {
             "type": "STRING",
+            "value": "playbackorder"
+          },
+          {
+            "type": "STRING",
             "value": "pointer-events"
           },
           {
@@ -7102,6 +7539,10 @@
           {
             "type": "STRING",
             "value": "primitiveUnits"
+          },
+          {
+            "type": "STRING",
+            "value": "restart"
           },
           {
             "type": "STRING",
@@ -7138,6 +7579,10 @@
           {
             "type": "STRING",
             "value": "text-rendering"
+          },
+          {
+            "type": "STRING",
+            "value": "timelinebegin"
           },
           {
             "type": "STRING",
@@ -7324,11 +7769,23 @@
         "members": [
           {
             "type": "STRING",
+            "value": "attributeName"
+          },
+          {
+            "type": "STRING",
             "value": "autofocus"
           },
           {
             "type": "STRING",
+            "value": "begin"
+          },
+          {
+            "type": "STRING",
             "value": "download"
+          },
+          {
+            "type": "STRING",
+            "value": "end"
           },
           {
             "type": "STRING",
@@ -7356,7 +7813,15 @@
           },
           {
             "type": "STRING",
+            "value": "max"
+          },
+          {
+            "type": "STRING",
             "value": "media"
+          },
+          {
+            "type": "STRING",
+            "value": "min"
           },
           {
             "type": "STRING",
@@ -7393,10 +7858,6 @@
           {
             "type": "STRING",
             "value": "target"
-          },
-          {
-            "type": "STRING",
-            "value": "type"
           },
           {
             "type": "STRING",
@@ -7523,10 +7984,6 @@
           {
             "type": "STRING",
             "value": "tableValues"
-          },
-          {
-            "type": "STRING",
-            "value": "values"
           }
         ]
       }
@@ -7554,10 +8011,6 @@
                     {
                       "type": "SYMBOL",
                       "name": "semicolon_number_list"
-                    },
-                    {
-                      "type": "SYMBOL",
-                      "name": "semicolon_coordinate_pair_list"
                     }
                   ]
                 },
@@ -7592,10 +8045,6 @@
                     {
                       "type": "SYMBOL",
                       "name": "semicolon_number_list"
-                    },
-                    {
-                      "type": "SYMBOL",
-                      "name": "semicolon_coordinate_pair_list"
                     }
                   ]
                 },
@@ -9571,10 +10020,6 @@
     [
       "number_list",
       "semicolon_number_list"
-    ],
-    [
-      "coordinate_pair",
-      "number_list"
     ]
   ],
   "precedences": [],
@@ -9586,6 +10031,10 @@
     {
       "type": "SYMBOL",
       "name": "_path_start_tag_name"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_animate_motion_start_tag_name"
     },
     {
       "type": "SYMBOL",
@@ -9602,6 +10051,10 @@
     {
       "type": "SYMBOL",
       "name": "_path_end_tag_name"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_animate_motion_end_tag_name"
     },
     {
       "type": "SYMBOL",

@@ -14,6 +14,8 @@
   },
   "attribute_buckets": {
     "keyword": [
+      "accumulate",
+      "additive",
       "alignment-baseline",
       "calcMode",
       "clip-rule",
@@ -47,9 +49,11 @@
       "paint-order",
       "patternContentUnits",
       "patternUnits",
+      "playbackorder",
       "pointer-events",
       "preserveAlpha",
       "primitiveUnits",
+      "restart",
       "shape-rendering",
       "side",
       "spacing",
@@ -59,6 +63,7 @@
       "stroke-linejoin",
       "text-anchor",
       "text-rendering",
+      "timelinebegin",
       "unicode-bidi",
       "vector-effect",
       "visibility",
@@ -156,8 +161,7 @@
     "number_list": [
       "kernelMatrix",
       "keyPoints",
-      "tableValues",
-      "values"
+      "tableValues"
     ],
     "number_or_percentage": [
       "fill-opacity",
@@ -187,15 +191,20 @@
       "mask"
     ],
     "css_text": [
+      "attributeName",
       "autofocus",
+      "begin",
       "download",
+      "end",
       "font-family",
       "font-size",
       "hreflang",
       "in",
       "in2",
       "lang",
+      "max",
       "media",
+      "min",
       "orient",
       "ping",
       "referrerpolicy",
@@ -205,7 +214,6 @@
       "role",
       "systemLanguage",
       "target",
-      "type",
       "xlink:title"
     ]
   },

@@ -57,52 +57,55 @@ Element animateMotion (typed attributes)
     (element
       (self_closing_tag
         name: (name)
-        (number_list_attribute
-          name: (number_list_attribute_name)
-          value: (number_list_attribute_value
-            (semicolon_number_list
-              (number)
-              (wsp)
-              (number)
-              (wsp)
-              (number))))
-        (keyword_attribute
-          name: (keyword_attribute_name)
-          value: (keyword_attribute_value
-            (keyword_value)))
-        (d_attribute
-          name: (d_attribute_name)
-          value: (d_attribute_value
-            (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))))
+        (animate_motion_attribute
+          (number_list_attribute
+            name: (number_list_attribute_name)
+            value: (number_list_attribute_value
+              (semicolon_number_list
+                (number)
+                (wsp)
+                (number)
+                (wsp)
+                (number)))))
+        (animate_motion_attribute
+          (keyword_attribute
+            name: (keyword_attribute_name)
+            value: (keyword_attribute_value
+              (keyword_value))))
+        (animate_motion_attribute
+          (d_attribute
+            name: (d_attribute_name)
+            value: (d_attribute_value
+              (double_quoted_path_data
+                (path_data_content
+                  (path_data
+                    (moveto_segment
+                      command: (path_command)
+                      (path_coordinate_pair
+                        (path_coordinate
+                          (path_number))
+                        (path_comma_wsp
+                          (path_wsp))
+                        (path_coordinate
+                          (path_number))))
+                    (path_wsp)
+                    (lineto_segment
+                      command: (path_command)
+                      (path_coordinate_pair
+                        (path_coordinate
+                          (path_number))
+                        (path_comma_wsp
+                          (path_wsp))
+                        (path_coordinate
+                          (path_number))))))))))))
     (end_tag
       name: (name)))
   (text))
 
 ========================================
-Element animateTransform (typed attributes)
+Element animateTransform
 ========================================
-<svg><animateTransform type="rotate"/></svg>
+<svg><animateTransform/></svg>
 
 ---
 
@@ -112,11 +115,7 @@ Element animateTransform (typed attributes)
       name: (name))
     (element
       (self_closing_tag
-        name: (name)
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double)))))
+        name: (name)))
     (end_tag
       name: (name)))
   (text))
@@ -262,7 +261,7 @@ Element feBlend (typed attributes)
 ========================================
 Element feColorMatrix (typed attributes)
 ========================================
-<svg><feColorMatrix in="BackgroundAlpha" values="0 1 0"/></svg>
+<svg><feColorMatrix in="BackgroundAlpha"/></svg>
 
 ---
 
@@ -276,18 +275,7 @@ Element feColorMatrix (typed attributes)
         (css_text_attribute
           name: (css_text_attribute_name)
           value: (css_text_attribute_value
-            content: (css_attribute_text_double)))
-        (number_list_attribute
-          name: (number_list_attribute_name)
-          value: (number_list_attribute_value
-            (number_list
-              (number)
-              (comma_wsp
-                (wsp))
-              (number)
-              (comma_wsp
-                (wsp))
-              (number))))))
+            content: (css_attribute_text_double)))))
     (end_tag
       name: (name)))
   (text))
@@ -637,9 +625,9 @@ Element feGaussianBlur (typed attributes)
   (text))
 
 ========================================
-Element feImage
+Element feImage (typed attributes)
 ========================================
-<svg><feImage/></svg>
+<svg><feImage crossorigin="anonymous"/></svg>
 
 ---
 
@@ -649,7 +637,11 @@ Element feImage
       name: (name))
     (element
       (self_closing_tag
-        name: (name)))
+        name: (name)
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))))
     (end_tag
       name: (name)))
   (text))
@@ -872,7 +864,7 @@ Element feTile (typed attributes)
 ========================================
 Element feTurbulence (typed attributes)
 ========================================
-<svg><feTurbulence baseFrequency="2 3" numOctaves="1" stitchTiles="noStitch" type="fractalNoise"/></svg>
+<svg><feTurbulence baseFrequency="2 3" numOctaves="1" stitchTiles="noStitch"/></svg>
 
 ---
 
@@ -897,11 +889,7 @@ Element feTurbulence (typed attributes)
         (keyword_attribute
           name: (keyword_attribute_name)
           value: (keyword_attribute_value
-            (keyword_value)))
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double)))))
+            (keyword_value)))))
     (end_tag
       name: (name)))
   (text))
@@ -981,7 +969,7 @@ Element g
 ========================================
 Element image (typed attributes)
 ========================================
-<svg><image height="5"/></svg>
+<svg><image crossorigin="anonymous" height="5"/></svg>
 
 ---
 
@@ -992,6 +980,10 @@ Element image (typed attributes)
     (element
       (self_closing_tag
         name: (name)
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))
         (length_attribute
           name: (length_attribute_name)
           value: (length_attribute_value
@@ -1035,7 +1027,7 @@ Element line (typed attributes)
 ========================================
 Element linearGradient (typed attributes)
 ========================================
-<svg><linearGradient gradientUnits="objectBoundingBox" x1="0.5"/></svg>
+<svg><linearGradient gradientUnits="objectBoundingBox" x1="5"/></svg>
 
 ---
 
@@ -1396,7 +1388,7 @@ Element rect (typed attributes)
 ========================================
 Element script (typed attributes)
 ========================================
-<svg><script type="application/ecmascript"/></svg>
+<svg><script crossorigin="anonymous"/></svg>
 
 ---
 
@@ -1407,10 +1399,10 @@ Element script (typed attributes)
     (element
       (self_closing_tag
         name: (name)
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double)))))
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))))
     (end_tag
       name: (name)))
   (text))
@@ -1685,7 +1677,7 @@ Element title
 ========================================
 Element tspan (typed attributes)
 ========================================
-<svg><tspan dx="0 1 0" lengthAdjust="spacing" textLength="0.5"/></svg>
+<svg><tspan dx="0.5" lengthAdjust="spacing" textLength="0.5"/></svg>
 
 ---
 
@@ -1700,16 +1692,6 @@ Element tspan (typed attributes)
           name: (length_list_attribute_name)
           value: (length_list_attribute_value
             (length_list
-              (length_or_percentage
-                (length
-                  (number)))
-              (comma_wsp
-                (wsp))
-              (length_or_percentage
-                (length
-                  (number)))
-              (comma_wsp
-                (wsp))
               (length_or_percentage
                 (length
                   (number))))))

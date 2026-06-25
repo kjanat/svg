@@ -43,10 +43,12 @@ export default grammar({
 	externals: $ => [
 		$._start_tag_name,
 		$._path_start_tag_name,
+		$._animate_motion_start_tag_name,
 		$._script_start_tag_name,
 		$._style_start_tag_name,
 		$._end_tag_name,
 		$._path_end_tag_name,
+		$._animate_motion_end_tag_name,
 		$._script_end_tag_name,
 		$._style_end_tag_name,
 		$._erroneous_end_tag_name,
@@ -65,7 +67,6 @@ export default grammar({
 	// separator selects the arm.
 	conflicts: $ => [
 		[$.number_list, $.semicolon_number_list],
-		[$.coordinate_pair, $.number_list],
 	],
 
 	// Each rule here was a visible `choice` wrapper over single named symbols;
@@ -250,6 +251,7 @@ export default grammar({
 				$._script_element,
 				$._style_element,
 				$._path_element,
+				$._animate_motion_element,
 				$.self_closing_tag,
 				seq($.start_tag, repeat($._content), choice($.end_tag, $.erroneous_end_tag)),
 			),
@@ -321,8 +323,11 @@ export default grammar({
 
 		_raw_or_cdata_text: $ =>
 			choice(
-				$.cdata_section,
-				seq(alias($._raw_text, $.raw_text), $.cdata_section),
+				seq(
+					optional(alias($._raw_text, $.raw_text)),
+					$.cdata_section,
+					optional(alias($._raw_text, $.raw_text)),
+				),
 				alias($._raw_text, $.raw_text),
 			),
 
@@ -390,6 +395,73 @@ export default grammar({
 				'/>',
 			),
 
+		// ─── animateMotion Element (motion coordinate attrs) ───────────
+
+		_animate_motion_element: $ =>
+			choice(
+				alias($.animate_motion_self_closing_tag, $.self_closing_tag),
+				seq(
+					alias($.animate_motion_start_tag, $.start_tag),
+					repeat($._content),
+					choice(alias($.animate_motion_end_tag, $.end_tag), $.erroneous_end_tag),
+				),
+			),
+
+		animate_motion_start_tag: $ =>
+			seq(
+				'<',
+				field('name', alias($._animate_motion_start_tag_name, $.name)),
+				repeat(seq($._s, $.animate_motion_attribute)),
+				optional($._s),
+				'>',
+			),
+
+		animate_motion_end_tag: $ =>
+			seq(
+				'</',
+				field('name', alias($._animate_motion_end_tag_name, $.name)),
+				optional($._s),
+				'>',
+			),
+
+		animate_motion_self_closing_tag: $ =>
+			seq(
+				'<',
+				field('name', alias($._animate_motion_start_tag_name, $.name)),
+				repeat(seq($._s, $.animate_motion_attribute)),
+				optional($._s),
+				'/>',
+			),
+
+		animate_motion_attribute: $ =>
+			choice(
+				$.animate_motion_coordinate_attribute,
+				$.animate_motion_values_attribute,
+				$.attribute,
+			),
+
+		animate_motion_coordinate_attribute: $ =>
+			seq(
+				field('name', $.animate_motion_coordinate_attribute_name),
+				$._eq,
+				field('value', $.animate_motion_coordinate_attribute_value),
+			),
+
+		animate_motion_coordinate_attribute_name: _ => token(choice('by', 'from', 'to')),
+
+		animate_motion_coordinate_attribute_value: $ => quoted($.coordinate_pair),
+
+		animate_motion_values_attribute: $ =>
+			seq(
+				field('name', $.animate_motion_values_attribute_name),
+				$._eq,
+				field('value', $.animate_motion_values_attribute_value),
+			),
+
+		animate_motion_values_attribute_name: _ => 'values',
+
+		animate_motion_values_attribute_value: $ => quoted($.semicolon_coordinate_pair_list),
+
 		// ─── Generic Tags ───────────────────────────────────────────
 
 		start_tag: $ =>
@@ -452,8 +524,8 @@ export default grammar({
 				$.length_list_attribute,
 				$.rotate_attribute,
 				$.stroke_dasharray_attribute,
-				$.keyword_attribute,
 				$.css_text_attribute,
+				$.keyword_attribute,
 				$.number_list_attribute,
 				$.duration_attribute,
 				$.repeat_count_attribute,
@@ -1427,13 +1499,12 @@ export default grammar({
 		// A number list separates with whitespace/commas in the filter context
 		// (`kernelMatrix`, feColorMatrix `values`, `tableValues`) but with `;`
 		// when the same `values` attribute drives SMIL animation
-		// (`values="0;10;20"`). Accept either separator style; a single number is
-		// the list-of-one shared by both arms.
+		// (`values="0;10;20"`). Motion coordinate-pair lists are scoped to
+		// `animateMotion` so generic number-list attrs cannot accept coordinates.
 		number_list_attribute_value: $ =>
 			quoted(choice(
 				$.number_list,
 				$.semicolon_number_list,
-				$.semicolon_coordinate_pair_list,
 			)),
 
 		number_list: $ =>

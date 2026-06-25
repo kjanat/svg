@@ -2447,6 +2447,16 @@
       "name": "svg.elements.use.xlink_href"
     },
     {
+      "id": "css-property:accumulate",
+      "kind": "css_property",
+      "name": "accumulate"
+    },
+    {
+      "id": "css-property:additive",
+      "kind": "css_property",
+      "name": "additive"
+    },
+    {
       "id": "css-property:alignment-baseline",
       "kind": "css_property",
       "name": "alignment-baseline"
@@ -2455,6 +2465,11 @@
       "id": "css-property:amplitude",
       "kind": "css_property",
       "name": "amplitude"
+    },
+    {
+      "id": "css-property:attributeName",
+      "kind": "css_property",
+      "name": "attributeName"
     },
     {
       "id": "css-property:autofocus",
@@ -2482,6 +2497,11 @@
       "name": "baseline-shift"
     },
     {
+      "id": "css-property:begin",
+      "kind": "css_property",
+      "name": "begin"
+    },
+    {
       "id": "css-property:bias",
       "kind": "css_property",
       "name": "bias"
@@ -2500,6 +2520,16 @@
       "id": "css-property:border-top-style",
       "kind": "css_property",
       "name": "border-top-style"
+    },
+    {
+      "id": "css-property:by",
+      "kind": "css_property",
+      "name": "by"
+    },
+    {
+      "id": "css-property:calcMode",
+      "kind": "css_property",
+      "name": "calcMode"
     },
     {
       "id": "css-property:class",
@@ -2607,6 +2637,11 @@
       "name": "download"
     },
     {
+      "id": "css-property:dur",
+      "kind": "css_property",
+      "name": "dur"
+    },
+    {
       "id": "css-property:dx",
       "kind": "css_property",
       "name": "dx"
@@ -2625,6 +2660,11 @@
       "id": "css-property:elevation",
       "kind": "css_property",
       "name": "elevation"
+    },
+    {
+      "id": "css-property:end",
+      "kind": "css_property",
+      "name": "end"
     },
     {
       "id": "css-property:exampleattr",
@@ -2735,6 +2775,11 @@
       "id": "css-property:fr",
       "kind": "css_property",
       "name": "fr"
+    },
+    {
+      "id": "css-property:from",
+      "kind": "css_property",
+      "name": "from"
     },
     {
       "id": "css-property:fx",
@@ -2862,6 +2907,21 @@
       "name": "kerning"
     },
     {
+      "id": "css-property:keyPoints",
+      "kind": "css_property",
+      "name": "keyPoints"
+    },
+    {
+      "id": "css-property:keySplines",
+      "kind": "css_property",
+      "name": "keySplines"
+    },
+    {
+      "id": "css-property:keyTimes",
+      "kind": "css_property",
+      "name": "keyTimes"
+    },
+    {
       "id": "css-property:lang",
       "kind": "css_property",
       "name": "lang"
@@ -2962,6 +3022,11 @@
       "name": "maskUnits"
     },
     {
+      "id": "css-property:max",
+      "kind": "css_property",
+      "name": "max"
+    },
+    {
       "id": "css-property:max-width",
       "kind": "css_property",
       "name": "max-width"
@@ -2975,6 +3040,11 @@
       "id": "css-property:method",
       "kind": "css_property",
       "name": "method"
+    },
+    {
+      "id": "css-property:min",
+      "kind": "css_property",
+      "name": "min"
     },
     {
       "id": "css-property:min-width",
@@ -3042,6 +3112,11 @@
       "name": "orient"
     },
     {
+      "id": "css-property:origin",
+      "kind": "css_property",
+      "name": "origin"
+    },
+    {
       "id": "css-property:outline",
       "kind": "css_property",
       "name": "outline"
@@ -3095,6 +3170,11 @@
       "id": "css-property:ping",
       "kind": "css_property",
       "name": "ping"
+    },
+    {
+      "id": "css-property:playbackorder",
+      "kind": "css_property",
+      "name": "playbackorder"
     },
     {
       "id": "css-property:pointer-events",
@@ -3172,9 +3252,24 @@
       "name": "rel"
     },
     {
+      "id": "css-property:repeatCount",
+      "kind": "css_property",
+      "name": "repeatCount"
+    },
+    {
+      "id": "css-property:repeatDur",
+      "kind": "css_property",
+      "name": "repeatDur"
+    },
+    {
       "id": "css-property:requiredExtensions",
       "kind": "css_property",
       "name": "requiredExtensions"
+    },
+    {
+      "id": "css-property:restart",
+      "kind": "css_property",
+      "name": "restart"
     },
     {
       "id": "css-property:result",
@@ -3437,9 +3532,19 @@
       "name": "textLength"
     },
     {
+      "id": "css-property:timelinebegin",
+      "kind": "css_property",
+      "name": "timelinebegin"
+    },
+    {
       "id": "css-property:title",
       "kind": "css_property",
       "name": "title"
+    },
+    {
+      "id": "css-property:to",
+      "kind": "css_property",
+      "name": "to"
     },
     {
       "id": "css-property:transform",
@@ -4139,12 +4244,12 @@
     {
       "id": "value:accumulate",
       "kind": "value_grammar",
-      "name": "accumulate (free_text)"
+      "name": "accumulate (enum)"
     },
     {
       "id": "value:additive",
       "kind": "value_grammar",
-      "name": "additive (free_text)"
+      "name": "additive (enum)"
     },
     {
       "id": "value:alignment-baseline",
@@ -4414,7 +4519,7 @@
     {
       "id": "value:attributeName",
       "kind": "value_grammar",
-      "name": "attributeName (free_text)"
+      "name": "attributeName (css_grammar)"
     },
     {
       "id": "value:attributeType",
@@ -4454,7 +4559,7 @@
     {
       "id": "value:begin",
       "kind": "value_grammar",
-      "name": "begin (free_text)"
+      "name": "begin (enum)"
     },
     {
       "id": "value:bias",
@@ -4569,7 +4674,7 @@
     {
       "id": "value:crossorigin",
       "kind": "value_grammar",
-      "name": "crossorigin (css_grammar)"
+      "name": "crossorigin (enum)"
     },
     {
       "id": "value:cursor",
@@ -4669,7 +4774,7 @@
     {
       "id": "value:dur",
       "kind": "value_grammar",
-      "name": "dur (free_text)"
+      "name": "dur (css_grammar)"
     },
     {
       "id": "value:dx",
@@ -4694,7 +4799,7 @@
     {
       "id": "value:end",
       "kind": "value_grammar",
-      "name": "end (free_text)"
+      "name": "end (enum)"
     },
     {
       "id": "value:exponent",
@@ -5019,12 +5124,12 @@
     {
       "id": "value:keySplines",
       "kind": "value_grammar",
-      "name": "keySplines (free_text)"
+      "name": "keySplines (css_grammar)"
     },
     {
       "id": "value:keyTimes",
       "kind": "value_grammar",
-      "name": "keyTimes (free_text)"
+      "name": "keyTimes (semicolon_number_list)"
     },
     {
       "id": "value:lang",
@@ -5124,7 +5229,7 @@
     {
       "id": "value:max",
       "kind": "value_grammar",
-      "name": "max (free_text)"
+      "name": "max (css_grammar)"
     },
     {
       "id": "value:max-width",
@@ -5144,7 +5249,7 @@
     {
       "id": "value:min",
       "kind": "value_grammar",
-      "name": "min (free_text)"
+      "name": "min (css_grammar)"
     },
     {
       "id": "value:min-width",
@@ -5644,7 +5749,7 @@
     {
       "id": "value:playbackorder",
       "kind": "value_grammar",
-      "name": "playbackorder (free_text)"
+      "name": "playbackorder (enum)"
     },
     {
       "id": "value:pointer-events",
@@ -5729,12 +5834,12 @@
     {
       "id": "value:repeatCount",
       "kind": "value_grammar",
-      "name": "repeatCount (free_text)"
+      "name": "repeatCount (css_grammar)"
     },
     {
       "id": "value:repeatDur",
       "kind": "value_grammar",
-      "name": "repeatDur (free_text)"
+      "name": "repeatDur (css_grammar)"
     },
     {
       "id": "value:requiredExtensions",
@@ -5744,7 +5849,7 @@
     {
       "id": "value:restart",
       "kind": "value_grammar",
-      "name": "restart (free_text)"
+      "name": "restart (enum)"
     },
     {
       "id": "value:result",
@@ -6049,7 +6154,7 @@
     {
       "id": "value:timelinebegin",
       "kind": "value_grammar",
-      "name": "timelinebegin (free_text)"
+      "name": "timelinebegin (enum)"
     },
     {
       "id": "value:title",
@@ -6099,7 +6204,7 @@
     {
       "id": "value:values",
       "kind": "value_grammar",
-      "name": "values (css_grammar)"
+      "name": "values (free_text)"
     },
     {
       "id": "value:vector-effect",
@@ -6189,12 +6294,12 @@
     {
       "id": "value:x1",
       "kind": "value_grammar",
-      "name": "x1 (css_grammar)"
+      "name": "x1 (length)"
     },
     {
       "id": "value:x2",
       "kind": "value_grammar",
-      "name": "x2 (css_grammar)"
+      "name": "x2 (length)"
     },
     {
       "id": "value:xChannelSelector",
@@ -6234,12 +6339,12 @@
     {
       "id": "value:y1",
       "kind": "value_grammar",
-      "name": "y1 (css_grammar)"
+      "name": "y1 (length)"
     },
     {
       "id": "value:y2",
       "kind": "value_grammar",
-      "name": "y2 (css_grammar)"
+      "name": "y2 (length)"
     },
     {
       "id": "value:yChannelSelector",
@@ -52510,212 +52615,7 @@
     },
     {
       "from": "element:feDiffuseLighting",
-      "to": "element:a",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:animate",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:animateMotion",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:animateTransform",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:circle",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:clipPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:defs",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
       "to": "element:desc",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:ellipse",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feBlend",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feColorMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feComponentTransfer",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feComposite",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feConvolveMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feDiffuseLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feDisplacementMap",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feDistantLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feDropShadow",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feFlood",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feFuncA",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feFuncB",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feFuncG",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feFuncR",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feGaussianBlur",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feImage",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feMerge",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feMergeNode",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feMorphology",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feOffset",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:fePointLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feSpecularLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feSpotLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feTile",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:feTurbulence",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:filter",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:foreignObject",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:g",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:image",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:line",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:linearGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:marker",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:mask",
       "kind": "allows_child"
     },
     {
@@ -52725,102 +52625,12 @@
     },
     {
       "from": "element:feDiffuseLighting",
-      "to": "element:mpath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:path",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:pattern",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:polygon",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:polyline",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:radialGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:rect",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
       "to": "element:script",
       "kind": "allows_child"
     },
     {
       "from": "element:feDiffuseLighting",
-      "to": "element:set",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:stop",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:style",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:svg",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:switch",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:symbol",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:text",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:textPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
       "to": "element:title",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:tspan",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:use",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feDiffuseLighting",
-      "to": "element:view",
       "kind": "allows_child"
     },
     {
@@ -53680,212 +53490,7 @@
     },
     {
       "from": "element:feSpecularLighting",
-      "to": "element:a",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:animate",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:animateMotion",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:animateTransform",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:circle",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:clipPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:defs",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
       "to": "element:desc",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:ellipse",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feBlend",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feColorMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feComponentTransfer",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feComposite",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feConvolveMatrix",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feDiffuseLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feDisplacementMap",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feDistantLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feDropShadow",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feFlood",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feFuncA",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feFuncB",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feFuncG",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feFuncR",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feGaussianBlur",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feImage",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feMerge",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feMergeNode",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feMorphology",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feOffset",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:fePointLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feSpecularLighting",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feSpotLight",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feTile",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:feTurbulence",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:filter",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:foreignObject",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:g",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:image",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:line",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:linearGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:marker",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:mask",
       "kind": "allows_child"
     },
     {
@@ -53895,102 +53500,12 @@
     },
     {
       "from": "element:feSpecularLighting",
-      "to": "element:mpath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:path",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:pattern",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:polygon",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:polyline",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:radialGradient",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:rect",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
       "to": "element:script",
       "kind": "allows_child"
     },
     {
       "from": "element:feSpecularLighting",
-      "to": "element:set",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:stop",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:style",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:svg",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:switch",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:symbol",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:text",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:textPath",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
       "to": "element:title",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:tspan",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:use",
-      "kind": "allows_child"
-    },
-    {
-      "from": "element:feSpecularLighting",
-      "to": "element:view",
       "kind": "allows_child"
     },
     {

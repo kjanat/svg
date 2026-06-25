@@ -30,6 +30,12 @@
 (attribute
   name: (_) @attribute)
 
+(animate_motion_coordinate_attribute
+  name: (_) @attribute)
+
+(animate_motion_values_attribute
+  name: (_) @attribute)
+
 (hex_color) @constant
 (color_function_name) @function.call
 (clip_rect "rect" @function.call)
@@ -43,6 +49,12 @@
 (color_none) @constant.builtin
 
 (attribute
+  value: (_) @string)
+
+(animate_motion_coordinate_attribute
+  value: (_) @string)
+
+(animate_motion_values_attribute
   value: (_) @string)
 
 (matrix_transform "matrix" @function.builtin)

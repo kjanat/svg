@@ -1,4 +1,9 @@
 //! Tree-sitter grammar projection derived from the catalog plus webref CSS.
+//!
+//! `catalog.tree-sitter.json` is parser projection config, not raw spec truth.
+//! Policy is allowed here when the grammar needs a stable, finite set of bucket
+//! choices (`css_text` vs `keyword`, dedicated attribute ownership, opaque
+//! timing attrs, etc.) that cannot be represented directly in upstream specs.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -95,6 +100,7 @@ const EXPECTED_FUNCTIONAL_IRI_ATTRIBUTES: &[&str] = &[
 const EXPECTED_POINTS_ATTRIBUTES: &[&str] = &["points"];
 const EXPECTED_VIEW_BOX_ATTRIBUTES: &[&str] = &["viewBox"];
 const EXPECTED_LENGTH_LIST_ATTRIBUTES: &[&str] = &["dx", "dy"];
+const OPAQUE_TIMING_ATTRIBUTE_NAMES: &[&str] = &["begin", "end", "max", "min"];
 
 /// CSS primitive types that terminate value-grammar resolution. This is the
 /// projection's intentional output alphabet, not a heuristic: every reachable
@@ -127,7 +133,8 @@ const TERMINAL_PRIMITIVE_TYPES: &[&str] = &[
 /// in `grammar.js` (e.g. `transform`, `preserveAspectRatio`, `keySplines`) whose
 /// shape cannot be derived from spec value grammars, so the projection must drop
 /// these names from the generated buckets to avoid emitting a second, conflicting
-/// rule. It is config, not spec-derived data; keep it in sync with `grammar.js`.
+/// rule. It is parser-projection config, not spec-derived data; keep it in sync
+/// with `grammar.js`.
 const GRAMMAR_DEDICATED_ATTRIBUTE_NAMES: &[&str] = &[
     "class",
     "clip",
@@ -166,8 +173,12 @@ pub struct GrammarProjectionInputs {
 }
 
 impl GrammarProjectionInputs {
+    pub(crate) fn transform_functions(&self) -> Vec<String> {
+        self.css.transform_function_names()
+    }
+
     #[cfg(test)]
-    fn for_tests() -> Self {
+    pub(crate) fn for_tests() -> Self {
         let css = WebrefCssIndex::from_features(
             [(
                 "types",
@@ -177,6 +188,11 @@ impl GrammarProjectionInputs {
                     WebrefFeature::new("mask-reference", "none | <image>"),
                     WebrefFeature::new("mask-layer", "<mask-reference>#"),
                     WebrefFeature::new("length-percentage", "<length> | <percentage>"),
+                    WebrefFeature::new(
+                        "transform-function",
+                        "matrix() | translate() | scale() | rotate() | skewX() | skewY()",
+                    ),
+                    WebrefFeature::new("transform-list", "<transform-function>#"),
                 ],
             )],
             [("opacity", "<number> | <percentage>")],
@@ -313,10 +329,10 @@ pub fn build_tree_sitter_document(
         }
     }
     buckets.sort();
-    remove_grammar_dedicated_attributes(&mut buckets);
     if validate {
         validate_attribute_buckets(&buckets)?;
     }
+    remove_grammar_dedicated_attributes(&mut buckets);
 
     Ok(CatalogTreeSitterDocument {
         schema_version: crate::schema::CATALOG_SCHEMA_VERSION,
@@ -381,17 +397,30 @@ fn attribute_bucket(
     css: &WebrefCssIndex,
     paths: &PathsGrammarFacts,
 ) -> Option<AttributeBucket> {
+    if OPAQUE_TIMING_ATTRIBUTE_NAMES.contains(&attribute.name.as_str()) {
+        return Some(AttributeBucket::CssText);
+    }
+
     let canonical = attribute_values_bucket(attribute, &attribute.values, css, paths);
     let canonical_bucket = canonical?;
-    let overrides_fit = attribute.element_values.iter().all(|element_values| {
-        attribute_values_bucket(attribute, &element_values.values, css, paths)
-            .is_some_and(|bucket| bucket_accepts(canonical_bucket, bucket))
-    });
-    if overrides_fit {
-        Some(canonical_bucket)
-    } else {
-        Some(AttributeBucket::CssText)
+    let mut buckets = vec![canonical_bucket];
+    for element_values in &attribute.element_values {
+        buckets.push(attribute_values_bucket(
+            attribute,
+            &element_values.values,
+            css,
+            paths,
+        )?);
     }
+    buckets
+        .iter()
+        .copied()
+        .find(|candidate| {
+            buckets
+                .iter()
+                .all(|bucket| bucket_accepts(*candidate, *bucket))
+        })
+        .or(Some(AttributeBucket::CssText))
 }
 
 fn bucket_accepts(superset: AttributeBucket, subset: AttributeBucket) -> bool {
@@ -410,6 +439,7 @@ fn bucket_accepts(superset: AttributeBucket, subset: AttributeBucket) -> bool {
                     AttributeBucket::Length | AttributeBucket::NumberOrPercentage,
                     AttributeBucket::Number,
                 )
+                | (AttributeBucket::Color, AttributeBucket::Keyword)
                 | (
                     AttributeBucket::NumberList,
                     AttributeBucket::CoordinatePairList
@@ -892,6 +922,46 @@ impl WebrefCssIndex {
         syntax_keywords(group)
     }
 
+    fn transform_function_names(&self) -> Vec<String> {
+        let mut names = self.function_names_preserve(
+            "transform-function",
+            &mut BTreeSet::new(),
+            &mut BTreeSet::new(),
+        );
+        if names.is_empty() {
+            names = self.function_names_preserve(
+                "transform-list",
+                &mut BTreeSet::new(),
+                &mut BTreeSet::new(),
+            );
+        }
+        names
+    }
+
+    fn function_names_preserve(
+        &self,
+        name: &str,
+        seen_types: &mut BTreeSet<String>,
+        seen_names: &mut BTreeSet<String>,
+    ) -> Vec<String> {
+        if !seen_types.insert(name.to_owned()) {
+            return Vec::new();
+        }
+        let Some(syntax) = self.syntax(name) else {
+            return Vec::new();
+        };
+        let mut names = Vec::new();
+        for candidate in function_names_in_syntax(syntax) {
+            if seen_names.insert(candidate.clone()) {
+                names.push(candidate);
+            }
+        }
+        for reference in ordered_type_refs(syntax) {
+            names.extend(self.function_names_preserve(&reference, seen_types, seen_names));
+        }
+        names
+    }
+
     fn resolves_to_length(&self, name: &str, seen: &mut BTreeSet<String>) -> bool {
         let terminals = self.terminal_types(name, seen);
         terminals.contains("length") || terminals.contains("length-percentage")
@@ -1107,6 +1177,37 @@ fn syntax_operators(syntax: &str) -> BTreeSet<String> {
         .collect()
 }
 
+fn function_names_in_syntax(syntax: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut seen = BTreeSet::new();
+    for (index, ch) in syntax.char_indices() {
+        if ch != '(' {
+            continue;
+        }
+        let mut start = index;
+        while let Some((previous_index, previous)) = syntax[..start].char_indices().next_back() {
+            if previous.is_ascii_alphanumeric() || previous == '-' {
+                start = previous_index;
+            } else {
+                break;
+            }
+        }
+        if start == index {
+            continue;
+        }
+        let candidate = &syntax[start..index];
+        if candidate
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_alphabetic())
+            && seen.insert(candidate.to_owned())
+        {
+            names.push(candidate.to_owned());
+        }
+    }
+    names
+}
+
 fn syntax_type_refs(syntax: &str) -> BTreeSet<String> {
     TYPE_REF_RE
         .captures_iter(syntax)
@@ -1296,7 +1397,16 @@ fn remove_grammar_dedicated_attributes(buckets: &mut CatalogTreeSitterAttributeB
         values.retain(|name| !dedicated.contains(name.as_str()));
     };
     retain(&mut buckets.keyword);
+    retain(&mut buckets.color);
+    retain(&mut buckets.length);
+    retain(&mut buckets.length_list);
+    retain(&mut buckets.length_list_or_none);
+    retain(&mut buckets.number);
+    retain(&mut buckets.number_optional_number);
+    retain(&mut buckets.number_list);
     retain(&mut buckets.number_or_percentage);
+    retain(&mut buckets.coordinate_pair_list);
+    retain(&mut buckets.view_box);
     retain(&mut buckets.functional_iri);
     retain(&mut buckets.css_text);
 }
@@ -1539,8 +1649,35 @@ mod tests {
             values: css("none | <string>"),
             applicability: CatalogAttributeApplicability::None,
         };
+        assert_eq!(
+            attribute_bucket(&attribute, &inputs.css, &inputs.paths),
+            Some(AttributeBucket::PathData)
+        );
+
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.path_data, ["d"]);
+    }
+
+    #[test]
+    fn routes_timing_mini_language_attributes_to_css_text_bucket() {
+        let inputs = GrammarProjectionInputs::for_tests();
+        let attributes = OPAQUE_TIMING_ATTRIBUTE_NAMES
+            .iter()
+            .map(|name| {
+                attribute(
+                    name,
+                    CatalogAttributeValues::Enum {
+                        values: vec!["begin-value-list".to_owned()],
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let document = panic_projection(build_tree_sitter_document(&attributes, &inputs, false));
+        assert_eq!(
+            document.attribute_buckets.css_text,
+            ["begin", "end", "max", "min"]
+        );
+        assert!(document.attribute_buckets.keyword.is_empty());
     }
 
     #[test]
@@ -1634,6 +1771,38 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.length_list, ["dx"]);
+        assert!(document.attribute_buckets.css_text.is_empty());
+    }
+
+    #[test]
+    fn compatible_element_values_can_widen_canonical_bucket() {
+        let mut attribute = attribute("dx", css("<number>"));
+        attribute
+            .element_values
+            .push(CatalogAttributeElementValues {
+                element: "text".to_owned(),
+                values: length_number_list_css(),
+            });
+        let inputs = GrammarProjectionInputs::for_tests();
+        let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
+        assert_eq!(document.attribute_buckets.length_list, ["dx"]);
+        assert!(document.attribute_buckets.css_text.is_empty());
+    }
+
+    #[test]
+    fn color_bucket_accepts_keyword_scoped_values() {
+        let mut attribute = attribute("fill", CatalogAttributeValues::Color);
+        attribute
+            .element_values
+            .push(CatalogAttributeElementValues {
+                element: "animate".to_owned(),
+                values: CatalogAttributeValues::Enum {
+                    values: vec!["freeze".to_owned(), "remove".to_owned()],
+                },
+            });
+        let inputs = GrammarProjectionInputs::for_tests();
+        let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
+        assert_eq!(document.attribute_buckets.color, ["fill"]);
         assert!(document.attribute_buckets.css_text.is_empty());
     }
 

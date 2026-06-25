@@ -61,14 +61,14 @@ Animation attribute set
     (element
       (self_closing_tag
         name: (name)
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
+        (css_text_attribute
+          name: (css_text_attribute_name)
+          value: (css_text_attribute_value
+            content: (css_attribute_text_double)))
+        (css_text_attribute
+          name: (css_text_attribute_name)
+          value: (css_text_attribute_value
+            content: (css_attribute_text_double)))
         (duration_attribute
           name: (duration_attribute_name)
           value: (duration_attribute_value
@@ -112,28 +112,25 @@ Animation attribute set
                 (comma_wsp
                   (wsp))
                 (number)))))
-        (number_list_attribute
-          name: (number_list_attribute_name)
-          value: (number_list_attribute_value
-            (semicolon_number_list
-              (number)
-              (number)
-              (number))))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))
         (repeat_count_attribute
           name: (repeat_count_attribute_name)
           value: (repeat_count_attribute_value))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))))
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))
+        (keyword_attribute
+          name: (keyword_attribute_name)
+          value: (keyword_attribute_value
+            (keyword_value)))))
     (text)
     (end_tag
       name: (name)))
@@ -155,31 +152,44 @@ AnimateMotion coordinate values
     (element
       (self_closing_tag
         name: (name)
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
-        (number_list_attribute
-          name: (number_list_attribute_name)
-          value: (number_list_attribute_value
-            (semicolon_coordinate_pair_list
+        (animate_motion_attribute
+          (animate_motion_coordinate_attribute
+            name: (animate_motion_coordinate_attribute_name)
+            value: (animate_motion_coordinate_attribute_value
               (coordinate_pair
                 (number)
                 (comma_wsp)
-                (number))
-              (wsp)
+                (number)))))
+        (animate_motion_attribute
+          (animate_motion_coordinate_attribute
+            name: (animate_motion_coordinate_attribute_name)
+            value: (animate_motion_coordinate_attribute_value
               (coordinate_pair
                 (number)
                 (comma_wsp)
-                (number)))))))
+                (number)))))
+        (animate_motion_attribute
+          (animate_motion_coordinate_attribute
+            name: (animate_motion_coordinate_attribute_name)
+            value: (animate_motion_coordinate_attribute_value
+              (coordinate_pair
+                (number)
+                (comma_wsp)
+                (number)))))
+        (animate_motion_attribute
+          (animate_motion_values_attribute
+            name: (animate_motion_values_attribute_name)
+            value: (animate_motion_values_attribute_value
+              (semicolon_coordinate_pair_list
+                (coordinate_pair
+                  (number)
+                  (comma_wsp)
+                  (number))
+                (wsp)
+                (coordinate_pair
+                  (number)
+                  (comma_wsp)
+                  (number))))))))
     (end_tag
       name: (name)))
   (text))
@@ -655,10 +665,10 @@ Coord system and linking/media attributes
           name: (css_text_attribute_name)
           value: (css_text_attribute_value
             content: (css_attribute_text_double)))
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double)))))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double)))))
     (text)
     (end_tag
       name: (name)))
@@ -682,7 +692,7 @@ Other regular long-tail attributes
   requiredExtensions="https://example.com/extA https://example.com/extB"
   role="img graphics-symbol"
   systemLanguage="en,nl-BE"
-  timelinebegin="0s"
+  timelinebegin="loadbegin"
   title="Legend"
   xlink:title="Legend fallback"
   z="10"></svg>
@@ -694,14 +704,14 @@ Other regular long-tail attributes
   root: (svg_root_element
     (start_tag
       name: (name)
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
+      (css_text_attribute
+        name: (css_text_attribute_name)
+        value: (css_text_attribute_value
+          content: (css_attribute_text_double)))
+      (css_text_attribute
+        name: (css_text_attribute_name)
+        value: (css_text_attribute_value
+          content: (css_attribute_text_double)))
       (keyword_attribute
         name: (keyword_attribute_name)
         value: (keyword_attribute_value
@@ -745,10 +755,10 @@ Other regular long-tail attributes
                       (path_wsp))
                     (path_coordinate
                       (path_number)))))))))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value)))
       (number_attribute
         name: (number_attribute_name)
         value: (number_attribute_value
@@ -773,10 +783,10 @@ Other regular long-tail attributes
         name: (css_text_attribute_name)
         value: (css_text_attribute_value
           content: (css_attribute_text_double)))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value)))
       (generic_attribute
         name: (attribute_name)
         value: (quoted_attribute_value

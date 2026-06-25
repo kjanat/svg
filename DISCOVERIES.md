@@ -37,6 +37,12 @@
   `d` attribute value. The `d` attribute uses `path_attribute_name` node kind,
   not `attribute_name`.
 
+- Generated exact attribute-name buckets can still conflict lexically. If a name
+  moves between generated buckets (for example timing attrs from
+  `keyword_attribute` to `css_text_attribute`), branch order in `grammar.js`
+  matters: put the safer opaque branch before the stricter branch or the parser
+  may still choose the old typed node and error on richer values.
+
 ## LSP / tower-lsp-server
 
 - `tower-lsp-server` 0.23 uses `ls_types` (not `lsp_types`), `Uri` (not `Url`),

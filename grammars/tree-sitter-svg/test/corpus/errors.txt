@@ -225,10 +225,10 @@ Pinned recovery: feFuncR outside feComponentTransfer
       (element
         (self_closing_tag
           name: (name)
-          (css_text_attribute
-            name: (css_text_attribute_name)
-            value: (css_text_attribute_value
-              content: (css_attribute_text_double)))))
+          (generic_attribute
+            name: (attribute_name)
+            value: (quoted_attribute_value
+              (attribute_text_double)))))
       (end_tag
         name: (name)))
     (end_tag

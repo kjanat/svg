@@ -863,19 +863,19 @@ fn format_baseline(baseline: BaselineStatus) -> String {
             let icon = &*BASELINE_HIGH;
             let q = format_baseline_qualifier(qualifier);
             format!(
-                "![Baseline icon]({icon}) _Widely available across major browsers (Baseline since {q}{since})_"
+                "![Baseline icon]({icon}) _Widely available in major browsers (Baseline since {q}{since})_"
             )
         }
         BaselineStatus::Newly { since, qualifier } => {
             let icon = &*BASELINE_LOW;
             let q = format_baseline_qualifier(qualifier);
             format!(
-                "![Baseline icon]({icon}) _Newly available across major browsers (Baseline since {q}{since})_"
+                "![Baseline icon]({icon}) _Newly available in major browsers (Baseline since {q}{since})_"
             )
         }
         BaselineStatus::Limited => {
             let icon = &*BASELINE_LIMITED;
-            format!("![Baseline icon]({icon}) _Limited availability across major browsers_")
+            format!("![Baseline icon]({icon}) _Limited availability in major browsers_")
         }
     }
 }

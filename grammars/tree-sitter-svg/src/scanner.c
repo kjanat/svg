@@ -9,10 +9,12 @@
 enum TokenType {
   START_TAG_NAME,
   PATH_START_TAG_NAME,
+  ANIMATE_MOTION_START_TAG_NAME,
   SCRIPT_START_TAG_NAME,
   STYLE_START_TAG_NAME,
   END_TAG_NAME,
   PATH_END_TAG_NAME,
+  ANIMATE_MOTION_END_TAG_NAME,
   SCRIPT_END_TAG_NAME,
   STYLE_END_TAG_NAME,
   ERRONEOUS_END_TAG_NAME,
@@ -76,6 +78,10 @@ static inline bool is_path_name(const String *name) {
   return local_name_eq(name, "path");
 }
 
+static inline bool is_animate_motion_name(const String *name) {
+  return local_name_eq(name, "animateMotion");
+}
+
 static inline bool is_script_name(const String *name) {
   return local_name_eq(name, "script");
 }
@@ -134,6 +140,8 @@ static bool scan_start_tag_name(TagStack *tags, TSLexer *lexer, const bool *vali
 
   if (is_path_name(&name) && valid_symbols[PATH_START_TAG_NAME]) {
     symbol = PATH_START_TAG_NAME;
+  } else if (is_animate_motion_name(&name) && valid_symbols[ANIMATE_MOTION_START_TAG_NAME]) {
+    symbol = ANIMATE_MOTION_START_TAG_NAME;
   } else if (is_script_name(&name) && valid_symbols[SCRIPT_START_TAG_NAME]) {
     symbol = SCRIPT_START_TAG_NAME;
   } else if (is_style_name(&name) && valid_symbols[STYLE_START_TAG_NAME]) {
@@ -166,6 +174,8 @@ static bool scan_end_tag_name(TagStack *tags, TSLexer *lexer, const bool *valid_
 
     if (is_path_name(&name) && valid_symbols[PATH_END_TAG_NAME]) {
       symbol = PATH_END_TAG_NAME;
+    } else if (is_animate_motion_name(&name) && valid_symbols[ANIMATE_MOTION_END_TAG_NAME]) {
+      symbol = ANIMATE_MOTION_END_TAG_NAME;
     } else if (is_script_name(&name) && valid_symbols[SCRIPT_END_TAG_NAME]) {
       symbol = SCRIPT_END_TAG_NAME;
     } else if (is_style_name(&name) && valid_symbols[STYLE_END_TAG_NAME]) {

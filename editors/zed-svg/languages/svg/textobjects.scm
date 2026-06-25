@@ -7,6 +7,10 @@
 (attribute) @parameter.around
 (attribute
   (_ value: (_) @parameter.inside))
+(animate_motion_coordinate_attribute) @parameter.around
+(animate_motion_coordinate_attribute value: (_) @parameter.inside)
+(animate_motion_values_attribute) @parameter.around
+(animate_motion_values_attribute value: (_) @parameter.inside)
 
 ; Comments
 (comment) @comment.around

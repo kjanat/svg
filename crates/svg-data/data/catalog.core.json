@@ -704,7 +704,13 @@
         }
       },
       "content_model": {
-        "kind": "any_svg"
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
       },
       "attrs": [
         "diffuseConstant",
@@ -1367,7 +1373,13 @@
         }
       },
       "content_model": {
-        "kind": "any_svg"
+        "kind": "children_set",
+        "elements": [
+          "desc",
+          "metadata",
+          "script",
+          "title"
+        ]
       },
       "attrs": [
         "in",
@@ -3161,8 +3173,24 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AccumulateAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "none",
+              "sum"
+            ]
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "none",
+          "sum"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -3178,8 +3206,24 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AdditiveAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "replace",
+              "sum"
+            ]
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "replace",
+          "sum"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -3280,6 +3324,36 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-amplitude",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "feComponentTransfer",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -5017,8 +5091,108 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "Name [EBNF]",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "Name"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "EBNF"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "Name [EBNF]",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "Name"
+            },
+            {
+              "id": 2,
+              "kind": "group"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "EBNF"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "contains"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -5130,6 +5304,14 @@
           "version_added": "15.4"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "boolean"
+          }
+        }
+      ],
       "values": {
         "kind": "boolean"
       },
@@ -5193,6 +5375,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feDistantLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -5303,6 +5515,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feTurbulence",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -5497,8 +5739,22 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#BeginAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "begin-value-list"
+            ]
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "begin-value-list"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -5566,6 +5822,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -5700,6 +5986,12 @@
       ],
       "element_values": [
         {
+          "element": "animate",
+          "values": {
+            "kind": "free_text"
+          }
+        },
+        {
           "element": "animateMotion",
           "values": {
             "kind": "coordinate_pair"
@@ -5825,6 +6117,14 @@
           "version_added": "1"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "token_list"
+          }
+        }
+      ],
       "values": {
         "kind": "token_list"
       },
@@ -6325,6 +6625,18 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "clipPath",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "objectBoundingBox",
+              "userSpaceOnUse"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -6761,86 +7073,178 @@
               "use-credentials"
             ]
           }
+        },
+        {
+          "element": "image",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ anonymous | use-credentials ]?",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "keyword",
+                  "text": "anonymous"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 4,
+                  "kind": "keyword",
+                  "text": "use-credentials"
+                },
+                {
+                  "id": 5,
+                  "kind": "operator",
+                  "text": "?"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "script",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ anonymous | use-credentials ]?",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "keyword",
+                  "text": "anonymous"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 4,
+                  "kind": "keyword",
+                  "text": "use-credentials"
+                },
+                {
+                  "id": 5,
+                  "kind": "operator",
+                  "text": "?"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
-        "kind": "css_grammar",
-        "grammar": "[ anonymous | use-credentials ]?",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "group"
-            },
-            {
-              "id": 2,
-              "kind": "keyword",
-              "text": "anonymous"
-            },
-            {
-              "id": 3,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 4,
-              "kind": "keyword",
-              "text": "use-credentials"
-            },
-            {
-              "id": 5,
-              "kind": "operator",
-              "text": "?"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            },
-            {
-              "from": 1,
-              "to": 4,
-              "kind": "contains"
-            },
-            {
-              "from": 3,
-              "to": 4,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 5,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 5,
-              "kind": "next"
-            }
-          ]
-        }
+        "kind": "enum",
+        "values": [
+          "anonymous",
+          "use-credentials"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -7566,6 +7970,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feDiffuseLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -7846,6 +8280,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -8022,6 +8486,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "suggested_file_name"
+          }
+        }
+      ],
       "values": {
         "kind": "suggested_file_name"
       },
@@ -8092,8 +8564,180 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "Clock-value | \"media\" | \"indefinite\"",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "Clock-value"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "media"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "indefinite"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "Clock-value | \"media\" | \"indefinite\"",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "Clock-value"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "media"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "keyword",
+              "text": "indefinite"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -8277,11 +8921,117 @@
               ]
             }
           }
+        },
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
         "kind": "css_grammar",
-        "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+        "grammar": "<number>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -8291,36 +9041,8 @@
             },
             {
               "id": 1,
-              "kind": "group"
-            },
-            {
-              "id": 2,
-              "kind": "group"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 4,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 5,
               "kind": "type",
               "text": "<number>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "+"
-            },
-            {
-              "id": 7,
-              "kind": "operator",
-              "text": "#"
             }
           ],
           "edges": [
@@ -8328,56 +9050,6 @@
               "from": 0,
               "to": 1,
               "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 4,
-              "kind": "contains"
-            },
-            {
-              "from": 3,
-              "to": 4,
-              "kind": "next"
-            },
-            {
-              "from": 2,
-              "to": 5,
-              "kind": "contains"
-            },
-            {
-              "from": 4,
-              "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 1,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 7,
-              "kind": "next"
             }
           ]
         }
@@ -8564,11 +9236,117 @@
               ]
             }
           }
+        },
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
         "kind": "css_grammar",
-        "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+        "grammar": "<number>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -8578,36 +9356,8 @@
             },
             {
               "id": 1,
-              "kind": "group"
-            },
-            {
-              "id": 2,
-              "kind": "group"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 4,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 5,
               "kind": "type",
               "text": "<number>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "+"
-            },
-            {
-              "id": 7,
-              "kind": "operator",
-              "text": "#"
             }
           ],
           "edges": [
@@ -8615,56 +9365,6 @@
               "from": 0,
               "to": 1,
               "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 4,
-              "kind": "contains"
-            },
-            {
-              "from": 3,
-              "to": 4,
-              "kind": "next"
-            },
-            {
-              "from": 2,
-              "to": 5,
-              "kind": "contains"
-            },
-            {
-              "from": 4,
-              "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 1,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 7,
-              "kind": "next"
             }
           ]
         }
@@ -8733,6 +9433,32 @@
               "supported": true,
               "version_added": "8"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "duplicate",
+              "mirror",
+              "none",
+              "wrap"
+            ]
+          }
+        },
+        {
+          "element": "feGaussianBlur",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "duplicate",
+              "mirror",
+              "none",
+              "wrap"
+            ]
           }
         }
       ],
@@ -8813,6 +9539,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feDistantLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -8850,8 +9606,22 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#EndAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "end-value-list"
+            ]
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "end-value-list"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -8868,6 +9638,36 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-exponent",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "feComponentTransfer",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -9404,6 +10204,18 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "freeze",
+              "remove"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "color"
       },
@@ -9857,6 +10669,18 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "filter",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "objectBoundingBox",
+              "userSpaceOnUse"
+            ]
           }
         }
       ],
@@ -12026,6 +12850,12 @@
       ],
       "element_values": [
         {
+          "element": "animate",
+          "values": {
+            "kind": "free_text"
+          }
+        },
+        {
           "element": "animateMotion",
           "values": {
             "kind": "coordinate_pair"
@@ -12442,12 +13272,27 @@
       "values": {
         "kind": "transform",
         "functions": [
-          "matrix",
-          "translate",
+          "scale3d",
           "scale",
+          "scaleX",
+          "scaleY",
+          "scaleZ",
+          "translate3d",
+          "translate",
+          "translateX",
+          "translateY",
+          "translateZ",
+          "rotate3d",
           "rotate",
+          "rotateX",
+          "rotateY",
+          "rotateZ",
+          "skew",
           "skewX",
-          "skewY"
+          "skewY",
+          "matrix3d",
+          "matrix",
+          "perspective"
         ]
       },
       "applicability": {
@@ -13321,6 +14166,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "language_tag"
+          }
+        }
+      ],
       "values": {
         "kind": "language_tag"
       },
@@ -13374,6 +14227,14 @@
           "version_added": "1"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "id"
+          }
+        }
+      ],
       "values": {
         "kind": "id"
       },
@@ -13863,6 +14724,216 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "filter-primitive",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "SourceGraphic"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "SourceAlpha"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "BackgroundImage"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "BackgroundAlpha"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "FillPaint"
+                },
+                {
+                  "id": 10,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 11,
+                  "kind": "keyword",
+                  "text": "StrokePaint"
+                },
+                {
+                  "id": 12,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 13,
+                  "kind": "type",
+                  "text": "<filter-primitive-reference>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 10,
+                  "kind": "contains"
+                },
+                {
+                  "from": 9,
+                  "to": 10,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 11,
+                  "kind": "contains"
+                },
+                {
+                  "from": 10,
+                  "to": 11,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 12,
+                  "kind": "contains"
+                },
+                {
+                  "from": 11,
+                  "to": 12,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 13,
+                  "kind": "contains"
+                },
+                {
+                  "from": 12,
+                  "to": 13,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
@@ -14180,6 +15251,632 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feBlend",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "SourceGraphic"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "SourceAlpha"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "BackgroundImage"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "BackgroundAlpha"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "FillPaint"
+                },
+                {
+                  "id": 10,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 11,
+                  "kind": "keyword",
+                  "text": "StrokePaint"
+                },
+                {
+                  "id": 12,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 13,
+                  "kind": "type",
+                  "text": "<filter-primitive-reference>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 10,
+                  "kind": "contains"
+                },
+                {
+                  "from": 9,
+                  "to": 10,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 11,
+                  "kind": "contains"
+                },
+                {
+                  "from": 10,
+                  "to": 11,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 12,
+                  "kind": "contains"
+                },
+                {
+                  "from": 11,
+                  "to": 12,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 13,
+                  "kind": "contains"
+                },
+                {
+                  "from": 12,
+                  "to": 13,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feComposite",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "SourceGraphic"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "SourceAlpha"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "BackgroundImage"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "BackgroundAlpha"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "FillPaint"
+                },
+                {
+                  "id": 10,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 11,
+                  "kind": "keyword",
+                  "text": "StrokePaint"
+                },
+                {
+                  "id": 12,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 13,
+                  "kind": "type",
+                  "text": "<filter-primitive-reference>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 10,
+                  "kind": "contains"
+                },
+                {
+                  "from": 9,
+                  "to": 10,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 11,
+                  "kind": "contains"
+                },
+                {
+                  "from": 10,
+                  "to": 11,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 12,
+                  "kind": "contains"
+                },
+                {
+                  "from": 11,
+                  "to": 12,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 13,
+                  "kind": "contains"
+                },
+                {
+                  "from": 12,
+                  "to": 13,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feDisplacementMap",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "SourceGraphic"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "SourceAlpha"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "BackgroundImage"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "BackgroundAlpha"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "FillPaint"
+                },
+                {
+                  "id": 10,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 11,
+                  "kind": "keyword",
+                  "text": "StrokePaint"
+                },
+                {
+                  "id": 12,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 13,
+                  "kind": "type",
+                  "text": "<filter-primitive-reference>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 10,
+                  "kind": "contains"
+                },
+                {
+                  "from": 9,
+                  "to": 10,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 11,
+                  "kind": "contains"
+                },
+                {
+                  "from": 10,
+                  "to": 11,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 12,
+                  "kind": "contains"
+                },
+                {
+                  "from": 11,
+                  "to": 12,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 13,
+                  "kind": "contains"
+                },
+                {
+                  "from": 12,
+                  "to": 13,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "SourceGraphic | SourceAlpha | BackgroundImage | BackgroundAlpha | FillPaint | StrokePaint | <filter-primitive-reference>",
@@ -14464,6 +16161,36 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-intercept",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "feComponentTransfer",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -14633,6 +16360,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feComposite",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -14721,6 +16478,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feComposite",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -14817,6 +16604,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feComposite",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -14909,6 +16726,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feComposite",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -14997,6 +16844,51 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>+",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "+"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -15134,6 +17026,92 @@
             "safari": {
               "supported": true,
               "version_added": "17.4"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feDiffuseLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feSpecularLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -15291,6 +17269,20 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "semicolon_number_list"
+          }
+        },
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "semicolon_number_list"
+          }
+        }
+      ],
       "values": {
         "kind": "semicolon_number_list"
       },
@@ -15306,8 +17298,168 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#KeySplinesAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<control-point> [; <control-point>]* ;?",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<control-point>"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<control-point>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "*"
+                },
+                {
+                  "id": 5,
+                  "kind": "operator",
+                  "text": "?"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<control-point> [; <control-point>]* ;?",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<control-point>"
+            },
+            {
+              "id": 2,
+              "kind": "group"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<control-point>"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "*"
+            },
+            {
+              "id": 5,
+              "kind": "operator",
+              "text": "?"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -15323,8 +17475,16 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#KeyTimesAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "semicolon_number_list"
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "semicolon_number_list"
       },
       "applicability": {
         "kind": "elements",
@@ -15367,6 +17527,14 @@
           "version_qualifier": "before"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "language_tag"
+          }
+        }
+      ],
       "values": {
         "kind": "language_tag"
       },
@@ -15431,6 +17599,18 @@
               "supported": true,
               "version_added": "3"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "spacing",
+              "spacingAndGlyphs"
+            ]
           }
         }
       ],
@@ -15726,6 +17906,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -16192,6 +18402,66 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<length-percentage> | <number>",
@@ -16315,6 +18585,18 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "strokeWidth",
+              "userSpaceOnUse"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -16386,6 +18668,66 @@
             "safari": {
               "supported": true,
               "version_added": "3"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -16681,6 +19023,18 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "mask",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "objectBoundingBox",
+              "userSpaceOnUse"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -16755,6 +19109,18 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "mask",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "objectBoundingBox",
+              "userSpaceOnUse"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -16774,8 +19140,120 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MaxAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "Clock-value | \"media\"",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "Clock-value"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "media"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "Clock-value | \"media\"",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "Clock-value"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "media"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -16860,6 +19338,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "style",
+          "values": {
+            "kind": "media_query_list"
+          }
+        }
+      ],
       "values": {
         "kind": "media_query_list"
       },
@@ -16895,8 +19381,120 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MinAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "Clock-value | \"media\"",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "Clock-value"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "media"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "Clock-value | \"media\"",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "Clock-value"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "media"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -16976,6 +19574,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feBlend",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<blend-mode>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<blend-mode>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -17068,6 +19696,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feTurbulence",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<integer>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<integer>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -17279,6 +19937,14 @@
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnBeginEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate, animateMotion, animateTransform, discard, set",
+          "values": {
+            "kind": "free_text"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -18298,6 +20964,14 @@
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnEndEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate, animateMotion, animateTransform, discard, set",
+          "values": {
+            "kind": "free_text"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -19658,6 +22332,14 @@
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnRepeatEventAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate, animateMotion, animateTransform, discard, set",
+          "values": {
+            "kind": "free_text"
+          }
+        }
+      ],
       "values": {
         "kind": "free_text"
       },
@@ -20599,6 +23281,21 @@
       ],
       "element_values": [
         {
+          "element": "feComposite",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "arithmetic",
+              "atop",
+              "in",
+              "lighter",
+              "out",
+              "over",
+              "xor"
+            ]
+          }
+        },
+        {
           "element": "feMorphology",
           "values": {
             "kind": "enum",
@@ -20685,6 +23382,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -20778,6 +23505,126 @@
             "safari": {
               "supported": true,
               "version_added": "3"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "auto | auto-start-reverse | <angle> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "auto"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "auto-start-reverse"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<angle>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -20959,6 +23806,26 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "default"
+            ]
+          }
+        },
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "default"
+            ]
           }
         }
       ],
@@ -21702,12 +24569,27 @@
       "values": {
         "kind": "transform",
         "functions": [
-          "matrix",
-          "translate",
+          "scale3d",
           "scale",
+          "scaleX",
+          "scaleY",
+          "scaleZ",
+          "translate3d",
+          "translate",
+          "translateX",
+          "translateY",
+          "translateZ",
+          "rotate3d",
           "rotate",
+          "rotateX",
+          "rotateY",
+          "rotateZ",
+          "skew",
           "skewX",
-          "skewY"
+          "skewY",
+          "matrix3d",
+          "matrix",
+          "perspective"
         ]
       },
       "applicability": {
@@ -21851,6 +24733,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "url_token_list"
+          }
+        }
+      ],
       "values": {
         "kind": "url_token_list"
       },
@@ -21867,7 +24757,11 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "all",
+          "forwardonly"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -22060,6 +24954,64 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "polygon",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<points>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<points>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "polyline",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<points>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<points>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<points>",
@@ -22149,6 +25101,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -22245,6 +25227,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -22333,6 +25345,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -22438,6 +25480,18 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "false",
+              "true"
+            ]
           }
         }
       ],
@@ -22598,6 +25652,66 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "svg",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<align> <meetOrSlice>?",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<align>"
+                },
+                {
+                  "id": 2,
+                  "kind": "type",
+                  "text": "<meetOrSlice>"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": "?"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<align> <meetOrSlice>?",
@@ -22723,6 +25837,18 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "filter",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "objectBoundingBox",
+              "userSpaceOnUse"
+            ]
           }
         }
       ],
@@ -22875,6 +26001,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feMorphology",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number-optional-number>",
@@ -22966,9 +26122,277 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number> | left | center | right",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "left"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "center"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "right"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "symbol",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length> | left | center | right",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "left"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "center"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "right"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
-        "grammar": "<length> | left | center | right",
+        "grammar": "<length-percentage> | <number> | left | center | right",
         "graph": {
           "root": 0,
           "nodes": [
@@ -22979,7 +26403,7 @@
             {
               "id": 1,
               "kind": "type",
-              "text": "<length>"
+              "text": "<length-percentage>"
             },
             {
               "id": 2,
@@ -22988,8 +26412,8 @@
             },
             {
               "id": 3,
-              "kind": "keyword",
-              "text": "left"
+              "kind": "type",
+              "text": "<number>"
             },
             {
               "id": 4,
@@ -22999,7 +26423,7 @@
             {
               "id": 5,
               "kind": "keyword",
-              "text": "center"
+              "text": "left"
             },
             {
               "id": 6,
@@ -23008,6 +26432,16 @@
             },
             {
               "id": 7,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 8,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 9,
               "kind": "keyword",
               "text": "right"
             }
@@ -23076,6 +26510,26 @@
             {
               "from": 6,
               "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 9,
+              "kind": "contains"
+            },
+            {
+              "from": 8,
+              "to": 9,
               "kind": "next"
             }
           ]
@@ -23148,9 +26602,277 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "marker",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number> | top | center | bottom",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "top"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "center"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "keyword",
+                  "text": "bottom"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "symbol",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length> | top | center | bottom",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "top"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "center"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "bottom"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
-        "grammar": "<length> | top | center | bottom",
+        "grammar": "<length-percentage> | <number> | top | center | bottom",
         "graph": {
           "root": 0,
           "nodes": [
@@ -23161,7 +26883,7 @@
             {
               "id": 1,
               "kind": "type",
-              "text": "<length>"
+              "text": "<length-percentage>"
             },
             {
               "id": 2,
@@ -23170,8 +26892,8 @@
             },
             {
               "id": 3,
-              "kind": "keyword",
-              "text": "top"
+              "kind": "type",
+              "text": "<number>"
             },
             {
               "id": 4,
@@ -23181,7 +26903,7 @@
             {
               "id": 5,
               "kind": "keyword",
-              "text": "center"
+              "text": "top"
             },
             {
               "id": 6,
@@ -23190,6 +26912,16 @@
             },
             {
               "id": 7,
+              "kind": "keyword",
+              "text": "center"
+            },
+            {
+              "id": 8,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 9,
               "kind": "keyword",
               "text": "bottom"
             }
@@ -23258,6 +26990,26 @@
             {
               "from": 6,
               "to": 7,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 8,
+              "kind": "contains"
+            },
+            {
+              "from": 7,
+              "to": 8,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 9,
+              "kind": "contains"
+            },
+            {
+              "from": 8,
+              "to": 9,
               "kind": "next"
             }
           ]
@@ -23330,6 +27082,14 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "referrer_policy"
+          }
+        }
+      ],
       "values": {
         "kind": "referrer_policy"
       },
@@ -23394,6 +27154,14 @@
               "supported": true,
               "version_added": "14"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "token_list"
           }
         }
       ],
@@ -23467,8 +27235,120 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number> | indefinite",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "indefinite"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "<number> | indefinite",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "type",
+              "text": "<number>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "indefinite"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -23485,8 +27365,120 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#RepeatDurAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "Clock-value | \"indefinite\"",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "Clock-value"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "indefinite"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "Clock-value | \"indefinite\"",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "Clock-value"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "indefinite"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -23566,8 +27558,26 @@
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#RestartAttribute",
       "animatable": false,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "animate",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "always",
+              "never",
+              "whenNotActive"
+            ]
+          }
+        }
+      ],
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "always",
+          "never",
+          "whenNotActive"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -23584,6 +27594,36 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitive-result",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "filter-primitive",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<filter-primitive-reference>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<filter-primitive-reference>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<filter-primitive-reference>",
@@ -23758,10 +27798,10 @@
       ],
       "element_values": [
         {
-          "element": "animateMotion",
+          "element": "animate",
           "values": {
             "kind": "css_grammar",
-            "grammar": "auto | auto-reverse | <number>",
+            "grammar": "<number> | auto | auto-reverse",
             "graph": {
               "root": 0,
               "nodes": [
@@ -23771,8 +27811,8 @@
                 },
                 {
                   "id": 1,
-                  "kind": "keyword",
-                  "text": "auto"
+                  "kind": "type",
+                  "text": "<number>"
                 },
                 {
                   "id": 2,
@@ -23782,7 +27822,7 @@
                 {
                   "id": 3,
                   "kind": "keyword",
-                  "text": "auto-reverse"
+                  "text": "auto"
                 },
                 {
                   "id": 4,
@@ -23791,8 +27831,8 @@
                 },
                 {
                   "id": 5,
-                  "kind": "type",
-                  "text": "<number>"
+                  "kind": "keyword",
+                  "text": "auto-reverse"
                 }
               ],
               "edges": [
@@ -23844,11 +27884,166 @@
               ]
             }
           }
+        },
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number> | auto | auto-reverse",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "auto"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "auto-reverse"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ <number>+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 4,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
         "kind": "css_grammar",
-        "grammar": "[ <number>+ ]#",
+        "grammar": "<number> | auto | auto-reverse",
         "graph": {
           "root": 0,
           "nodes": [
@@ -23858,22 +28053,28 @@
             },
             {
               "id": 1,
-              "kind": "group"
-            },
-            {
-              "id": 2,
               "kind": "type",
               "text": "<number>"
             },
             {
-              "id": 3,
+              "id": 2,
               "kind": "operator",
-              "text": "+"
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "auto"
             },
             {
               "id": 4,
               "kind": "operator",
-              "text": "#"
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "keyword",
+              "text": "auto-reverse"
             }
           ],
           "edges": [
@@ -23883,12 +28084,17 @@
               "kind": "contains"
             },
             {
-              "from": 1,
+              "from": 0,
               "to": 2,
               "kind": "contains"
             },
             {
               "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
               "to": 3,
               "kind": "contains"
             },
@@ -23903,8 +28109,18 @@
               "kind": "contains"
             },
             {
-              "from": 1,
+              "from": 3,
               "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
               "kind": "next"
             }
           ]
@@ -24229,6 +28445,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feDisplacementMap",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -24323,6 +28569,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feTurbulence",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -24538,6 +28814,36 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-slope",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "feComponentTransfer",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -24708,6 +29014,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feSpecularLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>",
@@ -24821,6 +29157,64 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feSpecularLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -25150,6 +29544,64 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feDropShadow",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feGaussianBlur",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number-optional-number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number-optional-number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number-optional-number>",
@@ -25240,6 +29692,18 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feTurbulence",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "noStitch",
+              "stitch"
+            ]
           }
         }
       ],
@@ -26371,6 +30835,14 @@
           "version_added": "1"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "css_declaration_list"
+          }
+        }
+      ],
       "values": {
         "kind": "css_declaration_list"
       },
@@ -26436,6 +30908,64 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feDiffuseLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feSpecularLighting",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -27257,6 +31787,14 @@
           "version_qualifier": "before"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "integer"
+          }
+        }
+      ],
       "values": {
         "kind": "integer"
       },
@@ -27269,6 +31807,51 @@
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-tablevalues",
       "animatable": true,
       "presentation_attribute": null,
+      "element_values": [
+        {
+          "element": "feComponentTransfer",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>+",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "+"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<number>+",
@@ -27376,6 +31959,156 @@
             "safari": {
               "supported": true,
               "version_added": "3.1"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "a",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "_self | _parent | _top | _blank | <XML-Name>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "self"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "keyword",
+                  "text": "parent"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "keyword",
+                  "text": "top"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 7,
+                  "kind": "keyword",
+                  "text": "blank"
+                },
+                {
+                  "id": 8,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 9,
+                  "kind": "type",
+                  "text": "<XML-Name>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -27592,6 +32325,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<integer>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<integer>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<integer>",
@@ -27680,6 +32443,36 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feConvolveMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<integer>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<integer>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }
@@ -28250,6 +33043,66 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<length-percentage> | <number>",
@@ -28320,7 +33173,11 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "free_text"
+        "kind": "enum",
+        "values": [
+          "loadbegin",
+          "loadend"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -28385,6 +33242,14 @@
               "supported": true,
               "version_added": "3"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "style",
+          "values": {
+            "kind": "free_text"
           }
         }
       ],
@@ -28488,9 +33353,43 @@
       ],
       "element_values": [
         {
+          "element": "animate",
+          "values": {
+            "kind": "free_text"
+          }
+        },
+        {
           "element": "animateMotion",
           "values": {
             "kind": "coordinate_pair"
+          }
+        },
+        {
+          "element": "set",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<value>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<value>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
           }
         }
       ],
@@ -29525,6 +34424,25 @@
       ],
       "element_values": [
         {
+          "element": "a",
+          "values": {
+            "kind": "media_type"
+          }
+        },
+        {
+          "element": "animateTransform",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "rotate",
+              "scale",
+              "skewX",
+              "skewY",
+              "translate"
+            ]
+          }
+        },
+        {
           "element": "feColorMatrix",
           "values": {
             "kind": "enum",
@@ -29560,16 +34478,15 @@
           }
         },
         {
-          "element": "animateTransform",
+          "element": "script",
           "values": {
-            "kind": "enum",
-            "values": [
-              "translate",
-              "scale",
-              "rotate",
-              "skewX",
-              "skewY"
-            ]
+            "kind": "free_text"
+          }
+        },
+        {
+          "element": "style",
+          "values": {
+            "kind": "free_text"
           }
         }
       ],
@@ -29744,51 +34661,63 @@
       ],
       "element_values": [
         {
+          "element": "animate",
+          "values": {
+            "kind": "free_text"
+          }
+        },
+        {
           "element": "animateMotion",
           "values": {
             "kind": "coordinate_pair_list"
           }
+        },
+        {
+          "element": "feColorMatrix",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>+",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "+"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
-        "kind": "css_grammar",
-        "grammar": "<number>+",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<number>"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "+"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            }
-          ]
-        }
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "elements",
@@ -30088,6 +35017,180 @@
             "safari": {
               "supported": true,
               "version_added": "3"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "svg",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[<min-x>,? <min-y>,? <width>,? <height>]",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "type",
+                  "text": "<min-x>"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": ","
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "?"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<min-y>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": ","
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "?"
+                },
+                {
+                  "id": 8,
+                  "kind": "type",
+                  "text": "<width>"
+                },
+                {
+                  "id": 9,
+                  "kind": "operator",
+                  "text": ","
+                },
+                {
+                  "id": 10,
+                  "kind": "operator",
+                  "text": "?"
+                },
+                {
+                  "id": 11,
+                  "kind": "type",
+                  "text": "<height>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 5,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 6,
+                  "to": 7,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 8,
+                  "kind": "contains"
+                },
+                {
+                  "from": 7,
+                  "to": 8,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 9,
+                  "kind": "contains"
+                },
+                {
+                  "from": 8,
+                  "to": 9,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 10,
+                  "kind": "contains"
+                },
+                {
+                  "from": 9,
+                  "to": 10,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 11,
+                  "kind": "contains"
+                },
+                {
+                  "from": 10,
+                  "to": 11,
+                  "kind": "next"
+                }
+              ]
             }
           }
         }
@@ -31357,60 +36460,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "<length-percentage> | <number>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<number>"
+      "element_values": [
+        {
+          "element": "line",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",
@@ -31484,60 +36595,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "<length-percentage> | <number>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<number>"
+      "element_values": [
+        {
+          "element": "line",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",
@@ -31604,6 +36723,20 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feDisplacementMap",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "A",
+              "B",
+              "G",
+              "R"
+            ]
           }
         }
       ],
@@ -31816,6 +36949,36 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "a, image, linearGradient, pattern, radialGradient, script, textPath, use",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<anything>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<anything>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "css_grammar",
         "grammar": "<anything>",
@@ -31912,6 +37075,18 @@
           "version_added": "5"
         }
       },
+      "element_values": [
+        {
+          "element": "core-attributes",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "default",
+              "preserve"
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -32360,60 +37535,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "<length-percentage> | <number>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<number>"
+      "element_values": [
+        {
+          "element": "line",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",
@@ -32487,60 +37670,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "<length-percentage> | <number>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<length-percentage>"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<number>"
+      "element_values": [
+        {
+          "element": "line",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<length-percentage> | <number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",
@@ -32607,6 +37798,20 @@
               "supported": true,
               "version_added": "6"
             }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "feDisplacementMap",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "A",
+              "B",
+              "G",
+              "R"
+            ]
           }
         }
       ],
@@ -32707,6 +37912,64 @@
             "safari": {
               "supported": true,
               "version_added": "6"
+            }
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "fePointLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "feSpotLight",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "<number>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "type",
+                  "text": "<number>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                }
+              ]
             }
           }
         }

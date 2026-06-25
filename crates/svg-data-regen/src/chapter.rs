@@ -216,15 +216,15 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
                 image: attr(tag, "image"),
                 link: attr(tag, "link"),
             }),
-            "table" if has_class(tag, "propdef") => {
-                if let Some(property) = extract_propdef(tag, parser) {
-                    chapter.properties.push(property);
-                }
-            }
             "table" if has_class(tag, "attrdef") => {
                 chapter
                     .properties
                     .extend(extract_attrdef_table(tag, parser));
+            }
+            "table" if has_class(tag, "propdef") => {
+                if let Some(property) = extract_propdef(tag, parser) {
+                    chapter.properties.push(property);
+                }
             }
             "dl" if has_class(tag, "definitions") => {
                 extract_definition_list(tag, parser, macros, &mut chapter.term_definitions);
@@ -244,11 +244,18 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
         }
     }
 
-    chapter
-        .properties
-        .extend(extract_legacy_adef_dt_assignments(html));
+    append_html_derived_properties(html, &dom, &mut chapter.properties);
 
     Ok(chapter)
+}
+
+fn append_html_derived_properties(
+    html: &str,
+    dom: &tl::VDom,
+    properties: &mut Vec<PropertyValueDef>,
+) {
+    properties.extend(extract_legacy_adef_dt_assignments(html));
+    properties.extend(extract_animate_motion_coordinate_values(dom));
 }
 
 /// Extract only CSS/SVG property-definition tables from an HTML page.
@@ -1090,10 +1097,11 @@ fn extract_attrdef_table(table: &HTMLTag, parser: &Parser) -> Vec<PropertyValueD
         let animation_type = header
             .animatable
             .and_then(|index| row_cell_text(&td_handles, parser, index));
-        definitions.extend(names.into_iter().map(|(name, id)| {
+        definitions.extend(names.into_iter().map(|name| {
             property_from_attrdef(
-                name,
-                id,
+                name.name,
+                name.dfn_for,
+                name.id,
                 value.clone(),
                 initial.clone(),
                 animation_type.clone(),
@@ -1119,10 +1127,11 @@ fn extract_svg2_attrdef_list(dl: &HTMLTag, parser: &Parser) -> Vec<PropertyValue
             "dt" => pending_names = attrdef_names(child, parser),
             "dd" if !pending_names.is_empty() => {
                 if let Some(definition) = extract_svg2_attrdef_metadata(child, parser) {
-                    definitions.extend(pending_names.iter().cloned().map(|(name, id)| {
+                    definitions.extend(pending_names.iter().cloned().map(|name| {
                         property_from_attrdef(
-                            name,
-                            id,
+                            name.name,
+                            name.dfn_for,
+                            name.id,
                             Some(definition.value.clone()),
                             definition.initial.clone(),
                             definition.animation_type.clone(),
@@ -1179,6 +1188,13 @@ struct Svg2AttrdefMetadata {
     value: String,
     initial: Option<String>,
     animation_type: Option<String>,
+}
+
+#[derive(Clone)]
+struct AttrdefName {
+    name: String,
+    dfn_for: Option<String>,
+    id: Option<String>,
 }
 
 fn extract_svg2_attrdef_metadata(dd: &HTMLTag, parser: &Parser) -> Option<Svg2AttrdefMetadata> {
@@ -1247,13 +1263,22 @@ fn row_cell_text(handles: &[tl::NodeHandle], parser: &Parser, index: usize) -> O
         .filter(|text| !text.is_empty())
 }
 
-fn attrdef_names(tag: &HTMLTag, parser: &Parser) -> Vec<(String, Option<String>)> {
+fn attrdef_names(tag: &HTMLTag, parser: &Parser) -> Vec<AttrdefName> {
     let mut names = Vec::new();
     if let Some(handles) = tag.query_selector(parser, "dfn") {
+        let mut inherited_dfn_for = attr(tag, "data-dfn-for");
         names.extend(handles.filter_map(|handle| {
             let dfn = handle.get(parser)?.as_tag()?;
-            let name = normalize_attr_name(&dfn.inner_text(parser))?;
-            Some((name, attr(dfn, "id").or_else(|| attr(tag, "id"))))
+            let dfn_for = attr(dfn, "data-dfn-for").or_else(|| inherited_dfn_for.clone());
+            if dfn_for.is_some() {
+                inherited_dfn_for.clone_from(&dfn_for);
+            }
+            let id = attr(dfn, "id").or_else(|| attr(tag, "id"));
+            let name = normalize_attr_name(&dfn.inner_text(parser)).or_else(|| {
+                id.as_deref()
+                    .and_then(|id| attr_name_from_dfn_id(id, dfn_for.as_deref()))
+            })?;
+            Some(AttrdefName { name, dfn_for, id })
         }));
     }
     if names.is_empty()
@@ -1265,14 +1290,22 @@ fn attrdef_names(tag: &HTMLTag, parser: &Parser) -> Vec<(String, Option<String>)
                 return None;
             }
             let name = normalize_attr_name(&span.inner_text(parser))?;
-            Some((name, attr(span, "id").or_else(|| attr(tag, "id"))))
+            Some(AttrdefName {
+                name,
+                dfn_for: attr(span, "data-dfn-for").or_else(|| attr(tag, "data-dfn-for")),
+                id: attr(span, "id").or_else(|| attr(tag, "id")),
+            })
         }));
     }
     if names.is_empty() {
         names.extend(
             split_attr_names(&normalize_ws(&tag.inner_text(parser))).map(|name| {
                 let id = attr(tag, "id");
-                (name, id)
+                AttrdefName {
+                    name,
+                    dfn_for: attr(tag, "data-dfn-for"),
+                    id,
+                }
             }),
         );
     }
@@ -1293,8 +1326,39 @@ fn normalize_attr_name(name: &str) -> Option<String> {
     (!name.is_empty()).then_some(name)
 }
 
+fn attr_name_from_dfn_id(id: &str, dfn_for: Option<&str>) -> Option<String> {
+    let mut name = id.strip_suffix("Attribute")?;
+    let prefix = dfn_for.map(element_dfn_prefix);
+    if let Some(prefix) = prefix.as_deref()
+        && let Some(stripped) = name.strip_prefix(prefix)
+    {
+        name = stripped;
+    }
+    lower_first(name)
+}
+
+fn element_dfn_prefix(element: &str) -> String {
+    let mut chars = element.chars();
+    let Some(first) = chars.next() else {
+        return "Element".to_owned();
+    };
+    let mut prefix = first.to_ascii_uppercase().to_string();
+    prefix.extend(chars);
+    prefix.push_str("Element");
+    prefix
+}
+
+fn lower_first(name: &str) -> Option<String> {
+    let mut chars = name.chars();
+    let first = chars.next()?.to_ascii_lowercase();
+    let mut lowered = first.to_string();
+    lowered.extend(chars);
+    Some(lowered)
+}
+
 fn property_from_attrdef(
     name: String,
+    dfn_for: Option<String>,
     id: Option<String>,
     value: Option<String>,
     initial: Option<String>,
@@ -1303,7 +1367,7 @@ fn property_from_attrdef(
     let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
     PropertyValueDef {
         name,
-        dfn_for: None,
+        dfn_for,
         id,
         value,
         keywords,
@@ -1312,6 +1376,60 @@ fn property_from_attrdef(
         inherited: None,
         computed_value: None,
         animation_type,
+    }
+}
+
+fn extract_animate_motion_coordinate_values(dom: &tl::VDom) -> Vec<PropertyValueDef> {
+    let parser = dom.parser();
+    let mut definitions = Vec::new();
+    for node in dom.nodes() {
+        let Some(tag) = node.as_tag() else {
+            continue;
+        };
+        if tag.name().as_utf8_str().as_ref() != "p" {
+            continue;
+        }
+        let text = normalize_ws(&tag.inner_text(parser));
+        let lower = text.to_ascii_lowercase();
+        if !lower.contains("animatemotion")
+            || !lower.contains("from")
+            || !lower.contains("by")
+            || !lower.contains("to")
+            || !lower.contains("values")
+            || !lower.contains("x, y coordinate pairs")
+        {
+            continue;
+        }
+        definitions.extend(["from", "to", "by"].into_iter().map(|name| {
+            synthetic_attrdef(
+                name,
+                "animateMotion",
+                Some("x, y coordinate pair".to_owned()),
+            )
+        }));
+        definitions.push(synthetic_attrdef(
+            "values",
+            "animateMotion",
+            Some("semicolon-separated x, y coordinate pairs".to_owned()),
+        ));
+        break;
+    }
+    definitions
+}
+
+fn synthetic_attrdef(name: &str, dfn_for: &str, value: Option<String>) -> PropertyValueDef {
+    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
+    PropertyValueDef {
+        name: name.to_owned(),
+        dfn_for: Some(dfn_for.to_owned()),
+        id: None,
+        value,
+        keywords,
+        initial: None,
+        applies_to: None,
+        inherited: None,
+        computed_value: None,
+        animation_type: None,
     }
 }
 

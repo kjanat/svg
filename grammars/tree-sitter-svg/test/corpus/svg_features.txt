@@ -345,10 +345,10 @@ Shape content allows animation and descriptive only
       (element
         (self_closing_tag
           name: (name)
-          (generic_attribute
-            name: (attribute_name)
-            value: (quoted_attribute_value
-              (attribute_text_double)))
+          (css_text_attribute
+            name: (css_text_attribute_name)
+            value: (css_text_attribute_value
+              content: (css_attribute_text_double)))
           (generic_attribute
             name: (attribute_name)
             value: (quoted_attribute_value
@@ -454,18 +454,18 @@ Scoped filter primitives and text links
         (element
           (self_closing_tag
             name: (name)
-            (css_text_attribute
-              name: (css_text_attribute_name)
-              value: (css_text_attribute_value
-                content: (css_attribute_text_double)))))
+            (generic_attribute
+              name: (attribute_name)
+              value: (quoted_attribute_value
+                (attribute_text_double)))))
         (text)
         (element
           (self_closing_tag
             name: (name)
-            (css_text_attribute
-              name: (css_text_attribute_name)
-              value: (css_text_attribute_value
-                content: (css_attribute_text_double)))))
+            (generic_attribute
+              name: (attribute_name)
+              value: (quoted_attribute_value
+                (attribute_text_double)))))
         (text)
         (element
           (start_tag
@@ -474,10 +474,10 @@ Scoped filter primitives and text links
           (element
             (self_closing_tag
               name: (name)
-              (css_text_attribute
-                name: (css_text_attribute_name)
-                value: (css_text_attribute_value
-                  content: (css_attribute_text_double)))))
+              (generic_attribute
+                name: (attribute_name)
+                value: (quoted_attribute_value
+                  (attribute_text_double)))))
           (text)
           (end_tag
             name: (name)))
@@ -608,10 +608,10 @@ Defs, gradients, filter primitives, text containers, linking type
         (element
           (self_closing_tag
             name: (name)
-            (css_text_attribute
-              name: (css_text_attribute_name)
-              value: (css_text_attribute_value
-                content: (css_attribute_text_double)))))
+            (generic_attribute
+              name: (attribute_name)
+              value: (quoted_attribute_value
+                (attribute_text_double)))))
         (text)
         (end_tag
           name: (name)))
@@ -639,10 +639,10 @@ Defs, gradients, filter primitives, text containers, linking type
           value: (href_attribute_value
             (href_reference
               (iri_reference))))
-        (css_text_attribute
-          name: (css_text_attribute_name)
-          value: (css_text_attribute_value
-            content: (css_attribute_text_double))))
+        (generic_attribute
+          name: (attribute_name)
+          value: (quoted_attribute_value
+            (attribute_text_double))))
       (text)
       (end_tag
         name: (name)))

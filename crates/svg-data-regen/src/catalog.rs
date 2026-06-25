@@ -2,11 +2,16 @@
 //! `svg-data`'s `build.rs` turns into static `ElementDef` arrays.
 //!
 //! The extraction types mirror the spec's own shapes; this module reshapes them
-//! into the runtime catalog's vocabulary. The structural content model is
-//! flattened here (categories resolved to their member elements, unioned with
-//! the explicit allowed elements) so the runtime never depends on a category
-//! enum staying in sync with the spec's taxonomy. The output is sorted, so the
-//! same upstream commit always yields byte-identical JSON.
+//! into the runtime catalog's vocabulary. `catalog.core.json` is therefore not
+//! a raw spec dump: it is extracted input plus semantic projection that the
+//! runtime consumes directly. Policy that invents or over-approximates meaning
+//! (for example value-shape classification, content-model fallbacks, and legacy
+//! name canonicalization) must be explicit in this module rather than hidden in
+//! fetch/parse code. The structural content model is flattened here (categories
+//! resolved to their member elements, unioned with the explicit allowed
+//! elements) so the runtime never depends on a category enum staying in sync
+//! with the spec's taxonomy. The output is sorted, so the same upstream commit
+//! always yields byte-identical JSON.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -17,7 +22,7 @@ use crate::{
     chapter::{AnchorDescription, PropertyValueDef},
     compat::CompatCatalog,
     extract::{AttributeRef, ContentModelKind, Definitions, PropertyDef},
-    util::is_keyword_token,
+    util::{boxed, is_keyword_token, normalize_ws},
 };
 
 /// The full derived catalog kept in memory while writing split JSON files.
@@ -71,7 +76,9 @@ pub struct CatalogFileRef {
     pub href: String,
 }
 
-/// Canonical latest catalog data.
+/// Canonical latest catalog data after semantic projection.
+///
+/// This document is the runtime-facing catalog, not a raw upstream XML/HTML mirror.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct CatalogCore<'a> {
     /// Version of the JSON catalog/schema contract.
@@ -1153,7 +1160,7 @@ pub enum CatalogGraphEdgeKind {
 
 /// The runtime content-model shapes the catalog emits. The spec's category
 /// taxonomy is already flattened into [`Self::ChildrenSet`].
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CatalogContentModel {
     /// Accepts exactly the listed child element names.
@@ -1223,7 +1230,11 @@ pub fn build_catalog(
         editors_draft_base,
         compat,
         legacy.value_overrides,
+        legacy.grammar_inputs,
     );
+    if legacy.grammar_inputs.is_some() {
+        validate_required_extracted_facts(&elements, &attributes)?;
+    }
     let inventories = legacy.inventories.to_vec();
     let graph = build_catalog_graph(
         modules,
@@ -1272,6 +1283,154 @@ pub fn build_catalog(
         graph,
         tree_sitter,
     })
+}
+
+fn validate_required_extracted_facts(
+    elements: &[CatalogElement],
+    attributes: &[CatalogAttribute],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut errors = Vec::new();
+
+    for (element_name, expected) in known_content_models() {
+        let Some(element) = elements.iter().find(|element| element.name == element_name) else {
+            errors.push(format!("missing required element `{element_name}`"));
+            continue;
+        };
+        if element.content_model != expected {
+            errors.push(format!(
+                "extraction invariant failed for <{element_name}> content model: expected {expected:?}, got {:?}",
+                element.content_model,
+            ));
+        }
+    }
+
+    for (attribute_name, expected) in known_attribute_values() {
+        let Some(attribute) = attributes
+            .iter()
+            .find(|attribute| attribute.name == attribute_name)
+        else {
+            errors.push(format!("missing required attribute `{attribute_name}`"));
+            continue;
+        };
+        if attribute.values != expected {
+            errors.push(format!(
+                "extraction invariant failed for `{attribute_name}` values: expected {expected:?}, got {:?}",
+                attribute.values,
+            ));
+        }
+    }
+
+    for (attribute_name, element_name, expected) in known_element_values() {
+        let Some(attribute) = attributes
+            .iter()
+            .find(|attribute| attribute.name == attribute_name)
+        else {
+            errors.push(format!("missing required attribute `{attribute_name}`"));
+            continue;
+        };
+        let Some(actual) = attribute
+            .element_values
+            .iter()
+            .find(|values| values.element == element_name)
+        else {
+            errors.push(format!(
+                "extraction invariant failed for `{attribute_name}` on <{element_name}>: missing element-scoped values",
+            ));
+            continue;
+        };
+        if actual.values != expected {
+            errors.push(format!(
+                "extraction invariant failed for `{attribute_name}` on <{element_name}>: expected {expected:?}, got {:?}",
+                actual.values,
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(boxed(format!(
+            "required extraction invariant(s) failed:\n- {}",
+            errors.join("\n- ")
+        )))
+    }
+}
+
+fn known_content_models() -> Vec<(&'static str, CatalogContentModel)> {
+    vec![(
+        "animateMotion",
+        CatalogContentModel::ChildrenSet {
+            // SVG Animations permits descriptive children, script, and mpath. The
+            // current catalog shape models allowed names, not mpath cardinality.
+            elements: ["desc", "metadata", "mpath", "script", "title"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        },
+    )]
+}
+
+fn known_attribute_values() -> Vec<(&'static str, CatalogAttributeValues)> {
+    vec![
+        (
+            "calcMode",
+            CatalogAttributeValues::Enum {
+                values: ["discrete", "linear", "paced", "spline"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            },
+        ),
+        ("keyPoints", CatalogAttributeValues::SemicolonNumberList),
+        (
+            "origin",
+            CatalogAttributeValues::Enum {
+                values: vec!["default".to_owned()],
+            },
+        ),
+        ("path", CatalogAttributeValues::PathData),
+    ]
+}
+
+fn known_element_values() -> Vec<(&'static str, &'static str, CatalogAttributeValues)> {
+    let animate_transform_type = CatalogAttributeValues::Enum {
+        values: ["rotate", "scale", "skewX", "skewY", "translate"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    };
+    let animate_motion_rotate = {
+        let grammar = "<number> | auto | auto-reverse".to_owned();
+        CatalogAttributeValues::CssGrammar {
+            graph: css_grammar_graph(&grammar),
+            grammar,
+        }
+    };
+
+    vec![
+        ("type", "animateTransform", animate_transform_type),
+        ("rotate", "animateMotion", animate_motion_rotate),
+        (
+            "by",
+            "animateMotion",
+            CatalogAttributeValues::CoordinatePair,
+        ),
+        (
+            "from",
+            "animateMotion",
+            CatalogAttributeValues::CoordinatePair,
+        ),
+        (
+            "to",
+            "animateMotion",
+            CatalogAttributeValues::CoordinatePair,
+        ),
+        (
+            "values",
+            "animateMotion",
+            CatalogAttributeValues::CoordinatePairList,
+        ),
+    ]
 }
 
 fn build_catalog_graph(
@@ -1671,6 +1830,34 @@ fn description_for_href(
         .map(|description| (*description).to_owned())
 }
 
+fn description_derived_content_model(
+    element: &crate::extract::ElementDef,
+    members: &BTreeMap<&str, Vec<&str>>,
+) -> Option<CatalogContentModel> {
+    // Semantic projection policy: some SVG definitions describe the allowed
+    // children only in prose. We derive the explicit child names from that
+    // fetched definitions.xml prose instead of hard-appending known names.
+    let description = element.content_model_description.as_deref()?;
+    let lower = description.to_ascii_lowercase();
+    let mut elements: Vec<String> = Vec::new();
+    if lower.contains("descriptive elements") {
+        elements.extend(
+            members
+                .get("descriptive")
+                .into_iter()
+                .flatten()
+                .map(|name| (*name).to_owned()),
+        );
+    }
+    elements.extend(quoted_keyword_values(description));
+    if elements.is_empty() {
+        return None;
+    }
+    elements.sort();
+    elements.dedup();
+    Some(CatalogContentModel::ChildrenSet { elements })
+}
+
 /// Element-category membership across all modules: category name to its member
 /// element names.
 fn category_members(modules: &[Definitions]) -> BTreeMap<&str, Vec<&str>> {
@@ -1692,24 +1879,23 @@ fn build_element(
     descriptions_by_id: &BTreeMap<&str, &str>,
     compat: Option<&CatalogCompatFacts>,
 ) -> CatalogElement {
-    let content_model = known_content_model(&element.name).unwrap_or_else(|| {
-        match element.content_model {
-            // The spec's `any` ("any elements or character data") hosts foreign
-            // content (`foreignObject`, `desc`, `title`, `metadata`); its children
-            // are not SVG and must not be validated as such.
-            Some(ContentModelKind::Any) => CatalogContentModel::Foreign,
-            Some(ContentModelKind::Text) => CatalogContentModel::Text,
-            Some(ContentModelKind::AnyOf | ContentModelKind::TextOrAnyOf) => {
-                CatalogContentModel::ChildrenSet {
-                    elements: flatten_children(element, members),
-                }
+    let content_model = match element.content_model {
+        // The spec's `any` ("any elements or character data") hosts foreign
+        // content (`foreignObject`, `desc`, `title`, `metadata`); its children
+        // are not SVG and must not be validated as such.
+        Some(ContentModelKind::Any) => CatalogContentModel::Foreign,
+        Some(ContentModelKind::Text) => CatalogContentModel::Text,
+        Some(ContentModelKind::AnyOf | ContentModelKind::TextOrAnyOf) => {
+            CatalogContentModel::ChildrenSet {
+                elements: flatten_children(element, members),
             }
-            // Description-only models (e.g. `a`, whose children mirror the parent):
-            // over-approximate as "any SVG element" so valid children never trip a
-            // false "invalid child" diagnostic.
-            None => CatalogContentModel::AnySvg,
         }
-    });
+        // Description-only models (e.g. `a`, whose children mirror the parent):
+        // over-approximate as "any SVG element" so valid children never trip a
+        // false "invalid child" diagnostic.
+        None => description_derived_content_model(element, members)
+            .unwrap_or(CatalogContentModel::AnySvg),
+    };
 
     let mut attrs: Vec<String> = element
         .attributes
@@ -1750,20 +1936,6 @@ fn build_element(
     }
 }
 
-fn known_content_model(element_name: &str) -> Option<CatalogContentModel> {
-    if element_name != "animateMotion" {
-        return None;
-    }
-    Some(CatalogContentModel::ChildrenSet {
-        // SVG Animations permits descriptive children, script, and mpath. The
-        // current catalog shape models allowed names, not mpath cardinality.
-        elements: ["desc", "metadata", "mpath", "script", "title"]
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
-    })
-}
-
 /// Build the canonical attribute catalog from globals, categories, and element
 /// bearer declarations.
 fn build_attributes(
@@ -1773,6 +1945,7 @@ fn build_attributes(
     editors_draft_base: &str,
     compat: Option<&CompatCatalog>,
     legacy_value_overrides: &BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
 ) -> Vec<CatalogAttribute> {
     let all_elements: BTreeSet<String> = modules
         .iter()
@@ -1782,6 +1955,7 @@ fn build_attributes(
     // every definition carries a concrete value space; `properties_by_name`
     // borrows from this owned, rewritten vec, which outlives it.
     let resolved = resolve_see_references(properties);
+    let resolved = augment_properties_with_direct_attribute_scopes(&resolved, modules);
     let mut properties_by_name: BTreeMap<&str, Vec<&PropertyValueDef>> = BTreeMap::new();
     for property in &resolved {
         properties_by_name
@@ -1823,6 +1997,7 @@ fn build_attributes(
                 &properties_by_name,
                 legacy_value_overrides,
                 descriptions_by_id,
+                grammar_inputs,
             );
             if let Some(attribute_compat) =
                 compat.and_then(|compat| compat.attributes.get(&attribute.name))
@@ -2290,17 +2465,14 @@ impl AttributeAccumulator {
         properties_by_name: &BTreeMap<&str, Vec<&PropertyValueDef>>,
         legacy_value_overrides: &BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
         descriptions_by_id: &BTreeMap<&str, &str>,
+        grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
     ) -> CatalogAttribute {
         let property_group = properties_by_name
             .get(self.name.as_str())
             .map_or(&[][..], Vec::as_slice);
         let property = property_group.first().copied();
-        let (mut values, mut element_values) =
-            resolve_property_values(property_group, descriptions_by_id);
-        if let Some(known_values) = known_attribute_values(&self.name) {
-            values = known_values;
-        }
-        append_known_element_values(&self.name, &values, &mut element_values);
+        let (values, element_values) =
+            resolve_property_values(property_group, descriptions_by_id, grammar_inputs);
         let value_overrides = legacy_value_overrides
             .get(&self.name)
             .cloned()
@@ -2400,13 +2572,14 @@ fn accumulator_for<'a>(
 ///   `data-dfn-for`), preserving the historical first-wins grammar. When no
 ///   unscoped definition exists (e.g. `operator`), the bearer-scoped definition
 ///   whose element name sorts first becomes canonical.
-/// * Each bearer-scoped definition whose value space differs from the canonical
-///   one is emitted as a [`CatalogAttributeElementValues`] entry, deduplicated
-///   by element and sorted by element name, so no spec-defined value space is
-///   lost.
+/// * When an unscoped definition exists, bearer-scoped definitions are emitted
+///   only when they differ from that canonical grammar.
+/// * When all definitions are bearer-scoped, every scoped definition is emitted,
+///   including the canonical one, so element-specific facts remain explicit.
 fn resolve_property_values(
     properties: &[&PropertyValueDef],
     descriptions_by_id: &BTreeMap<&str, &str>,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
 ) -> (CatalogAttributeValues, Vec<CatalogAttributeElementValues>) {
     // Bearer-scoped definitions (those carrying `data-dfn-for`), sorted by their
     // bearer element name for deterministic, documented selection.
@@ -2431,7 +2604,8 @@ fn resolve_property_values(
     let Some(canonical_def) = canonical_def else {
         return (CatalogAttributeValues::FreeText, Vec::new());
     };
-    let canonical_values = values_for_property(canonical_def, descriptions_by_id);
+    let canonical_values = values_for_property(canonical_def, descriptions_by_id, grammar_inputs);
+    let canonical_is_unscoped = canonical_def.dfn_for.is_none();
 
     let mut element_values: Vec<CatalogAttributeElementValues> = Vec::new();
     let mut seen: BTreeSet<&str> = BTreeSet::new();
@@ -2439,8 +2613,8 @@ fn resolve_property_values(
         if !seen.insert(element) {
             continue;
         }
-        let values = values_for_property(def, descriptions_by_id);
-        if values != canonical_values {
+        let values = values_for_property(def, descriptions_by_id, grammar_inputs);
+        if values != canonical_values || !canonical_is_unscoped {
             element_values.push(CatalogAttributeElementValues {
                 element: (*element).to_owned(),
                 values,
@@ -2448,6 +2622,63 @@ fn resolve_property_values(
         }
     }
     (canonical_values, element_values)
+}
+
+fn augment_properties_with_direct_attribute_scopes(
+    properties: &[PropertyValueDef],
+    modules: &[Definitions],
+) -> Vec<PropertyValueDef> {
+    let direct_scopes = direct_attribute_scopes(modules);
+    let mut scoped = properties.to_vec();
+    for property in properties {
+        let Some(id) = property.id.as_deref() else {
+            continue;
+        };
+        let key = (property.name.clone(), id.to_owned());
+        let Some(elements) = direct_scopes.get(&key) else {
+            continue;
+        };
+        for element in elements {
+            if property.dfn_for.as_deref() == Some(element.as_str()) {
+                continue;
+            }
+            let mut property = property.clone();
+            property.dfn_for = Some(element.clone());
+            scoped.push(property);
+        }
+    }
+    scoped
+}
+
+fn direct_attribute_scopes(modules: &[Definitions]) -> BTreeMap<(String, String), Vec<String>> {
+    let mut scopes: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for module in modules {
+        for element in &module.elements {
+            for attribute in &element.attributes {
+                let Some(fragment) = attribute.href.as_deref().and_then(attribute_href_fragment)
+                else {
+                    continue;
+                };
+                scopes
+                    .entry((
+                        canonical_attribute_name(&attribute.name).into_owned(),
+                        fragment.to_owned(),
+                    ))
+                    .or_default()
+                    .push(element.name.clone());
+            }
+        }
+    }
+    for elements in scopes.values_mut() {
+        elements.sort();
+        elements.dedup();
+    }
+    scopes
+}
+
+fn attribute_href_fragment(href: &str) -> Option<&str> {
+    href.rsplit_once('#')
+        .map_or(Some(href), |(_, fragment)| Some(fragment))
 }
 
 /// Parse a spec "see-reference" value (`(see <attr> attribute)`) into the
@@ -2573,11 +2804,8 @@ fn resolve_see_references(properties: &[PropertyValueDef]) -> Vec<PropertyValueD
 fn values_for_property(
     property: &PropertyValueDef,
     descriptions_by_id: &BTreeMap<&str, &str>,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
 ) -> CatalogAttributeValues {
-    if let Some(values) = known_attribute_values(&property.name) {
-        return values;
-    }
-
     let mut keywords = property.keywords.clone();
     keywords.sort();
     keywords.dedup();
@@ -2601,21 +2829,39 @@ fn values_for_property(
             .id
             .as_deref()
             .and_then(|id| descriptions_by_id.get(id).copied())
-            .map_or(CatalogAttributeValues::FreeText, value_from_see_below_prose);
+            .map_or(
+                CatalogAttributeValues::FreeText,
+                value_from_see_below_description,
+            );
     }
     if let Some(values) = value_from_referenced_syntax(value) {
         return values;
     }
+    if is_path_data_value(&normalized) {
+        return CatalogAttributeValues::PathData;
+    }
+    if is_semicolon_number_list_value(&normalized) {
+        return CatalogAttributeValues::SemicolonNumberList;
+    }
+    if is_coordinate_pair_list_value(&normalized) {
+        return CatalogAttributeValues::CoordinatePairList;
+    }
+    if is_coordinate_pair_value(&normalized) {
+        return CatalogAttributeValues::CoordinatePair;
+    }
     if is_suggested_file_name_prose_value(value) {
         return CatalogAttributeValues::SuggestedFileName;
     }
-    if property.name == "transform" || normalized.contains("<transform-list>") {
-        return CatalogAttributeValues::Transform {
-            functions: ["matrix", "translate", "scale", "rotate", "skewX", "skewY"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-        };
+    // Semantic projection policy: `<transform-list>` currently becomes a typed
+    // transform-function list for downstream consumers instead of remaining raw
+    // CSS grammar text.
+    if (property.name == "transform" || normalized.contains("<transform-list>"))
+        && let Some(inputs) = grammar_inputs
+    {
+        let functions = inputs.transform_functions();
+        if !functions.is_empty() {
+            return CatalogAttributeValues::Transform { functions };
+        }
     }
     if normalized == "<color>" || normalized == "<paint>" {
         return CatalogAttributeValues::Color;
@@ -2636,23 +2882,6 @@ fn values_for_property(
     CatalogAttributeValues::CssGrammar { grammar, graph }
 }
 
-fn known_attribute_values(attribute_name: &str) -> Option<CatalogAttributeValues> {
-    match attribute_name {
-        "calcMode" => Some(CatalogAttributeValues::Enum {
-            values: ["discrete", "linear", "paced", "spline"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-        }),
-        "keyPoints" => Some(CatalogAttributeValues::SemicolonNumberList),
-        "origin" => Some(CatalogAttributeValues::Enum {
-            values: vec!["default".to_owned()],
-        }),
-        "path" => Some(CatalogAttributeValues::PathData),
-        _ => None,
-    }
-}
-
 fn is_see_below_value(value: &str) -> bool {
     let trimmed = value.trim();
     let unwrapped = trimmed
@@ -2663,37 +2892,45 @@ fn is_see_below_value(value: &str) -> bool {
 }
 
 fn value_from_referenced_syntax(value: &str) -> Option<CatalogAttributeValues> {
-    let lower = value.trim().to_ascii_lowercase();
-    if !has_trailing_spec_citation(&lower) {
-        return None;
+    // Only exact fetched syntax citations are classified here; anything else
+    // stays raw rather than being inferred by substring heuristics.
+    match normalize_prose_phrase(value).as_str() {
+        "boolean attribute [html]" => Some(CatalogAttributeValues::Boolean),
+        "space-separated valid non-empty url tokens [html]" => {
+            Some(CatalogAttributeValues::UrlTokenList)
+        }
+        "set of space-separated tokens [html]" | "space-separated keyword tokens [html]" => {
+            Some(CatalogAttributeValues::TokenList)
+        }
+        "set of comma-separated tokens [html]" => Some(CatalogAttributeValues::CommaTokenList),
+        "language-tag [abnf]" | "a bcp 47 language tag string [html]" => {
+            Some(CatalogAttributeValues::LanguageTag)
+        }
+        "valid integer [html]" => Some(CatalogAttributeValues::Integer),
+        "url [url]" => Some(CatalogAttributeValues::Url),
+        "a referrer policy string [referrerpolicy]" => Some(CatalogAttributeValues::ReferrerPolicy),
+        "a mime type string [html]" => Some(CatalogAttributeValues::MediaType),
+        _ => None,
     }
-    if lower.contains("boolean attribute") {
-        return Some(CatalogAttributeValues::Boolean);
-    }
-    if lower.contains("space-separated valid non-empty url tokens") {
-        return Some(CatalogAttributeValues::UrlTokenList);
-    }
-    if lower.contains("set of space-separated tokens")
-        || lower.contains("space-separated keyword tokens")
-    {
-        return Some(CatalogAttributeValues::TokenList);
-    }
-    if lower.contains("set of comma-separated tokens") {
-        return Some(CatalogAttributeValues::CommaTokenList);
-    }
-    if lower.contains("language-tag") || lower.contains("bcp 47 language tag") {
-        return Some(CatalogAttributeValues::LanguageTag);
-    }
-    if lower.contains("valid integer") {
-        return Some(CatalogAttributeValues::Integer);
-    }
-    if lower.starts_with("url ") {
-        return Some(CatalogAttributeValues::Url);
-    }
-    if lower.contains("referrer policy string") {
-        return Some(CatalogAttributeValues::ReferrerPolicy);
-    }
-    None
+}
+
+fn is_path_data_value(value: &str) -> bool {
+    matches!(value.trim(), "path data" | "svg-path [ebnf]")
+}
+
+fn is_semicolon_number_list_value(value: &str) -> bool {
+    let value = value.trim();
+    value.contains("<number>") && value.contains("[; <number>]*")
+}
+
+fn is_coordinate_pair_value(value: &str) -> bool {
+    let value = value.trim();
+    value == "x, y coordinate pair"
+}
+
+fn is_coordinate_pair_list_value(value: &str) -> bool {
+    let value = value.trim();
+    value == "semicolon-separated x, y coordinate pairs"
 }
 
 fn is_suggested_file_name_prose_value(value: &str) -> bool {
@@ -2701,119 +2938,51 @@ fn is_suggested_file_name_prose_value(value: &str) -> bool {
     lower.starts_with("any value") && lower.contains("suggested file name")
 }
 
-fn append_known_element_values(
-    attribute_name: &str,
-    canonical_values: &CatalogAttributeValues,
-    element_values: &mut Vec<CatalogAttributeElementValues>,
-) {
-    if !matches!(
-        attribute_name,
-        "by" | "from" | "rotate" | "to" | "type" | "values"
-    ) {
-        return;
-    }
-
-    if attribute_name == "type"
-        && !element_values
-            .iter()
-            .any(|existing| existing.element == "animateTransform")
+fn value_from_see_below_description(prose: &str) -> CatalogAttributeValues {
+    // Semantic projection policy: `(see below)` is resolved from fetched prose
+    // here, not from a first-class grammar production.
+    let normalized = normalize_prose_phrase(prose);
+    if normalized.contains("must not be an empty string")
+        && normalized.contains("must not contain any whitespace")
     {
-        let values = CatalogAttributeValues::Enum {
-            values: ["translate", "scale", "rotate", "skewX", "skewY"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-        };
-        if &values != canonical_values {
-            element_values.push(CatalogAttributeElementValues {
-                element: "animateTransform".to_owned(),
-                values,
-            });
-        }
-    }
-
-    if attribute_name == "rotate"
-        && !element_values
-            .iter()
-            .any(|existing| existing.element == "animateMotion")
-    {
-        let grammar = "auto | auto-reverse | <number>".to_owned();
-        let values = CatalogAttributeValues::CssGrammar {
-            graph: css_grammar_graph(&grammar),
-            grammar,
-        };
-        if &values != canonical_values {
-            element_values.push(CatalogAttributeElementValues {
-                element: "animateMotion".to_owned(),
-                values,
-            });
-        }
-    }
-
-    if matches!(attribute_name, "by" | "from" | "to")
-        && !element_values
-            .iter()
-            .any(|existing| existing.element == "animateMotion")
-    {
-        let values = CatalogAttributeValues::CoordinatePair;
-        if &values != canonical_values {
-            element_values.push(CatalogAttributeElementValues {
-                element: "animateMotion".to_owned(),
-                values,
-            });
-        }
-    }
-
-    if attribute_name == "values"
-        && !element_values
-            .iter()
-            .any(|existing| existing.element == "animateMotion")
-    {
-        let values = CatalogAttributeValues::CoordinatePairList;
-        if &values != canonical_values {
-            element_values.push(CatalogAttributeElementValues {
-                element: "animateMotion".to_owned(),
-                values,
-            });
-        }
-    }
-}
-
-fn value_from_see_below_prose(prose: &str) -> CatalogAttributeValues {
-    let lower = prose.to_ascii_lowercase();
-    if lower.contains("must not be an empty string") && lower.contains("whitespace") {
         return CatalogAttributeValues::Id;
     }
-    if lower.contains("'default'") && lower.contains("'preserve'") {
+    let enum_values = quoted_keyword_values(prose);
+    if !enum_values.is_empty()
+        && (normalized.contains("possible values")
+            || normalized.contains("values are the strings")
+            || normalized.contains("values are "))
+    {
         return CatalogAttributeValues::Enum {
-            values: vec!["default".to_owned(), "preserve".to_owned()],
+            values: enum_values,
         };
     }
-    if lower.contains("media_query_list") || lower.contains("media query") {
+    if normalized.contains("parsed as a media_query_list") {
         return CatalogAttributeValues::MediaQueryList;
     }
-    if lower.contains("media type") {
+    if normalized.contains("style sheet language as a media type") {
         return CatalogAttributeValues::MediaType;
     }
-    if lower.contains("declaration-list") {
+    if normalized.contains("parsed as a declaration-list") {
         return CatalogAttributeValues::CssDeclarationList;
     }
     CatalogAttributeValues::FreeText
 }
 
-fn has_trailing_spec_citation(value: &str) -> bool {
-    let trimmed = value.trim_end();
-    let Some(without_close) = trimmed.strip_suffix(']') else {
-        return false;
-    };
-    let Some(open) = without_close.rfind('[') else {
-        return false;
-    };
-    let citation = without_close[open + 1..].trim();
-    !citation.is_empty()
-        && citation
-            .chars()
-            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+fn normalize_prose_phrase(text: &str) -> String {
+    normalize_ws(text).to_ascii_lowercase()
+}
+
+fn quoted_keyword_values(text: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    for quoted in text.split('\'').skip(1).step_by(2) {
+        if is_keyword_token(quoted) {
+            values.push(quoted.to_owned());
+        }
+    }
+    values.sort();
+    values.dedup();
+    values
 }
 
 /// Whether the raw value grammar is just bare keyword alternatives.
@@ -3029,7 +3198,8 @@ fn resolve_url(base: &str, href: &str) -> String {
     }
 }
 
-/// Canonicalize legacy xlink spellings without depending on the runtime crate.
+/// Canonicalize legacy spellings as an explicit compatibility layer before the
+/// semantic catalog is written.
 pub fn canonical_attribute_name(name: &str) -> std::borrow::Cow<'_, str> {
     match name {
         "xlink:href" => std::borrow::Cow::Borrowed("href"),
@@ -3342,6 +3512,58 @@ mod tests {
     }
 
     #[test]
+    fn semantic_projection_policy_classifies_transform_lists() {
+        let transform = property("transform", "<transform-list>", &[]);
+        let inputs = crate::treesitter::GrammarProjectionInputs::for_tests();
+        assert_eq!(
+            values_for_property(&transform, &BTreeMap::new(), Some(&inputs)),
+            CatalogAttributeValues::Transform {
+                functions: ["matrix", "translate", "scale", "rotate", "skewX", "skewY"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            }
+        );
+    }
+
+    #[test]
+    fn semantic_projection_policy_resolves_see_below_prose() {
+        let mut xml_space = property("xml:space", "(see below)", &[]);
+        xml_space.id = Some("XmlSpaceValue".to_owned());
+        let descriptions =
+            BTreeMap::from([("XmlSpaceValue", "The values are 'default' and 'preserve'.")]);
+        assert_eq!(
+            values_for_property(&xml_space, &descriptions, None),
+            CatalogAttributeValues::Enum {
+                values: vec!["default".to_owned(), "preserve".to_owned()],
+            }
+        );
+    }
+
+    #[test]
+    fn semantic_projection_policy_falls_back_from_prose_content_model() {
+        let mut element = element("animateMotion");
+        element.content_model = None;
+        element.content_model_description = Some(
+            "Any number of descriptive elements, 'script' and at most one 'mpath' element, in any order."
+                .to_owned(),
+        );
+        let members = BTreeMap::from([("descriptive", vec!["desc", "metadata", "title"])]);
+        assert_eq!(
+            description_derived_content_model(&element, &members),
+            Some(CatalogContentModel::ChildrenSet {
+                elements: vec![
+                    "desc".to_owned(),
+                    "metadata".to_owned(),
+                    "mpath".to_owned(),
+                    "script".to_owned(),
+                    "title".to_owned(),
+                ],
+            })
+        );
+    }
+
+    #[test]
     fn resolve_property_values_keeps_divergent_element_value_spaces() {
         let composite = scoped_property(
             "operator",
@@ -3359,7 +3581,7 @@ mod tests {
         // feMorphology is intentionally listed first to prove the canonical
         // value space is chosen by sorted bearer element, not insertion order.
         let (values, element_values) =
-            resolve_property_values(&[&morphology, &composite], &BTreeMap::new());
+            resolve_property_values(&[&morphology, &composite], &BTreeMap::new(), None);
 
         assert_eq!(
             values,
@@ -3377,12 +3599,28 @@ mod tests {
         );
         assert_eq!(
             element_values,
-            vec![CatalogAttributeElementValues {
-                element: "feMorphology".to_owned(),
-                values: CatalogAttributeValues::Enum {
-                    values: vec!["dilate".to_owned(), "erode".to_owned()],
+            vec![
+                CatalogAttributeElementValues {
+                    element: "feComposite".to_owned(),
+                    values: CatalogAttributeValues::Enum {
+                        values: vec![
+                            "arithmetic".to_owned(),
+                            "atop".to_owned(),
+                            "in".to_owned(),
+                            "lighter".to_owned(),
+                            "out".to_owned(),
+                            "over".to_owned(),
+                            "xor".to_owned(),
+                        ],
+                    },
                 },
-            }],
+                CatalogAttributeElementValues {
+                    element: "feMorphology".to_owned(),
+                    values: CatalogAttributeValues::Enum {
+                        values: vec!["dilate".to_owned(), "erode".to_owned()],
+                    },
+                },
+            ],
         );
     }
 
@@ -3395,7 +3633,8 @@ mod tests {
         let stop = property("offset", "<number> | <percentage>", &[]);
         let func = scoped_property("offset", "feFuncR", "<number>", &[]);
 
-        let (values, element_values) = resolve_property_values(&[&func, &stop], &BTreeMap::new());
+        let (values, element_values) =
+            resolve_property_values(&[&func, &stop], &BTreeMap::new(), None);
 
         assert_eq!(values, CatalogAttributeValues::NumberOrPercentage);
         assert_eq!(
@@ -3413,7 +3652,7 @@ mod tests {
     #[test]
     fn resolve_property_values_no_divergence_for_single_definition() {
         let single = property("clip-rule", "nonzero | evenodd", &["nonzero", "evenodd"]);
-        let (values, element_values) = resolve_property_values(&[&single], &BTreeMap::new());
+        let (values, element_values) = resolve_property_values(&[&single], &BTreeMap::new(), None);
         assert_eq!(
             values,
             CatalogAttributeValues::Enum {
@@ -3496,12 +3735,28 @@ mod tests {
         );
         assert_eq!(
             operator.element_values,
-            vec![CatalogAttributeElementValues {
-                element: "feMorphology".to_owned(),
-                values: CatalogAttributeValues::Enum {
-                    values: vec!["dilate".to_owned(), "erode".to_owned()],
+            vec![
+                CatalogAttributeElementValues {
+                    element: "feComposite".to_owned(),
+                    values: CatalogAttributeValues::Enum {
+                        values: vec![
+                            "arithmetic".to_owned(),
+                            "atop".to_owned(),
+                            "in".to_owned(),
+                            "lighter".to_owned(),
+                            "out".to_owned(),
+                            "over".to_owned(),
+                            "xor".to_owned(),
+                        ],
+                    },
                 },
-            }],
+                CatalogAttributeElementValues {
+                    element: "feMorphology".to_owned(),
+                    values: CatalogAttributeValues::Enum {
+                        values: vec!["dilate".to_owned(), "erode".to_owned()],
+                    },
+                },
+            ],
         );
         Ok(())
     }
@@ -3827,7 +4082,7 @@ mod tests {
     fn mixed_property_grammars_keep_css_grammar_shape() {
         let stroke_dasharray = property("stroke-dasharray", "none | <dasharray>", &["none"]);
         let CatalogAttributeValues::CssGrammar { grammar, graph } =
-            values_for_property(&stroke_dasharray, &BTreeMap::new())
+            values_for_property(&stroke_dasharray, &BTreeMap::new(), None)
         else {
             panic!("mixed grammar should keep a CSS grammar graph");
         };
@@ -3855,7 +4110,7 @@ mod tests {
             &["butt", "round", "square"],
         );
         assert_eq!(
-            values_for_property(&linecap, &BTreeMap::new()),
+            values_for_property(&linecap, &BTreeMap::new(), None),
             CatalogAttributeValues::Enum {
                 values: vec!["butt".to_owned(), "round".to_owned(), "square".to_owned()]
             }
@@ -3870,7 +4125,7 @@ mod tests {
             &[],
         );
         let CatalogAttributeValues::CssGrammar { graph, .. } =
-            values_for_property(&cursor, &BTreeMap::new())
+            values_for_property(&cursor, &BTreeMap::new(), None)
         else {
             panic!("cursor should keep a CSS grammar graph");
         };
@@ -3898,7 +4153,7 @@ mod tests {
 
         let filter = property("filter", "none | blur() | url()", &["none"]);
         let CatalogAttributeValues::CssGrammar { graph, .. } =
-            values_for_property(&filter, &BTreeMap::new())
+            values_for_property(&filter, &BTreeMap::new(), None)
         else {
             panic!("filter should keep a CSS grammar graph");
         };
@@ -3946,10 +4201,14 @@ mod tests {
                 "A referrer policy string [REFERRERPOLICY]",
                 CatalogAttributeValues::ReferrerPolicy,
             ),
+            (
+                "A MIME type string [HTML]",
+                CatalogAttributeValues::MediaType,
+            ),
         ];
         for (value, expected) in cases {
             assert_eq!(
-                values_for_property(&property("attr", value, &[]), &BTreeMap::new()),
+                values_for_property(&property("attr", value, &[]), &BTreeMap::new(), None),
                 expected,
                 "{value} must not become a CSS grammar"
             );
@@ -3966,6 +4225,7 @@ mod tests {
                     &[],
                 ),
                 &BTreeMap::new(),
+                None,
             ),
             CatalogAttributeValues::SuggestedFileName,
         );
@@ -3973,15 +4233,17 @@ mod tests {
 
     #[test]
     fn known_animation_type_scope_is_preserved() {
-        let canonical = CatalogAttributeValues::MediaType;
-        let mut element_values = Vec::new();
-        append_known_element_values("type", &canonical, &mut element_values);
-        assert_eq!(element_values.len(), 1);
-        assert_eq!(element_values[0].element, "animateTransform");
+        let known = known_element_values();
+        let Some((_, _, values)) = known
+            .iter()
+            .find(|(attribute, element, _)| *attribute == "type" && *element == "animateTransform")
+        else {
+            panic!("type on animateTransform invariant missing");
+        };
         assert_eq!(
-            element_values[0].values,
+            *values,
             CatalogAttributeValues::Enum {
-                values: ["translate", "scale", "rotate", "skewX", "skewY"]
+                values: ["rotate", "scale", "skewX", "skewY", "translate"]
                     .into_iter()
                     .map(str::to_owned)
                     .collect(),
@@ -3991,33 +4253,36 @@ mod tests {
 
     #[test]
     fn known_animate_motion_rotate_scope_is_preserved() {
-        let canonical = CatalogAttributeValues::CssGrammar {
-            grammar: "[ <number>+ ]#".to_owned(),
-            graph: css_grammar_graph("[ <number>+ ]#"),
+        let known = known_element_values();
+        let Some((_, _, values)) = known
+            .iter()
+            .find(|(attribute, element, _)| *attribute == "rotate" && *element == "animateMotion")
+        else {
+            panic!("rotate on animateMotion invariant missing");
         };
-        let mut element_values = Vec::new();
-        append_known_element_values("rotate", &canonical, &mut element_values);
-        assert_eq!(element_values.len(), 1);
-        assert_eq!(element_values[0].element, "animateMotion");
         assert_eq!(
-            element_values[0].values,
+            *values,
             CatalogAttributeValues::CssGrammar {
-                grammar: "auto | auto-reverse | <number>".to_owned(),
-                graph: css_grammar_graph("auto | auto-reverse | <number>"),
+                grammar: "<number> | auto | auto-reverse".to_owned(),
+                graph: css_grammar_graph("<number> | auto | auto-reverse"),
             },
         );
     }
 
     #[test]
     fn known_animate_motion_value_shapes_are_semantic() {
-        let cases = [
-            ("calcMode", "paced | discrete | linear | spline", "enum"),
-            ("keyPoints", "<number>*", "semicolon_number_list"),
-            ("origin", "default", "enum"),
-            ("path", "path data", "path_data"),
+        let expected = [
+            ("calcMode", "enum"),
+            ("keyPoints", "semicolon_number_list"),
+            ("origin", "enum"),
+            ("path", "path_data"),
         ];
-        for (name, value, expected) in cases {
-            let actual = match values_for_property(&property(name, value, &[]), &BTreeMap::new()) {
+        let known = known_attribute_values();
+        for (name, expected) in expected {
+            let Some((_, values)) = known.iter().find(|(attribute, _)| *attribute == name) else {
+                panic!("attribute invariant missing");
+            };
+            let actual = match values {
                 CatalogAttributeValues::Enum { .. } => "enum",
                 CatalogAttributeValues::PathData => "path_data",
                 CatalogAttributeValues::SemicolonNumberList => "semicolon_number_list",
@@ -4029,36 +4294,24 @@ mod tests {
 
     #[test]
     fn known_animate_motion_coordinate_scopes_are_preserved() {
+        let known = known_element_values();
         for name in ["from", "to", "by"] {
-            let mut element_values = Vec::new();
-            append_known_element_values(
-                name,
-                &CatalogAttributeValues::FreeText,
-                &mut element_values,
-            );
-            assert_eq!(element_values.len(), 1);
-            assert_eq!(element_values[0].element, "animateMotion");
-            assert_eq!(
-                element_values[0].values,
-                CatalogAttributeValues::CoordinatePair
-            );
+            let Some((_, _, values)) = known
+                .iter()
+                .find(|(attribute, element, _)| *attribute == name && *element == "animateMotion")
+            else {
+                panic!("coordinate-pair invariant missing");
+            };
+            assert_eq!(*values, CatalogAttributeValues::CoordinatePair);
         }
 
-        let mut element_values = Vec::new();
-        append_known_element_values(
-            "values",
-            &CatalogAttributeValues::CssGrammar {
-                grammar: "<number>+".to_owned(),
-                graph: css_grammar_graph("<number>+"),
-            },
-            &mut element_values,
-        );
-        assert_eq!(element_values.len(), 1);
-        assert_eq!(element_values[0].element, "animateMotion");
-        assert_eq!(
-            element_values[0].values,
-            CatalogAttributeValues::CoordinatePairList,
-        );
+        let Some((_, _, values)) = known
+            .iter()
+            .find(|(attribute, element, _)| *attribute == "values" && *element == "animateMotion")
+        else {
+            panic!("values on animateMotion invariant missing");
+        };
+        assert_eq!(*values, CatalogAttributeValues::CoordinatePairList,);
     }
 
     #[test]
@@ -4102,7 +4355,7 @@ mod tests {
             let mut property = property("attr", "(see below)", &[]);
             property.id = Some(id.to_owned());
             assert_eq!(
-                values_for_property(&property, &descriptions_by_id),
+                values_for_property(&property, &descriptions_by_id, None),
                 expected
             );
         }
