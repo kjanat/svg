@@ -1,8 +1,3 @@
-; GENERATED FILE - DO NOT EDIT BY HAND.
-; Source: scripts/gen-corpus.ts (catalog-seeded corpus generator).
-; Regenerate: `bun run gen:corpus`  Verify: `bun run gen:corpus:check`.
-; Expected trees are captured from the built grammar, not hand-authored.
-
 ========================================
 Element a (typed attributes)
 ========================================
@@ -77,27 +72,7 @@ Element animateMotion (typed attributes)
             name: (d_attribute_name)
             value: (d_attribute_value
               (double_quoted_path_data
-                (path_data_content
-                  (path_data
-                    (moveto_segment
-                      command: (path_command)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (path_wsp)
-                    (lineto_segment
-                      command: (path_command)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+                path: (path_data_payload)))))))
     (end_tag
       name: (name)))
   (text))
@@ -1183,27 +1158,7 @@ Element path (typed attributes)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))
+              path: (path_data_payload))))
         (number_attribute
           name: (number_attribute_name)
           value: (number_attribute_value
@@ -1624,27 +1579,7 @@ Element textPath (typed attributes)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))
+              path: (path_data_payload))))
         (length_attribute
           name: (length_attribute_name)
           value: (length_attribute_value

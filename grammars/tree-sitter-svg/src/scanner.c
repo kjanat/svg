@@ -21,7 +21,6 @@ enum TokenType {
   RAW_TEXT,
   SELF_CLOSING_TAG_DELIMITER,
   CDATA_TEXT,
-  NUMBER_CONTINUATION,
 };
 
 typedef Array(char) String;
@@ -344,34 +343,6 @@ static bool scan_cdata_text(TSLexer *lexer) {
   return true;
 }
 
-// Peek past optional comma/whitespace separator. If a number follows,
-// consume the separator and return true. Otherwise return false (lexer
-// resets). This gives path-segment repeats (arc, h, v, C, S, Q, T)
-// LR(k) lookahead so the parser can commit to extending the current
-// segment instead of reducing and falling through to either
-// implicit_lineto_segment or a following explicit command.
-static bool scan_number_continuation(TSLexer *lexer) {
-  while (is_wsp(lexer->lookahead)) {
-    advance(lexer);
-  }
-
-  if (lexer->lookahead == ',') {
-    advance(lexer);
-    while (is_wsp(lexer->lookahead)) {
-      advance(lexer);
-    }
-  }
-
-  int32_t c = lexer->lookahead;
-  if (is_ascii_digit(c) || c == '+' || c == '-' || c == '.') {
-    lexer->mark_end(lexer);
-    lexer->result_symbol = NUMBER_CONTINUATION;
-    return true;
-  }
-
-  return false;
-}
-
 static bool scan_self_closing_tag_delimiter(TagStack *tags, TSLexer *lexer) {
   if (lexer->lookahead != '/') {
     return false;
@@ -506,13 +477,6 @@ bool tree_sitter_svg_external_scanner_scan(void *payload, TSLexer *lexer, const 
   // Guard against error recovery (all valid_symbols true).
   if (valid_symbols[CDATA_TEXT] && !valid_symbols[START_TAG_NAME] && !valid_symbols[END_TAG_NAME]) {
     return scan_cdata_text(lexer);
-  }
-
-  // Number continuation: peek past whitespace/comma; succeed only if a number follows.
-  // Used by elliptical arc, horizontal lineto, and vertical lineto repeats to
-  // commit to extension instead of falling through to implicit_lineto_segment.
-  if (valid_symbols[NUMBER_CONTINUATION] && !valid_symbols[START_TAG_NAME] && !valid_symbols[END_TAG_NAME]) {
-    return scan_number_continuation(lexer);
   }
 
   if (valid_symbols[SELF_CLOSING_TAG_DELIMITER] && lexer->lookahead == '/') {

@@ -18,149 +18,7 @@ All path commands
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (horizontal_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number)))
-                  (path_wsp)
-                  (vertical_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number)))
-                  (path_wsp)
-                  (curveto_segment
-                    command: (path_command)
-                    (curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (smooth_curveto_segment
-                    command: (path_command)
-                    (smooth_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (quadratic_bezier_curveto_segment
-                    command: (path_command)
-                    (quadratic_bezier_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (smooth_quadratic_bezier_curveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (closepath_segment
-                    command: (path_command)))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -185,51 +43,7 @@ Implicit separators and arcs
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (closepath_segment
-                    command: (path_command)))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -254,32 +68,7 @@ Outer whitespace around path data
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_wsp)
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (closepath_segment
-                    command: (path_command))
-                  (path_wsp))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -311,8 +100,7 @@ Empty and whitespace-only path data
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_wsp)))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -337,49 +125,7 @@ Single-quoted path data
           name: (d_attribute_name)
           value: (d_attribute_value
             (single_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (curveto_segment
-                    command: (path_command)
-                    (curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (closepath_segment
-                    command: (path_command)))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -404,37 +150,7 @@ Multiple moveto segments
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -459,27 +175,7 @@ Sign and exponent numbers
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -504,54 +200,7 @@ Long path implicit separators
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (implicit_lineto_segment
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (path_wsp)
-                  (implicit_lineto_segment
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (implicit_lineto_segment
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (horizontal_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number)))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (implicit_lineto_segment
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -576,73 +225,7 @@ Arc repeated arguments (space-separated)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -667,73 +250,7 @@ Arc repeated arguments (comma-separated)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -758,49 +275,7 @@ Arc followed by closepath
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (closepath_segment
-                    command: (path_command)))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -825,42 +300,7 @@ Arc with adjacent flags
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_sweep_flag)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -885,40 +325,7 @@ Arc with adjacent flags and negative coordinates
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_sweep_flag)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -943,67 +350,7 @@ Arc repeated with negative implicit separator
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    command: (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_sweep_flag)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1028,22 +375,7 @@ Negative number implicit separators
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1068,22 +400,7 @@ Decimal-only implicit separators
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1108,48 +425,7 @@ Close reopen subpath
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (closepath_segment
-                    command: (path_command))
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (closepath_segment
-                    command: (path_command)))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1174,25 +450,7 @@ Vertical lineto with chained coordinates (whitespace separator)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (vertical_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1217,27 +475,7 @@ Horizontal lineto with chained coordinates (whitespace separator)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (horizontal_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1262,23 +500,7 @@ Vertical lineto with implicit-separator decimals (firefox.svg shape)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (vertical_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1303,32 +525,7 @@ Horizontal lineto with chained coords followed by explicit command
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (horizontal_lineto_segment
-                    command: (path_command)
-                    (path_coordinate
-                      (path_number))
-                    (path_coordinate
-                      (path_number)))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1353,71 +550,7 @@ Cubic curveto with chained arguments (implicit cubic continuation)
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (curveto_segment
-                    command: (path_command)
-                    (curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1442,53 +575,7 @@ Smooth cubic curveto with chained arguments
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (smooth_curveto_segment
-                    command: (path_command)
-                    (smooth_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (smooth_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1513,53 +600,7 @@ Quadratic curveto with chained arguments
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (quadratic_bezier_curveto_segment
-                    command: (path_command)
-                    (quadratic_bezier_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))
-                    (quadratic_bezier_curveto_argument
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number))))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1584,33 +625,7 @@ Smooth quadratic curveto with chained pairs
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (smooth_quadratic_bezier_curveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))))
+              path: (path_data_payload))))))
     (end_tag
       name: (name)))
   (text))
@@ -1635,49 +650,7 @@ Arc followed by closepath with space
           (d_attribute_name)
           (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (elliptical_arc_segment
-                    (path_command)
-                    (elliptical_arc_argument
-                      (elliptical_arc_radii
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_rotation
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_arc_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_sweep_flag)
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))
-                  (path_wsp)
-                  (closepath_segment
-                    (path_command)))))))))
+              (path_data_payload))))))
     (end_tag
       (name)))
   (text))

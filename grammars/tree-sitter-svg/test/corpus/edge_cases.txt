@@ -1528,26 +1528,7 @@ Path element with mixed typed attributes
           name: (d_attribute_name)
           value: (d_attribute_value
             (double_quoted_path_data
-              (path_data_content
-                (path_data
-                  (moveto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number))))
-                  (lineto_segment
-                    command: (path_command)
-                    (path_coordinate_pair
-                      (path_coordinate
-                        (path_number))
-                      (path_comma_wsp
-                        (path_wsp))
-                      (path_coordinate
-                        (path_number)))))))))
+              path: (path_data_payload))))
         (paint_attribute
           name: (paint_attribute_name)
           value: (paint_attribute_value
@@ -2055,17 +2036,7 @@ Mixed self-closing and paired elements
             name: (d_attribute_name)
             value: (d_attribute_value
               (double_quoted_path_data
-                (path_data_content
-                  (path_data
-                    (moveto_segment
-                      command: (path_command)
-                      (path_coordinate_pair
-                        (path_coordinate
-                          (path_number))
-                        (path_comma_wsp
-                          (path_wsp))
-                        (path_coordinate
-                          (path_number)))))))))))
+                path: (path_data_payload))))))
       (text)
       (end_tag
         name: (name)))

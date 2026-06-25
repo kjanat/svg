@@ -1,5 +1,47 @@
 # Discoveries
 
+## 2026-06-25: Path-data eviction to injected `svg_path` grammar — modest size, NOT a wasm-build win
+
+Evicted the rich path sub-grammar (11 segment rules, `M/L/C…` command tokens,
+`_number_continuation` external) from the host into a sibling
+`grammars/tree-sitter-svg-path` grammar, injected over the `d`/`path` attribute
+value via `injections.scm`. The host captures the value as one opaque
+`path_data_payload` token (`/[^"'<&]+/`); both `d` and `path` are `d_attribute`
+(`D_ATTRIBUTE_NAMES = ['d','path']`), so a single injection query covers both.
+
+Measured (apples-to-apples, same toolchain):
+
+- host `parser.c`: 1,159,533 → 1,042,475 B (**−10%**)
+- LR states: 1204 → 1040 (**−13.6%**); symbols 373 → 326; tokens 149 → 138 (the
+  path-command tokens that made a global `word:` token unsafe are GONE —
+  eviction is the prerequisite that *would* let `word:` be added safely)
+- host WASM binary: 388,237 → 372,629 B (**−4%**)
+- **WASM build time 1:18 → 1:20, RSS 4.80 → 4.79 GB — UNCHANGED.** Eviction does
+  NOT reduce wasm build cost; that cost lives in the color-function +
+  attribute-bucket machinery, not path data. If build memory/time is the target,
+  profile those, not path.
+
+Gotchas hit:
+
+- `tree-sitter parse <file.svg>` resolves the grammar from the global
+  `~/.config/tree-sitter/config.json` `parser-directories` (which lists the main
+  checkout), NOT the cwd/worktree. A worktree grammar is only exercised by
+  passing `--config-path` with a config whose `parser-directories` points at the
+  worktree, or by `tree-sitter test` (which compiles the local grammar). Cost me
+  several confused parses against a stale parser.
+- `tree-sitter generate` does NOT prune unreachable rules from
+  `src/grammar.json` (the input dump keeps them), but the parse tables DO drop
+  them — judge eviction by `STATE_COUNT`/`SYMBOL_COUNT`, not by grepping
+  grammar.json.
+- Path data has no comment syntax, so path highlights cannot be unit-tested with
+  inline `<!-- ^ capture -->` assertions in a raw `svg_path` file — they were
+  historically tested *through* the host's XML comments. After eviction the host
+  `test/highlight/path_data.svg` was removed; injected-highlight unit coverage
+  needs a separate harness (TODO).
+- `:error` corpus tests that asserted host-level path validity ("L without
+  preceding M", bad arc flag) no longer error in the host (opaque payload is
+  always valid XML); they were relocated to the `svg_path` corpus.
+
 ## Build & Tooling
 
 - `tree-sitter.json` should declare `highlights`, `injections`, and `locals`

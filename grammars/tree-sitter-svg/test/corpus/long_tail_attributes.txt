@@ -734,27 +734,7 @@ Other regular long-tail attributes
         name: (d_attribute_name)
         value: (d_attribute_value
           (double_quoted_path_data
-            (path_data_content
-              (path_data
-                (moveto_segment
-                  command: (path_command)
-                  (path_coordinate_pair
-                    (path_coordinate
-                      (path_number))
-                    (path_comma_wsp
-                      (path_wsp))
-                    (path_coordinate
-                      (path_number))))
-                (path_wsp)
-                (lineto_segment
-                  command: (path_command)
-                  (path_coordinate_pair
-                    (path_coordinate
-                      (path_number))
-                    (path_comma_wsp
-                      (path_wsp))
-                    (path_coordinate
-                      (path_number)))))))))
+            path: (path_data_payload))))
       (keyword_attribute
         name: (keyword_attribute_name)
         value: (keyword_attribute_value

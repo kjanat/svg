@@ -73,6 +73,19 @@
  (#set! injection.language "html")
  (#set! injection.combined))
 
+; SVG path data in d="..." attribute (rich CST via injected svg_path grammar)
+((d_attribute
+  (d_attribute_value
+    (double_quoted_path_data
+      (path_data_payload) @injection.content)))
+ (#set! injection.language "svg_path"))
+
+((d_attribute
+  (d_attribute_value
+    (single_quoted_path_data
+      (path_data_payload) @injection.content)))
+ (#set! injection.language "svg_path"))
+
 ; CSS in style="..." attribute
 ((style_attribute
   (style_attribute_value

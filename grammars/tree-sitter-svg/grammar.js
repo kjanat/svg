@@ -10,7 +10,6 @@
 import grammarData from '#grammarData' with { type: 'json' };
 import { D_ATTRIBUTE_NAMES } from '#grammarFixtures';
 
-const PATH_COMMAND = /[MmZzLlHhVvCcSsQqTtAa]/;
 const NUMBER_PATTERN = /[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?/;
 const ATTRIBUTE_BUCKETS = grammarData.attribute_buckets;
 const TOKENS = grammarData.tokens;
@@ -55,7 +54,6 @@ export default grammar({
 		$._raw_text,
 		'/>',
 		$._cdata_text,
-		$._number_continuation,
 	],
 
 	extras: () => [],
@@ -80,7 +78,6 @@ export default grammar({
 	// (`(id_attribute ...)`), and corpus expectations lose the wrapper node.
 	supertypes: $ => [
 		$.attribute,
-		$.path_segment,
 		$.transform_function,
 		$.color_value,
 	],
@@ -559,224 +556,23 @@ export default grammar({
 		double_quoted_path_data: $ =>
 			seq(
 				'"',
-				optional($.path_data_content),
+				optional(field('path', $.path_data_payload)),
 				'"',
 			),
 
 		single_quoted_path_data: $ =>
 			seq(
 				"'",
-				optional($.path_data_content),
+				optional(field('path', $.path_data_payload)),
 				"'",
 			),
 
-		path_data_content: $ =>
-			choice(
-				seq(optional($.path_wsp), $.path_data),
-				$.path_wsp,
-			),
-
-		path_data: $ =>
-			prec.right(seq(
-				$.moveto_segment,
-				repeat(choice($.path_segment, seq($.path_wsp, $.path_segment))),
-				optional($.path_wsp),
-			)),
-
-		path_segment: $ =>
-			choice(
-				$.closepath_segment,
-				$.moveto_segment,
-				$.implicit_lineto_segment,
-				$.lineto_segment,
-				$.horizontal_lineto_segment,
-				$.vertical_lineto_segment,
-				$.curveto_segment,
-				$.smooth_curveto_segment,
-				$.quadratic_bezier_curveto_segment,
-				$.smooth_quadratic_bezier_curveto_segment,
-				$.elliptical_arc_segment,
-			),
-
-		moveto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.moveto_command, $.path_command)),
-					optional($.path_wsp),
-					$.path_coordinate_pair,
-					repeat(seq(optional($.path_comma_wsp), $.path_coordinate_pair)),
-				),
-			),
-
-		closepath_segment: $ => field('command', alias($.closepath_command, $.path_command)),
-
-		implicit_lineto_segment: $ =>
-			prec.left(
-				seq(
-					$.path_coordinate_pair,
-					repeat(seq(optional($.path_comma_wsp), $.path_coordinate_pair)),
-				),
-			),
-
-		lineto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.lineto_command, $.path_command)),
-					optional($.path_wsp),
-					$.path_coordinate_pair,
-					repeat(seq(optional($.path_comma_wsp), $.path_coordinate_pair)),
-				),
-			),
-
-		horizontal_lineto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.horizontal_lineto_command, $.path_command)),
-					optional($.path_wsp),
-					$.path_coordinate,
-					repeat(seq($._number_continuation, $.path_coordinate)),
-				),
-			),
-
-		vertical_lineto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.vertical_lineto_command, $.path_command)),
-					optional($.path_wsp),
-					$.path_coordinate,
-					repeat(seq($._number_continuation, $.path_coordinate)),
-				),
-			),
-
-		curveto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.curveto_command, $.path_command)),
-					optional($.path_wsp),
-					$.curveto_argument,
-					repeat(seq($._number_continuation, $.curveto_argument)),
-				),
-			),
-
-		smooth_curveto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.smooth_curveto_command, $.path_command)),
-					optional($.path_wsp),
-					$.smooth_curveto_argument,
-					repeat(seq($._number_continuation, $.smooth_curveto_argument)),
-				),
-			),
-
-		quadratic_bezier_curveto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.quadratic_bezier_curveto_command, $.path_command)),
-					optional($.path_wsp),
-					$.quadratic_bezier_curveto_argument,
-					repeat(seq($._number_continuation, $.quadratic_bezier_curveto_argument)),
-				),
-			),
-
-		smooth_quadratic_bezier_curveto_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.smooth_quadratic_bezier_curveto_command, $.path_command)),
-					optional($.path_wsp),
-					$.path_coordinate_pair,
-					repeat(seq($._number_continuation, $.path_coordinate_pair)),
-				),
-			),
-
-		elliptical_arc_segment: $ =>
-			prec.left(
-				seq(
-					field('command', alias($.elliptical_arc_command, $.path_command)),
-					optional($.path_wsp),
-					$.elliptical_arc_argument,
-					repeat(seq($._number_continuation, $.elliptical_arc_argument)),
-				),
-			),
-
-		curveto_argument: $ =>
-			seq(
-				$.path_coordinate_pair,
-				optional($.path_comma_wsp),
-				$.path_coordinate_pair,
-				optional($.path_comma_wsp),
-				$.path_coordinate_pair,
-			),
-
-		smooth_curveto_argument: $ =>
-			seq(
-				$.path_coordinate_pair,
-				optional($.path_comma_wsp),
-				$.path_coordinate_pair,
-			),
-
-		quadratic_bezier_curveto_argument: $ =>
-			seq(
-				$.path_coordinate_pair,
-				optional($.path_comma_wsp),
-				$.path_coordinate_pair,
-			),
-
-		elliptical_arc_argument: $ =>
-			seq(
-				$.elliptical_arc_radii,
-				optional($.path_comma_wsp),
-				$.path_rotation,
-				optional($.path_comma_wsp),
-				$.path_arc_flag,
-				optional($.path_comma_wsp),
-				$.path_sweep_flag,
-				optional($.path_comma_wsp),
-				$.path_coordinate_pair,
-			),
-
-		elliptical_arc_radii: $ =>
-			seq(
-				$.path_coordinate,
-				optional($.path_comma_wsp),
-				$.path_coordinate,
-			),
-
-		path_coordinate_pair: $ =>
-			seq(
-				$.path_coordinate,
-				optional($.path_comma_wsp),
-				$.path_coordinate,
-			),
-
-		path_coordinate: $ => $.path_number,
-
-		path_rotation: $ => $.path_number,
-
-		path_arc_flag: _ => token(/[01]/),
-
-		path_sweep_flag: _ => token(/[01]/),
-
-		path_comma_wsp: $ =>
-			choice(
-				seq(optional($.path_wsp), $.path_comma, optional($.path_wsp)),
-				$.path_wsp,
-			),
-
-		moveto_command: _ => token(/[Mm]/),
-		closepath_command: _ => token(/[Zz]/),
-		lineto_command: _ => token(/[Ll]/),
-		horizontal_lineto_command: _ => token(/[Hh]/),
-		vertical_lineto_command: _ => token(/[Vv]/),
-		curveto_command: _ => token(/[Cc]/),
-		smooth_curveto_command: _ => token(/[Ss]/),
-		quadratic_bezier_curveto_command: _ => token(/[Qq]/),
-		smooth_quadratic_bezier_curveto_command: _ => token(/[Tt]/),
-		elliptical_arc_command: _ => token(/[Aa]/),
-
-		path_command: _ => token(PATH_COMMAND),
-		path_number: _ => token(NUMBER_PATTERN),
-		path_comma: _ => ',',
-		path_wsp: _ => token(prec(1, /[ \t\r\n]+/)),
+		// Opaque path-data capture. The rich path sub-grammar (commands,
+		// coordinates, arcs) is evicted to a sibling `tree-sitter-svg-path`
+		// grammar injected over this token's range via injections.scm — same
+		// pattern as CSS-in-`<style>`. Excludes only the quote delimiters and
+		// XML-significant `<`/`&`, mirroring `data_uri_payload`.
+		path_data_payload: _ => token(/[^"'<&]+/),
 
 		// ─── style attribute (CSS injection) ────────────────────────
 

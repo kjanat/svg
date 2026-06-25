@@ -19,6 +19,5 @@
 (transform_function) @function.around
 (functional_color) @function.around
 
-; Path segments
-(path_segment) @entry.around
-(moveto_segment) @entry.around
+; Path segments live in the injected svg_path grammar
+; (grammars/tree-sitter-svg-path/queries/textobjects.scm).
