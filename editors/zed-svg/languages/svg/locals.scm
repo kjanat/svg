@@ -17,15 +17,6 @@
  (#match? @local.reference "^#")
  (#strip! @local.reference "^#"))
 
-; paint url() references
-((paint_attribute
-  value: (paint_attribute_value
-    (paint_value
-      (paint_server
-        (iri_reference) @local.reference))))
- (#match? @local.reference "^#")
- (#strip! @local.reference "^#"))
-
 ; functional IRI references (clip-path, mask, filter, etc.)
 ((functional_iri_attribute
   value: (functional_iri_attribute_value

@@ -1,0 +1,7 @@
+[tool.basedpyright]
+venvPath               = "."
+venv                   = ".venv"
+reportMissingTypeStubs = false
+
+[tool.uv.workspace]
+members = ["grammars/tree-sitter-*"]

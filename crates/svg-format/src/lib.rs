@@ -313,33 +313,30 @@ fn wrap_path_data(name: &str, raw: &str, budget: usize) -> Option<String> {
 }
 
 fn wrap_d_value(raw: &str, budget: usize) -> Option<String> {
-    // Wrap in a synthetic `<svg><path d="..."/></svg>` so the grammar's
-    // path-data scanner recognizes the attribute value as structured
-    // segments (the grammar only activates for attributes inside an
-    // SVG tag). Path data never contains `"`, so the quoting is
-    // unambiguous; parse errors mean we leave the value untouched.
-    const PREFIX: &str = "<svg><path d=\"";
-    const SUFFIX: &str = "\"/></svg>";
-    let wrapper = format!("{PREFIX}{raw}{SUFFIX}");
+    // Path data lives in the injected `svg_path` grammar — the host grammar
+    // now exposes the `d`/`path` value as one opaque `path_data_payload`
+    // token. Parse the raw attribute value directly with `svg_path` to
+    // recover structured segments (`source_file` → `path_data` → segments).
+    // Empty/whitespace path data is valid; a parse error means we leave the
+    // value untouched.
     let mut parser = Parser::new();
     parser
-        .set_language(&tree_sitter_svg::LANGUAGE.into())
+        .set_language(&tree_sitter_svg_path::LANGUAGE.into())
         .ok()?;
-    let tree = parser.parse(wrapper.as_bytes(), None)?;
+    let tree = parser.parse(raw.as_bytes(), None)?;
     if tree.root_node().has_error() {
         return None;
     }
 
     let mut segments: Vec<(usize, usize, &str)> = Vec::new();
-    collect_path_segments(tree.root_node(), wrapper.as_bytes(), &mut segments);
+    collect_path_segments(tree.root_node(), raw.as_bytes(), &mut segments);
     if segments.is_empty() {
         return None;
     }
 
-    let prefix_len = PREFIX.len();
     let segment_strs: Vec<&str> = segments
         .iter()
-        .map(|&(start, end, _kind)| &raw[start - prefix_len..end - prefix_len])
+        .map(|&(start, end, _kind)| &raw[start..end])
         .collect();
     let segment_kinds: Vec<&str> = segments.iter().map(|&(_, _, kind)| kind).collect();
 

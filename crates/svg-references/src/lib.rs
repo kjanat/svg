@@ -105,10 +105,48 @@ pub fn definition_target_at(
         ));
     }
 
+    if let Some(target) = paint_payload_reference_at(node, source, byte_offset) {
+        return Some(target);
+    }
+
     let stylesheet = inline_stylesheet_containing_offset(source, tree, byte_offset)?;
     definition_target_in_stylesheet(&stylesheet.css, byte_offset - stylesheet.start_byte).or_else(
         || custom_property_name_at_svg_node(node, source).map(DefinitionTarget::CustomProperty),
     )
+}
+
+fn paint_payload_reference_at(
+    node: tree_sitter::Node<'_>,
+    source: &[u8],
+    byte_offset: usize,
+) -> Option<DefinitionTarget> {
+    let payload = find_ancestor_any(node, &["paint_payload"])?;
+    let relative_offset = byte_offset.checked_sub(payload.start_byte())?;
+    let payload_source = source.get(payload.byte_range())?;
+    if relative_offset > payload_source.len() {
+        return None;
+    }
+
+    let mut parser = Parser::new();
+    parser
+        .set_language(&tree_sitter_svg_paint::LANGUAGE.into())
+        .ok()?;
+    let tree = parser.parse(payload_source, None)?;
+    if tree.root_node().has_error() {
+        return None;
+    }
+
+    let raw_node = deepest_node_at(&tree, relative_offset);
+    let node = if raw_node.is_named() {
+        raw_node
+    } else {
+        raw_node.parent().unwrap_or(raw_node)
+    };
+
+    let iri = find_ancestor_any(node, &["iri_reference"])?;
+    let text = iri.utf8_text(payload_source).ok()?;
+    text.strip_prefix('#')
+        .map(|id| DefinitionTarget::Id(id.to_owned()))
 }
 
 fn custom_property_name_at_svg_node(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
@@ -549,6 +587,18 @@ mod tests {
         assert_eq!(
             definition_target_at(source.as_bytes(), &tree, offset),
             Some(DefinitionTarget::Id("clip".into()))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn definition_target_resolves_id_from_paint_payload() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg><rect fill="url(#paint) blue"/></svg>"#;
+        let tree = parse_svg(source)?;
+        let offset = offset_of(source, "#paint")?;
+        assert_eq!(
+            definition_target_at(source.as_bytes(), &tree, offset),
+            Some(DefinitionTarget::Id("paint".into()))
         );
         Ok(())
     }

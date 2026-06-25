@@ -1,22 +1,4 @@
-type BaseNode = {
-	type: string;
-	named: boolean;
-};
-
-type ChildNode = {
-	multiple: boolean;
-	required: boolean;
-	types: BaseNode[];
-};
-
-type NodeInfo =
-	| (BaseNode & {
-		subtypes: BaseNode[];
-	})
-	| (BaseNode & {
-		fields?: { [name: string]: ChildNode };
-		children?: ChildNode;
-	});
+import type Parser from 'tree-sitter';
 
 /**
  * The tree-sitter language object for the injected SVG path-data grammar.
@@ -30,20 +12,7 @@ type NodeInfo =
  * const parser = new Parser();
  * parser.setLanguage(SvgPath);
  */
-declare const binding: {
-	/**
-	 * The inner language object.
-	 * @private
-	 */
-	language: unknown;
-
-	/**
-	 * The content of the `node-types.json` file for this grammar.
-	 *
-	 * @see {@linkplain https://tree-sitter.github.io/tree-sitter/using-parsers/6-static-node-types Static Node Types}
-	 */
-	nodeTypeInfo: NodeInfo[];
-
+declare const binding: Parser.Language & {
 	/** The syntax highlighting query for this grammar. */
 	HIGHLIGHTS_QUERY?: string;
 

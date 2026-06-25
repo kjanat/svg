@@ -1141,6 +1141,7 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-css",
  "tree-sitter-svg",
+ "tree-sitter-svg-paint",
 ]
 
 [[package]]
@@ -1174,6 +1175,7 @@ dependencies = [
  "clap",
  "tree-sitter",
  "tree-sitter-svg",
+ "tree-sitter-svg-path",
 ]
 
 [[package]]
@@ -1220,6 +1222,7 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-css",
  "tree-sitter-svg",
+ "tree-sitter-svg-paint",
 ]
 
 [[package]]
@@ -1541,6 +1544,33 @@ checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
 name = "tree-sitter-svg"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-svg-paint"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-svg-path"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-svg-transform"
 version = "0.1.0"
 dependencies = [
  "cc",

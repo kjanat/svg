@@ -39,7 +39,7 @@
 	],
 	"scripts": {
 		"generate": "tree-sitter generate",
-		"postinstall": "node scripts/ensure-native.ts",
+		"postinstall": "run -p setup:native setup:clangd-headers",
 		"prestart": "tree-sitter build --wasm",
 		"start": "tree-sitter playground --quiet",
 		"test": "tree-sitter test",
@@ -47,7 +47,9 @@
 		"test:node": "node --test bindings/node/*_test.js",
 		"typecheck": "tsc --noEmit",
 		"fmt": "dprint fmt",
-		"lint": "dprint check"
+		"lint": "biome check",
+		"setup:native": "node scripts/ensure-native.ts",
+		"setup:clangd-headers": "node scripts/ensure-clangd-headers.ts"
 	},
 	"dependencies": {
 		"node-addon-api": "catalog:",
@@ -73,5 +75,7 @@
 		}
 	},
 	"packageManager": "bun@1.3.14",
-	"volta": { "extends": "../../package.json" }
+	"volta": {
+		"extends": "../../package.json"
+	}
 }

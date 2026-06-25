@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+/// <reference types="bun-types" />
+
 import { error, log } from 'node:console';
 import { normalize, relative } from 'node:path';
 import { argv, cwd, exit } from 'node:process';

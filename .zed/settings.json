@@ -7,7 +7,8 @@
 		"JavaScript": { "language_servers": ["deno", "!typescript-language-server", "vtsls", "!eslint", "!tsgo"] },
 		"TypeScript": { "language_servers": ["deno", "!typescript-language-server", "vtsls", "!eslint", "!tsgo"] },
 		"TSX": { "language_servers": ["deno", "!typescript-language-server", "vtsls", "!eslint", "!tsgo"] },
-		"SVG": { "language_servers": ["svg-language-server"] }
+		"SVG": { "language_servers": ["svg-language-server"] },
+		"YAML": { "language_servers": ["!actions-languageserver"] }
 	},
 	"lsp": {
 		"svg-language-server": {
@@ -70,7 +71,8 @@
 		"deno": {
 			"settings": {
 				"deno": {
-					"enable": true
+					"enable": true,
+					"enablePaths": ["./workers/svg-compat"]
 				}
 			}
 		}

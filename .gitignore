@@ -2,6 +2,8 @@
 .playwright-*/
 /*.png
 /_*.md
+/_*.txt
+/deno.lock
 node_modules/
 single-page.html
 svgwg/

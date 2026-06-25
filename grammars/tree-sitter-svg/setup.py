@@ -1,23 +1,36 @@
 from os import path
 from sysconfig import get_config_var
+from typing import Protocol, override
 
 from setuptools import Extension, find_packages, setup
+from setuptools._distutils.ccompiler import CCompiler
 from setuptools.command.build import build
 from setuptools.command.build_ext import build_ext
 from setuptools.command.egg_info import egg_info
 from wheel.bdist_wheel import bdist_wheel
 
 
+class SourceFileList(Protocol):
+    def recursive_include(self, dir: str, pattern: str) -> None: ...
+    def include(self, pattern: str) -> None: ...
+
+
 class Build(build):
-    def run(self):
+    build_lib: str
+
+    @override
+    def run(self) -> None:
         if path.isdir("queries"):
             dest = path.join(self.build_lib, "tree_sitter_svg", "queries")
-            self.copy_tree("queries", dest)
+            _ = self.copy_tree("queries", dest)
         super().run()
 
 
 class BuildExt(build_ext):
-    def build_extension(self, ext: Extension):
+    compiler: CCompiler
+
+    @override
+    def build_extension(self, ext: Extension) -> None:
         if self.compiler.compiler_type != "msvc":
             ext.extra_compile_args = ["-std=c11", "-fvisibility=hidden"]
         else:
@@ -26,11 +39,12 @@ class BuildExt(build_ext):
             ext.sources.append("src/scanner.c")
         if ext.py_limited_api:
             ext.define_macros.append(("Py_LIMITED_API", "0x030A0000"))
-        super().build_extension(ext)
+        super().build_extension(ext)  # pyright: ignore[reportUnknownMemberType]
 
 
 class BdistWheel(bdist_wheel):
-    def get_tag(self):
+    @override
+    def get_tag(self) -> tuple[str, str, str]:
         python, abi, platform = super().get_tag()
         if python.startswith("cp") and not get_config_var("Py_GIL_DISABLED"):
             python, abi = "cp310", "abi3"
@@ -38,13 +52,16 @@ class BdistWheel(bdist_wheel):
 
 
 class EggInfo(egg_info):
-    def find_sources(self):
+    filelist: SourceFileList
+
+    @override
+    def find_sources(self) -> None:
         super().find_sources()
         self.filelist.recursive_include("queries", "*.scm")
         self.filelist.include("src/tree_sitter/*.h")
 
 
-setup(
+_ = setup(
     packages=find_packages("bindings/python"),
     package_dir={"": "bindings/python"},
     package_data={

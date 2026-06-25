@@ -16,13 +16,15 @@
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
+import { arch, execPath, exit, platform } from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const platformDir = `${process.platform}-${process.arch}`;
+const platformDir = `${platform}-${arch}`;
 
 const bundledNodeGyp = join(
-	dirname(dirname(process.execPath)),
+	dirname(dirname(execPath)),
 	'lib',
 	'node_modules',
 	'npm',
@@ -46,7 +48,7 @@ function resolveNodeGyp() {
 function runNodeGyp(cwd: string) {
 	const nodeGyp = resolveNodeGyp();
 	if (nodeGyp) {
-		execFileSync(process.execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
+		execFileSync(execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
 		return;
 	}
 	execFileSync('node-gyp', ['rebuild'], { cwd, stdio: 'inherit' });
@@ -75,7 +77,7 @@ function optionalPackageRoot(packageName: string) {
 }
 
 function buildNativeAddons(): void {
-	const grammarRoot = resolve(import.meta.dirname!, '..');
+	const grammarRoot = fileURLToPath(new URL('..', import.meta.url));
 	ensureAddon(grammarRoot, 'tree_sitter_svg_binding.node', 'tree-sitter-svg');
 
 	const treeSitterRoot = optionalPackageRoot('tree-sitter');
@@ -94,5 +96,5 @@ try {
 	console.error(
 		'A C toolchain and node-gyp are required (e.g. build-essential / Xcode CLT plus `node-gyp`).',
 	);
-	process.exit(1);
+	exit(1);
 }

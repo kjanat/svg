@@ -26,6 +26,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
+import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -437,7 +438,7 @@ function renderCorpus(cases: readonly GeneratedCase[]): string {
 }
 
 function main(): void {
-	const checkMode = process.argv.includes('--check');
+	const checkMode = argv.includes('--check');
 
 	const core = readJson<CoreCatalog>(corePath);
 	const treeSitter = readJson<TreeSitterCatalog>(treeSitterPath);

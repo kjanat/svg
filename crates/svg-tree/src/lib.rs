@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn iri_reference_node_exists_in_url_attributes() -> TestResult {
-        let src = br#"<svg><rect fill="url(#grad)"/></svg>"#;
+        let src = br#"<svg><rect clip-path="url(#clip)"/></svg>"#;
         let tree = parse_svg(src)?;
         let mut found_iri = false;
         let mut cursor = tree.root_node().walk();
@@ -225,7 +225,7 @@ mod tests {
         });
         assert!(
             found_iri,
-            "grammar should produce iri_reference for url(#...)"
+            "grammar should produce iri_reference for host functional IRI attributes"
         );
         Ok(())
     }

@@ -150,7 +150,7 @@ function loadCurrentCandidate(): Candidate {
 }
 
 function ensureMultiline(flags: string): string {
-	return flags.includes("m") ? flags : flags + "m";
+	return flags.includes("m") ? flags : `${flags}m`;
 }
 
 function compileRegex(pattern: string): RegExp {

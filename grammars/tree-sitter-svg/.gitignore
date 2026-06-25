@@ -25,6 +25,8 @@ dist/
 __pycache__/
 
 # C artifacts
+.clangd
+.clangd-headers/
 *.a
 *.so
 *.so.*

@@ -5,6 +5,11 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * @param {string} packageRoot
+ * @param {string} builtName
+ * @param {string} prebuildName
+ */
 function ensureBunPrebuild(packageRoot, builtName, prebuildName) {
 	const prebuildDir = join(packageRoot, 'prebuilds', `${process.platform}-${process.arch}`);
 	const prebuildPath = join(prebuildDir, `${prebuildName}.node`);

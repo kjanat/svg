@@ -211,8 +211,20 @@ fn align_to_tag_name_with_multiline_value_continues_under_quote() {
 
 #[test]
 fn parse_error_returns_original_source() {
-    let input = r#"<svg><path d="m0 0 l"/></svg>"#;
+    // Genuinely malformed XML (unclosed `<g>`) is returned untouched.
+    let input = r"<svg><g></svg>";
     assert_eq!(format(input), input);
+}
+
+#[test]
+fn invalid_path_data_preserved_document_still_formats() {
+    // Path data is an opaque payload in the host grammar (the injected
+    // `svg_path` grammar parses it), so an invalid `d` value is no longer a
+    // document parse error. The document formats; the bad value is kept
+    // verbatim and left unwrapped.
+    let input = r#"<svg><path d="m0 0 l"/></svg>"#;
+    let expected = "<svg>\n\t<path d=\"m0 0 l\" />\n</svg>";
+    assert_eq!(format(input), expected);
 }
 
 #[test]

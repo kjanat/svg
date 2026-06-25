@@ -12,10 +12,11 @@ keywords             = ["color", "hex", "hsl", "rgb", "svg"]
 categories           = ["graphics", "parsing"]
 
 [dependencies]
-svg-tree.workspace        = true
-tree-sitter.workspace     = true
-tree-sitter-css.workspace = true
-tree-sitter-svg.workspace = true
+svg-tree.workspace              = true
+tree-sitter.workspace           = true
+tree-sitter-css.workspace       = true
+tree-sitter-svg.workspace       = true
+tree-sitter-svg-paint.workspace = true
 
 [lints]
 workspace = true

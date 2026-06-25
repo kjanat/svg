@@ -5,21 +5,27 @@
 	"description": "Bun workspace for the tree-sitter SVG grammar and its injected sub-grammars",
 	"license": "MIT OR Apache-2.0",
 	"author": "Kaj Kowalski <info@kajkowalski.nl> (https://github.com/kjanat)",
-	"workspaces": ["grammars/*"],
+	"workspaces": ["grammars/*", "scripts"],
 	"scripts": {
 		"fmt": "dprint fmt",
 		"lint": "bun run --filter '*' lint",
 		"postinstall": "bun run --filter '*' postinstall"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "catalog:",
+		"@types/deno": "catalog:",
 		"runner-run": "catalog:",
 		"tree-sitter": "catalog:"
 	},
 	"packageManager": "bun@1.3.14",
-	"volta": { "node": "26.4.0", "npm": "11.17.0" },
+	"volta": {
+		"node": "26.4.0",
+		"npm": "11.17.0"
+	},
 	"catalog": {
 		"@biomejs/biome": "^2.5",
 		"@types/bun": "^1.3",
+		"@types/deno": "^2.7.0",
 		"dprint": "^0.54",
 		"node-addon-api": "^8.8",
 		"node-gyp": "^13",

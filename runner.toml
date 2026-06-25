@@ -7,3 +7,7 @@ group_output   = true
 
 [parallel]
 grouped = true
+
+[resolution]
+fallback    = "error"
+on_mismatch = "error"

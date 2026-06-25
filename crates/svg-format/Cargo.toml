@@ -20,8 +20,9 @@ path              = "src/main.rs"
 required-features = ["cli"]
 
 [dependencies]
-tree-sitter.workspace     = true
-tree-sitter-svg.workspace = true
+tree-sitter.workspace          = true
+tree-sitter-svg.workspace      = true
+tree-sitter-svg-path.workspace = true
 
 [dependencies.clap]
 workspace = true

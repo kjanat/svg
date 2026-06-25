@@ -10,6 +10,7 @@
 	},
 	"markdown": { "textWrap": "always", "emphasisKind": "asterisks", "lineWidth": 80 },
 	"markup": { "associations": ["!**/*.svg"] },
+	"ruff": { "preview": true },
 	"yaml": { "printWidth": 160 },
 	"exec": {
 		"associations": ["justfile", "**/*.rs", "**/*.toml", "**/*.zig", "**/*.zon"], // "*.svg"

@@ -12,14 +12,42 @@
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
+import { arch, execPath, exit, platform } from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const platformDir = `${process.platform}-${process.arch}`;
+const platformDir = `${platform}-${arch}`;
+
+const bundledNodeGyp = join(
+	dirname(dirname(execPath)),
+	'lib',
+	'node_modules',
+	'npm',
+	'node_modules',
+	'node-gyp',
+	'bin',
+	'node-gyp.js',
+);
+
+function resolveNodeGyp() {
+	if (existsSync(bundledNodeGyp)) {
+		return bundledNodeGyp;
+	}
+	try {
+		return require.resolve('node-gyp/bin/node-gyp.js');
+	} catch {
+		return null;
+	}
+}
 
 function runNodeGyp(cwd: string) {
-	const nodeGyp = require.resolve('node-gyp/bin/node-gyp.js');
-	execFileSync(process.execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
+	const nodeGyp = resolveNodeGyp();
+	if (nodeGyp) {
+		execFileSync(execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
+		return;
+	}
+	execFileSync('node-gyp', ['rebuild'], { cwd, stdio: 'inherit' });
 }
 
 function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
@@ -37,7 +65,7 @@ function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
 }
 
 try {
-	const grammarRoot = resolve(import.meta.dirname!, '..');
+	const grammarRoot = fileURLToPath(new URL('..', import.meta.url));
 	ensureAddon(grammarRoot, 'tree_sitter_svg_path_binding.node', 'tree-sitter-svg-path');
 } catch (error) {
 	const reason = error instanceof Error ? error.message : String(error);
@@ -45,5 +73,5 @@ try {
 	console.error(
 		'A C toolchain and node-gyp are required (e.g. build-essential / Xcode CLT plus `node-gyp`).',
 	);
-	process.exit(1);
+	exit(1);
 }
