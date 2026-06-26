@@ -18,6 +18,25 @@
 /// Calls `f` on each node visited.  Uses `TreeCursor` internally for
 /// efficiency (no per-node allocation).  Iterative traversal to avoid stack
 /// overflow from deeply-nested SVG trees.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br"<svg><rect/></svg>";
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let mut count = 0;
+/// let mut cursor = tree.root_node().walk();
+/// svg_tree::walk_tree(&mut cursor, &mut |_| count += 1);
+/// assert!(count > 1);
+/// # Ok(())
+/// # }
+/// ```
 pub fn walk_tree(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     f: &mut impl FnMut(tree_sitter::Node<'_>),
@@ -48,6 +67,24 @@ pub fn walk_tree(
 /// Return the deepest (most specific) node that spans `byte_offset`.
 ///
 /// Falls back to the tree root when no descendant covers the offset.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><rect id="box"/></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let offset = source.iter().position(|byte| *byte == b'b').ok_or("missing id")?;
+/// let node = svg_tree::deepest_node_at(&tree, offset);
+/// assert!(node.byte_range().contains(&offset));
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn deepest_node_at(tree: &tree_sitter::Tree, byte_offset: usize) -> tree_sitter::Node<'_> {
     tree.root_node()
@@ -58,6 +95,25 @@ pub fn deepest_node_at(tree: &tree_sitter::Tree, byte_offset: usize) -> tree_sit
 /// Walk up from `node` and return the first ancestor whose kind is in `kinds`.
 ///
 /// The search includes `node` itself.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br"<svg><g><rect/></g></svg>";
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let offset = source.iter().position(|byte| *byte == b'r').ok_or("missing rect")?;
+/// let node = svg_tree::deepest_node_at(&tree, offset);
+/// let ancestor = svg_tree::find_ancestor_any(node, &["element", "svg_root_element"]);
+/// assert!(ancestor.is_some());
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn find_ancestor_any<'a>(
     node: tree_sitter::Node<'a>,
@@ -73,6 +129,24 @@ pub fn find_ancestor_any<'a>(
 }
 
 /// Return `true` if any ancestor of `node` (exclusive) has the given `kind`.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br"<svg><g><rect/></g></svg>";
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let offset = source.iter().position(|byte| *byte == b'r').ok_or("missing rect")?;
+/// let node = svg_tree::deepest_node_at(&tree, offset);
+/// assert!(svg_tree::has_ancestor(node, "element"));
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn has_ancestor(node: tree_sitter::Node<'_>, kind: &str) -> bool {
     let mut current = node;
@@ -86,6 +160,24 @@ pub fn has_ancestor(node: tree_sitter::Node<'_>, kind: &str) -> bool {
 }
 
 /// Return the first direct child of `node` whose kind matches `kind`.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br"<svg><rect/></svg>";
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let document = tree.root_node();
+/// let root = svg_tree::child_of_kind(document, "svg_root_element");
+/// assert!(root.is_some());
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn child_of_kind<'a>(node: tree_sitter::Node<'a>, kind: &str) -> Option<tree_sitter::Node<'a>> {
     let mut cursor = node.walk();
@@ -108,6 +200,14 @@ pub fn child_of_kind<'a>(node: tree_sitter::Node<'a>, kind: &str) -> Option<tree
 /// tree-sitter-svg emits `attribute_name` for plain attributes and
 /// `*_attribute_name` variants (e.g. `viewBox_attribute_name`) as value
 /// grammars expand.
+///
+/// # Examples
+///
+/// ```rust
+/// assert!(svg_tree::is_attribute_name_kind("attribute_name"));
+/// assert!(svg_tree::is_attribute_name_kind("viewBox_attribute_name"));
+/// assert!(!svg_tree::is_attribute_name_kind("element"));
+/// ```
 #[must_use]
 pub fn is_attribute_name_kind(kind: &str) -> bool {
     kind == "attribute_name" || kind.ends_with("_attribute_name")
@@ -118,6 +218,14 @@ pub fn is_attribute_name_kind(kind: &str) -> bool {
 /// `attribute` is a tree-sitter supertype in tree-sitter-svg, so concrete parse
 /// trees usually expose `generic_attribute` or typed `*_attribute` nodes instead
 /// of a visible `attribute` wrapper.
+///
+/// # Examples
+///
+/// ```rust
+/// assert!(svg_tree::is_attribute_node_kind("generic_attribute"));
+/// assert!(svg_tree::is_attribute_node_kind("href_attribute"));
+/// assert!(!svg_tree::is_attribute_node_kind("href_attribute_value"));
+/// ```
 #[must_use]
 pub fn is_attribute_node_kind(kind: &str) -> bool {
     kind == "attribute" || kind == "generic_attribute" || kind.ends_with("_attribute")

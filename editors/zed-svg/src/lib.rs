@@ -1,4 +1,10 @@
+//! Zed extension entry point for SVG language support.
+//!
+//! The extension starts `svg-language-server` for SVG buffers.
+//! It prefers the npm package managed by Zed and falls back to a `svg-language-server` binary
+//! already available in the worktree `PATH`.
 use std::{env, fs};
+use zed::register_extension;
 use zed_extension_api as zed;
 
 const LSP_BINARY_NAME: &str = "svg-language-server";
@@ -103,4 +109,4 @@ impl zed::Extension for SvgExtension {
     }
 }
 
-zed::register_extension!(SvgExtension);
+register_extension!(SvgExtension);

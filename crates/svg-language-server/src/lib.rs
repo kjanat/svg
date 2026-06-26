@@ -1608,6 +1608,15 @@ impl LanguageServer for SvgLanguageServer {
 }
 
 /// Run the SVG language server over stdio using the LSP transport.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// #[tokio::main]
+/// async fn main() {
+///     svg_language_server::run_stdio_server().await;
+/// }
+/// ```
 pub async fn run_stdio_server() {
     let _logging = init_logging();
     let stdin = tokio::io::stdin();

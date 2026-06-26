@@ -17,6 +17,13 @@ use svg_tree::{child_of_kind, deepest_node_at, find_ancestor_any, has_ancestor, 
 use tree_sitter::{Parser, Tree};
 
 /// A reference target that can be resolved to one or more definitions.
+///
+/// # Examples
+///
+/// ```rust
+/// let target = svg_references::DefinitionTarget::Id("clip".to_owned());
+/// assert_eq!(target, svg_references::DefinitionTarget::Id("clip".to_owned()));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DefinitionTarget {
     /// An `id` reference such as `url(#clip)` or `href="#id"`.
@@ -28,6 +35,18 @@ pub enum DefinitionTarget {
 }
 
 /// A zero-based source span.
+///
+/// # Examples
+///
+/// ```rust
+/// let span = svg_references::Span {
+///     start_row: 1,
+///     start_col: 2,
+///     end_row: 1,
+///     end_col: 6,
+/// };
+/// assert_eq!(span.start_col, 2);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Span {
     /// Start line.
@@ -41,6 +60,21 @@ pub struct Span {
 }
 
 /// A named symbol paired with its source span.
+///
+/// # Examples
+///
+/// ```rust
+/// let symbol = svg_references::NamedSpan {
+///     name: "icon".to_owned(),
+///     span: svg_references::Span {
+///         start_row: 0,
+///         start_col: 9,
+///         end_row: 0,
+///         end_col: 13,
+///     },
+/// };
+/// assert_eq!(symbol.name, "icon");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NamedSpan {
     /// Symbol name.
@@ -50,6 +84,18 @@ pub struct NamedSpan {
 }
 
 /// Inline stylesheet content extracted from an SVG document.
+///
+/// # Examples
+///
+/// ```rust
+/// let stylesheet = svg_references::InlineStylesheet {
+///     css: ".icon { fill: red; }".to_owned(),
+///     start_byte: 12,
+///     start_row: 0,
+///     start_col: 12,
+/// };
+/// assert!(stylesheet.css.contains("fill"));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlineStylesheet {
     /// Raw CSS source.
@@ -72,6 +118,24 @@ fn css_tree(css: &str) -> Option<Tree> {
 
 #[must_use]
 /// Resolve the definition target under the given SVG byte offset.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br##"<svg><clipPath id="clip"/><rect clip-path="url(#clip)"/></svg>"##;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+/// let offset = source.windows(5).position(|window| window == b"#clip").ok_or("missing ref")? + 1;
+///
+/// let target = svg_references::definition_target_at(source, &tree, offset);
+/// assert_eq!(target, Some(svg_references::DefinitionTarget::Id("clip".to_owned())));
+/// # Ok(())
+/// # }
+/// ```
 pub fn definition_target_at(
     source: &[u8],
     tree: &Tree,
@@ -194,6 +258,23 @@ fn css_custom_property_reference_name(
 
 #[must_use]
 /// Collect all `id` definitions from an SVG tree.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><symbol id="icon"/></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let definitions = svg_references::collect_id_definitions(source, &tree);
+/// assert_eq!(definitions[0].name, "icon");
+/// # Ok(())
+/// # }
+/// ```
 pub fn collect_id_definitions(source: &[u8], tree: &Tree) -> Vec<NamedSpan> {
     let mut results = Vec::new();
     let mut cursor = tree.root_node().walk();
@@ -214,6 +295,23 @@ pub fn collect_id_definitions(source: &[u8], tree: &Tree) -> Vec<NamedSpan> {
 
 #[must_use]
 /// Collect inline `<style>` blocks from an SVG tree.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br"<svg><style>.icon { fill: red; }</style></svg>";
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// let stylesheets = svg_references::collect_inline_stylesheets(source, &tree);
+/// assert_eq!(stylesheets[0].css, ".icon { fill: red; }");
+/// # Ok(())
+/// # }
+/// ```
 pub fn collect_inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<InlineStylesheet> {
     let mut stylesheets = Vec::new();
     let mut cursor = tree.root_node().walk();
@@ -252,6 +350,18 @@ pub fn collect_inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<InlineStyle
 
 #[must_use]
 /// Collect CSS class definitions from a stylesheet, offset into SVG coordinates.
+///
+/// # Examples
+///
+/// ```rust
+/// let definitions = svg_references::collect_class_definitions_from_stylesheet(
+///     ".icon { fill: red; }",
+///     4,
+///     2,
+/// );
+/// assert_eq!(definitions[0].name, "icon");
+/// assert_eq!(definitions[0].span.start_row, 4);
+/// ```
 pub fn collect_class_definitions_from_stylesheet(
     css: &str,
     start_row: usize,
@@ -303,6 +413,18 @@ pub fn collect_class_definitions_from_stylesheet(
 #[must_use]
 /// Collect CSS custom-property definitions from a stylesheet, offset into SVG
 /// coordinates.
+///
+/// # Examples
+///
+/// ```rust
+/// let definitions = svg_references::collect_custom_property_definitions_from_stylesheet(
+///     ":root { --accent: red; }",
+///     2,
+///     0,
+/// );
+/// assert_eq!(definitions[0].name, "--accent");
+/// assert_eq!(definitions[0].span.start_row, 2);
+/// ```
 pub fn collect_custom_property_definitions_from_stylesheet(
     css: &str,
     start_row: usize,
@@ -345,6 +467,15 @@ pub fn collect_custom_property_definitions_from_stylesheet(
 
 #[must_use]
 /// Extract `href` values from `<?xml-stylesheet ...?>` processing instructions.
+///
+/// # Examples
+///
+/// ```rust
+/// let hrefs = svg_references::extract_xml_stylesheet_hrefs(
+///     br#"<?xml-stylesheet type="text/css" href="theme.css"?><svg/>"#,
+/// );
+/// assert_eq!(hrefs, ["theme.css"]);
+/// ```
 pub fn extract_xml_stylesheet_hrefs(source: &[u8]) -> Vec<String> {
     let mut hrefs = Vec::new();
     let Ok(text) = std::str::from_utf8(source) else {

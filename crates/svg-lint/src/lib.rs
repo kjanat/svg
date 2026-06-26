@@ -7,8 +7,8 @@
 //! # Examples
 //!
 //! ```rust
-//! let diagnostics = svg_lint::lint(br"<svg><banana/></svg>");
-//! assert!(diagnostics.iter().any(|d| d.code == svg_lint::DiagnosticCode::UnknownElement));
+//! let diagnostics = svg_lint::lint(br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#);
+//! assert!(diagnostics.iter().any(|d| d.code == svg_lint::DiagnosticCode::DuplicateId));
 //! ```
 
 mod namespaces;
@@ -29,6 +29,13 @@ pub use version::{effective_profile, extract_declared_version};
 /// # Panics
 ///
 /// Panics if the compiled tree-sitter SVG grammar cannot be loaded.
+///
+/// # Examples
+///
+/// ```rust
+/// let diagnostics = svg_lint::lint(br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#);
+/// assert!(diagnostics.iter().any(|diag| diag.code == svg_lint::DiagnosticCode::DuplicateId));
+/// ```
 #[must_use]
 pub fn lint(source: &[u8]) -> Vec<SvgDiagnostic> {
     lint_with_options(source, LintOptions::default())
@@ -39,6 +46,16 @@ pub fn lint(source: &[u8]) -> Vec<SvgDiagnostic> {
 /// # Panics
 ///
 /// Panics if the compiled tree-sitter SVG grammar cannot be loaded.
+///
+/// # Examples
+///
+/// ```rust
+/// let diagnostics = svg_lint::lint_with_options(
+///     br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#,
+///     svg_lint::LintOptions::default(),
+/// );
+/// assert!(diagnostics.iter().any(|diag| diag.code == svg_lint::DiagnosticCode::DuplicateId));
+/// ```
 #[must_use]
 pub fn lint_with_options(source: &[u8], options: LintOptions) -> Vec<SvgDiagnostic> {
     let mut parser = Parser::new();
@@ -55,6 +72,20 @@ pub fn lint_with_options(source: &[u8], options: LintOptions) -> Vec<SvgDiagnost
 }
 
 /// Lint an already-parsed tree with optional runtime compat overrides.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser.parse(source, None).ok_or("parse failed")?;
+/// let diagnostics = svg_lint::lint_tree(source, &tree, None);
+/// assert!(diagnostics.iter().any(|diag| diag.code == svg_lint::DiagnosticCode::DuplicateId));
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn lint_tree(
     source: &[u8],
@@ -65,6 +96,25 @@ pub fn lint_tree(
 }
 
 /// Lint an already-parsed tree with explicit profile options.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser.parse(source, None).ok_or("parse failed")?;
+/// let diagnostics = svg_lint::lint_tree_with_options(
+///     source,
+///     &tree,
+///     svg_lint::LintOptions::default(),
+///     None,
+/// );
+/// assert!(diagnostics.iter().any(|diag| diag.code == svg_lint::DiagnosticCode::DuplicateId));
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn lint_tree_with_options(
     source: &[u8],
@@ -84,6 +134,26 @@ pub fn lint_tree_with_options(
 /// advisory diagnostics — deprecation phrasing and the partial / prefix /
 /// behind-flag hints — track current data. Passing `None` (or an empty
 /// map) is exactly the baked behaviour of [`lint_tree_with_options`].
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><rect id="dup"/><circle id="dup"/></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser.parse(source, None).ok_or("parse failed")?;
+/// let diagnostics = svg_lint::lint_tree_with_compat(
+///     source,
+///     &tree,
+///     svg_lint::LintOptions::default(),
+///     None,
+///     None,
+/// );
+/// assert!(diagnostics.iter().any(|diag| diag.code == svg_lint::DiagnosticCode::DuplicateId));
+/// # Ok(())
+/// # }
+/// ```
 #[must_use]
 pub fn lint_tree_with_compat(
     source: &[u8],
