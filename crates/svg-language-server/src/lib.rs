@@ -751,7 +751,7 @@ fn build_hover_context(
     );
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
-    let stylesheet_hrefs = svg_references::extract_xml_stylesheet_hrefs(source);
+    let stylesheet_hrefs = svg_references::extract_stylesheet_hrefs(source, &doc.tree);
     let inline_stylesheets = svg_references::collect_inline_stylesheets(source, &doc.tree);
 
     let (class_hover, property_hover) = match &definition_target {

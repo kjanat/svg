@@ -319,9 +319,6 @@ pub fn collect_inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<InlineStyle
         if node.kind() != "element" {
             return;
         }
-        let Some(raw_text) = child_of_kind(node, "raw_text") else {
-            return;
-        };
         let Some(start_tag) = child_of_kind(node, "start_tag") else {
             return;
         };
@@ -335,15 +332,7 @@ pub fn collect_inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<InlineStyle
             return;
         }
 
-        let Some(css) = std::str::from_utf8(&source[raw_text.byte_range()]).ok() else {
-            return;
-        };
-        stylesheets.push(InlineStylesheet {
-            css: css.to_owned(),
-            start_byte: raw_text.start_byte(),
-            start_row: raw_text.start_position().row,
-            start_col: raw_text.start_position().column,
-        });
+        collect_style_text_segments(source, node, &mut stylesheets);
     });
     stylesheets
 }
@@ -504,6 +493,62 @@ pub fn extract_xml_stylesheet_hrefs(source: &[u8]) -> Vec<String> {
     hrefs
 }
 
+#[must_use]
+/// Extract stylesheet `href` values from processing instructions and SVG/XHTML
+/// `<link rel="stylesheet" ...>` elements.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = br#"<svg><link rel="stylesheet" href="theme.css" /></svg>"#;
+/// let mut parser = tree_sitter::Parser::new();
+/// parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+/// let tree = parser
+///     .parse(source, None)
+///     .ok_or_else(|| std::io::Error::other("parse failed"))?;
+///
+/// assert_eq!(svg_references::extract_stylesheet_hrefs(source, &tree), ["theme.css"]);
+/// # Ok(())
+/// # }
+/// ```
+pub fn extract_stylesheet_hrefs(source: &[u8], tree: &Tree) -> Vec<String> {
+    let mut hrefs = extract_xml_stylesheet_hrefs(source);
+    let mut cursor = tree.root_node().walk();
+    walk_tree(&mut cursor, &mut |node| {
+        if !matches!(node.kind(), "start_tag" | "self_closing_tag") {
+            return;
+        }
+        let Some(name) = node
+            .child_by_field_name("name")
+            .and_then(|n| n.utf8_text(source).ok())
+        else {
+            return;
+        };
+        if !is_link_name(name) {
+            return;
+        }
+        if !tag_attribute_value(source, node, "rel").is_some_and(|rel| {
+            rel.split_ascii_whitespace()
+                .any(|item| item.eq_ignore_ascii_case("stylesheet"))
+        }) {
+            return;
+        }
+        if tag_attribute_value(source, node, "type")
+            .is_some_and(|kind| !kind.eq_ignore_ascii_case("text/css"))
+        {
+            return;
+        }
+        if let Some(href) = tag_attribute_value(source, node, "href")
+            .or_else(|| tag_attribute_value(source, node, "xlink:href"))
+            && !href.is_empty()
+        {
+            hrefs.push(href);
+        }
+    });
+    hrefs
+}
+
 fn inline_stylesheet_containing_offset(
     source: &[u8],
     tree: &Tree,
@@ -519,6 +564,81 @@ fn inline_stylesheet_containing_offset(
 
 fn is_style_name(name: &str) -> bool {
     name == "style" || name.ends_with(":style")
+}
+
+fn is_link_name(name: &str) -> bool {
+    name == "link" || name.ends_with(":link")
+}
+
+fn collect_style_text_segments(
+    source: &[u8],
+    style_node: tree_sitter::Node<'_>,
+    stylesheets: &mut Vec<InlineStylesheet>,
+) {
+    let mut cursor = style_node.walk();
+    walk_tree(&mut cursor, &mut |node| {
+        if !matches!(node.kind(), "raw_text" | "cdata_text") {
+            return;
+        }
+        let Some(css) = std::str::from_utf8(&source[node.byte_range()]).ok() else {
+            return;
+        };
+        stylesheets.push(InlineStylesheet {
+            css: css.to_owned(),
+            start_byte: node.start_byte(),
+            start_row: node.start_position().row,
+            start_col: node.start_position().column,
+        });
+    });
+}
+
+fn tag_attribute_value(
+    source: &[u8],
+    tag: tree_sitter::Node<'_>,
+    target_name: &str,
+) -> Option<String> {
+    let mut cursor = tag.walk();
+    if !cursor.goto_first_child() {
+        return None;
+    }
+    loop {
+        let child = cursor.node();
+        if let Some(value) = attribute_value(source, child, target_name) {
+            return Some(value);
+        }
+        if !cursor.goto_next_sibling() {
+            break;
+        }
+    }
+    None
+}
+
+fn attribute_value(
+    source: &[u8],
+    attribute: tree_sitter::Node<'_>,
+    target_name: &str,
+) -> Option<String> {
+    let name = attribute
+        .child_by_field_name("name")
+        .and_then(|node| node.utf8_text(source).ok())?;
+    if name != target_name {
+        return None;
+    }
+    let text = attribute
+        .child_by_field_name("value")
+        .and_then(|node| node.utf8_text(source).ok())?;
+    unquote_attribute_value(text).map(str::to_owned)
+}
+
+fn unquote_attribute_value(text: &str) -> Option<&str> {
+    let quote = text.as_bytes().first().copied()?;
+    if quote != b'\'' && quote != b'"' {
+        return None;
+    }
+    if text.as_bytes().last().copied()? != quote {
+        return None;
+    }
+    text.get(1..text.len().checked_sub(1)?)
 }
 
 fn span_from_node(node: tree_sitter::Node<'_>) -> Span {
@@ -657,6 +777,22 @@ mod tests {
     }
 
     #[test]
+    fn collects_cdata_inline_style_classes() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><style><![CDATA[.cdata { fill: red; }]]></style></svg>";
+        let tree = parse_svg(source)?;
+        let styles = collect_inline_stylesheets(source.as_bytes(), &tree);
+        assert_eq!(styles.len(), 1);
+        let defs = collect_class_definitions_from_stylesheet(
+            &styles[0].css,
+            styles[0].start_row,
+            styles[0].start_col,
+        );
+        let names: Vec<_> = defs.into_iter().map(|d| d.name).collect();
+        assert_eq!(names, vec!["cdata"]);
+        Ok(())
+    }
+
+    #[test]
     fn ignores_class_attribute_selector_as_definition() {
         let defs =
             collect_class_definitions_from_stylesheet("[class~='x'] .a { fill: red; }", 0, 0);
@@ -671,6 +807,17 @@ mod tests {
             extract_xml_stylesheet_hrefs(source.as_bytes()),
             vec!["style.css".to_owned()]
         );
+    }
+
+    #[test]
+    fn extracts_link_stylesheet_href() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\" /></svg>";
+        let tree = parse_svg(source)?;
+        assert_eq!(
+            extract_stylesheet_hrefs(source.as_bytes(), &tree),
+            vec!["style.css".to_owned()]
+        );
+        Ok(())
     }
 
     #[test]

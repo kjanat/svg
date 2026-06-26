@@ -9,3 +9,4 @@ single-page.html
 svgwg/
 target/
 !/grammars/tree-sitter-svg/bun.lock
+!/samples/mdn
