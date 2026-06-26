@@ -236,6 +236,59 @@ fn typed_attribute_values_offer_context_aware_completions() -> TestResult {
 }
 
 #[test]
+fn color_value_completion_does_not_offer_fragment_references() -> TestResult {
+    let mut server = TestServer::start()?;
+
+    let svg = r##"<svg><symbol id="ss"/><rect color="" fill="" /></svg>"##;
+    server.open("file:///paint-color-completion.svg", svg)?;
+
+    let color_offset = svg.find(r#"color="""#).ok_or("color attr")? + 7;
+    let color_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///paint-color-completion.svg" },
+            "position": { "line": 0, "character": color_offset }
+        }),
+    )?;
+    let color_items = color_resp["result"]
+        .as_array()
+        .ok_or("color completion result should be an array")?;
+    assert!(
+        color_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("currentColor")),
+        "color completions should keep color keywords: {color_resp}"
+    );
+    assert!(
+        color_items
+            .iter()
+            .all(|item| item["label"].as_str() != Some("#ss")),
+        "color completions should not include fragment references: {color_resp}"
+    );
+
+    let fill_offset = svg.find(r#"fill="""#).ok_or("fill attr")? + 6;
+    let fill_resp = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///paint-color-completion.svg" },
+            "position": { "line": 0, "character": fill_offset }
+        }),
+    )?;
+    let fill_items = fill_resp["result"]
+        .as_array()
+        .ok_or("fill completion result should be an array")?;
+    assert!(
+        fill_items
+            .iter()
+            .any(|item| item["label"].as_str() == Some("#ss")),
+        "paint server attrs should still include fragment references: {fill_resp}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
 fn completions_follow_selected_profile() -> TestResult {
     let mut svg11_server = TestServer::start_with_initialize_options(&json!({
         "svg": {

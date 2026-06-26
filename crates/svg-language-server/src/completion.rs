@@ -495,7 +495,11 @@ pub fn value_completions(
             return items;
         }
         "paint_attribute_value" => {
-            let mut items = href_value_completions(source, tree, value_node);
+            let mut items = if paint_attribute_allows_fragment_reference(attr_name) {
+                href_value_completions(source, tree, value_node)
+            } else {
+                Vec::new()
+            };
             items.extend(paint_value_completions());
             return items;
         }
@@ -574,6 +578,10 @@ pub fn value_completions(
         | AttributeValues::NumberOrPercentage
         | AttributeValues::FreeText => Vec::new(),
     }
+}
+
+fn paint_attribute_allows_fragment_reference(attr_name: &str) -> bool {
+    matches!(attr_name, "fill" | "stroke")
 }
 
 fn css_grammar_value_completions(graph: &svg_data::CssGrammarGraph) -> Vec<CompletionItem> {
