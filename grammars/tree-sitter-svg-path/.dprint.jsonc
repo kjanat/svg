@@ -1,4 +1,4 @@
 {
 	"extends": "../../.dprint.jsonc",
-	"excludes": ["tree-sitter.json", "./src/*.json", "./test/**", "**/w3/*.svg", "*.fixture.svg", "fixtures/**"],
+	"excludes": ["./src/*.json", "./test/**", "**/w3/*.svg", "*.fixture.svg", "fixtures/**"],
 }
