@@ -6,6 +6,15 @@
 	</rect>
 
 	<!-- DIAGNOSTIC: InvalidChild — text inside tspan (wrong nesting direction) -->
+	<text x="30" y="100">
+		<tspan>
+			<text>
+				This is backwards
+			</text>
+		</tspan>
+	</text>
+
+	<!-- DIAGNOSTIC: InvalidChild — <tspan> as direct child of svg, not child of <text> -->
 	<tspan>
 		<text x="30" y="100">
 			This is backwards
