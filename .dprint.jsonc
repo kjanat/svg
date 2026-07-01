@@ -1,7 +1,7 @@
 {
 	"$schema": "https://dprint.dev/schemas/v0.json",
 	// update: git ls-remote https://github.com/kjanat/kjanat.git HEAD | awk '{print $1}' | xargs -r -I{} sed -i -E 's#(github\.com/kjanat/kjanat/raw/)[0-9a-f]{40}(/configs/dprint\.remote\.json)#\1{}\2#g' .dprint.jsonc
-	"extends": "https://github.com/kjanat/kjanat/raw/715d59c6fc69e8020ae0016932782b7bb64d969a/configs/dprint.remote.json",
+	"extends": "https://github.com/kjanat/kjanat/raw/e5f1f67826482d79679c1eebc0e0221683b7107d/configs/dprint.remote.json",
 	"useTabs": true,
 	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
 	"json": {
