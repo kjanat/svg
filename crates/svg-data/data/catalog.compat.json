@@ -2,13 +2,13 @@
   "schema_version": 1,
   "browser_compat_data": {
     "name": "@mdn/browser-compat-data",
-    "version": "8.0.4",
-    "url": "https://unpkg.com/@mdn/browser-compat-data@8.0.4/data.json"
+    "version": "8.0.5",
+    "url": "https://unpkg.com/@mdn/browser-compat-data@8.0.5/data.json"
   },
   "web_features": {
     "name": "web-features",
-    "version": "3.31.0",
-    "url": "https://unpkg.com/web-features@3.31.0/data.json"
+    "version": "3.32.0",
+    "url": "https://unpkg.com/web-features@3.32.0/data.json"
   },
   "unmodeled_features": [
     {

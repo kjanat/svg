@@ -222,9 +222,12 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
                     .extend(extract_attrdef_table(tag, parser));
             }
             "table" if has_class(tag, "propdef") => {
-                if let Some(property) = extract_propdef(tag, parser) {
-                    chapter.properties.push(property);
-                }
+                chapter.properties.extend(extract_propdef(tag, parser));
+            }
+            "dl" if has_class(tag, "propdef-list-svg2") => {
+                chapter
+                    .properties
+                    .extend(extract_svg2_propdef_list(tag, parser));
             }
             "dl" if has_class(tag, "definitions") => {
                 extract_definition_list(tag, parser, macros, &mut chapter.term_definitions);
@@ -996,11 +999,16 @@ fn dfn_ids(tag: &HTMLTag, parser: &Parser) -> Vec<String> {
 
 /// Extract a single property value-definition table into a [`PropertyValueDef`].
 ///
-/// Returns `None` when the table has no `Name:` row (so it is not a real
+/// Returns an empty vec when the table has no `Name:` row (so it is not a real
 /// property definition).
-fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Option<PropertyValueDef> {
-    let mut name = None;
-    let mut id = None;
+///
+/// The `Name:` row may list several comma-separated properties that share one
+/// definition body (e.g. `marker-start, marker-mid, marker-end` in
+/// painting.html). Each named property becomes its own [`PropertyValueDef`]
+/// carrying the shared value grammar and metadata, so downstream lookups keyed
+/// by attribute name resolve every member instead of a single fused key.
+fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Vec<PropertyValueDef> {
+    let mut names: Vec<AttrdefName> = Vec::new();
     let mut value = None;
     let mut initial = None;
     let mut applies_to = None;
@@ -1008,7 +1016,9 @@ fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Option<PropertyValueDef>
     let mut computed_value = None;
     let mut animation_type = None;
 
-    let rows = table.query_selector(parser, "tr")?;
+    let Some(rows) = table.query_selector(parser, "tr") else {
+        return Vec::new();
+    };
     for handle in rows {
         let Some(row) = handle.get(parser).and_then(|node| node.as_tag()) else {
             continue;
@@ -1022,10 +1032,7 @@ fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Option<PropertyValueDef>
             .to_ascii_lowercase()
             .as_str()
         {
-            "name" => {
-                name = Some(cell);
-                id = first_attr(row, parser, "dfn", "id");
-            }
+            "name" => names = propdef_names(row, parser),
             "value" => value = Some(cell),
             "initial" => initial = Some(cell),
             "applies to" => applies_to = Some(cell),
@@ -1036,20 +1043,48 @@ fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Option<PropertyValueDef>
         }
     }
 
-    let name = name?;
+    if names.is_empty() {
+        return Vec::new();
+    }
     let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
-    Some(PropertyValueDef {
-        name,
-        dfn_for: None,
-        id,
-        value,
-        keywords,
-        initial,
-        applies_to,
-        inherited,
-        computed_value,
-        animation_type,
-    })
+    names
+        .into_iter()
+        .map(|name| PropertyValueDef {
+            name: name.name,
+            dfn_for: name.dfn_for,
+            id: name.id,
+            value: value.clone(),
+            keywords: keywords.clone(),
+            initial: initial.clone(),
+            applies_to: applies_to.clone(),
+            inherited: inherited.clone(),
+            computed_value: computed_value.clone(),
+            animation_type: animation_type.clone(),
+        })
+        .collect()
+}
+
+/// The property names declared in a propdef table's `Name:` row. Reuses the
+/// attribute-name reader (`<dfn>` / `span.adef` / comma-split fallback), so a
+/// single-name cell yields one entry and a multi-name cell yields one per name.
+fn propdef_names(row: &HTMLTag, parser: &Parser) -> Vec<AttrdefName> {
+    let has_th = row
+        .query_selector(parser, "th")
+        .and_then(|mut cells| cells.next())
+        .is_some();
+    let Some(mut cells) = row.query_selector(parser, "td") else {
+        return Vec::new();
+    };
+    // With a `<th>` label the sole `<td>` holds the names; with `<td>` labels
+    // the second `<td>` does (mirroring `propdef_row_label_and_value`).
+    let cell = if has_th { cells.next() } else { cells.nth(1) };
+    let Some(cell) = cell
+        .and_then(|handle| handle.get(parser))
+        .and_then(|node| node.as_tag())
+    else {
+        return Vec::new();
+    };
+    attrdef_names(cell, parser)
 }
 
 /// Extract SVG attribute definition tables that use a horizontal
@@ -1125,7 +1160,46 @@ fn extract_svg2_attrdef_list(dl: &HTMLTag, parser: &Parser) -> Vec<PropertyValue
         match child.name().as_utf8_str().as_ref() {
             "dt" => pending_names = attrdef_names(child, parser),
             "dd" if !pending_names.is_empty() => {
-                if let Some(definition) = extract_svg2_attrdef_metadata(child, parser) {
+                if let Some(definition) = extract_svg2_metadata(child, parser, "attrdef-svg2") {
+                    definitions.extend(pending_names.iter().cloned().map(|name| {
+                        property_from_attrdef(
+                            name.name,
+                            name.dfn_for,
+                            name.id,
+                            Some(definition.value.clone()),
+                            definition.initial.clone(),
+                            definition.animation_type.clone(),
+                        )
+                    }));
+                }
+                pending_names.clear();
+            }
+            _ => {}
+        }
+    }
+
+    definitions
+}
+
+/// Extract SVG 2 property definition lists, where a `propdef-list-svg2` `<dl>`
+/// pairs each property-name `<dt>` with a `<dd>` holding a nested
+/// `propdef-svg2` `<dl>` of `Value`/`Initial`/… rows.
+///
+/// pservers.html defines `stop-color`/`stop-opacity` this way rather than in a
+/// `propdef` table, so without this reader their value spaces are lost and both
+/// fall back to free text.
+fn extract_svg2_propdef_list(dl: &HTMLTag, parser: &Parser) -> Vec<PropertyValueDef> {
+    let mut pending_names = Vec::new();
+    let mut definitions = Vec::new();
+
+    for handle in dl.children().top().iter() {
+        let Some(child) = handle.get(parser).and_then(|node| node.as_tag()) else {
+            continue;
+        };
+        match child.name().as_utf8_str().as_ref() {
+            "dt" => pending_names = attrdef_names(child, parser),
+            "dd" if !pending_names.is_empty() => {
+                if let Some(definition) = extract_svg2_metadata(child, parser, "propdef-svg2") {
                     definitions.extend(pending_names.iter().cloned().map(|name| {
                         property_from_attrdef(
                             name.name,
@@ -1196,13 +1270,17 @@ struct AttrdefName {
     id: Option<String>,
 }
 
-fn extract_svg2_attrdef_metadata(dd: &HTMLTag, parser: &Parser) -> Option<Svg2AttrdefMetadata> {
+fn extract_svg2_metadata(
+    dd: &HTMLTag,
+    parser: &Parser,
+    list_class: &str,
+) -> Option<Svg2AttrdefMetadata> {
     let mut lists = dd.query_selector(parser, "dl")?;
     let list = lists.find_map(|handle| {
         handle
             .get(parser)
             .and_then(|node| node.as_tag())
-            .filter(|tag| has_class(tag, "attrdef-svg2"))
+            .filter(|tag| has_class(tag, list_class))
     })?;
     let mut pending_label = None;
     let mut value = None;
@@ -1477,13 +1555,6 @@ fn handle_text(handle: tl::NodeHandle, parser: &Parser) -> Option<String> {
     Some(normalize_ws(&found.inner_text(parser)))
 }
 
-/// The value of `attr_key` on the first descendant matching `selector`.
-fn first_attr(tag: &HTMLTag, parser: &Parser, selector: &str, attr_key: &str) -> Option<String> {
-    let handle = tag.query_selector(parser, selector)?.next()?;
-    let found = handle.get(parser)?.as_tag()?;
-    attr(found, attr_key)
-}
-
 /// Whether a tag name is an HTML heading (`h1`..`h6`).
 fn is_heading(name: &str) -> bool {
     matches!(name, "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
@@ -1654,6 +1725,48 @@ mod tests {
             descriptions.get("AnchorProperty").copied(),
             Some("The 'text-anchor' property aligns text relative to a point.")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn splits_multi_name_propdef_into_one_definition_per_name()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // painting.html defines the three marker properties in one propdef table.
+        let html = r#"<table class="propdef def">
+  <tr><th>Name:</th><td>
+    <dfn id="MarkerStartProperty" data-dfn-type="property">marker-start</dfn>,
+    <dfn id="MarkerMidProperty" data-dfn-type="property">marker-mid</dfn>,
+    <dfn id="MarkerEndProperty" data-dfn-type="property">marker-end</dfn></td></tr>
+  <tr><th>Value:</th><td>none | <a>&lt;marker-ref&gt;</a></td></tr>
+</table>"#;
+        let ch = extract_chapter("painting", html, &MacroIndex::default())?;
+        let names: Vec<_> = ch.properties.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["marker-start", "marker-mid", "marker-end"]);
+        assert_eq!(ch.properties[0].id.as_deref(), Some("MarkerStartProperty"));
+        for property in &ch.properties {
+            assert_eq!(property.value.as_deref(), Some("none | <marker-ref>"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn extracts_svg2_propdef_list_values() -> Result<(), Box<dyn std::error::Error>> {
+        // pservers.html defines stop-color/stop-opacity in this dl layout.
+        let html = r#"<dl class="propdef-list-svg2">
+  <dt id="StopColorProperty"><span class="propdef-title property">'stop-color'</span></dt>
+  <dd><p>prose</p><dl class="propdef-svg2">
+    <dt>Value</dt><dd>&lt;'color'&gt;</dd>
+    <dt><a>Animatable</a></dt><dd>yes</dd>
+  </dl></dd>
+</dl>"#;
+        let ch = extract_chapter("pservers", html, &MacroIndex::default())?;
+        let stop_color = ch
+            .properties
+            .iter()
+            .find(|property| property.name == "stop-color")
+            .expect("stop-color extracted from propdef-svg2 list");
+        assert_eq!(stop_color.value.as_deref(), Some("<'color'>"));
+        assert_eq!(stop_color.id.as_deref(), Some("StopColorProperty"));
         Ok(())
     }
 

@@ -1013,7 +1013,7 @@
     },
     "CatalogCore": {
       "title": "CatalogCore",
-      "description": "Canonical latest catalog data after semantic projection.\n\nThis document is the runtime-facing catalog, not a raw upstream XML/HTML\nmirror.",
+      "description": "Canonical latest catalog data after semantic projection.\n\nThis document is the runtime-facing catalog, not a raw upstream XML/HTML mirror.",
       "type": "object",
       "required": [
         "attributes",

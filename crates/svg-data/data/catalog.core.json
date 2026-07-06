@@ -10308,29 +10308,7 @@
         }
       },
       "values": {
-        "kind": "css_grammar",
-        "grammar": "<''opacity''>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<''opacity''>"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            }
-          ]
-        }
+        "kind": "number_or_percentage"
       },
       "applicability": {
         "kind": "elements",
@@ -10825,29 +10803,7 @@
         }
       },
       "values": {
-        "kind": "css_grammar",
-        "grammar": "<'opacity'>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<'opacity'>"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            }
-          ]
-        }
+        "kind": "number_or_percentage"
       },
       "applicability": {
         "kind": "elements",
@@ -18080,7 +18036,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-end",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerEndProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "marker-end",
       "baseline": {
         "kind": "widely",
@@ -18110,7 +18066,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <marker-ref>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<marker-ref>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -18169,7 +18177,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-mid",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerMidProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "marker-mid",
       "baseline": {
         "kind": "widely",
@@ -18199,7 +18207,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <marker-ref>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<marker-ref>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -18258,7 +18318,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-start",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerStartProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "marker-start",
       "baseline": {
         "kind": "widely",
@@ -18288,7 +18348,59 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "css_grammar",
+        "grammar": "none | <marker-ref>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "none"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<marker-ref>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -27770,6 +27882,7 @@
         },
         {
           "element": "tspan",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/rotate",
           "standard_track": true,
           "baseline": {
             "kind": "widely",
@@ -29726,7 +29839,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stop-color",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopColorProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stop-color",
       "baseline": {
         "kind": "widely",
@@ -29752,7 +29865,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "color"
       },
       "applicability": {
         "kind": "elements",
@@ -29810,7 +29923,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stop-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopOpacityProperty",
       "standard_track": true,
-      "animatable": false,
+      "animatable": true,
       "presentation_attribute": "stop-opacity",
       "baseline": {
         "kind": "widely",
@@ -29836,7 +29949,7 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "number_or_percentage"
       },
       "applicability": {
         "kind": "elements",
@@ -30589,29 +30702,7 @@
         }
       },
       "values": {
-        "kind": "css_grammar",
-        "grammar": "<''opacity''>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<''opacity''>"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            }
-          ]
-        }
+        "kind": "number_or_percentage"
       },
       "applicability": {
         "kind": "elements",
@@ -33438,7 +33529,30 @@
         }
       },
       "values": {
-        "kind": "free_text"
+        "kind": "transform",
+        "functions": [
+          "scale3d",
+          "scale",
+          "scaleX",
+          "scaleY",
+          "scaleZ",
+          "translate3d",
+          "translate",
+          "translateX",
+          "translateY",
+          "translateZ",
+          "rotate3d",
+          "rotate",
+          "rotateX",
+          "rotateY",
+          "rotateZ",
+          "skew",
+          "skewX",
+          "skewY",
+          "matrix3d",
+          "matrix",
+          "perspective"
+        ]
       },
       "applicability": {
         "kind": "elements",

@@ -2982,11 +2982,6 @@
       "name": "marker-start"
     },
     {
-      "id": "css-property:marker-start, marker-mid, marker-end",
-      "kind": "css_property",
-      "name": "marker-start, marker-mid, marker-end"
-    },
-    {
       "id": "css-property:markerHeight",
       "kind": "css_property",
       "name": "markerHeight"
@@ -4824,7 +4819,7 @@
     {
       "id": "value:fill-opacity",
       "kind": "value_grammar",
-      "name": "fill-opacity (css_grammar)"
+      "name": "fill-opacity (number_or_percentage)"
     },
     {
       "id": "value:fill-rule",
@@ -4864,7 +4859,7 @@
     {
       "id": "value:flood-opacity",
       "kind": "value_grammar",
-      "name": "flood-opacity (css_grammar)"
+      "name": "flood-opacity (number_or_percentage)"
     },
     {
       "id": "value:font",
@@ -5179,17 +5174,17 @@
     {
       "id": "value:marker-end",
       "kind": "value_grammar",
-      "name": "marker-end (free_text)"
+      "name": "marker-end (css_grammar)"
     },
     {
       "id": "value:marker-mid",
       "kind": "value_grammar",
-      "name": "marker-mid (free_text)"
+      "name": "marker-mid (css_grammar)"
     },
     {
       "id": "value:marker-start",
       "kind": "value_grammar",
-      "name": "marker-start (free_text)"
+      "name": "marker-start (css_grammar)"
     },
     {
       "id": "value:markerHeight",
@@ -5949,12 +5944,12 @@
     {
       "id": "value:stop-color",
       "kind": "value_grammar",
-      "name": "stop-color (free_text)"
+      "name": "stop-color (color)"
     },
     {
       "id": "value:stop-opacity",
       "kind": "value_grammar",
-      "name": "stop-opacity (free_text)"
+      "name": "stop-opacity (number_or_percentage)"
     },
     {
       "id": "value:stroke",
@@ -6009,7 +6004,7 @@
     {
       "id": "value:stroke-opacity",
       "kind": "value_grammar",
-      "name": "stroke-opacity (css_grammar)"
+      "name": "stroke-opacity (number_or_percentage)"
     },
     {
       "id": "value:stroke-width",
@@ -6169,7 +6164,7 @@
     {
       "id": "value:transform",
       "kind": "value_grammar",
-      "name": "transform (free_text)"
+      "name": "transform (transform)"
     },
     {
       "id": "value:transform-box",

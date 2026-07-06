@@ -2477,6 +2477,7 @@ impl AttributeAccumulator {
         let property = property_group.first().copied();
         let (values, element_values) =
             resolve_property_values(property_group, descriptions_by_id, grammar_inputs);
+        let values = project_delegated_transform(&self.name, values, grammar_inputs);
         let value_overrides = legacy_value_overrides
             .get(&self.name)
             .cloned()
@@ -2626,6 +2627,30 @@ fn resolve_property_values(
         }
     }
     (canonical_values, element_values)
+}
+
+/// Project the delegated `transform` presentation attribute to a typed
+/// transform-function list.
+///
+/// SVG delegates `transform` to css-transforms through prose, so it has no local
+/// propdef table and [`resolve_property_values`] leaves it as free text. Build
+/// the value space from the fetched `@webref/css` data instead, matching what a
+/// local `<transform-list>` grammar would produce.
+fn project_delegated_transform(
+    name: &str,
+    values: CatalogAttributeValues,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+) -> CatalogAttributeValues {
+    if name != "transform" || !matches!(values, CatalogAttributeValues::FreeText) {
+        return values;
+    }
+    let Some(functions) = grammar_inputs
+        .map(crate::treesitter::GrammarProjectionInputs::transform_functions)
+        .filter(|functions| !functions.is_empty())
+    else {
+        return values;
+    };
+    CatalogAttributeValues::Transform { functions }
 }
 
 fn augment_properties_with_direct_attribute_scopes(
@@ -2825,6 +2850,11 @@ fn values_for_property(
     let Some(raw_value) = property.value.as_deref() else {
         return CatalogAttributeValues::FreeText;
     };
+    // Typographic quotes (`‘`/`’`) wrap CSS property-references like
+    // `<‘'opacity'’>`; fold them to ASCII so the byte-oriented token repair
+    // below and the reference check both see a clean `<'opacity'>`.
+    let raw_value = fold_property_reference_quotes(raw_value);
+    let raw_value = raw_value.as_str();
     let grammar = repair_css_type_tokens(raw_value);
     let value = grammar.as_str();
     let normalized = value.to_ascii_lowercase();
@@ -2837,6 +2867,9 @@ fn values_for_property(
                 CatalogAttributeValues::FreeText,
                 value_from_see_below_description,
             );
+    }
+    if let Some(values) = value_from_property_reference(value) {
+        return values;
     }
     if let Some(values) = value_from_referenced_syntax(value) {
         return values;
@@ -2893,6 +2926,36 @@ fn is_see_below_value(value: &str) -> bool {
         .and_then(|inner| inner.strip_suffix(')'))
         .map_or(trimmed, str::trim);
     unwrapped.eq_ignore_ascii_case("see below")
+}
+
+/// Fold the typographic quotes SVGWG uses around CSS property-references
+/// (`<‘'opacity'’>`) to ASCII apostrophes, leaving `<'opacity'>`.
+fn fold_property_reference_quotes(value: &str) -> String {
+    value.replace(['\u{2018}', '\u{2019}'], "'")
+}
+
+/// Resolve a CSS property-reference value (`<'name'>`) to the referenced
+/// property's value space.
+///
+/// SVG value grammars cite two properties this way: `<'color'>` (a `<color>`)
+/// and `<'opacity'>` (an `<alpha-value>` = `<number> | <percentage>`). These are
+/// the CSS-defined value spaces of those properties, used by `stop-color`,
+/// `stop-opacity`, `fill-opacity`, and `stroke-opacity`. The bare `<color>`
+/// *type* (no quotes) is left to the normal type handling below.
+fn value_from_property_reference(value: &str) -> Option<CatalogAttributeValues> {
+    let inner = value.trim().strip_prefix('<')?.strip_suffix('>')?;
+    if !inner.contains('\'') {
+        return None;
+    }
+    let name: String = inner
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-')
+        .collect();
+    match name.as_str() {
+        "color" => Some(CatalogAttributeValues::Color),
+        "opacity" => Some(CatalogAttributeValues::NumberOrPercentage),
+        _ => None,
+    }
 }
 
 fn value_from_referenced_syntax(value: &str) -> Option<CatalogAttributeValues> {
@@ -3527,6 +3590,47 @@ mod tests {
                     .map(str::to_owned)
                     .collect(),
             }
+        );
+    }
+
+    #[test]
+    fn projects_delegated_transform_without_a_local_grammar() {
+        // `transform` is delegated to css-transforms in prose, so it reaches the
+        // catalog with no value; it must still resolve to the typed list.
+        let inputs = crate::treesitter::GrammarProjectionInputs::for_tests();
+        assert_eq!(
+            project_delegated_transform(
+                "transform",
+                CatalogAttributeValues::FreeText,
+                Some(&inputs)
+            ),
+            CatalogAttributeValues::Transform {
+                functions: ["matrix", "translate", "scale", "rotate", "skewX", "skewY"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            }
+        );
+    }
+
+    #[test]
+    fn resolves_css_property_reference_values() {
+        // SVGWG writes these with typographic quotes: `<‘'color'’>`.
+        let stop_color = property("stop-color", "<\u{2018}'color'\u{2019}>", &[]);
+        assert_eq!(
+            values_for_property(&stop_color, &BTreeMap::new(), None),
+            CatalogAttributeValues::Color
+        );
+        let fill_opacity = property("fill-opacity", "<\u{2018}'opacity'\u{2019}>", &[]);
+        assert_eq!(
+            values_for_property(&fill_opacity, &BTreeMap::new(), None),
+            CatalogAttributeValues::NumberOrPercentage
+        );
+        // The bare `<color>` type (no quotes) is not a property reference.
+        let fill = property("flood-color", "<color>", &[]);
+        assert_eq!(
+            values_for_property(&fill, &BTreeMap::new(), None),
+            CatalogAttributeValues::Color
         );
     }
 
