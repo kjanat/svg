@@ -692,7 +692,7 @@ mod catalog_tests {
         }));
         assert!(graph.nodes.iter().any(|node| {
             node.id == "value:fill"
-                && node.name == "fill (color)"
+                && node.name == "fill (paint)"
                 && node.kind == CatalogGraphNodeKind::ValueGrammar
         }));
         assert!(graph.edges.iter().any(|edge| {

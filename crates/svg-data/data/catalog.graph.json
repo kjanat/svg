@@ -4334,7 +4334,7 @@
     {
       "id": "value:aria-dropeffect",
       "kind": "value_grammar",
-      "name": "aria-dropeffect (token_list)"
+      "name": "aria-dropeffect (enum)"
     },
     {
       "id": "value:aria-errormessage",
@@ -4444,7 +4444,7 @@
     {
       "id": "value:aria-relevant",
       "kind": "value_grammar",
-      "name": "aria-relevant (token_list)"
+      "name": "aria-relevant (enum)"
     },
     {
       "id": "value:aria-required",
@@ -4554,7 +4554,7 @@
     {
       "id": "value:begin",
       "kind": "value_grammar",
-      "name": "begin (enum)"
+      "name": "begin (unresolved)"
     },
     {
       "id": "value:bias",
@@ -4794,7 +4794,7 @@
     {
       "id": "value:end",
       "kind": "value_grammar",
-      "name": "end (enum)"
+      "name": "end (unresolved)"
     },
     {
       "id": "value:exponent",
@@ -4814,7 +4814,7 @@
     {
       "id": "value:fill",
       "kind": "value_grammar",
-      "name": "fill (color)"
+      "name": "fill (paint)"
     },
     {
       "id": "value:fill-opacity",
@@ -5009,7 +5009,7 @@
     {
       "id": "value:height",
       "kind": "value_grammar",
-      "name": "height (length)"
+      "name": "height (css_grammar)"
     },
     {
       "id": "value:href",
@@ -5954,7 +5954,7 @@
     {
       "id": "value:stroke",
       "kind": "value_grammar",
-      "name": "stroke (color)"
+      "name": "stroke (paint)"
     },
     {
       "id": "value:stroke-dasharray",
@@ -6244,7 +6244,7 @@
     {
       "id": "value:width",
       "kind": "value_grammar",
-      "name": "width (length)"
+      "name": "width (css_grammar)"
     },
     {
       "id": "value:will-change",

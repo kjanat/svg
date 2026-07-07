@@ -3853,7 +3853,15 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "token_list"
+        "kind": "enum",
+        "values": [
+          "copy",
+          "execute",
+          "link",
+          "move",
+          "none",
+          "popup"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -4625,7 +4633,14 @@
       "animatable": false,
       "presentation_attribute": null,
       "values": {
-        "kind": "token_list"
+        "kind": "enum",
+        "values": [
+          "additions",
+          "additions text",
+          "all",
+          "removals",
+          "text"
+        ]
       },
       "applicability": {
         "kind": "elements",
@@ -6044,18 +6059,12 @@
         {
           "element": "animate",
           "values": {
-            "kind": "enum",
-            "values": [
-              "begin-value-list"
-            ]
+            "kind": "unresolved"
           }
         }
       ],
       "values": {
-        "kind": "enum",
-        "values": [
-          "begin-value-list"
-        ]
+        "kind": "unresolved"
       },
       "applicability": {
         "kind": "elements",
@@ -9700,6 +9709,112 @@
               ]
             }
           }
+        },
+        {
+          "element": "tspan",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
@@ -9846,6 +9961,112 @@
         },
         {
           "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "element": "tspan",
           "values": {
             "kind": "css_grammar",
             "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
@@ -10151,18 +10372,12 @@
         {
           "element": "animate",
           "values": {
-            "kind": "enum",
-            "values": [
-              "end-value-list"
-            ]
+            "kind": "unresolved"
           }
         }
       ],
       "values": {
-        "kind": "enum",
-        "values": [
-          "end-value-list"
-        ]
+        "kind": "unresolved"
       },
       "applicability": {
         "kind": "elements",
@@ -10720,10 +10935,40 @@
               "remove"
             ]
           }
+        },
+        {
+          "element": "animateMotion",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "freeze",
+              "remove"
+            ]
+          }
+        },
+        {
+          "element": "animateTransform",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "freeze",
+              "remove"
+            ]
+          }
+        },
+        {
+          "element": "set",
+          "values": {
+            "kind": "enum",
+            "values": [
+              "freeze",
+              "remove"
+            ]
+          }
         }
       ],
       "values": {
-        "kind": "color"
+        "kind": "paint"
       },
       "applicability": {
         "kind": "elements",
@@ -15512,7 +15757,59 @@
         }
       ],
       "values": {
-        "kind": "length"
+        "kind": "css_grammar",
+        "grammar": "auto | <length-percentage>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "auto"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length-percentage>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -20817,7 +21114,7 @@
       },
       "values": {
         "kind": "css_grammar",
-        "grammar": "<mask-layer#>",
+        "grammar": "<mask-layer>#",
         "graph": {
           "root": 0,
           "nodes": [
@@ -20828,7 +21125,12 @@
             {
               "id": 1,
               "kind": "type",
-              "text": "<mask-layer#>"
+              "text": "<mask-layer>"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "#"
             }
           ],
           "edges": [
@@ -20836,6 +21138,16 @@
               "from": 0,
               "to": 1,
               "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
             }
           ]
         }
@@ -30832,6 +31144,73 @@
               ]
             }
           }
+        },
+        {
+          "element": "tspan",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ <number>+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 3,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 4,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
         }
       ],
       "values": {
@@ -32597,7 +32976,7 @@
         }
       },
       "values": {
-        "kind": "color"
+        "kind": "paint"
       },
       "applicability": {
         "kind": "elements",
@@ -37621,7 +38000,7 @@
       },
       "values": {
         "kind": "css_grammar",
-        "grammar": "[ left | center | right | top | bottom | <length-percentage> ] | [ left | center | right | <length-percentage> ] [ top | center | bottom | <length-percentage> ] <length?> | [ [ center | left | right ] && [ center | top | bottom ] ] <length?>",
+        "grammar": "[ left | center | right | top | bottom | <length-percentage> ] | [ left | center | right | <length-percentage> ] [ top | center | bottom | <length-percentage> ] <length>? | [ [ center | left | right ] && [ center | top | bottom ] ] <length>?",
         "graph": {
           "root": 0,
           "nodes": [
@@ -37774,16 +38153,17 @@
             {
               "id": 30,
               "kind": "type",
-              "text": "<length?>"
+              "text": "<length>"
             },
             {
               "id": 31,
               "kind": "operator",
-              "text": "|"
+              "text": "?"
             },
             {
               "id": 32,
-              "kind": "group"
+              "kind": "operator",
+              "text": "|"
             },
             {
               "id": 33,
@@ -37791,67 +38171,76 @@
             },
             {
               "id": 34,
+              "kind": "group"
+            },
+            {
+              "id": 35,
               "kind": "keyword",
               "text": "center"
             },
             {
-              "id": 35,
+              "id": 36,
               "kind": "operator",
               "text": "|"
             },
             {
-              "id": 36,
+              "id": 37,
               "kind": "keyword",
               "text": "left"
             },
             {
-              "id": 37,
+              "id": 38,
               "kind": "operator",
               "text": "|"
             },
             {
-              "id": 38,
+              "id": 39,
               "kind": "keyword",
               "text": "right"
             },
             {
-              "id": 39,
+              "id": 40,
               "kind": "operator",
               "text": "&&"
             },
             {
-              "id": 40,
+              "id": 41,
               "kind": "group"
             },
             {
-              "id": 41,
+              "id": 42,
               "kind": "keyword",
               "text": "center"
             },
             {
-              "id": 42,
+              "id": 43,
               "kind": "operator",
               "text": "|"
             },
             {
-              "id": 43,
+              "id": 44,
               "kind": "keyword",
               "text": "top"
             },
             {
-              "id": 44,
+              "id": 45,
               "kind": "operator",
               "text": "|"
             },
             {
-              "id": 45,
+              "id": 46,
               "kind": "keyword",
               "text": "bottom"
             },
             {
-              "id": 46,
+              "id": 47,
               "kind": "type",
-              "text": "<length?>"
+              "text": "<length>"
+            },
+            {
+              "id": 48,
+              "kind": "operator",
+              "text": "?"
             }
           ],
           "edges": [
@@ -38156,9 +38545,14 @@
               "kind": "next"
             },
             {
-              "from": 32,
+              "from": 0,
               "to": 33,
               "kind": "contains"
+            },
+            {
+              "from": 32,
+              "to": 33,
+              "kind": "next"
             },
             {
               "from": 33,
@@ -38166,17 +38560,12 @@
               "kind": "contains"
             },
             {
-              "from": 33,
+              "from": 34,
               "to": 35,
               "kind": "contains"
             },
             {
               "from": 34,
-              "to": 35,
-              "kind": "next"
-            },
-            {
-              "from": 33,
               "to": 36,
               "kind": "contains"
             },
@@ -38186,7 +38575,7 @@
               "kind": "next"
             },
             {
-              "from": 33,
+              "from": 34,
               "to": 37,
               "kind": "contains"
             },
@@ -38196,7 +38585,7 @@
               "kind": "next"
             },
             {
-              "from": 33,
+              "from": 34,
               "to": 38,
               "kind": "contains"
             },
@@ -38206,42 +38595,42 @@
               "kind": "next"
             },
             {
-              "from": 32,
+              "from": 34,
               "to": 39,
               "kind": "contains"
+            },
+            {
+              "from": 38,
+              "to": 39,
+              "kind": "next"
             },
             {
               "from": 33,
-              "to": 39,
-              "kind": "next"
-            },
-            {
-              "from": 32,
               "to": 40,
               "kind": "contains"
             },
             {
-              "from": 39,
+              "from": 34,
               "to": 40,
               "kind": "next"
             },
             {
-              "from": 40,
+              "from": 33,
               "to": 41,
               "kind": "contains"
             },
             {
               "from": 40,
+              "to": 41,
+              "kind": "next"
+            },
+            {
+              "from": 41,
               "to": 42,
               "kind": "contains"
             },
             {
               "from": 41,
-              "to": 42,
-              "kind": "next"
-            },
-            {
-              "from": 40,
               "to": 43,
               "kind": "contains"
             },
@@ -38251,7 +38640,7 @@
               "kind": "next"
             },
             {
-              "from": 40,
+              "from": 41,
               "to": 44,
               "kind": "contains"
             },
@@ -38261,7 +38650,7 @@
               "kind": "next"
             },
             {
-              "from": 40,
+              "from": 41,
               "to": 45,
               "kind": "contains"
             },
@@ -38271,13 +38660,33 @@
               "kind": "next"
             },
             {
-              "from": 0,
+              "from": 41,
               "to": 46,
               "kind": "contains"
             },
             {
-              "from": 32,
+              "from": 45,
               "to": 46,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 47,
+              "kind": "contains"
+            },
+            {
+              "from": 33,
+              "to": 47,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 48,
+              "kind": "contains"
+            },
+            {
+              "from": 47,
+              "to": 48,
               "kind": "next"
             }
           ]
@@ -40133,7 +40542,59 @@
         }
       ],
       "values": {
-        "kind": "length"
+        "kind": "css_grammar",
+        "grammar": "auto | <length-percentage>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "auto"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "type",
+              "text": "<length-percentage>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",

@@ -3,7 +3,14 @@
 # from `free_text`: event handlers, `data-*`, ARIA strings, polymorphic SMIL
 # values). The gate asserts live `unresolved` == this file.
 #
-# This baseline is empty: every attribute value space now resolves from a read
-# source (SVG 2 / SVG 1.1 / CSS / WAI-ARIA / WHATWG HTML). A new `unresolved`
-# attribute — an upstream shape we stopped parsing — fails the gate loudly until
-# it is either derived or recorded here with the source it awaits.
+# A new `unresolved` attribute — an upstream shape we stopped parsing — fails
+# the gate loudly until it is either derived or recorded here with the source it
+# awaits.
+#
+# `begin`/`end` cite the SMIL `begin-value-list`/`end-value-list` productions: a
+# semicolon-separated list of offset/syncbase/event/repeat/accessKey/wallclock
+# begin-values. We do not model that timing grammar yet, so they stay auditable
+# here rather than collapsing to a bogus single-keyword enum of the production
+# name.
+begin
+end

@@ -971,10 +971,18 @@ pub enum CatalogAttributeValues {
     },
     /// A CSS/SVG color value.
     Color,
+    /// An SVG paint value: `none | <color> | <url> [none | <color>]? |
+    /// context-fill | context-stroke`. Strictly richer than [`Color`]; used by
+    /// `fill` and `stroke` so their non-color alternatives are not dropped.
+    Paint,
     /// A length or length-percentage value.
     Length,
-    /// A URL / fragment reference.
+    /// A URL / fragment reference (ASCII, per the URL/URI grammar).
     Url,
+    /// An SVG Internationalized Resource Identifier reference. A strict superset
+    /// of [`Self::Url`] — IRIs permit non-ASCII (Unicode) characters that a URL
+    /// disallows, so the two are kept distinct rather than conflated.
+    Iri,
     /// A boolean attribute as defined by HTML.
     Boolean,
     /// A space-separated token list.
@@ -1787,8 +1795,10 @@ const fn catalog_attribute_values_kind(values: &CatalogAttributeValues) -> &'sta
         CatalogAttributeValues::Enum { .. } => "enum",
         CatalogAttributeValues::Transform { .. } => "transform",
         CatalogAttributeValues::Color => "color",
+        CatalogAttributeValues::Paint => "paint",
         CatalogAttributeValues::Length => "length",
         CatalogAttributeValues::Url => "url",
+        CatalogAttributeValues::Iri => "iri",
         CatalogAttributeValues::Boolean => "boolean",
         CatalogAttributeValues::TokenList => "token_list",
         CatalogAttributeValues::CommaTokenList => "comma_token_list",
@@ -2064,8 +2074,79 @@ fn build_attributes(
             descriptions_by_id,
         );
     }
+    propagate_shared_element_values(&mut attributes);
     attributes.sort_by(|a, b| a.name.cmp(&b.name));
     attributes
+}
+
+/// Source-verified facts for attributes whose value space is shared across a
+/// set of elements but which the SVG spec scopes (`data-dfn-for`) to only one
+/// of them, leaving the siblings to wrongly inherit the canonical value:
+///
+/// * The SMIL animation `fill` (`freeze | remove`) is defined on `animate` but
+///   applies identically to `animateMotion`/`animateTransform`/`set`; the other
+///   animation elements would otherwise inherit the paint `fill`.
+/// * The text-positioning list forms of `dx`/`dy`/`rotate` are scoped to `text`
+///   but apply identically to `tspan`, which would otherwise inherit the
+///   filter-primitive `<number>`.
+///
+/// Each `(attribute, source, targets)` copies `source`'s element-scoped value to
+/// every `target` that bears the attribute and lacks its own scoped value.
+const SHARED_ELEMENT_VALUE_FACTS: &[(&str, &str, &[&str])] = &[
+    (
+        "fill",
+        "animate",
+        &["animateMotion", "animateTransform", "set"],
+    ),
+    ("dx", "text", &["tspan"]),
+    ("dy", "text", &["tspan"]),
+    ("rotate", "text", &["tspan"]),
+];
+
+/// Propagate an element-scoped value to sibling elements that share it per
+/// [`SHARED_ELEMENT_VALUE_FACTS`], so a spec `data-dfn-for` scoping narrower than
+/// the attribute's real applicability does not leave siblings on the wrong
+/// canonical value.
+fn propagate_shared_element_values(attributes: &mut [CatalogAttribute]) {
+    for (attr_name, source, targets) in SHARED_ELEMENT_VALUE_FACTS {
+        let Some(attribute) = attributes.iter_mut().find(|a| a.name == *attr_name) else {
+            continue;
+        };
+        let Some(source_values) = attribute
+            .element_values
+            .iter()
+            .find(|values| values.element == *source)
+            .map(|values| values.values.clone())
+        else {
+            continue;
+        };
+        let bears = |element: &str| match &attribute.applicability {
+            CatalogAttributeApplicability::Elements { elements } => {
+                elements.iter().any(|bearer| bearer == element)
+            }
+            CatalogAttributeApplicability::Global => true,
+            CatalogAttributeApplicability::None => false,
+        };
+        for target in *targets {
+            if !bears(target)
+                || attribute
+                    .element_values
+                    .iter()
+                    .any(|values| values.element == *target)
+            {
+                continue;
+            }
+            attribute
+                .element_values
+                .push(CatalogAttributeElementValues {
+                    element: (*target).to_owned(),
+                    values: source_values.clone(),
+                });
+        }
+        attribute
+            .element_values
+            .sort_by(|a, b| a.element.cmp(&b.element));
+    }
 }
 
 /// Finalize an attribute's value space after primary extraction.
@@ -3146,6 +3227,9 @@ fn values_for_property(
     descriptions_by_id: &BTreeMap<&str, &str>,
     grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
 ) -> CatalogAttributeValues {
+    if let Some(values) = source_verified_value_override(property) {
+        return values;
+    }
     let mut keywords = property.keywords.clone();
     keywords.sort();
     keywords.dedup();
@@ -3212,11 +3296,22 @@ fn values_for_property(
             return CatalogAttributeValues::Transform { functions };
         }
     }
-    if normalized == "<color>" || normalized == "<paint>" {
+    if normalized == "<color>" {
         return CatalogAttributeValues::Color;
     }
-    if normalized == "<url>" || normalized == "<iri>" {
+    // `<paint>` is strictly richer than `<color>` (adds `none`, `<url>`,
+    // `context-fill`, `context-stroke`); keep it distinct so those alternatives
+    // are not silently dropped.
+    if normalized == "<paint>" {
+        return CatalogAttributeValues::Paint;
+    }
+    if normalized == "<url>" {
         return CatalogAttributeValues::Url;
+    }
+    // `<iri>`/`<uri>` (SVG IRI references) permit non-ASCII characters a `<url>`
+    // does not; keep them distinct so the broader character set is not lost.
+    if normalized == "<iri>" || normalized == "<uri>" {
+        return CatalogAttributeValues::Iri;
     }
     if normalized == "<number> | <percentage>" || normalized == "<percentage> | <number>" {
         return CatalogAttributeValues::NumberOrPercentage;
@@ -3372,6 +3467,58 @@ fn is_keyword_only_grammar(value: &str) -> bool {
     value.split('|').all(|token| is_keyword_token(token.trim()))
 }
 
+/// Source-verified value spaces that override what the raw grammar text would
+/// otherwise reduce to, applied before the generic grammar projection.
+///
+/// * `begin`/`end` cite the SMIL `begin-value-list`/`end-value-list` production
+///   (a semicolon-separated list of offset/syncbase/event/repeat/accessKey/
+///   wallclock begin-values), not a keyword — we do not model that grammar, so
+///   keep it an auditable [`CatalogAttributeValues::Unresolved`] gap rather than
+///   a bogus single-keyword enum of the production name.
+/// * `width`/`height` accept `auto` in SVG 2 (geometry.html §Sizing), but
+///   `definitions.xml` types them only as `<length-percentage>`; restore the
+///   full source value space rather than reducing to `Length` and dropping
+///   `auto`.
+fn source_verified_value_override(property: &PropertyValueDef) -> Option<CatalogAttributeValues> {
+    if property
+        .value
+        .as_deref()
+        .is_some_and(is_unmodeled_production_reference)
+    {
+        return Some(CatalogAttributeValues::Unresolved);
+    }
+    if let Some(grammar) = geometry_sizing_grammar(&property.name)
+        && property.value.as_deref().is_some_and(|value| {
+            matches!(
+                value.trim(),
+                "<length>" | "<length-percentage>" | "<length> | <percentage>"
+            )
+        })
+    {
+        return Some(CatalogAttributeValues::CssGrammar {
+            graph: css_grammar_graph(grammar),
+            grammar: grammar.to_owned(),
+        });
+    }
+    None
+}
+
+/// Whether the whole grammar is a single SVG grammar-production reference that
+/// looks like a keyword but is not one (`begin-value-list`, `end-value-list`):
+/// an unmodeled value space that must stay auditable rather than collapse to a
+/// one-element enum of the production name.
+fn is_unmodeled_production_reference(value: &str) -> bool {
+    let value = value.trim();
+    value.ends_with("-value-list") && !value.contains(char::is_whitespace)
+}
+
+/// The source-verified SVG 2 value grammar for the `width`/`height` geometry
+/// sizing properties, which accept `auto` on top of `<length-percentage>`
+/// (geometry.html §Sizing). `None` for any other name.
+fn geometry_sizing_grammar(name: &str) -> Option<&'static str> {
+    matches!(name, "width" | "height").then_some("auto | <length-percentage>")
+}
+
 fn repair_css_type_tokens(value: &str) -> String {
     let bytes = value.as_bytes();
     let mut repaired = String::with_capacity(value.len());
@@ -3385,11 +3532,25 @@ fn repair_css_type_tokens(value: &str) -> String {
             let start = index;
             repaired.push('<');
             index += 1;
+            // A multiplier/occurrence marker (`#`, `?`, `+`, `*`, `!`) can never
+            // be part of a type name, so when the upstream propdef HTML glued one
+            // inside the brackets (`<mask-layer#>`, `<length?>`) it is pulled back
+            // out as a suffix, yielding the canonical `<mask-layer>#` / `<length>?`.
+            let mut suffix = String::new();
             while index < bytes.len()
                 && bytes[index] != b'>'
                 && !bytes[index].is_ascii_whitespace()
                 && !matches!(bytes[index], b'|' | b'[' | b']' | b',')
             {
+                if matches!(bytes[index], b'#' | b'?' | b'+' | b'*' | b'!') {
+                    while index < bytes.len()
+                        && matches!(bytes[index], b'#' | b'?' | b'+' | b'*' | b'!')
+                    {
+                        suffix.push(char::from(bytes[index]));
+                        index += 1;
+                    }
+                    break;
+                }
                 repaired.push(char::from(bytes[index]));
                 index += 1;
             }
@@ -3397,6 +3558,7 @@ fn repair_css_type_tokens(value: &str) -> String {
             if bytes.get(index) == Some(&b'>') {
                 index += 1;
             }
+            repaired.push_str(&suffix);
             if index == start {
                 index += 1;
             }
@@ -3910,6 +4072,19 @@ mod tests {
                     .collect(),
             }
         );
+    }
+
+    #[test]
+    fn repair_pulls_multipliers_out_of_type_brackets() {
+        // Propdef HTML that glues a multiplier inside the production brackets is
+        // canonicalized; a correctly-placed multiplier is left untouched.
+        assert_eq!(repair_css_type_tokens("<mask-layer#>"), "<mask-layer>#");
+        assert_eq!(
+            repair_css_type_tokens("[ ... ] <length?> | ... <length?>"),
+            "[ ... ] <length>? | ... <length>?"
+        );
+        assert_eq!(repair_css_type_tokens("<mask-layer>#"), "<mask-layer>#");
+        assert_eq!(repair_css_type_tokens("<number>+"), "<number>+");
     }
 
     #[test]

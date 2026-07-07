@@ -295,6 +295,19 @@
           }
         },
         {
+          "description": "An SVG paint value: `none | <color> | <url> [none | <color>]? |\ncontext-fill | context-stroke`. Strictly richer than [`Color`]; used by\n`fill` and `stroke` so their non-color alternatives are not dropped.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "paint"
+            }
+          }
+        },
+        {
           "description": "A length or length-percentage value.",
           "type": "object",
           "required": [
@@ -308,7 +321,7 @@
           }
         },
         {
-          "description": "A URL / fragment reference.",
+          "description": "A URL / fragment reference (ASCII, per the URL/URI grammar).",
           "type": "object",
           "required": [
             "kind"
@@ -317,6 +330,19 @@
             "kind": {
               "type": "string",
               "const": "url"
+            }
+          }
+        },
+        {
+          "description": "An SVG Internationalized Resource Identifier reference. A strict superset\nof [`Self::Url`] — IRIs permit non-ASCII (Unicode) characters that a URL\ndisallows, so the two are kept distinct rather than conflated.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "iri"
             }
           }
         },

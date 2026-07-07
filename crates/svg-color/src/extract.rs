@@ -823,8 +823,7 @@ mod tests {
             .iter()
             .filter(|color| {
                 std::str::from_utf8(&src[color.byte_range.clone()])
-                    .ok()
-                    .is_some_and(|text| text == "var(--color)")
+                    .is_ok_and(|text| text == "var(--color)")
             })
             .collect();
         var_refs.sort_by_key(|color| color.byte_range.start);
@@ -852,8 +851,7 @@ mod tests {
             .iter()
             .find(|color| {
                 std::str::from_utf8(&src[color.byte_range.clone()])
-                    .ok()
-                    .is_some_and(|t| t == "var(--panel-bg)")
+                    .is_ok_and(|t| t == "var(--panel-bg)")
             })
             .ok_or("resolved panel color not found")?;
         let base = parse::functional("oklch(22.84% 0.038 283)").ok_or("parse failed")?;
@@ -914,9 +912,7 @@ mod tests {
         let colors = extract_colors(src);
 
         let leaked = colors.iter().any(|color| {
-            std::str::from_utf8(&src[color.byte_range.clone()])
-                .ok()
-                .is_some_and(|text| text == "var(--c)")
+            std::str::from_utf8(&src[color.byte_range.clone()]).is_ok_and(|text| text == "var(--c)")
         });
         assert!(
             !leaked,
@@ -933,9 +929,7 @@ mod tests {
         let colors = extract_colors(src);
 
         let resolved = colors.iter().any(|color| {
-            std::str::from_utf8(&src[color.byte_range.clone()])
-                .ok()
-                .is_some_and(|text| text == "var(--c)")
+            std::str::from_utf8(&src[color.byte_range.clone()]).is_ok_and(|text| text == "var(--c)")
         });
         assert!(
             !resolved,

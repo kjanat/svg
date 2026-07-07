@@ -613,8 +613,10 @@ pub fn value_completions(
         }
         AttributeValues::CssGrammar { graph, .. } => css_grammar_value_completions(graph),
         AttributeValues::Color
+        | AttributeValues::Paint
         | AttributeValues::Length
         | AttributeValues::Url
+        | AttributeValues::Iri
         | AttributeValues::Boolean
         | AttributeValues::TokenList
         | AttributeValues::CommaTokenList

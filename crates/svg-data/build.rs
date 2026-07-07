@@ -350,8 +350,10 @@ enum AttributeValues {
         functions: Vec<String>,
     },
     Color,
+    Paint,
     Length,
     Url,
+    Iri,
     Boolean,
     TokenList,
     CommaTokenList,
@@ -1163,8 +1165,10 @@ fn emit_attribute_values(values: &AttributeValues) -> String {
             )
         }
         AttributeValues::Color => "crate::types::AttributeValues::Color".to_owned(),
+        AttributeValues::Paint => "crate::types::AttributeValues::Paint".to_owned(),
         AttributeValues::Length => "crate::types::AttributeValues::Length".to_owned(),
         AttributeValues::Url => "crate::types::AttributeValues::Url".to_owned(),
+        AttributeValues::Iri => "crate::types::AttributeValues::Iri".to_owned(),
         AttributeValues::Boolean => "crate::types::AttributeValues::Boolean".to_owned(),
         AttributeValues::TokenList => "crate::types::AttributeValues::TokenList".to_owned(),
         AttributeValues::CommaTokenList => {

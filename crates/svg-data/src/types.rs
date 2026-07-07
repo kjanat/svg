@@ -150,10 +150,17 @@ pub enum AttributeValues {
     },
     /// A CSS/SVG color value.
     Color,
+    /// An SVG paint value: `none | <color> | <url> [none | <color>]? |
+    /// context-fill | context-stroke`. Strictly richer than [`Self::Color`];
+    /// used by `fill` and `stroke`.
+    Paint,
     /// A length value.
     Length,
-    /// A URL / fragment reference.
+    /// A URL / fragment reference (ASCII, per the URL/URI grammar).
     Url,
+    /// An SVG Internationalized Resource Identifier reference: a strict superset
+    /// of [`Self::Url`] permitting non-ASCII characters.
+    Iri,
     /// A boolean attribute as defined by HTML.
     Boolean,
     /// A space-separated token list.
@@ -928,7 +935,7 @@ impl AttributeDef {
     /// ```rust
     /// let attribute = svg_data::attribute("fill").expect("fill attribute");
     /// let values = attribute.values_for_element(Some("rect"));
-    /// assert!(matches!(values, svg_data::AttributeValues::Color | svg_data::AttributeValues::CssGrammar { .. }));
+    /// assert!(matches!(values, svg_data::AttributeValues::Paint | svg_data::AttributeValues::CssGrammar { .. }));
     /// ```
     #[must_use]
     pub fn values_for_element(&self, element_name: Option<&str>) -> &AttributeValues {

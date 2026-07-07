@@ -476,10 +476,17 @@ fn attribute_values_bucket(
 ) -> Option<AttributeBucket> {
     match values {
         CatalogAttributeValues::Enum { .. } => Some(AttributeBucket::Keyword),
-        CatalogAttributeValues::Color => Some(AttributeBucket::Color),
+        // Paint shares the colour highlight bucket; its non-colour alternatives
+        // (`none`, `url(...)`, `context-fill`/`-stroke`) are handled by the
+        // value-space model, not the tree-sitter highlight class.
+        CatalogAttributeValues::Color | CatalogAttributeValues::Paint => {
+            Some(AttributeBucket::Color)
+        }
         CatalogAttributeValues::Length => Some(AttributeBucket::Length),
         CatalogAttributeValues::NumberOrPercentage => Some(AttributeBucket::NumberOrPercentage),
-        CatalogAttributeValues::Url => Some(AttributeBucket::FunctionalIri),
+        CatalogAttributeValues::Url | CatalogAttributeValues::Iri => {
+            Some(AttributeBucket::FunctionalIri)
+        }
         CatalogAttributeValues::Integer | CatalogAttributeValues::Number => {
             Some(AttributeBucket::Number)
         }

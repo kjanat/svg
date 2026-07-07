@@ -186,7 +186,20 @@ fn map_value_type(value_type: &str, tokens: &[String]) -> Option<CatalogAttribut
         "id reference" => Some(CatalogAttributeValues::Id),
         "id reference list" => Some(CatalogAttributeValues::IdList),
         "string" => Some(CatalogAttributeValues::FreeText),
-        "token list" => Some(CatalogAttributeValues::TokenList),
+        // A token list from a fixed vocabulary (`aria-dropeffect`,
+        // `aria-relevant`): the `value-descriptions` table enumerates the
+        // allowed tokens. Keep that vocabulary as an `Enum` rather than
+        // discarding it to an open `TokenList` — no catalog variant models
+        // "space-separated multiple from a fixed set", and preserving the exact
+        // allowed set is strictly more faithful than an unconstrained list.
+        // Fall back to the open list only when the tokens are not enumerated.
+        "token list" => Some(if tokens.is_empty() {
+            CatalogAttributeValues::TokenList
+        } else {
+            CatalogAttributeValues::Enum {
+                values: tokens.to_vec(),
+            }
+        }),
         "token" => (!tokens.is_empty()).then(|| CatalogAttributeValues::Enum {
             values: tokens.to_vec(),
         }),
