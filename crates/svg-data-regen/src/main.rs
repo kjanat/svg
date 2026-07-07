@@ -193,6 +193,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
             inventories: &inventories,
             grammar_inputs: Some(&grammar_inputs),
             aria: Some(&aria),
+            svg11_property_grammars: &legacy.property_grammars,
         },
     )?;
     let path = write_catalog(&built, &inventories)?;

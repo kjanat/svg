@@ -13,8 +13,12 @@
 //! with the spec's taxonomy. The output is sorted, so the same upstream commit
 //! always yields byte-identical JSON.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::LazyLock,
+};
 
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -22,8 +26,23 @@ use crate::{
     chapter::{AnchorDescription, PropertyValueDef},
     compat::CompatCatalog,
     extract::{AttributeRef, ContentModelKind, Definitions, PropertyDef},
-    util::{boxed, is_keyword_token, normalize_ws},
+    util::{boxed, compile_regex, is_keyword_token, normalize_ws},
 };
+
+/// webref annotates values with numeric ranges (`<number [0,∞]>`,
+/// `<length> [0,∞]`, `<integer [2,4]>`); those are constraints, not part of the
+/// value space we model, and the byte-oriented token repair mangles them (and
+/// their non-ASCII bounds) into malformed grammar text. The pattern targets a
+/// numeric `[min,max]` specifically, so real bracket groups (`[ a | b ]`) and
+/// list markers are left alone.
+static NUMERIC_RANGE_ANNOTATION: LazyLock<Regex> =
+    LazyLock::new(|| compile_regex(r"\s*\[\s*-?[0-9.]+\s*,\s*(?:-?[0-9.]+|∞|inf)\s*\]"));
+
+/// Strip numeric value-range annotations wherever they appear
+/// (`<number [0,∞]>` -> `<number>`, `<length> [0,∞]` -> `<length>`).
+fn strip_type_range_annotations(value: &str) -> std::borrow::Cow<'_, str> {
+    NUMERIC_RANGE_ANNOTATION.replace_all(value, "")
+}
 
 /// The full derived catalog kept in memory while writing split JSON files.
 #[derive(Debug)]
@@ -1199,6 +1218,9 @@ pub struct CatalogLegacyInputs<'a> {
     pub grammar_inputs: Option<&'a crate::treesitter::GrammarProjectionInputs>,
     /// Derived WAI-ARIA value spaces for `aria-*` attributes, when fetched.
     pub aria: Option<&'a crate::aria::AriaValueIndex>,
+    /// Full SVG 1.1 property value grammars, used to resolve properties SVG 2
+    /// removed from the spec we already fetch.
+    pub svg11_property_grammars: &'a BTreeMap<String, String>,
 }
 
 /// Build the catalog from every definitions module's extracted entities.
@@ -1966,6 +1988,7 @@ fn build_attributes(
     let legacy_value_overrides = legacy.value_overrides;
     let grammar_inputs = legacy.grammar_inputs;
     let aria = legacy.aria;
+    let svg11_grammars = legacy.svg11_property_grammars;
     let all_elements: BTreeSet<String> = modules
         .iter()
         .flat_map(|module| module.elements.iter().map(|element| element.name.clone()))
@@ -2033,7 +2056,13 @@ fn build_attributes(
         append_compat_only_attributes(&mut attributes, compat);
     }
     for attribute in &mut attributes {
-        apply_derived_value_space(attribute, aria);
+        apply_derived_value_space(
+            attribute,
+            aria,
+            grammar_inputs,
+            svg11_grammars,
+            descriptions_by_id,
+        );
     }
     attributes.sort_by(|a, b| a.name.cmp(&b.name));
     attributes
@@ -2041,15 +2070,18 @@ fn build_attributes(
 
 /// Finalize an attribute's value space after primary extraction.
 ///
-/// Applies WAI-ARIA-derived value spaces to `aria-*` attributes (which SVG
-/// delegates externally and thus arrive without a local grammar), then splits
-/// the free-text sink: any attribute still left as [`CatalogAttributeValues::FreeText`]
-/// that is not *genuinely* free-form becomes [`CatalogAttributeValues::Unresolved`],
-/// so unparsed value spaces stay auditable instead of hiding among event
-/// handlers and `data-*`.
+/// Resolves value spaces that SVG delegates to external specs and thus arrive
+/// without a local grammar: WAI-ARIA attributes from the ARIA index, and CSS
+/// properties from the fetched `@webref/css` grammar. Anything still left as
+/// [`CatalogAttributeValues::FreeText`] that is not *genuinely* free-form then
+/// becomes [`CatalogAttributeValues::Unresolved`], so unparsed value spaces stay
+/// auditable instead of hiding among event handlers and `data-*`.
 fn apply_derived_value_space(
     attribute: &mut CatalogAttribute,
     aria: Option<&crate::aria::AriaValueIndex>,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    svg11_grammars: &BTreeMap<String, String>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
 ) {
     if !matches!(attribute.values, CatalogAttributeValues::FreeText) {
         return;
@@ -2060,9 +2092,235 @@ fn apply_derived_value_space(
         attribute.values = values.clone();
         return;
     }
+    if let Some(values) =
+        css_property_value_space(&attribute.name, grammar_inputs, descriptions_by_id)
+    {
+        attribute.values = values;
+        return;
+    }
+    // Properties SVG 2 removed but SVG 1.1 defines (e.g. `kerning`,
+    // `glyph-orientation-horizontal`, `color-profile`) resolve from the SVG 1.1
+    // property index we already fetch.
+    if let Some(grammar) = svg11_grammars.get(&attribute.name)
+        && let Some(values) =
+            resolve_source_grammar(&attribute.name, grammar, grammar_inputs, descriptions_by_id)
+    {
+        attribute.values = values;
+        return;
+    }
+    if let Some(values) =
+        deprecated_svg_value_space(&attribute.name, grammar_inputs, descriptions_by_id)
+    {
+        attribute.values = values;
+        return;
+    }
+    // Attributes SVG borrows from HTML (`decoding`, `fetchpriority`,
+    // `async`/`defer`) carry no fetched grammar; resolve them from the WHATWG
+    // spec sections read directly from their HTML.
+    if let Some(values) =
+        html_borrowed_value_space(&attribute.name, grammar_inputs, descriptions_by_id)
+    {
+        attribute.values = values;
+        return;
+    }
+    if let Some(values) = definitional_value_space(&attribute.name) {
+        attribute.values = values;
+        return;
+    }
     if !is_genuinely_free_value(&attribute.name) {
         attribute.values = CatalogAttributeValues::Unresolved;
     }
+}
+
+/// Value spaces fixed by definition rather than a fetched grammar.
+///
+/// * `xml:lang` is a BCP 47 language tag (per the XML/SVG definition).
+/// * The SMIL animation value attributes `by`/`from`/`to`/`values` are
+///   polymorphic: each is parsed using the rules of the attribute named by
+///   `attributeName` (SVG Animations, values-attribute prose), so there is no
+///   fixed grammar at the attribute level. `title` is advisory prose. All are
+///   genuinely unconstrained statically, so they resolve to `FreeText` rather
+///   than an unresolved gap. (Element-scoped overrides — e.g. `animateMotion`'s
+///   coordinate-pair `from`/`to` — are applied separately.)
+fn definitional_value_space(name: &str) -> Option<CatalogAttributeValues> {
+    match name {
+        "xml:lang" => Some(CatalogAttributeValues::LanguageTag),
+        // Advisory prose, polymorphic SMIL values, and the free-form
+        // `baseProfile` profile-name (SVG 1.1: `= profile-name`, no enumeration).
+        "by" | "from" | "to" | "values" | "title" | "baseProfile" => {
+            Some(CatalogAttributeValues::FreeText)
+        }
+        _ => None,
+    }
+}
+
+/// Source-verified value grammars for attributes SVG 2 removed but that browser
+/// compat data still tracks, so they have no machine-readable SVG source. Each
+/// grammar is quoted verbatim from the defining spec (read directly from its
+/// HTML), with the universal `inherit` keyword dropped; it is resolved through
+/// the same grammar projection as native properties.
+fn deprecated_attribute_grammar(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "zoomAndPan" => "disable | magnify", // SVG 2 §15.7 zoomAndPan attribute
+        "externalResourcesRequired" => "false | true", // SVG 1.1 §5.8.1
+        "attributeType" => "CSS | XML | auto", // SVG 1.1 §19.2.5 / SMIL
+        "version" => "<number>",             // SVG 1.1 §5.1.3 version attribute
+        "xlink:show" => "new | replace | embed | other | none", // XLink 1.1 §5.6.1
+        "xlink:actuate" => "onLoad | onRequest | other | none", // XLink 1.1 §5.6.2
+        _ => return None,
+    })
+}
+
+/// Resolve a deprecated attribute's source-verified grammar to a value space.
+fn deprecated_svg_value_space(
+    name: &str,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
+) -> Option<CatalogAttributeValues> {
+    let grammar = deprecated_attribute_grammar(name)?;
+    resolve_source_grammar(name, grammar, grammar_inputs, descriptions_by_id)
+}
+
+/// Value spaces for attributes SVG borrows from HTML, whose grammars are
+/// defined by the WHATWG HTML spec rather than any SVG or CSS source. They
+/// arrive from browser-compat data with no fetched grammar, so each keyword set
+/// is quoted from the spec section read directly from its HTML.
+///
+/// # Sources
+///
+/// - `async`/`defer` boolean attributes — [`scripting.html`][script]
+/// - `decoding` image decoding hint — [`images.html`][decoding]
+/// - `fetchpriority` fetch priority attribute — [`urls-and-fetching.html`][fetchpriority]
+///
+/// `interestfor` (interest invokers) is not yet in the WHATWG spec — an
+/// experimental attribute — but MDN's [interest invokers guide][interestfor]
+/// states its value "is the id of the target element": a single element ID
+/// reference, exactly like `aria-activedescendant`. Whether that id resolves to
+/// an element is a document-level (LSP) check, not a value-space concern.
+///
+/// [script]: https://html.spec.whatwg.org/multipage/scripting.html#attr-script-async
+/// [decoding]: https://html.spec.whatwg.org/multipage/images.html#image-decoding-hint
+/// [fetchpriority]: https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fetch-priority-attribute
+/// [interestfor]: https://developer.mozilla.org/en-US/docs/Web/API/Popover_API/Using_interest_invokers
+fn html_borrowed_value_space(
+    name: &str,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
+) -> Option<CatalogAttributeValues> {
+    match name {
+        // Presence (boolean) attributes: the script element's `async`/`defer`.
+        "async" | "defer" => Some(CatalogAttributeValues::Boolean),
+        // Single element ID reference to the interest target.
+        "interestfor" => Some(CatalogAttributeValues::Id),
+        // Enumerated attributes, keywords verbatim from the spec keyword tables.
+        "decoding" => resolve_source_grammar(
+            name,
+            "sync | async | auto",
+            grammar_inputs,
+            descriptions_by_id,
+        ),
+        "fetchpriority" => resolve_source_grammar(
+            name,
+            "high | low | auto",
+            grammar_inputs,
+            descriptions_by_id,
+        ),
+        _ => None,
+    }
+}
+
+/// Project a CSS-style value grammar string — from any spec source (SVG 1.1
+/// property index, `@webref/css`, a source-verified deprecated grammar) — into
+/// a catalog value space, reusing the same grammar projection as native SVG
+/// properties so keyword sets become `Enum`, `<color>` becomes `Color`, and so
+/// on. A grammar that is one bare type reference (`opacity = <opacity-value>`)
+/// is expanded one level via its webref definition when that yields a more
+/// specialized variant. Returns `None` when the grammar does not reduce past
+/// free text, leaving the attribute for the sink split.
+fn resolve_source_grammar(
+    name: &str,
+    grammar: &str,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
+) -> Option<CatalogAttributeValues> {
+    let resolve = |grammar: &str| {
+        let property = PropertyValueDef {
+            name: name.to_owned(),
+            dfn_for: None,
+            id: None,
+            keywords: crate::chapter::value_keywords(grammar),
+            value: Some(grammar.to_owned()),
+            initial: None,
+            applies_to: None,
+            inherited: None,
+            computed_value: None,
+            animation_type: None,
+        };
+        values_for_property(&property, descriptions_by_id, grammar_inputs)
+    };
+
+    let mut values = resolve(grammar);
+    // A property whose whole grammar is one type reference (`opacity =
+    // <opacity-value>`) stays a coarse `CssGrammar`. Expand that type one level
+    // via its webref definition (`<opacity-value>` = `<number> | <percentage>`)
+    // and keep the expansion only when it resolves to a specialized variant, so
+    // e.g. `opacity` becomes `NumberOrPercentage` while `color` (already
+    // `Color`) is left untouched. Expansion needs the webref type index; when
+    // absent the bare-type grammar is kept as-is.
+    if matches!(values, CatalogAttributeValues::CssGrammar { .. })
+        && let Some(inputs) = grammar_inputs
+        && let Some(expanded) = expand_single_type_reference(grammar, inputs)
+    {
+        let expanded_values = resolve(expanded);
+        if !matches!(
+            expanded_values,
+            CatalogAttributeValues::CssGrammar { .. } | CatalogAttributeValues::FreeText
+        ) {
+            values = expanded_values;
+        }
+    }
+    // Accept the derived value space (a specialized variant where the grammar
+    // reduces cleanly, otherwise the CSS grammar itself); never downgrade to
+    // free text here — leave that to the sink split.
+    match values {
+        CatalogAttributeValues::FreeText | CatalogAttributeValues::Unresolved => None,
+        resolved => Some(resolved),
+    }
+}
+
+/// Resolve a CSS property's value space from the published `@webref/css` value
+/// grammar, for presentation/CSS attributes SVG delegates to CSS with no local
+/// definition (`writing-mode`, `text-align`, `object-fit`, …). Reuses the same
+/// grammar projection as native SVG properties so keyword sets become `Enum`,
+/// `<color>` becomes `Color`, and so on. Returns `None` when the name is not a
+/// CSS property or webref yields no usable grammar, leaving it for the sink
+/// split.
+fn css_property_value_space(
+    name: &str,
+    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    descriptions_by_id: &BTreeMap<&str, &str>,
+) -> Option<CatalogAttributeValues> {
+    let inputs = grammar_inputs?;
+    let syntax = inputs.property_syntax(name)?;
+    resolve_source_grammar(name, syntax, Some(inputs), descriptions_by_id)
+}
+
+/// If `syntax` is exactly one bare type reference (`<opacity-value>`), return
+/// that type's webref grammar; otherwise `None`. Bracketed groups, functional
+/// notation, and multi-token grammars are left as-is.
+fn expand_single_type_reference<'a>(
+    syntax: &str,
+    inputs: &'a crate::treesitter::GrammarProjectionInputs,
+) -> Option<&'a str> {
+    let inner = syntax.trim().strip_prefix('<')?.strip_suffix('>')?;
+    if inner.is_empty()
+        || !inner
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return None;
+    }
+    inputs.type_syntax(inner)
 }
 
 /// Whether an attribute's value is genuinely unconstrained rather than merely
@@ -2907,6 +3165,7 @@ fn values_for_property(
     // `<‘'opacity'’>`; fold them to ASCII so the byte-oriented token repair
     // below and the reference check both see a clean `<'opacity'>`.
     let raw_value = fold_property_reference_quotes(raw_value);
+    let raw_value = strip_type_range_annotations(&raw_value).into_owned();
     let raw_value = raw_value.as_str();
     let grammar = repair_css_type_tokens(raw_value);
     let value = grammar.as_str();
@@ -2961,6 +3220,9 @@ fn values_for_property(
     }
     if normalized == "<number> | <percentage>" || normalized == "<percentage> | <number>" {
         return CatalogAttributeValues::NumberOrPercentage;
+    }
+    if normalized == "<number>" {
+        return CatalogAttributeValues::Number;
     }
     if matches!(
         normalized.as_str(),
@@ -3514,6 +3776,7 @@ mod tests {
                 inventories: &[],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ))
     }
@@ -3613,6 +3876,7 @@ mod tests {
                 inventories: &[],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ));
 
@@ -3686,6 +3950,30 @@ mod tests {
         assert_eq!(
             values_for_property(&fill, &BTreeMap::new(), None),
             CatalogAttributeValues::Color
+        );
+    }
+
+    #[test]
+    fn strips_numeric_range_annotations_without_mangling() {
+        // Inside and outside a type reference; the non-ASCII bound must not leak.
+        assert_eq!(
+            strip_type_range_annotations(
+                "normal | <number [0,\u{221e}]> | <length-percentage [0,\u{221e}]>"
+            ),
+            "normal | <number> | <length-percentage>"
+        );
+        assert_eq!(
+            strip_type_range_annotations("none | <length> [0,\u{221e}]"),
+            "none | <length>"
+        );
+        assert_eq!(
+            strip_type_range_annotations("[ digits <integer [2,4]>? ]"),
+            "[ digits <integer>? ]"
+        );
+        // Real bracket groups (non-numeric) are left untouched.
+        assert_eq!(
+            strip_type_range_annotations("fill | none | [contain | cover]"),
+            "fill | none | [contain | cover]"
         );
     }
 
@@ -3793,7 +4081,8 @@ mod tests {
         // `offset`: the authoritative `stop` propdef is `<number> | <percentage>`
         // (no `data-dfn-for`); the `feFunc*` element-attrdefs narrow it to bare
         // `<number>`. The unscoped propdef must stay canonical so the narrower
-        // bearer grammar never silently widens or drops the percentage form.
+        // bearer grammar never silently widens or drops the percentage form. The
+        // narrowed bearer resolves to the dedicated `Number` variant.
         let stop = property("offset", "<number> | <percentage>", &[]);
         let func = scoped_property("offset", "feFuncR", "<number>", &[]);
 
@@ -3805,10 +4094,7 @@ mod tests {
             element_values,
             vec![CatalogAttributeElementValues {
                 element: "feFuncR".to_owned(),
-                values: CatalogAttributeValues::CssGrammar {
-                    grammar: "<number>".to_owned(),
-                    graph: css_grammar_graph("<number>"),
-                },
+                values: CatalogAttributeValues::Number,
             }],
         );
     }
@@ -3880,6 +4166,7 @@ mod tests {
                 inventories: &[],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ));
 
@@ -4065,6 +4352,7 @@ mod tests {
                 inventories: &[inventory],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ));
 
@@ -4099,16 +4387,19 @@ mod tests {
             },
             elements: std::collections::BTreeMap::new(),
             attributes: std::collections::BTreeMap::from([(
-                "fetchpriority".to_owned(),
+                // A synthetic BCD-only attribute with no derivable grammar, kept
+                // deliberately unmodeled so this test exercises the sink split
+                // itself rather than coupling to a real attribute that may later
+                // gain a value space.
+                "compat-only-attr".to_owned(),
                 CompatAttribute {
                     global_facts: None,
                     element_facts: std::collections::BTreeMap::from([(
                         "rect".to_owned(),
                         CatalogCompatFacts {
-                            mdn_url: Some(
-                                "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fetchpriority"
-                                    .to_owned(),
-                            ),
+                            // Synthetic (reserved test domain) — not a real MDN
+                            // page; the test only checks the url is preserved.
+                            mdn_url: Some("https://example.test/compat-only-attr".to_owned()),
                             ..CatalogCompatFacts::default()
                         },
                     )]),
@@ -4128,27 +4419,28 @@ mod tests {
                 inventories: &[],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ));
 
-        let fetchpriority = catalog
+        let compat_only = catalog
             .attributes
             .iter()
-            .find(|attribute| attribute.name == "fetchpriority")
-            .ok_or("missing fetchpriority")?;
+            .find(|attribute| attribute.name == "compat-only-attr")
+            .ok_or("missing compat-only-attr")?;
 
-        assert_eq!(fetchpriority.spec_url, None);
+        assert_eq!(compat_only.spec_url, None);
         assert_eq!(
-            fetchpriority.mdn_url.as_deref(),
-            Some("https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fetchpriority")
+            compat_only.mdn_url.as_deref(),
+            Some("https://example.test/compat-only-attr")
         );
         // A BCD-only attribute with no derived value grammar is Unresolved (not
         // FreeText): we expect to model it but have not yet, and the sink split
         // keeps that auditable rather than hiding it among genuinely-free values.
-        assert_eq!(fetchpriority.values, CatalogAttributeValues::Unresolved);
-        assert_eq!(fetchpriority.element_compat.len(), 1);
+        assert_eq!(compat_only.values, CatalogAttributeValues::Unresolved);
+        assert_eq!(compat_only.element_compat.len(), 1);
         assert_eq!(
-            fetchpriority.applicability,
+            compat_only.applicability,
             CatalogAttributeApplicability::Elements {
                 elements: vec!["rect".to_owned()]
             }
@@ -4220,6 +4512,7 @@ mod tests {
                 inventories: &[],
                 grammar_inputs: None,
                 aria: None,
+                svg11_property_grammars: &BTreeMap::new(),
             },
         ));
 

@@ -1568,7 +1568,7 @@ fn synthetic_attrdef(name: &str, dfn_for: &str, value: Option<String>) -> Proper
 /// dropping `<type>` references, functional notation, and bracketed groups. The
 /// full grammar is retained separately, so this is a convenience view, not the
 /// source of truth.
-fn value_keywords(value: &str) -> Vec<String> {
+pub fn value_keywords(value: &str) -> Vec<String> {
     value
         .split('|')
         .map(str::trim)
@@ -1816,7 +1816,7 @@ mod tests {
             .properties
             .iter()
             .find(|property| property.name == "stop-color")
-            .expect("stop-color extracted from propdef-svg2 list");
+            .ok_or("stop-color extracted from propdef-svg2 list")?;
         assert_eq!(stop_color.value.as_deref(), Some("<'color'>"));
         assert_eq!(stop_color.id.as_deref(), Some("StopColorProperty"));
         Ok(())

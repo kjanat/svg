@@ -4249,7 +4249,7 @@
     {
       "id": "value:alignment-baseline",
       "kind": "value_grammar",
-      "name": "alignment-baseline (unresolved)"
+      "name": "alignment-baseline (css_grammar)"
     },
     {
       "id": "value:alignment-baseline@Svg11Rec20030114",
@@ -4264,7 +4264,7 @@
     {
       "id": "value:amplitude",
       "kind": "value_grammar",
-      "name": "amplitude (css_grammar)"
+      "name": "amplitude (number)"
     },
     {
       "id": "value:aria-activedescendant",
@@ -4509,7 +4509,7 @@
     {
       "id": "value:async",
       "kind": "value_grammar",
-      "name": "async (unresolved)"
+      "name": "async (boolean)"
     },
     {
       "id": "value:attributeName",
@@ -4519,7 +4519,7 @@
     {
       "id": "value:attributeType",
       "kind": "value_grammar",
-      "name": "attributeType (unresolved)"
+      "name": "attributeType (enum)"
     },
     {
       "id": "value:autofocus",
@@ -4529,12 +4529,12 @@
     {
       "id": "value:azimuth",
       "kind": "value_grammar",
-      "name": "azimuth (css_grammar)"
+      "name": "azimuth (number)"
     },
     {
       "id": "value:background",
       "kind": "value_grammar",
-      "name": "background (unresolved)"
+      "name": "background (css_grammar)"
     },
     {
       "id": "value:baseFrequency",
@@ -4544,12 +4544,12 @@
     {
       "id": "value:baseProfile",
       "kind": "value_grammar",
-      "name": "baseProfile (unresolved)"
+      "name": "baseProfile (free_text)"
     },
     {
       "id": "value:baseline-shift",
       "kind": "value_grammar",
-      "name": "baseline-shift (unresolved)"
+      "name": "baseline-shift (css_grammar)"
     },
     {
       "id": "value:begin",
@@ -4559,27 +4559,27 @@
     {
       "id": "value:bias",
       "kind": "value_grammar",
-      "name": "bias (css_grammar)"
+      "name": "bias (number)"
     },
     {
       "id": "value:block-size",
       "kind": "value_grammar",
-      "name": "block-size (unresolved)"
+      "name": "block-size (css_grammar)"
     },
     {
       "id": "value:border-style",
       "kind": "value_grammar",
-      "name": "border-style (unresolved)"
+      "name": "border-style (css_grammar)"
     },
     {
       "id": "value:border-top-style",
       "kind": "value_grammar",
-      "name": "border-top-style (unresolved)"
+      "name": "border-top-style (enum)"
     },
     {
       "id": "value:by",
       "kind": "value_grammar",
-      "name": "by (unresolved)"
+      "name": "by (free_text)"
     },
     {
       "id": "value:calcMode",
@@ -4624,7 +4624,7 @@
     {
       "id": "value:color",
       "kind": "value_grammar",
-      "name": "color (unresolved)"
+      "name": "color (color)"
     },
     {
       "id": "value:color-interpolation",
@@ -4659,12 +4659,12 @@
     {
       "id": "value:color-profile",
       "kind": "value_grammar",
-      "name": "color-profile (unresolved)"
+      "name": "color-profile (css_grammar)"
     },
     {
       "id": "value:content",
       "kind": "value_grammar",
-      "name": "content (unresolved)"
+      "name": "content (css_grammar)"
     },
     {
       "id": "value:crossorigin",
@@ -4699,22 +4699,22 @@
     {
       "id": "value:decoding",
       "kind": "value_grammar",
-      "name": "decoding (unresolved)"
+      "name": "decoding (enum)"
     },
     {
       "id": "value:defer",
       "kind": "value_grammar",
-      "name": "defer (unresolved)"
+      "name": "defer (boolean)"
     },
     {
       "id": "value:diffuseConstant",
       "kind": "value_grammar",
-      "name": "diffuseConstant (css_grammar)"
+      "name": "diffuseConstant (number)"
     },
     {
       "id": "value:direction",
       "kind": "value_grammar",
-      "name": "direction (unresolved)"
+      "name": "direction (enum)"
     },
     {
       "id": "value:direction@Svg11Rec20030114",
@@ -4744,12 +4744,12 @@
     {
       "id": "value:divisor",
       "kind": "value_grammar",
-      "name": "divisor (css_grammar)"
+      "name": "divisor (number)"
     },
     {
       "id": "value:dominant-baseline",
       "kind": "value_grammar",
-      "name": "dominant-baseline (unresolved)"
+      "name": "dominant-baseline (css_grammar)"
     },
     {
       "id": "value:dominant-baseline@Svg11Rec20030114",
@@ -4774,12 +4774,12 @@
     {
       "id": "value:dx",
       "kind": "value_grammar",
-      "name": "dx (css_grammar)"
+      "name": "dx (number)"
     },
     {
       "id": "value:dy",
       "kind": "value_grammar",
-      "name": "dy (css_grammar)"
+      "name": "dy (number)"
     },
     {
       "id": "value:edgeMode",
@@ -4789,7 +4789,7 @@
     {
       "id": "value:elevation",
       "kind": "value_grammar",
-      "name": "elevation (css_grammar)"
+      "name": "elevation (number)"
     },
     {
       "id": "value:end",
@@ -4799,17 +4799,17 @@
     {
       "id": "value:exponent",
       "kind": "value_grammar",
-      "name": "exponent (css_grammar)"
+      "name": "exponent (number)"
     },
     {
       "id": "value:externalResourcesRequired",
       "kind": "value_grammar",
-      "name": "externalResourcesRequired (unresolved)"
+      "name": "externalResourcesRequired (enum)"
     },
     {
       "id": "value:fetchpriority",
       "kind": "value_grammar",
-      "name": "fetchpriority (unresolved)"
+      "name": "fetchpriority (enum)"
     },
     {
       "id": "value:fill",
@@ -4849,7 +4849,7 @@
     {
       "id": "value:float",
       "kind": "value_grammar",
-      "name": "float (unresolved)"
+      "name": "float (css_grammar)"
     },
     {
       "id": "value:flood-color",
@@ -4864,7 +4864,7 @@
     {
       "id": "value:font",
       "kind": "value_grammar",
-      "name": "font (unresolved)"
+      "name": "font (css_grammar)"
     },
     {
       "id": "value:font-family",
@@ -4874,12 +4874,12 @@
     {
       "id": "value:font-feature-settings",
       "kind": "value_grammar",
-      "name": "font-feature-settings (unresolved)"
+      "name": "font-feature-settings (css_grammar)"
     },
     {
       "id": "value:font-kerning",
       "kind": "value_grammar",
-      "name": "font-kerning (unresolved)"
+      "name": "font-kerning (enum)"
     },
     {
       "id": "value:font-size",
@@ -4929,7 +4929,7 @@
     {
       "id": "value:font-variant-ligatures",
       "kind": "value_grammar",
-      "name": "font-variant-ligatures (unresolved)"
+      "name": "font-variant-ligatures (css_grammar)"
     },
     {
       "id": "value:font-variant@Svg11Rec20030114",
@@ -4959,7 +4959,7 @@
     {
       "id": "value:font-width",
       "kind": "value_grammar",
-      "name": "font-width (unresolved)"
+      "name": "font-width (css_grammar)"
     },
     {
       "id": "value:fr",
@@ -4969,7 +4969,7 @@
     {
       "id": "value:from",
       "kind": "value_grammar",
-      "name": "from (unresolved)"
+      "name": "from (free_text)"
     },
     {
       "id": "value:fx",
@@ -4984,12 +4984,12 @@
     {
       "id": "value:glyph-orientation-horizontal",
       "kind": "value_grammar",
-      "name": "glyph-orientation-horizontal (unresolved)"
+      "name": "glyph-orientation-horizontal (css_grammar)"
     },
     {
       "id": "value:glyph-orientation-vertical",
       "kind": "value_grammar",
-      "name": "glyph-orientation-vertical (unresolved)"
+      "name": "glyph-orientation-vertical (enum)"
     },
     {
       "id": "value:gradientTransform",
@@ -5004,7 +5004,7 @@
     {
       "id": "value:hanging-punctuation",
       "kind": "value_grammar",
-      "name": "hanging-punctuation (unresolved)"
+      "name": "hanging-punctuation (css_grammar)"
     },
     {
       "id": "value:height",
@@ -5024,7 +5024,7 @@
     {
       "id": "value:hyphens",
       "kind": "value_grammar",
-      "name": "hyphens (unresolved)"
+      "name": "hyphens (enum)"
     },
     {
       "id": "value:id",
@@ -5064,37 +5064,37 @@
     {
       "id": "value:intercept",
       "kind": "value_grammar",
-      "name": "intercept (css_grammar)"
+      "name": "intercept (number)"
     },
     {
       "id": "value:interestfor",
       "kind": "value_grammar",
-      "name": "interestfor (unresolved)"
+      "name": "interestfor (id)"
     },
     {
       "id": "value:isolation",
       "kind": "value_grammar",
-      "name": "isolation (unresolved)"
+      "name": "isolation (enum)"
     },
     {
       "id": "value:k1",
       "kind": "value_grammar",
-      "name": "k1 (css_grammar)"
+      "name": "k1 (number)"
     },
     {
       "id": "value:k2",
       "kind": "value_grammar",
-      "name": "k2 (css_grammar)"
+      "name": "k2 (number)"
     },
     {
       "id": "value:k3",
       "kind": "value_grammar",
-      "name": "k3 (css_grammar)"
+      "name": "k3 (number)"
     },
     {
       "id": "value:k4",
       "kind": "value_grammar",
-      "name": "k4 (css_grammar)"
+      "name": "k4 (number)"
     },
     {
       "id": "value:kernelMatrix",
@@ -5109,7 +5109,7 @@
     {
       "id": "value:kerning",
       "kind": "value_grammar",
-      "name": "kerning (unresolved)"
+      "name": "kerning (css_grammar)"
     },
     {
       "id": "value:keyPoints",
@@ -5149,22 +5149,22 @@
     {
       "id": "value:limitingConeAngle",
       "kind": "value_grammar",
-      "name": "limitingConeAngle (css_grammar)"
+      "name": "limitingConeAngle (number)"
     },
     {
       "id": "value:line-break",
       "kind": "value_grammar",
-      "name": "line-break (unresolved)"
+      "name": "line-break (enum)"
     },
     {
       "id": "value:line-height",
       "kind": "value_grammar",
-      "name": "line-height (unresolved)"
+      "name": "line-height (css_grammar)"
     },
     {
       "id": "value:margin-top",
       "kind": "value_grammar",
-      "name": "margin-top (unresolved)"
+      "name": "margin-top (css_grammar)"
     },
     {
       "id": "value:marker",
@@ -5229,7 +5229,7 @@
     {
       "id": "value:max-width",
       "kind": "value_grammar",
-      "name": "max-width (unresolved)"
+      "name": "max-width (css_grammar)"
     },
     {
       "id": "value:media",
@@ -5249,7 +5249,7 @@
     {
       "id": "value:min-width",
       "kind": "value_grammar",
-      "name": "min-width (unresolved)"
+      "name": "min-width (css_grammar)"
     },
     {
       "id": "value:mode",
@@ -5264,12 +5264,12 @@
     {
       "id": "value:object-fit",
       "kind": "value_grammar",
-      "name": "object-fit (unresolved)"
+      "name": "object-fit (css_grammar)"
     },
     {
       "id": "value:object-position",
       "kind": "value_grammar",
-      "name": "object-position (unresolved)"
+      "name": "object-position (css_grammar)"
     },
     {
       "id": "value:offset",
@@ -5654,7 +5654,7 @@
     {
       "id": "value:opacity",
       "kind": "value_grammar",
-      "name": "opacity (unresolved)"
+      "name": "opacity (number_or_percentage)"
     },
     {
       "id": "value:operator",
@@ -5679,7 +5679,7 @@
     {
       "id": "value:outline",
       "kind": "value_grammar",
-      "name": "outline (unresolved)"
+      "name": "outline (css_grammar)"
     },
     {
       "id": "value:overflow",
@@ -5689,7 +5689,7 @@
     {
       "id": "value:overflow-wrap",
       "kind": "value_grammar",
-      "name": "overflow-wrap (unresolved)"
+      "name": "overflow-wrap (enum)"
     },
     {
       "id": "value:overflow@Svg11Rec20030114",
@@ -5719,7 +5719,7 @@
     {
       "id": "value:pathLength",
       "kind": "value_grammar",
-      "name": "pathLength (css_grammar)"
+      "name": "pathLength (number)"
     },
     {
       "id": "value:patternContentUnits",
@@ -5764,22 +5764,22 @@
     {
       "id": "value:pointsAtX",
       "kind": "value_grammar",
-      "name": "pointsAtX (css_grammar)"
+      "name": "pointsAtX (number)"
     },
     {
       "id": "value:pointsAtY",
       "kind": "value_grammar",
-      "name": "pointsAtY (css_grammar)"
+      "name": "pointsAtY (number)"
     },
     {
       "id": "value:pointsAtZ",
       "kind": "value_grammar",
-      "name": "pointsAtZ (css_grammar)"
+      "name": "pointsAtZ (number)"
     },
     {
       "id": "value:position",
       "kind": "value_grammar",
-      "name": "position (unresolved)"
+      "name": "position (css_grammar)"
     },
     {
       "id": "value:preserveAlpha",
@@ -5874,17 +5874,17 @@
     {
       "id": "value:scale",
       "kind": "value_grammar",
-      "name": "scale (css_grammar)"
+      "name": "scale (number)"
     },
     {
       "id": "value:seed",
       "kind": "value_grammar",
-      "name": "seed (css_grammar)"
+      "name": "seed (number)"
     },
     {
       "id": "value:shape-outside",
       "kind": "value_grammar",
-      "name": "shape-outside (unresolved)"
+      "name": "shape-outside (css_grammar)"
     },
     {
       "id": "value:shape-rendering",
@@ -5904,7 +5904,7 @@
     {
       "id": "value:slope",
       "kind": "value_grammar",
-      "name": "slope (css_grammar)"
+      "name": "slope (number)"
     },
     {
       "id": "value:spacing",
@@ -5914,12 +5914,12 @@
     {
       "id": "value:specularConstant",
       "kind": "value_grammar",
-      "name": "specularConstant (css_grammar)"
+      "name": "specularConstant (number)"
     },
     {
       "id": "value:specularExponent",
       "kind": "value_grammar",
-      "name": "specularExponent (css_grammar)"
+      "name": "specularExponent (number)"
     },
     {
       "id": "value:spreadMethod",
@@ -5999,7 +5999,7 @@
     {
       "id": "value:stroke-miterlimit",
       "kind": "value_grammar",
-      "name": "stroke-miterlimit (css_grammar)"
+      "name": "stroke-miterlimit (number)"
     },
     {
       "id": "value:stroke-opacity",
@@ -6019,7 +6019,7 @@
     {
       "id": "value:surfaceScale",
       "kind": "value_grammar",
-      "name": "surfaceScale (css_grammar)"
+      "name": "surfaceScale (number)"
     },
     {
       "id": "value:systemLanguage",
@@ -6029,7 +6029,7 @@
     {
       "id": "value:tab-size",
       "kind": "value_grammar",
-      "name": "tab-size (unresolved)"
+      "name": "tab-size (css_grammar)"
     },
     {
       "id": "value:tabindex",
@@ -6059,12 +6059,12 @@
     {
       "id": "value:text-align",
       "kind": "value_grammar",
-      "name": "text-align (unresolved)"
+      "name": "text-align (css_grammar)"
     },
     {
       "id": "value:text-align-last",
       "kind": "value_grammar",
-      "name": "text-align-last (unresolved)"
+      "name": "text-align-last (enum)"
     },
     {
       "id": "value:text-anchor",
@@ -6084,47 +6084,47 @@
     {
       "id": "value:text-combine-upright",
       "kind": "value_grammar",
-      "name": "text-combine-upright (unresolved)"
+      "name": "text-combine-upright (css_grammar)"
     },
     {
       "id": "value:text-decoration",
       "kind": "value_grammar",
-      "name": "text-decoration (unresolved)"
+      "name": "text-decoration (css_grammar)"
     },
     {
       "id": "value:text-decoration-color",
       "kind": "value_grammar",
-      "name": "text-decoration-color (unresolved)"
+      "name": "text-decoration-color (color)"
     },
     {
       "id": "value:text-decoration-line",
       "kind": "value_grammar",
-      "name": "text-decoration-line (unresolved)"
+      "name": "text-decoration-line (css_grammar)"
     },
     {
       "id": "value:text-decoration-style",
       "kind": "value_grammar",
-      "name": "text-decoration-style (unresolved)"
+      "name": "text-decoration-style (enum)"
     },
     {
       "id": "value:text-indent",
       "kind": "value_grammar",
-      "name": "text-indent (unresolved)"
+      "name": "text-indent (css_grammar)"
     },
     {
       "id": "value:text-justify",
       "kind": "value_grammar",
-      "name": "text-justify (unresolved)"
+      "name": "text-justify (css_grammar)"
     },
     {
       "id": "value:text-orientation",
       "kind": "value_grammar",
-      "name": "text-orientation (unresolved)"
+      "name": "text-orientation (enum)"
     },
     {
       "id": "value:text-overflow",
       "kind": "value_grammar",
-      "name": "text-overflow (unresolved)"
+      "name": "text-overflow (css_grammar)"
     },
     {
       "id": "value:text-rendering",
@@ -6139,7 +6139,7 @@
     {
       "id": "value:text-transform",
       "kind": "value_grammar",
-      "name": "text-transform (unresolved)"
+      "name": "text-transform (css_grammar)"
     },
     {
       "id": "value:textLength",
@@ -6154,12 +6154,12 @@
     {
       "id": "value:title",
       "kind": "value_grammar",
-      "name": "title (unresolved)"
+      "name": "title (free_text)"
     },
     {
       "id": "value:to",
       "kind": "value_grammar",
-      "name": "to (unresolved)"
+      "name": "to (free_text)"
     },
     {
       "id": "value:transform",
@@ -6169,7 +6169,7 @@
     {
       "id": "value:transform-box",
       "kind": "value_grammar",
-      "name": "transform-box (unresolved)"
+      "name": "transform-box (enum)"
     },
     {
       "id": "value:transform-origin",
@@ -6199,7 +6199,7 @@
     {
       "id": "value:values",
       "kind": "value_grammar",
-      "name": "values (unresolved)"
+      "name": "values (free_text)"
     },
     {
       "id": "value:vector-effect",
@@ -6209,12 +6209,12 @@
     {
       "id": "value:version",
       "kind": "value_grammar",
-      "name": "version (unresolved)"
+      "name": "version (number)"
     },
     {
       "id": "value:vertical-align",
       "kind": "value_grammar",
-      "name": "vertical-align (unresolved)"
+      "name": "vertical-align (css_grammar)"
     },
     {
       "id": "value:viewBox",
@@ -6239,7 +6239,7 @@
     {
       "id": "value:white-space",
       "kind": "value_grammar",
-      "name": "white-space (unresolved)"
+      "name": "white-space (css_grammar)"
     },
     {
       "id": "value:width",
@@ -6249,12 +6249,12 @@
     {
       "id": "value:will-change",
       "kind": "value_grammar",
-      "name": "will-change (unresolved)"
+      "name": "will-change (css_grammar)"
     },
     {
       "id": "value:word-break",
       "kind": "value_grammar",
-      "name": "word-break (unresolved)"
+      "name": "word-break (enum)"
     },
     {
       "id": "value:word-spacing",
@@ -6264,12 +6264,12 @@
     {
       "id": "value:word-wrap",
       "kind": "value_grammar",
-      "name": "word-wrap (unresolved)"
+      "name": "word-wrap (enum)"
     },
     {
       "id": "value:writing-mode",
       "kind": "value_grammar",
-      "name": "writing-mode (unresolved)"
+      "name": "writing-mode (enum)"
     },
     {
       "id": "value:writing-mode@Svg11Rec20030114",
@@ -6304,12 +6304,12 @@
     {
       "id": "value:xlink:actuate",
       "kind": "value_grammar",
-      "name": "xlink:actuate (unresolved)"
+      "name": "xlink:actuate (enum)"
     },
     {
       "id": "value:xlink:show",
       "kind": "value_grammar",
-      "name": "xlink:show (unresolved)"
+      "name": "xlink:show (enum)"
     },
     {
       "id": "value:xlink:title",
@@ -6319,7 +6319,7 @@
     {
       "id": "value:xml:lang",
       "kind": "value_grammar",
-      "name": "xml:lang (unresolved)"
+      "name": "xml:lang (language_tag)"
     },
     {
       "id": "value:xml:space",
@@ -6349,12 +6349,12 @@
     {
       "id": "value:z",
       "kind": "value_grammar",
-      "name": "z (css_grammar)"
+      "name": "z (number)"
     },
     {
       "id": "value:zoomAndPan",
       "kind": "value_grammar",
-      "name": "zoomAndPan (unresolved)"
+      "name": "zoomAndPan (enum)"
     }
   ],
   "edges": [

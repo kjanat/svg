@@ -188,6 +188,16 @@ impl GrammarProjectionInputs {
         self.css.transform_function_names()
     }
 
+    /// The published `@webref/css` value grammar for a CSS property, if any.
+    pub(crate) fn property_syntax(&self, name: &str) -> Option<&str> {
+        self.css.property_syntax(name)
+    }
+
+    /// The published `@webref/css` value grammar for a CSS type, if any.
+    pub(crate) fn type_syntax(&self, name: &str) -> Option<&str> {
+        self.css.type_syntax(name)
+    }
+
     #[cfg(test)]
     pub(crate) fn for_tests() -> Self {
         let css = WebrefCssIndex::from_features(
@@ -856,6 +866,19 @@ impl WebrefCssIndex {
             .get(name)
             .or_else(|| self.properties.get(name))
             .and_then(WebrefFeature::syntax)
+    }
+
+    /// The value grammar of a CSS *property* (never a type), as published in
+    /// `@webref/css`. Used to resolve presentation/CSS attributes that SVG
+    /// delegates to CSS and thus carry no local grammar.
+    fn property_syntax(&self, name: &str) -> Option<&str> {
+        self.properties.get(name).and_then(WebrefFeature::syntax)
+    }
+
+    /// The value grammar of a CSS *type* (e.g. `opacity-value`), used to expand
+    /// a property whose whole syntax is one type reference.
+    fn type_syntax(&self, name: &str) -> Option<&str> {
+        self.types.get(name).and_then(WebrefFeature::syntax)
     }
 
     fn href(&self, name: &str) -> Option<&str> {

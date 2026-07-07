@@ -227,8 +227,8 @@ mod tests {
 </section>"#;
 
     #[test]
-    fn extracts_token_enum_and_tristate() {
-        let index = parse_aria_value_index(SECTION).expect("parse");
+    fn extracts_token_enum_and_tristate() -> Result<(), Box<dyn std::error::Error>> {
+        let index = parse_aria_value_index(SECTION)?;
         assert_eq!(
             index.get("aria-autocomplete"),
             Some(&CatalogAttributeValues::Enum {
@@ -246,6 +246,7 @@ mod tests {
                 ],
             })
         );
+        Ok(())
     }
 
     #[test]
