@@ -1182,13 +1182,11 @@ impl LanguageServer for SvgLanguageServer {
         })
     }
 
-    #[allow(
-        clippy::unused_async,
-        reason = "async required by the LanguageServer trait; this impl has nothing to await"
-    )]
-    async fn shutdown(&self) -> Result<()> {
+    // Nothing to await on shutdown, so return a ready future directly rather
+    // than an `async fn` with no `.await` (which the trait allows via RPITIT).
+    fn shutdown(&self) -> impl std::future::Future<Output = Result<()>> + Send {
         tracing::info!("shutdown requested");
-        Ok(())
+        std::future::ready(Ok(()))
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
