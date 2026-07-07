@@ -990,6 +990,10 @@ pub enum CatalogAttributeValues {
     CoordinatePairList,
     /// A number or percentage.
     NumberOrPercentage,
+    /// A bare number value.
+    Number,
+    /// A space-separated list of element ID references.
+    IdList,
     /// A structured CSS value grammar that is richer than the runtime's
     /// specialized variants.
     CssGrammar {
@@ -998,8 +1002,13 @@ pub enum CatalogAttributeValues {
         /// Token graph extracted from the grammar.
         graph: CatalogCssGrammarGraph,
     },
-    /// Free-form text with no constrained grammar.
+    /// Free-form text with no constrained grammar (genuinely unconstrained:
+    /// event handlers, `data-*`, ARIA string values).
     FreeText,
+    /// A value space we expect to model but have not derived yet. Distinct from
+    /// [`CatalogAttributeValues::FreeText`] so unparsed attributes are auditable
+    /// instead of hidden among genuinely free-form ones.
+    Unresolved,
 }
 
 /// Graph representation of a CSS value grammar.
@@ -1188,6 +1197,8 @@ pub struct CatalogLegacyInputs<'a> {
     pub inventories: &'a [CatalogInventory],
     /// External inputs for tree-sitter grammar projection, when enabled.
     pub grammar_inputs: Option<&'a crate::treesitter::GrammarProjectionInputs>,
+    /// Derived WAI-ARIA value spaces for `aria-*` attributes, when fetched.
+    pub aria: Option<&'a crate::aria::AriaValueIndex>,
 }
 
 /// Build the catalog from every definitions module's extracted entities.
@@ -1229,8 +1240,7 @@ pub fn build_catalog(
         &descriptions_by_id,
         editors_draft_base,
         compat,
-        legacy.value_overrides,
-        legacy.grammar_inputs,
+        &legacy,
     );
     if legacy.grammar_inputs.is_some() {
         validate_required_extracted_facts(&elements, &attributes)?;
@@ -1774,8 +1784,11 @@ const fn catalog_attribute_values_kind(values: &CatalogAttributeValues) -> &'sta
         CatalogAttributeValues::CoordinatePair => "coordinate_pair",
         CatalogAttributeValues::CoordinatePairList => "coordinate_pair_list",
         CatalogAttributeValues::NumberOrPercentage => "number_or_percentage",
+        CatalogAttributeValues::Number => "number",
+        CatalogAttributeValues::IdList => "id_list",
         CatalogAttributeValues::CssGrammar { .. } => "css_grammar",
         CatalogAttributeValues::FreeText => "free_text",
+        CatalogAttributeValues::Unresolved => "unresolved",
     }
 }
 
@@ -1948,9 +1961,11 @@ fn build_attributes(
     descriptions_by_id: &BTreeMap<&str, &str>,
     editors_draft_base: &str,
     compat: Option<&CompatCatalog>,
-    legacy_value_overrides: &BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
-    grammar_inputs: Option<&crate::treesitter::GrammarProjectionInputs>,
+    legacy: &CatalogLegacyInputs<'_>,
 ) -> Vec<CatalogAttribute> {
+    let legacy_value_overrides = legacy.value_overrides;
+    let grammar_inputs = legacy.grammar_inputs;
+    let aria = legacy.aria;
     let all_elements: BTreeSet<String> = modules
         .iter()
         .flat_map(|module| module.elements.iter().map(|element| element.name.clone()))
@@ -2017,8 +2032,46 @@ fn build_attributes(
     if let Some(compat) = compat {
         append_compat_only_attributes(&mut attributes, compat);
     }
+    for attribute in &mut attributes {
+        apply_derived_value_space(attribute, aria);
+    }
     attributes.sort_by(|a, b| a.name.cmp(&b.name));
     attributes
+}
+
+/// Finalize an attribute's value space after primary extraction.
+///
+/// Applies WAI-ARIA-derived value spaces to `aria-*` attributes (which SVG
+/// delegates externally and thus arrive without a local grammar), then splits
+/// the free-text sink: any attribute still left as [`CatalogAttributeValues::FreeText`]
+/// that is not *genuinely* free-form becomes [`CatalogAttributeValues::Unresolved`],
+/// so unparsed value spaces stay auditable instead of hiding among event
+/// handlers and `data-*`.
+fn apply_derived_value_space(
+    attribute: &mut CatalogAttribute,
+    aria: Option<&crate::aria::AriaValueIndex>,
+) {
+    if !matches!(attribute.values, CatalogAttributeValues::FreeText) {
+        return;
+    }
+    // ARIA resolution counts even when it yields `FreeText` (a `string` type):
+    // that is a *derived* free-form space, so it is exempt from the sink split.
+    if let Some(values) = aria.and_then(|index| index.get(&attribute.name)) {
+        attribute.values = values.clone();
+        return;
+    }
+    if !is_genuinely_free_value(&attribute.name) {
+        attribute.values = CatalogAttributeValues::Unresolved;
+    }
+}
+
+/// Whether an attribute's value is genuinely unconstrained rather than merely
+/// not-yet-derived: event-handler attributes (arbitrary ECMAScript) and the
+/// `data-*` wildcard. WAI-ARIA `string` attributes are resolved to `FreeText`
+/// upstream of the sink split, so they are intentionally excluded here.
+fn is_genuinely_free_value(name: &str) -> bool {
+    name == "data-*"
+        || (name.starts_with("on") && name[2..].starts_with(|ch: char| ch.is_ascii_lowercase()))
 }
 
 fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat: &CompatCatalog) {
@@ -3460,6 +3513,7 @@ mod tests {
                 value_overrides: &BTreeMap::new(),
                 inventories: &[],
                 grammar_inputs: None,
+                aria: None,
             },
         ))
     }
@@ -3558,6 +3612,7 @@ mod tests {
                 value_overrides: &overrides,
                 inventories: &[],
                 grammar_inputs: None,
+                aria: None,
             },
         ));
 
@@ -3824,6 +3879,7 @@ mod tests {
                 value_overrides: &BTreeMap::new(),
                 inventories: &[],
                 grammar_inputs: None,
+                aria: None,
             },
         ));
 
@@ -4008,6 +4064,7 @@ mod tests {
                 value_overrides: &BTreeMap::new(),
                 inventories: &[inventory],
                 grammar_inputs: None,
+                aria: None,
             },
         ));
 
@@ -4070,6 +4127,7 @@ mod tests {
                 value_overrides: &BTreeMap::new(),
                 inventories: &[],
                 grammar_inputs: None,
+                aria: None,
             },
         ));
 
@@ -4084,7 +4142,10 @@ mod tests {
             fetchpriority.mdn_url.as_deref(),
             Some("https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fetchpriority")
         );
-        assert_eq!(fetchpriority.values, CatalogAttributeValues::FreeText);
+        // A BCD-only attribute with no derived value grammar is Unresolved (not
+        // FreeText): we expect to model it but have not yet, and the sink split
+        // keeps that auditable rather than hiding it among genuinely-free values.
+        assert_eq!(fetchpriority.values, CatalogAttributeValues::Unresolved);
         assert_eq!(fetchpriority.element_compat.len(), 1);
         assert_eq!(
             fetchpriority.applicability,
@@ -4158,6 +4219,7 @@ mod tests {
                 value_overrides: &BTreeMap::new(),
                 inventories: &[],
                 grammar_inputs: None,
+                aria: None,
             },
         ));
 

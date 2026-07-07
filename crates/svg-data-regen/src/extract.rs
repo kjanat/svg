@@ -8,6 +8,22 @@
 //! categories (a named set of member attributes). This module streams the XML
 //! once and routes each declaration into a typed record, preserving document
 //! order (which, pinned to a commit, is deterministic).
+//!
+//! # Sources parsed
+//!
+//! The definitions modules fetched by `main`, pinned to the run's commit (links
+//! resolve to the current `master`):
+//!
+//! - [`definitions.xml`][defs] / [`definitions-filters.xml`][filters] /
+//!   [`definitions-masking.xml`][masking] /
+//!   [`definitions-compositing.xml`][compositing]
+//! - the animations module [`definitions.xml`][anim]
+//!
+//! [defs]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions.xml
+//! [filters]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-filters.xml
+//! [masking]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-masking.xml
+//! [compositing]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-compositing.xml
+//! [anim]: https://raw.githubusercontent.com/w3c/svgwg/master/specs/animations/master/definitions.xml
 
 use quick_xml::events::{BytesEnd, BytesStart, Event};
 use quick_xml::reader::Reader;

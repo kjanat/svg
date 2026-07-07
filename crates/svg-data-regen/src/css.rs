@@ -4,6 +4,29 @@
 //! instead of local SVGWG chapters. Those hrefs are part of the SVG source
 //! graph, so follow the exact URLs the pinned SVGWG definitions reference and
 //! extract only the property definitions SVG asked for.
+//!
+//! # Sources parsed
+//!
+//! CSS spec `propdef` tables, discovered dynamically from the SVG definitions'
+//! external property hrefs. At the pinned commit these resolve to exactly:
+//!
+//! - [css-masking-1][masking], [css-transforms][transforms],
+//!   [filter-effects-1][filter]
+//! - [css-fonts-3][fonts], [css-text-3][text], [css-ui-3][ui],
+//!   [css-writing-modes-3][writing]
+//! - the CSS 2.1 value definitions SVG delegates to in prose:
+//!   [`visuren.html`][visuren] (`display`) and [`visufx.html`][visufx]
+//!   (`visibility`, `overflow`)
+//!
+//! [masking]: https://drafts.csswg.org/css-masking-1/
+//! [transforms]: https://drafts.csswg.org/css-transforms/
+//! [filter]: https://drafts.csswg.org/filter-effects-1/
+//! [fonts]: https://www.w3.org/TR/css-fonts-3/
+//! [text]: https://www.w3.org/TR/css-text-3/
+//! [ui]: https://www.w3.org/TR/css-ui-3/
+//! [writing]: https://www.w3.org/TR/css-writing-modes-3/
+//! [visuren]: https://www.w3.org/TR/2011/REC-CSS2-20110607/visuren.html
+//! [visufx]: https://www.w3.org/TR/2011/REC-CSS2-20110607/visufx.html
 
 use std::collections::{BTreeMap, BTreeSet};
 

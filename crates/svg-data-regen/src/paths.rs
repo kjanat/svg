@@ -1,4 +1,12 @@
 //! Path-data facts scraped from SVGWG `paths.html`.
+//!
+//! # Sources parsed
+//!
+//! - [`paths.html`][paths] — the path grammar EBNF productions and the `d`
+//!   property definition. Fetched pinned to the run's commit; the link resolves
+//!   to the current `master`.
+//!
+//! [paths]: https://raw.githubusercontent.com/w3c/svgwg/master/paths.html
 
 use std::{collections::BTreeSet, sync::LazyLock};
 

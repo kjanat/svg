@@ -5,6 +5,13 @@
 //! (`<definitions>`), and every chapter, appendix, and index page. Walking it
 //! (rather than hardcoding a file list) keeps the pipeline faithful to whatever
 //! upstream currently ships.
+//!
+//! # Sources parsed
+//!
+//! - [`publish.xml`][publish] — fetched pinned to the run's commit; the link
+//!   resolves to the current `master`.
+//!
+//! [publish]: https://raw.githubusercontent.com/w3c/svgwg/master/publish.xml
 
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;

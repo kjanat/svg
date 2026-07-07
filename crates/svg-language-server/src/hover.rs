@@ -358,6 +358,10 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
         }
         svg_data::AttributeValues::LanguageTag => vec!["Value: BCP 47 language tag".to_owned()],
         svg_data::AttributeValues::Integer => vec!["Value: integer".to_owned()],
+        svg_data::AttributeValues::Number => vec!["Value: number".to_owned()],
+        svg_data::AttributeValues::IdList => {
+            vec!["Value: space-separated ID references".to_owned()]
+        }
         svg_data::AttributeValues::MediaType => vec!["Value: media type".to_owned()],
         svg_data::AttributeValues::MediaQueryList => vec!["Value: CSS media query list".to_owned()],
         svg_data::AttributeValues::CssDeclarationList => {

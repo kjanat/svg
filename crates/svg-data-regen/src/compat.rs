@@ -5,6 +5,17 @@
 //! explicit compatibility-normalization layer: mapping BCD spellings to
 //! canonical catalog names and classifying non-catalog subfeatures. That policy
 //! lives here instead of being mixed into the semantic catalog assembly path.
+//!
+//! # Sources parsed
+//!
+//! Latest published package `data.json` (via unpkg, falling back to the npm
+//! registry `https://registry.npmjs.org/<package>`):
+//!
+//! - `@mdn/browser-compat-data` [`data.json`][bcd] — browser support.
+//! - `web-features` [`data.json`][webfeatures] — Baseline status.
+//!
+//! [bcd]: https://unpkg.com/@mdn/browser-compat-data/data.json
+//! [webfeatures]: https://unpkg.com/web-features/data.json
 
 use std::{
     collections::{BTreeMap, btree_map::Entry},

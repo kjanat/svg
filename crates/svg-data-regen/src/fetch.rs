@@ -4,6 +4,18 @@
 //! pulls raw files at that exact commit. The local, gitignored `svgwg/` clone
 //! is never read - the only source is canonical upstream over the network, so a
 //! regeneration is reproducible from nothing but the repo slug and a ref.
+//!
+//! # Sources parsed
+//!
+//! Hosts this primitive reaches (concrete per-page URLs are documented on the
+//! modules that consume them):
+//!
+//! - [GitHub API][gh-api] — `repos/{slug}` (default branch) and
+//!   `repos/{slug}/commits/{ref}` (resolve a ref to a commit + date).
+//! - [raw.githubusercontent.com][raw] — raw files at the pinned commit.
+//!
+//! [gh-api]: https://api.github.com/repos/w3c/svgwg
+//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/master/
 
 use std::time::Duration;
 

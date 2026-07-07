@@ -12,7 +12,22 @@
 //! This entry point wires the phases together; the work lives in the
 //! submodules: [`fetch`] (network), [`discover`] (manifest parse), and
 //! [`provenance`] (typed run identity).
+//!
+//! # Sources parsed
+//!
+//! Root: [w3c/svgwg] — the run resolves a commit and fetches its
+//! [`publish.xml`][publish] (the publication manifest). Every other source URL
+//! is documented on the module that parses it: [`discover`] (`publish.xml`),
+//! [`extract`] (definitions XML), [`chapter`] (chapter/appendix HTML),
+//! [`css`] (external CSS propdefs), [`aria`] (WAI-ARIA), [`legacy`] (SVG 1.1
+//! property indexes), [`inventory`] (edition element/attribute indexes),
+//! [`paths`] (path grammar), [`compat`] (browser-compat-data / web-features),
+//! and [`treesitter`] (`@webref/css`).
+//!
+//! [w3c/svgwg]: https://github.com/w3c/svgwg
+//! [publish]: https://raw.githubusercontent.com/w3c/svgwg/master/publish.xml
 
+mod aria;
 mod catalog;
 mod chapter;
 mod compat;
@@ -161,6 +176,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     let inventories = fetch_and_report_inventories(&all_defs)?;
     let grammar_inputs =
         fetch_and_report_grammar_projection_inputs(REPO_SLUG, &provenance.commit_sha)?;
+    let aria = fetch_and_report_aria()?;
     let chapter_report = chapter_report
         .with_external_properties(external_properties.properties)
         .with_external_properties(external_svg_properties);
@@ -176,6 +192,7 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
             value_overrides: &legacy.attributes,
             inventories: &inventories,
             grammar_inputs: Some(&grammar_inputs),
+            aria: Some(&aria),
         },
     )?;
     let path = write_catalog(&built, &inventories)?;
@@ -424,6 +441,13 @@ fn fetch_and_report_inventories(
     );
     inventories.push(editors_draft);
     Ok(inventories)
+}
+
+fn fetch_and_report_aria() -> Fallible<aria::AriaValueIndex> {
+    println!("\n## WAI-ARIA value extraction");
+    let aria = aria::fetch_aria_value_index()?;
+    println!("  {} aria-* attribute value space(s) derived", aria.len());
+    Ok(aria)
 }
 
 fn fetch_and_report_compat() -> Fallible<compat::CompatCatalog> {

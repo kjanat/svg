@@ -632,7 +632,10 @@ pub fn value_completions(
         | AttributeValues::CoordinatePair
         | AttributeValues::CoordinatePairList
         | AttributeValues::NumberOrPercentage
-        | AttributeValues::FreeText => Vec::new(),
+        | AttributeValues::Number
+        | AttributeValues::IdList
+        | AttributeValues::FreeText
+        | AttributeValues::Unresolved => Vec::new(),
     }
 }
 

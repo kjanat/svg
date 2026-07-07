@@ -1,4 +1,22 @@
 //! Per-edition inventory extraction from authoritative element/attribute indexes.
+//!
+//! # Sources parsed
+//!
+//! Each edition's element index and attribute index tables:
+//!
+//! - SVG 1.1 First Edition — [`eltindex.html`][elt-1] / [`attindex.html`][att-1]
+//! - SVG 1.1 Second Edition — [`eltindex.html`][elt-2] / [`attindex.html`][att-2]
+//! - SVG 2 CR 2018 — [`eltindex.html`][elt-cr] / [`attindex.html`][att-cr]
+//!
+//! The SVG 2 editor's-draft inventory is derived from the fetched
+//! `definitions.xml` rather than an index page.
+//!
+//! [elt-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/eltindex.html
+//! [att-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/attindex.html
+//! [elt-2]: https://www.w3.org/TR/SVG11/eltindex.html
+//! [att-2]: https://www.w3.org/TR/SVG11/attindex.html
+//! [elt-cr]: https://www.w3.org/TR/2018/CR-SVG2-20181004/eltindex.html
+//! [att-cr]: https://www.w3.org/TR/2018/CR-SVG2-20181004/attindex.html
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -4,6 +4,17 @@
 //! Policy is allowed here when the grammar needs a stable, finite set of bucket
 //! choices (`css_text` vs `keyword`, dedicated attribute ownership, opaque
 //! timing attrs, etc.) that cannot be represented directly in upstream specs.
+//!
+//! # Sources parsed
+//!
+//! - `@webref/css` [`css.json`][webref] — machine-readable CSS value grammars
+//!   (via unpkg, npm-registry fallback).
+//! - [CSS Values and Units Module Level 4][css-values-4] — CSS unit token pages.
+//! - [SVG Animations][animations] — SMIL clock-value syntax.
+//!
+//! [webref]: https://unpkg.com/@webref/css/css.json
+//! [css-values-4]: https://drafts.csswg.org/css-values-4/
+//! [animations]: https://svgwg.org/specs/animations/
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -459,7 +470,9 @@ fn attribute_values_bucket(
         CatalogAttributeValues::Length => Some(AttributeBucket::Length),
         CatalogAttributeValues::NumberOrPercentage => Some(AttributeBucket::NumberOrPercentage),
         CatalogAttributeValues::Url => Some(AttributeBucket::FunctionalIri),
-        CatalogAttributeValues::Integer => Some(AttributeBucket::Number),
+        CatalogAttributeValues::Integer | CatalogAttributeValues::Number => {
+            Some(AttributeBucket::Number)
+        }
         CatalogAttributeValues::PathData => Some(AttributeBucket::PathData),
         CatalogAttributeValues::SemicolonNumberList => Some(AttributeBucket::NumberList),
         CatalogAttributeValues::CoordinatePair | CatalogAttributeValues::CoordinatePairList => {
@@ -474,6 +487,7 @@ fn attribute_values_bucket(
         | CatalogAttributeValues::MediaQueryList
         | CatalogAttributeValues::CssDeclarationList
         | CatalogAttributeValues::Id
+        | CatalogAttributeValues::IdList
         | CatalogAttributeValues::ReferrerPolicy
         | CatalogAttributeValues::SuggestedFileName => Some(AttributeBucket::CssText),
         CatalogAttributeValues::CssGrammar { graph, .. } => {
@@ -535,7 +549,7 @@ fn attribute_values_bucket(
                 Some(AttributeBucket::CssText)
             }
         }
-        CatalogAttributeValues::FreeText => attribute
+        CatalogAttributeValues::FreeText | CatalogAttributeValues::Unresolved => attribute
             .presentation_attribute
             .as_deref()
             .and_then(|property| attribute_bucket_for_syntax(property, css)),

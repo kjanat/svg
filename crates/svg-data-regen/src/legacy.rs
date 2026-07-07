@@ -3,6 +3,16 @@
 //! The main SVGWG fetch gives the current SVG 2 editor's draft. Snapshot-only
 //! value differences still need authoritative dated sources; this module keeps
 //! those fetches explicit and turns them into the same catalog override model.
+//!
+//! # Sources parsed
+//!
+//! SVG 1.1 property indexes, one `<table>` row per property:
+//!
+//! - SVG 1.1 First Edition [`propidx.html`][propidx-1]
+//! - SVG 1.1 Second Edition [`propidx.html`][propidx-2]
+//!
+//! [propidx-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/propidx.html
+//! [propidx-2]: https://www.w3.org/TR/SVG11/propidx.html
 
 use std::collections::BTreeMap;
 

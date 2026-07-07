@@ -6,6 +6,58 @@
 //! references. (The rendered element-summary tables are injected at publish
 //! time from `definitions.xml`, so the structural content model is extracted
 //! from there, not here.) This module turns one page into a typed record.
+//!
+//! # Sources parsed
+//!
+//! Chapter/appendix pages named in `publish.xml` (fetched by `main`, pinned to
+//! the run's commit; links resolve to the current `master`):
+//!
+//! [`access.html`][access], [`animate.html`][animate],
+//! [`attindex.html`][attindex], [`changes.html`][changes],
+//! [`conform.html`][conform], [`coords.html`][coords],
+//! [`eltindex.html`][eltindex], [`embedded.html`][embedded],
+//! [`geometry.html`][geometry], [`idl.html`][idl],
+//! [`idlindex.html`][idlindex], [`implnote.html`][implnote],
+//! [`interact.html`][interact], [`intro.html`][intro],
+//! [`linking.html`][linking], [`mimereg.html`][mimereg],
+//! [`painting.html`][painting], [`paths.html`][paths],
+//! [`propidx.html`][propidx], [`pservers.html`][pservers],
+//! [`refs.html`][refs], [`render.html`][render], [`shapes.html`][shapes],
+//! [`struct.html`][struct], [`styling.html`][styling], [`text.html`][text],
+//! [`types.html`][types]
+//!
+//! Plus external SVG module chapters SVG 2 reuses:
+//!
+//! - [SVG Animations][animations]
+//!
+//! [access]: https://raw.githubusercontent.com/w3c/svgwg/master/access.html
+//! [animate]: https://raw.githubusercontent.com/w3c/svgwg/master/animate.html
+//! [attindex]: https://raw.githubusercontent.com/w3c/svgwg/master/attindex.html
+//! [changes]: https://raw.githubusercontent.com/w3c/svgwg/master/changes.html
+//! [conform]: https://raw.githubusercontent.com/w3c/svgwg/master/conform.html
+//! [coords]: https://raw.githubusercontent.com/w3c/svgwg/master/coords.html
+//! [eltindex]: https://raw.githubusercontent.com/w3c/svgwg/master/eltindex.html
+//! [embedded]: https://raw.githubusercontent.com/w3c/svgwg/master/embedded.html
+//! [geometry]: https://raw.githubusercontent.com/w3c/svgwg/master/geometry.html
+//! [idl]: https://raw.githubusercontent.com/w3c/svgwg/master/idl.html
+//! [idlindex]: https://raw.githubusercontent.com/w3c/svgwg/master/idlindex.html
+//! [implnote]: https://raw.githubusercontent.com/w3c/svgwg/master/implnote.html
+//! [interact]: https://raw.githubusercontent.com/w3c/svgwg/master/interact.html
+//! [intro]: https://raw.githubusercontent.com/w3c/svgwg/master/intro.html
+//! [linking]: https://raw.githubusercontent.com/w3c/svgwg/master/linking.html
+//! [mimereg]: https://raw.githubusercontent.com/w3c/svgwg/master/mimereg.html
+//! [painting]: https://raw.githubusercontent.com/w3c/svgwg/master/painting.html
+//! [paths]: https://raw.githubusercontent.com/w3c/svgwg/master/paths.html
+//! [propidx]: https://raw.githubusercontent.com/w3c/svgwg/master/propidx.html
+//! [pservers]: https://raw.githubusercontent.com/w3c/svgwg/master/pservers.html
+//! [refs]: https://raw.githubusercontent.com/w3c/svgwg/master/refs.html
+//! [render]: https://raw.githubusercontent.com/w3c/svgwg/master/render.html
+//! [shapes]: https://raw.githubusercontent.com/w3c/svgwg/master/shapes.html
+//! [struct]: https://raw.githubusercontent.com/w3c/svgwg/master/struct.html
+//! [styling]: https://raw.githubusercontent.com/w3c/svgwg/master/styling.html
+//! [text]: https://raw.githubusercontent.com/w3c/svgwg/master/text.html
+//! [types]: https://raw.githubusercontent.com/w3c/svgwg/master/types.html
+//! [animations]: https://svgwg.org/specs/animations/
 
 use std::collections::BTreeMap;
 

@@ -188,6 +188,10 @@ pub enum AttributeValues {
     CoordinatePairList,
     /// A number or percentage.
     NumberOrPercentage,
+    /// A bare number value.
+    Number,
+    /// A space-separated list of element ID references.
+    IdList,
     /// A CSS value grammar graph for mixed or richer grammars.
     CssGrammar {
         /// Raw grammar text from the defining spec.
@@ -195,8 +199,12 @@ pub enum AttributeValues {
         /// Token graph extracted from the grammar.
         graph: CssGrammarGraph,
     },
-    /// Free-form text with no constrained grammar.
+    /// Free-form text with no constrained grammar (genuinely unconstrained:
+    /// event handlers, `data-*`, ARIA string values).
     FreeText,
+    /// A value space we expect to model but have not derived yet, kept distinct
+    /// from [`AttributeValues::FreeText`] so unparsed attributes stay auditable.
+    Unresolved,
 }
 
 /// Graph representation of a CSS value grammar.

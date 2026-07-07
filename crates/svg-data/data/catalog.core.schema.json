@@ -541,6 +541,32 @@
           }
         },
         {
+          "description": "A bare number value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "number"
+            }
+          }
+        },
+        {
+          "description": "A space-separated list of element ID references.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "id_list"
+            }
+          }
+        },
+        {
           "description": "A structured CSS value grammar that is richer than the runtime's\nspecialized variants.",
           "type": "object",
           "required": [
@@ -564,7 +590,7 @@
           }
         },
         {
-          "description": "Free-form text with no constrained grammar.",
+          "description": "Free-form text with no constrained grammar (genuinely unconstrained:\nevent handlers, `data-*`, ARIA string values).",
           "type": "object",
           "required": [
             "kind"
@@ -573,6 +599,19 @@
             "kind": {
               "type": "string",
               "const": "free_text"
+            }
+          }
+        },
+        {
+          "description": "A value space we expect to model but have not derived yet. Distinct from\n[`CatalogAttributeValues::FreeText`] so unparsed attributes are auditable\ninstead of hidden among genuinely free-form ones.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "unresolved"
             }
           }
         }

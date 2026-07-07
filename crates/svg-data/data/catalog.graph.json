@@ -4249,7 +4249,7 @@
     {
       "id": "value:alignment-baseline",
       "kind": "value_grammar",
-      "name": "alignment-baseline (free_text)"
+      "name": "alignment-baseline (unresolved)"
     },
     {
       "id": "value:alignment-baseline@Svg11Rec20030114",
@@ -4269,107 +4269,107 @@
     {
       "id": "value:aria-activedescendant",
       "kind": "value_grammar",
-      "name": "aria-activedescendant (free_text)"
+      "name": "aria-activedescendant (id)"
     },
     {
       "id": "value:aria-atomic",
       "kind": "value_grammar",
-      "name": "aria-atomic (free_text)"
+      "name": "aria-atomic (boolean)"
     },
     {
       "id": "value:aria-autocomplete",
       "kind": "value_grammar",
-      "name": "aria-autocomplete (free_text)"
+      "name": "aria-autocomplete (enum)"
     },
     {
       "id": "value:aria-busy",
       "kind": "value_grammar",
-      "name": "aria-busy (free_text)"
+      "name": "aria-busy (boolean)"
     },
     {
       "id": "value:aria-checked",
       "kind": "value_grammar",
-      "name": "aria-checked (free_text)"
+      "name": "aria-checked (enum)"
     },
     {
       "id": "value:aria-colcount",
       "kind": "value_grammar",
-      "name": "aria-colcount (free_text)"
+      "name": "aria-colcount (integer)"
     },
     {
       "id": "value:aria-colindex",
       "kind": "value_grammar",
-      "name": "aria-colindex (free_text)"
+      "name": "aria-colindex (integer)"
     },
     {
       "id": "value:aria-colspan",
       "kind": "value_grammar",
-      "name": "aria-colspan (free_text)"
+      "name": "aria-colspan (integer)"
     },
     {
       "id": "value:aria-controls",
       "kind": "value_grammar",
-      "name": "aria-controls (free_text)"
+      "name": "aria-controls (id_list)"
     },
     {
       "id": "value:aria-current",
       "kind": "value_grammar",
-      "name": "aria-current (free_text)"
+      "name": "aria-current (enum)"
     },
     {
       "id": "value:aria-describedby",
       "kind": "value_grammar",
-      "name": "aria-describedby (free_text)"
+      "name": "aria-describedby (id_list)"
     },
     {
       "id": "value:aria-details",
       "kind": "value_grammar",
-      "name": "aria-details (free_text)"
+      "name": "aria-details (id)"
     },
     {
       "id": "value:aria-disabled",
       "kind": "value_grammar",
-      "name": "aria-disabled (free_text)"
+      "name": "aria-disabled (boolean)"
     },
     {
       "id": "value:aria-dropeffect",
       "kind": "value_grammar",
-      "name": "aria-dropeffect (free_text)"
+      "name": "aria-dropeffect (token_list)"
     },
     {
       "id": "value:aria-errormessage",
       "kind": "value_grammar",
-      "name": "aria-errormessage (free_text)"
+      "name": "aria-errormessage (id)"
     },
     {
       "id": "value:aria-expanded",
       "kind": "value_grammar",
-      "name": "aria-expanded (free_text)"
+      "name": "aria-expanded (enum)"
     },
     {
       "id": "value:aria-flowto",
       "kind": "value_grammar",
-      "name": "aria-flowto (free_text)"
+      "name": "aria-flowto (id_list)"
     },
     {
       "id": "value:aria-grabbed",
       "kind": "value_grammar",
-      "name": "aria-grabbed (free_text)"
+      "name": "aria-grabbed (enum)"
     },
     {
       "id": "value:aria-haspopup",
       "kind": "value_grammar",
-      "name": "aria-haspopup (free_text)"
+      "name": "aria-haspopup (enum)"
     },
     {
       "id": "value:aria-hidden",
       "kind": "value_grammar",
-      "name": "aria-hidden (free_text)"
+      "name": "aria-hidden (enum)"
     },
     {
       "id": "value:aria-invalid",
       "kind": "value_grammar",
-      "name": "aria-invalid (free_text)"
+      "name": "aria-invalid (enum)"
     },
     {
       "id": "value:aria-keyshortcuts",
@@ -4384,42 +4384,42 @@
     {
       "id": "value:aria-labelledby",
       "kind": "value_grammar",
-      "name": "aria-labelledby (free_text)"
+      "name": "aria-labelledby (id_list)"
     },
     {
       "id": "value:aria-level",
       "kind": "value_grammar",
-      "name": "aria-level (free_text)"
+      "name": "aria-level (integer)"
     },
     {
       "id": "value:aria-live",
       "kind": "value_grammar",
-      "name": "aria-live (free_text)"
+      "name": "aria-live (enum)"
     },
     {
       "id": "value:aria-modal",
       "kind": "value_grammar",
-      "name": "aria-modal (free_text)"
+      "name": "aria-modal (boolean)"
     },
     {
       "id": "value:aria-multiline",
       "kind": "value_grammar",
-      "name": "aria-multiline (free_text)"
+      "name": "aria-multiline (boolean)"
     },
     {
       "id": "value:aria-multiselectable",
       "kind": "value_grammar",
-      "name": "aria-multiselectable (free_text)"
+      "name": "aria-multiselectable (boolean)"
     },
     {
       "id": "value:aria-orientation",
       "kind": "value_grammar",
-      "name": "aria-orientation (free_text)"
+      "name": "aria-orientation (enum)"
     },
     {
       "id": "value:aria-owns",
       "kind": "value_grammar",
-      "name": "aria-owns (free_text)"
+      "name": "aria-owns (id_list)"
     },
     {
       "id": "value:aria-placeholder",
@@ -4429,27 +4429,27 @@
     {
       "id": "value:aria-posinset",
       "kind": "value_grammar",
-      "name": "aria-posinset (free_text)"
+      "name": "aria-posinset (integer)"
     },
     {
       "id": "value:aria-pressed",
       "kind": "value_grammar",
-      "name": "aria-pressed (free_text)"
+      "name": "aria-pressed (enum)"
     },
     {
       "id": "value:aria-readonly",
       "kind": "value_grammar",
-      "name": "aria-readonly (free_text)"
+      "name": "aria-readonly (boolean)"
     },
     {
       "id": "value:aria-relevant",
       "kind": "value_grammar",
-      "name": "aria-relevant (free_text)"
+      "name": "aria-relevant (token_list)"
     },
     {
       "id": "value:aria-required",
       "kind": "value_grammar",
-      "name": "aria-required (free_text)"
+      "name": "aria-required (boolean)"
     },
     {
       "id": "value:aria-roledescription",
@@ -4459,47 +4459,47 @@
     {
       "id": "value:aria-rowcount",
       "kind": "value_grammar",
-      "name": "aria-rowcount (free_text)"
+      "name": "aria-rowcount (integer)"
     },
     {
       "id": "value:aria-rowindex",
       "kind": "value_grammar",
-      "name": "aria-rowindex (free_text)"
+      "name": "aria-rowindex (integer)"
     },
     {
       "id": "value:aria-rowspan",
       "kind": "value_grammar",
-      "name": "aria-rowspan (free_text)"
+      "name": "aria-rowspan (integer)"
     },
     {
       "id": "value:aria-selected",
       "kind": "value_grammar",
-      "name": "aria-selected (free_text)"
+      "name": "aria-selected (enum)"
     },
     {
       "id": "value:aria-setsize",
       "kind": "value_grammar",
-      "name": "aria-setsize (free_text)"
+      "name": "aria-setsize (integer)"
     },
     {
       "id": "value:aria-sort",
       "kind": "value_grammar",
-      "name": "aria-sort (free_text)"
+      "name": "aria-sort (enum)"
     },
     {
       "id": "value:aria-valuemax",
       "kind": "value_grammar",
-      "name": "aria-valuemax (free_text)"
+      "name": "aria-valuemax (number)"
     },
     {
       "id": "value:aria-valuemin",
       "kind": "value_grammar",
-      "name": "aria-valuemin (free_text)"
+      "name": "aria-valuemin (number)"
     },
     {
       "id": "value:aria-valuenow",
       "kind": "value_grammar",
-      "name": "aria-valuenow (free_text)"
+      "name": "aria-valuenow (number)"
     },
     {
       "id": "value:aria-valuetext",
@@ -4509,7 +4509,7 @@
     {
       "id": "value:async",
       "kind": "value_grammar",
-      "name": "async (free_text)"
+      "name": "async (unresolved)"
     },
     {
       "id": "value:attributeName",
@@ -4519,7 +4519,7 @@
     {
       "id": "value:attributeType",
       "kind": "value_grammar",
-      "name": "attributeType (free_text)"
+      "name": "attributeType (unresolved)"
     },
     {
       "id": "value:autofocus",
@@ -4534,7 +4534,7 @@
     {
       "id": "value:background",
       "kind": "value_grammar",
-      "name": "background (free_text)"
+      "name": "background (unresolved)"
     },
     {
       "id": "value:baseFrequency",
@@ -4544,12 +4544,12 @@
     {
       "id": "value:baseProfile",
       "kind": "value_grammar",
-      "name": "baseProfile (free_text)"
+      "name": "baseProfile (unresolved)"
     },
     {
       "id": "value:baseline-shift",
       "kind": "value_grammar",
-      "name": "baseline-shift (free_text)"
+      "name": "baseline-shift (unresolved)"
     },
     {
       "id": "value:begin",
@@ -4564,22 +4564,22 @@
     {
       "id": "value:block-size",
       "kind": "value_grammar",
-      "name": "block-size (free_text)"
+      "name": "block-size (unresolved)"
     },
     {
       "id": "value:border-style",
       "kind": "value_grammar",
-      "name": "border-style (free_text)"
+      "name": "border-style (unresolved)"
     },
     {
       "id": "value:border-top-style",
       "kind": "value_grammar",
-      "name": "border-top-style (free_text)"
+      "name": "border-top-style (unresolved)"
     },
     {
       "id": "value:by",
       "kind": "value_grammar",
-      "name": "by (free_text)"
+      "name": "by (unresolved)"
     },
     {
       "id": "value:calcMode",
@@ -4624,7 +4624,7 @@
     {
       "id": "value:color",
       "kind": "value_grammar",
-      "name": "color (free_text)"
+      "name": "color (unresolved)"
     },
     {
       "id": "value:color-interpolation",
@@ -4659,12 +4659,12 @@
     {
       "id": "value:color-profile",
       "kind": "value_grammar",
-      "name": "color-profile (free_text)"
+      "name": "color-profile (unresolved)"
     },
     {
       "id": "value:content",
       "kind": "value_grammar",
-      "name": "content (free_text)"
+      "name": "content (unresolved)"
     },
     {
       "id": "value:crossorigin",
@@ -4699,12 +4699,12 @@
     {
       "id": "value:decoding",
       "kind": "value_grammar",
-      "name": "decoding (free_text)"
+      "name": "decoding (unresolved)"
     },
     {
       "id": "value:defer",
       "kind": "value_grammar",
-      "name": "defer (free_text)"
+      "name": "defer (unresolved)"
     },
     {
       "id": "value:diffuseConstant",
@@ -4714,7 +4714,7 @@
     {
       "id": "value:direction",
       "kind": "value_grammar",
-      "name": "direction (free_text)"
+      "name": "direction (unresolved)"
     },
     {
       "id": "value:direction@Svg11Rec20030114",
@@ -4749,7 +4749,7 @@
     {
       "id": "value:dominant-baseline",
       "kind": "value_grammar",
-      "name": "dominant-baseline (free_text)"
+      "name": "dominant-baseline (unresolved)"
     },
     {
       "id": "value:dominant-baseline@Svg11Rec20030114",
@@ -4804,12 +4804,12 @@
     {
       "id": "value:externalResourcesRequired",
       "kind": "value_grammar",
-      "name": "externalResourcesRequired (free_text)"
+      "name": "externalResourcesRequired (unresolved)"
     },
     {
       "id": "value:fetchpriority",
       "kind": "value_grammar",
-      "name": "fetchpriority (free_text)"
+      "name": "fetchpriority (unresolved)"
     },
     {
       "id": "value:fill",
@@ -4849,7 +4849,7 @@
     {
       "id": "value:float",
       "kind": "value_grammar",
-      "name": "float (free_text)"
+      "name": "float (unresolved)"
     },
     {
       "id": "value:flood-color",
@@ -4864,7 +4864,7 @@
     {
       "id": "value:font",
       "kind": "value_grammar",
-      "name": "font (free_text)"
+      "name": "font (unresolved)"
     },
     {
       "id": "value:font-family",
@@ -4874,12 +4874,12 @@
     {
       "id": "value:font-feature-settings",
       "kind": "value_grammar",
-      "name": "font-feature-settings (free_text)"
+      "name": "font-feature-settings (unresolved)"
     },
     {
       "id": "value:font-kerning",
       "kind": "value_grammar",
-      "name": "font-kerning (free_text)"
+      "name": "font-kerning (unresolved)"
     },
     {
       "id": "value:font-size",
@@ -4929,7 +4929,7 @@
     {
       "id": "value:font-variant-ligatures",
       "kind": "value_grammar",
-      "name": "font-variant-ligatures (free_text)"
+      "name": "font-variant-ligatures (unresolved)"
     },
     {
       "id": "value:font-variant@Svg11Rec20030114",
@@ -4959,7 +4959,7 @@
     {
       "id": "value:font-width",
       "kind": "value_grammar",
-      "name": "font-width (free_text)"
+      "name": "font-width (unresolved)"
     },
     {
       "id": "value:fr",
@@ -4969,7 +4969,7 @@
     {
       "id": "value:from",
       "kind": "value_grammar",
-      "name": "from (free_text)"
+      "name": "from (unresolved)"
     },
     {
       "id": "value:fx",
@@ -4984,12 +4984,12 @@
     {
       "id": "value:glyph-orientation-horizontal",
       "kind": "value_grammar",
-      "name": "glyph-orientation-horizontal (free_text)"
+      "name": "glyph-orientation-horizontal (unresolved)"
     },
     {
       "id": "value:glyph-orientation-vertical",
       "kind": "value_grammar",
-      "name": "glyph-orientation-vertical (free_text)"
+      "name": "glyph-orientation-vertical (unresolved)"
     },
     {
       "id": "value:gradientTransform",
@@ -5004,7 +5004,7 @@
     {
       "id": "value:hanging-punctuation",
       "kind": "value_grammar",
-      "name": "hanging-punctuation (free_text)"
+      "name": "hanging-punctuation (unresolved)"
     },
     {
       "id": "value:height",
@@ -5024,7 +5024,7 @@
     {
       "id": "value:hyphens",
       "kind": "value_grammar",
-      "name": "hyphens (free_text)"
+      "name": "hyphens (unresolved)"
     },
     {
       "id": "value:id",
@@ -5069,12 +5069,12 @@
     {
       "id": "value:interestfor",
       "kind": "value_grammar",
-      "name": "interestfor (free_text)"
+      "name": "interestfor (unresolved)"
     },
     {
       "id": "value:isolation",
       "kind": "value_grammar",
-      "name": "isolation (free_text)"
+      "name": "isolation (unresolved)"
     },
     {
       "id": "value:k1",
@@ -5109,7 +5109,7 @@
     {
       "id": "value:kerning",
       "kind": "value_grammar",
-      "name": "kerning (free_text)"
+      "name": "kerning (unresolved)"
     },
     {
       "id": "value:keyPoints",
@@ -5154,17 +5154,17 @@
     {
       "id": "value:line-break",
       "kind": "value_grammar",
-      "name": "line-break (free_text)"
+      "name": "line-break (unresolved)"
     },
     {
       "id": "value:line-height",
       "kind": "value_grammar",
-      "name": "line-height (free_text)"
+      "name": "line-height (unresolved)"
     },
     {
       "id": "value:margin-top",
       "kind": "value_grammar",
-      "name": "margin-top (free_text)"
+      "name": "margin-top (unresolved)"
     },
     {
       "id": "value:marker",
@@ -5229,7 +5229,7 @@
     {
       "id": "value:max-width",
       "kind": "value_grammar",
-      "name": "max-width (free_text)"
+      "name": "max-width (unresolved)"
     },
     {
       "id": "value:media",
@@ -5249,7 +5249,7 @@
     {
       "id": "value:min-width",
       "kind": "value_grammar",
-      "name": "min-width (free_text)"
+      "name": "min-width (unresolved)"
     },
     {
       "id": "value:mode",
@@ -5264,12 +5264,12 @@
     {
       "id": "value:object-fit",
       "kind": "value_grammar",
-      "name": "object-fit (free_text)"
+      "name": "object-fit (unresolved)"
     },
     {
       "id": "value:object-position",
       "kind": "value_grammar",
-      "name": "object-position (free_text)"
+      "name": "object-position (unresolved)"
     },
     {
       "id": "value:offset",
@@ -5654,7 +5654,7 @@
     {
       "id": "value:opacity",
       "kind": "value_grammar",
-      "name": "opacity (free_text)"
+      "name": "opacity (unresolved)"
     },
     {
       "id": "value:operator",
@@ -5679,7 +5679,7 @@
     {
       "id": "value:outline",
       "kind": "value_grammar",
-      "name": "outline (free_text)"
+      "name": "outline (unresolved)"
     },
     {
       "id": "value:overflow",
@@ -5689,7 +5689,7 @@
     {
       "id": "value:overflow-wrap",
       "kind": "value_grammar",
-      "name": "overflow-wrap (free_text)"
+      "name": "overflow-wrap (unresolved)"
     },
     {
       "id": "value:overflow@Svg11Rec20030114",
@@ -5779,7 +5779,7 @@
     {
       "id": "value:position",
       "kind": "value_grammar",
-      "name": "position (free_text)"
+      "name": "position (unresolved)"
     },
     {
       "id": "value:preserveAlpha",
@@ -5884,7 +5884,7 @@
     {
       "id": "value:shape-outside",
       "kind": "value_grammar",
-      "name": "shape-outside (free_text)"
+      "name": "shape-outside (unresolved)"
     },
     {
       "id": "value:shape-rendering",
@@ -6029,7 +6029,7 @@
     {
       "id": "value:tab-size",
       "kind": "value_grammar",
-      "name": "tab-size (free_text)"
+      "name": "tab-size (unresolved)"
     },
     {
       "id": "value:tabindex",
@@ -6059,12 +6059,12 @@
     {
       "id": "value:text-align",
       "kind": "value_grammar",
-      "name": "text-align (free_text)"
+      "name": "text-align (unresolved)"
     },
     {
       "id": "value:text-align-last",
       "kind": "value_grammar",
-      "name": "text-align-last (free_text)"
+      "name": "text-align-last (unresolved)"
     },
     {
       "id": "value:text-anchor",
@@ -6084,47 +6084,47 @@
     {
       "id": "value:text-combine-upright",
       "kind": "value_grammar",
-      "name": "text-combine-upright (free_text)"
+      "name": "text-combine-upright (unresolved)"
     },
     {
       "id": "value:text-decoration",
       "kind": "value_grammar",
-      "name": "text-decoration (free_text)"
+      "name": "text-decoration (unresolved)"
     },
     {
       "id": "value:text-decoration-color",
       "kind": "value_grammar",
-      "name": "text-decoration-color (free_text)"
+      "name": "text-decoration-color (unresolved)"
     },
     {
       "id": "value:text-decoration-line",
       "kind": "value_grammar",
-      "name": "text-decoration-line (free_text)"
+      "name": "text-decoration-line (unresolved)"
     },
     {
       "id": "value:text-decoration-style",
       "kind": "value_grammar",
-      "name": "text-decoration-style (free_text)"
+      "name": "text-decoration-style (unresolved)"
     },
     {
       "id": "value:text-indent",
       "kind": "value_grammar",
-      "name": "text-indent (free_text)"
+      "name": "text-indent (unresolved)"
     },
     {
       "id": "value:text-justify",
       "kind": "value_grammar",
-      "name": "text-justify (free_text)"
+      "name": "text-justify (unresolved)"
     },
     {
       "id": "value:text-orientation",
       "kind": "value_grammar",
-      "name": "text-orientation (free_text)"
+      "name": "text-orientation (unresolved)"
     },
     {
       "id": "value:text-overflow",
       "kind": "value_grammar",
-      "name": "text-overflow (free_text)"
+      "name": "text-overflow (unresolved)"
     },
     {
       "id": "value:text-rendering",
@@ -6139,7 +6139,7 @@
     {
       "id": "value:text-transform",
       "kind": "value_grammar",
-      "name": "text-transform (free_text)"
+      "name": "text-transform (unresolved)"
     },
     {
       "id": "value:textLength",
@@ -6154,12 +6154,12 @@
     {
       "id": "value:title",
       "kind": "value_grammar",
-      "name": "title (free_text)"
+      "name": "title (unresolved)"
     },
     {
       "id": "value:to",
       "kind": "value_grammar",
-      "name": "to (free_text)"
+      "name": "to (unresolved)"
     },
     {
       "id": "value:transform",
@@ -6169,7 +6169,7 @@
     {
       "id": "value:transform-box",
       "kind": "value_grammar",
-      "name": "transform-box (free_text)"
+      "name": "transform-box (unresolved)"
     },
     {
       "id": "value:transform-origin",
@@ -6199,7 +6199,7 @@
     {
       "id": "value:values",
       "kind": "value_grammar",
-      "name": "values (free_text)"
+      "name": "values (unresolved)"
     },
     {
       "id": "value:vector-effect",
@@ -6209,12 +6209,12 @@
     {
       "id": "value:version",
       "kind": "value_grammar",
-      "name": "version (free_text)"
+      "name": "version (unresolved)"
     },
     {
       "id": "value:vertical-align",
       "kind": "value_grammar",
-      "name": "vertical-align (free_text)"
+      "name": "vertical-align (unresolved)"
     },
     {
       "id": "value:viewBox",
@@ -6239,7 +6239,7 @@
     {
       "id": "value:white-space",
       "kind": "value_grammar",
-      "name": "white-space (free_text)"
+      "name": "white-space (unresolved)"
     },
     {
       "id": "value:width",
@@ -6249,12 +6249,12 @@
     {
       "id": "value:will-change",
       "kind": "value_grammar",
-      "name": "will-change (free_text)"
+      "name": "will-change (unresolved)"
     },
     {
       "id": "value:word-break",
       "kind": "value_grammar",
-      "name": "word-break (free_text)"
+      "name": "word-break (unresolved)"
     },
     {
       "id": "value:word-spacing",
@@ -6264,12 +6264,12 @@
     {
       "id": "value:word-wrap",
       "kind": "value_grammar",
-      "name": "word-wrap (free_text)"
+      "name": "word-wrap (unresolved)"
     },
     {
       "id": "value:writing-mode",
       "kind": "value_grammar",
-      "name": "writing-mode (free_text)"
+      "name": "writing-mode (unresolved)"
     },
     {
       "id": "value:writing-mode@Svg11Rec20030114",
@@ -6304,12 +6304,12 @@
     {
       "id": "value:xlink:actuate",
       "kind": "value_grammar",
-      "name": "xlink:actuate (free_text)"
+      "name": "xlink:actuate (unresolved)"
     },
     {
       "id": "value:xlink:show",
       "kind": "value_grammar",
-      "name": "xlink:show (free_text)"
+      "name": "xlink:show (unresolved)"
     },
     {
       "id": "value:xlink:title",
@@ -6319,7 +6319,7 @@
     {
       "id": "value:xml:lang",
       "kind": "value_grammar",
-      "name": "xml:lang (free_text)"
+      "name": "xml:lang (unresolved)"
     },
     {
       "id": "value:xml:space",
@@ -6354,7 +6354,7 @@
     {
       "id": "value:zoomAndPan",
       "kind": "value_grammar",
-      "name": "zoomAndPan (free_text)"
+      "name": "zoomAndPan (unresolved)"
     }
   ],
   "edges": [

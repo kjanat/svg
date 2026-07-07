@@ -369,11 +369,14 @@ enum AttributeValues {
     CoordinatePair,
     CoordinatePairList,
     NumberOrPercentage,
+    Number,
+    IdList,
     CssGrammar {
         grammar: String,
         graph: CssGrammarGraph,
     },
     FreeText,
+    Unresolved,
 }
 
 #[derive(Clone, Deserialize)]
@@ -1197,6 +1200,8 @@ fn emit_attribute_values(values: &AttributeValues) -> String {
         AttributeValues::NumberOrPercentage => {
             "crate::types::AttributeValues::NumberOrPercentage".to_owned()
         }
+        AttributeValues::Number => "crate::types::AttributeValues::Number".to_owned(),
+        AttributeValues::IdList => "crate::types::AttributeValues::IdList".to_owned(),
         AttributeValues::CssGrammar { grammar, graph } => {
             format!(
                 "crate::types::AttributeValues::CssGrammar {{ grammar: {grammar:?}, graph: {} }}",
@@ -1204,6 +1209,7 @@ fn emit_attribute_values(values: &AttributeValues) -> String {
             )
         }
         AttributeValues::FreeText => "crate::types::AttributeValues::FreeText".to_owned(),
+        AttributeValues::Unresolved => "crate::types::AttributeValues::Unresolved".to_owned(),
     }
 }
 
