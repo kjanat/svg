@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 /**
  * Build the native addons this grammar needs and place them where Bun's
  * loader expects them.
@@ -34,6 +35,10 @@ const bundledNodeGyp = join(
 	'node-gyp.js',
 );
 
+/**
+ * Locate a runnable `node-gyp.js`, preferring the copy bundled with npm.
+ * @returns {string | null} Path to `node-gyp.js`, or `null` when it must be resolved from `PATH`.
+ */
 function resolveNodeGyp() {
 	if (existsSync(bundledNodeGyp)) {
 		return bundledNodeGyp;
@@ -45,7 +50,12 @@ function resolveNodeGyp() {
 	}
 }
 
-function runNodeGyp(cwd: string) {
+/**
+ * Run `node-gyp rebuild` in the given package directory.
+ * @param {string} cwd Directory of the addon package to build.
+ * @returns {void}
+ */
+function runNodeGyp(cwd) {
 	const nodeGyp = resolveNodeGyp();
 	if (nodeGyp) {
 		execFileSync(execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
@@ -54,7 +64,14 @@ function runNodeGyp(cwd: string) {
 	execFileSync('node-gyp', ['rebuild'], { cwd, stdio: 'inherit' });
 }
 
-function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
+/**
+ * Build an addon (if not already built) and copy it into the prebuild layout.
+ * @param {string} pkgDir Package root containing `binding.gyp`/`build`.
+ * @param {string} builtName File name node-gyp emits under `build/Release`.
+ * @param {string} prebuildName Base name (no extension) for the staged prebuild.
+ * @returns {void}
+ */
+function ensureAddon(pkgDir, builtName, prebuildName) {
 	const built = join(pkgDir, 'build', 'Release', builtName);
 	if (!existsSync(built)) {
 		runNodeGyp(pkgDir);
@@ -68,7 +85,12 @@ function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
 	copyFileSync(built, prebuild);
 }
 
-function optionalPackageRoot(packageName: string) {
+/**
+ * Resolve the install root of an optional dependency, if present.
+ * @param {string} packageName Package to resolve.
+ * @returns {string | null} The package root directory, or `null` when not installed.
+ */
+function optionalPackageRoot(packageName) {
 	try {
 		return dirname(require.resolve(`${packageName}/package.json`));
 	} catch {
@@ -76,7 +98,11 @@ function optionalPackageRoot(packageName: string) {
 	}
 }
 
-function buildNativeAddons(): void {
+/**
+ * Build this grammar's addon plus, when present, the shared `tree-sitter` runtime addon.
+ * @returns {void}
+ */
+function buildNativeAddons() {
 	const grammarRoot = fileURLToPath(new URL('..', import.meta.url));
 	ensureAddon(grammarRoot, 'tree_sitter_svg_binding.node', 'tree-sitter-svg');
 

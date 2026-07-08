@@ -39,7 +39,8 @@
 	],
 	"scripts": {
 		"generate": "tree-sitter generate",
-		"postinstall": "run -p setup:native setup:clangd-headers",
+		"postinstall": "node scripts/ensure-native.mjs",
+		"prepare": "node scripts/ensure-clangd-headers.mjs",
 		"prestart": "tree-sitter build --wasm",
 		"start": "tree-sitter playground --quiet",
 		"test": "tree-sitter test",
@@ -48,8 +49,8 @@
 		"typecheck": "tsc --noEmit",
 		"fmt": "dprint fmt",
 		"lint": "biome check",
-		"setup:native": "node scripts/ensure-native.ts",
-		"setup:clangd-headers": "node scripts/ensure-clangd-headers.ts"
+		"setup:native": "node scripts/ensure-native.mjs",
+		"setup:clangd-headers": "node scripts/ensure-clangd-headers.mjs"
 	},
 	"dependencies": {
 		"node-addon-api": "catalog:",

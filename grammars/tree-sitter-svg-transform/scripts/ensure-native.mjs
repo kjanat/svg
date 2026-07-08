@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-/**
- * Build this grammar's native addon and stage it where Bun's loader expects it:
+// @ts-check
+/** Build this grammar's native addon and stage it where Bun's loader expects it:
  *
- *   prebuilds/<platform>-<arch>/tree-sitter-svg-path.node
+ * ```sh
+ * prebuilds/<platform>-<arch>/tree-sitter-svg-transform.node
+ * ```
  *
  * Node resolves `build/Release/*.node` through node-gyp-build; Bun's CommonJS
- * loader expects the prebuild layout. This bridges that gap. The shared
- * `tree-sitter` runtime addon is built by the host grammar's ensure-native (or
- * tree-sitter's own install), so this only builds the path sub-grammar's addon.
+ * loader expects the prebuild layout. This bridges that gap. The shared `tree-sitter`
+ * runtime addon is built by the host grammar's ensure-native (or tree-sitter's own install),
+ * so this only builds the transform sub-grammar's addon.
  */
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -30,6 +32,10 @@ const bundledNodeGyp = join(
 	'node-gyp.js',
 );
 
+/**
+ * Locate a runnable `node-gyp.js`, preferring the copy bundled with npm.
+ * @returns {string | null} Path to `node-gyp.js`, or `null` when it must be resolved from `PATH`.
+ */
 function resolveNodeGyp() {
 	if (existsSync(bundledNodeGyp)) {
 		return bundledNodeGyp;
@@ -41,7 +47,12 @@ function resolveNodeGyp() {
 	}
 }
 
-function runNodeGyp(cwd: string) {
+/**
+ * Run `node-gyp rebuild` in the given package directory.
+ * @param {string} cwd Directory of the addon package to build.
+ * @returns {void}
+ */
+function runNodeGyp(cwd) {
 	const nodeGyp = resolveNodeGyp();
 	if (nodeGyp) {
 		execFileSync(execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
@@ -50,7 +61,14 @@ function runNodeGyp(cwd: string) {
 	execFileSync('node-gyp', ['rebuild'], { cwd, stdio: 'inherit' });
 }
 
-function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
+/**
+ * Build an addon (if not already built) and copy it into the prebuild layout.
+ * @param {string} pkgDir Package root containing `binding.gyp`/`build`.
+ * @param {string} builtName File name node-gyp emits under `build/Release`.
+ * @param {string} prebuildName Base name (no extension) for the staged prebuild.
+ * @returns {void}
+ */
+function ensureAddon(pkgDir, builtName, prebuildName) {
 	const built = join(pkgDir, 'build', 'Release', builtName);
 	if (!existsSync(built)) {
 		runNodeGyp(pkgDir);
@@ -66,7 +84,7 @@ function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
 
 try {
 	const grammarRoot = fileURLToPath(new URL('..', import.meta.url));
-	ensureAddon(grammarRoot, 'tree_sitter_svg_path_binding.node', 'tree-sitter-svg-path');
+	ensureAddon(grammarRoot, 'tree_sitter_svg_transform_binding.node', 'tree-sitter-svg-transform');
 } catch (error) {
 	const reason = error instanceof Error ? error.message : String(error);
 	console.error(`ensure-native: could not build the native addon: ${reason}`);

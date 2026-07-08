@@ -55,7 +55,8 @@
 		"gen:corpus:check": "node scripts/gen-corpus.ts --check",
 		"generate": "bun run codegen && tree-sitter generate",
 		"helix:sync": "DIR=\"${HOME}/.config/helix/runtime/queries/svg\"; mkdir -p \"${DIR}\" && cp queries/*.scm \"${DIR}\"",
-		"postinstall": "run -p setup:native setup:clangd-headers",
+		"postinstall": "node scripts/ensure-native.mjs",
+		"prepare": "node scripts/ensure-clangd-headers.mjs",
 		"lint": "biome check",
 		"parse:examples": "bash scripts/parse-examples.sh",
 		"prestart": "tree-sitter build --wasm",
@@ -70,8 +71,8 @@
 		"test:regex": "CI=1 bun test test/regex_samples/regex_harness.test.ts",
 		"test:regex:dev": "bun test test/regex_samples/regex_harness.test.ts",
 		"typecheck": "tsc --noEmit",
-		"setup:native": "node scripts/ensure-native.ts",
-		"setup:clangd-headers": "node scripts/ensure-clangd-headers.ts"
+		"setup:native": "node scripts/ensure-native.mjs",
+		"setup:clangd-headers": "node scripts/ensure-clangd-headers.mjs"
 	},
 	"dependencies": {
 		"node-addon-api": "catalog:",

@@ -1,3 +1,6 @@
+[install]
+pms = ["bun", "cargo", "uv"]
+
 [pm]
 node = "bun"
 

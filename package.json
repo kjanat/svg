@@ -8,7 +8,9 @@
 	"workspaces": ["grammars/*", "scripts"],
 	"scripts": {
 		"fmt": "dprint fmt",
+		"fmt:update": "dprint config update -yr",
 		"lint": "bun run --filter '*' lint",
+		"prepare": "bun run --filter '*' prepare",
 		"postinstall": "bun run --filter '*' postinstall"
 	},
 	"devDependencies": {

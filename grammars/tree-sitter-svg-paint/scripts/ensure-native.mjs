@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 /**
  * Build this grammar's native addon and stage it where Bun's loader expects it:
  *
@@ -30,6 +31,10 @@ const bundledNodeGyp = join(
 	'node-gyp.js',
 );
 
+/**
+ * Locate a runnable `node-gyp.js`, preferring the copy bundled with npm.
+ * @returns {string | null} Path to `node-gyp.js`, or `null` when it must be resolved from `PATH`.
+ */
 function resolveNodeGyp() {
 	if (existsSync(bundledNodeGyp)) {
 		return bundledNodeGyp;
@@ -41,7 +46,12 @@ function resolveNodeGyp() {
 	}
 }
 
-function runNodeGyp(cwd: string) {
+/**
+ * Run `node-gyp rebuild` in the given package directory.
+ * @param {string} cwd Directory of the addon package to build.
+ * @returns {void}
+ */
+function runNodeGyp(cwd) {
 	const nodeGyp = resolveNodeGyp();
 	if (nodeGyp) {
 		execFileSync(execPath, [nodeGyp, 'rebuild'], { cwd, stdio: 'inherit' });
@@ -50,7 +60,14 @@ function runNodeGyp(cwd: string) {
 	execFileSync('node-gyp', ['rebuild'], { cwd, stdio: 'inherit' });
 }
 
-function ensureAddon(pkgDir: string, builtName: string, prebuildName: string) {
+/**
+ * Build an addon (if not already built) and copy it into the prebuild layout.
+ * @param {string} pkgDir Package root containing `binding.gyp`/`build`.
+ * @param {string} builtName File name node-gyp emits under `build/Release`.
+ * @param {string} prebuildName Base name (no extension) for the staged prebuild.
+ * @returns {void}
+ */
+function ensureAddon(pkgDir, builtName, prebuildName) {
 	const built = join(pkgDir, 'build', 'Release', builtName);
 	if (!existsSync(built)) {
 		runNodeGyp(pkgDir);

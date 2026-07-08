@@ -12,5 +12,5 @@
 		"allowImportingTsExtensions": true,
 		"types": ["bun", "tree-sitter-cli/dsl"]
 	},
-	"include": ["./bindings/node/*", "./scripts/*.ts", "**/*.ts", "**/*.js"]
+	"include": ["./bindings/node/*", "./scripts/*.ts", "**/*.ts", "**/*.mjs", "**/*.js"]
 }
