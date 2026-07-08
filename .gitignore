@@ -8,5 +8,6 @@ node_modules/
 single-page.html
 svgwg/
 target/
+tsconfig.tsbuildinfo
 !/grammars/tree-sitter-svg/bun.lock
 !/samples/mdn

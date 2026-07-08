@@ -1,4 +1,4 @@
-/// <reference types="bun-types" />
+/// <reference types="bun" />
 
 import manifestJson from "./manifest.json";
 import treeSitterConfigJson from "../../tree-sitter.json";
