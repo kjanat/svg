@@ -29,6 +29,25 @@ async function loadGrammarJs(): Promise<string> {
 	return file(grammarJsPath).text();
 }
 
+const zedLanguagesDir = resolve(repoRoot, 'editors/zed-svg/languages');
+
+// Zed resolves tree-sitter injections by language *name* (a sub-grammar's
+// config.toml `name`), not by grammar id, so its injection queries deliberately
+// remap the sub-grammar `injection.language` values. Build the
+// {grammar id -> Zed name} map from those configs so the sync check can apply it.
+async function zedInjectionLanguageMap(): Promise<Map<string, string>> {
+	const map = new Map<string, string>();
+	for (const dir of ['svg-paint', 'svg-path', 'svg-transform']) {
+		const config: { grammar?: string; name?: string } = Bun.TOML.parse(
+			await file(resolve(zedLanguagesDir, dir, 'config.toml')).text(),
+		);
+		if (config.grammar && config.name) {
+			map.set(config.grammar, config.name);
+		}
+	}
+	return map;
+}
+
 describe('grammar.js matches catalog tree-sitter projection', () => {
 	test('grammar.json is in sync with catalog.tree-sitter.json', async () => {
 		const catalog = await loadCatalogTreeSitter();
@@ -90,11 +109,20 @@ describe('grammar.js matches catalog tree-sitter projection', () => {
 	});
 
 	test('Zed query copies stay in sync with grammar queries', async () => {
+		const injectionNames = await zedInjectionLanguageMap();
 		for (const queryName of ['highlights.scm', 'injections.scm']) {
 			const grammarQuery = await file(resolve(import.meta.dir, 'queries', queryName)).text();
 			const zedQuery = await file(resolve(zedSvgQueryDir, queryName)).text();
-
-			expect(zedQuery).toBe(grammarQuery);
+			// Zed copies are exact grammar queries except that sub-grammar injection
+			// languages are addressed by their Zed language name (see the map above).
+			const expected = grammarQuery.replace(
+				/\(#set! injection\.language "([^"]+)"\)/g,
+				(match, lang: string) =>
+					injectionNames.has(lang)
+						? `(#set! injection.language "${injectionNames.get(lang)}")`
+						: match,
+			);
+			expect(zedQuery).toBe(expected);
 		}
 	});
 });

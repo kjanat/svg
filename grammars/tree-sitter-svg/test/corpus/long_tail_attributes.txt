@@ -15,14 +15,14 @@ ARIA attribute set
         name: (attribute_name)
         value: (quoted_attribute_value
           (attribute_text_double)))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value)))
+      (css_text_attribute
+        name: (css_text_attribute_name)
+        value: (css_text_attribute_value
+          content: (css_attribute_text_double)))
       (generic_attribute
         name: (attribute_name)
         value: (quoted_attribute_value
@@ -455,10 +455,10 @@ Text layout and typography attributes
           name: (keyword_attribute_name)
           value: (keyword_attribute_value
             (number)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
+        (css_text_attribute
+          name: (css_text_attribute_name)
+          value: (css_text_attribute_value
+            content: (css_attribute_text_double)))
         (keyword_attribute
           name: (keyword_attribute_name)
           value: (keyword_attribute_value
@@ -489,10 +489,10 @@ Text layout and typography attributes
           name: (keyword_attribute_name)
           value: (keyword_attribute_value
             (keyword_value)))
-        (generic_attribute
-          name: (attribute_name)
-          value: (quoted_attribute_value
-            (attribute_text_double)))
+        (css_text_attribute
+          name: (css_text_attribute_name)
+          value: (css_text_attribute_value
+            content: (css_attribute_text_double)))
         (keyword_attribute
           name: (keyword_attribute_name)
           value: (keyword_attribute_value
@@ -614,10 +614,10 @@ Coord system and linking/media attributes
         name: (css_text_attribute_name)
         value: (css_text_attribute_value
           content: (css_attribute_text_double)))
-      (generic_attribute
-        name: (attribute_name)
-        value: (quoted_attribute_value
-          (attribute_text_double)))
+      (keyword_attribute
+        name: (keyword_attribute_name)
+        value: (keyword_attribute_value
+          (keyword_value)))
       (length_attribute
         name: (length_attribute_name)
         value: (length_attribute_value
@@ -771,10 +771,10 @@ Other regular long-tail attributes
         name: (attribute_name)
         value: (quoted_attribute_value
           (attribute_text_double)))
-      (css_text_attribute
-        name: (css_text_attribute_name)
-        value: (css_text_attribute_value
-          content: (css_attribute_text_double)))
+      (generic_attribute
+        name: (attribute_name)
+        value: (quoted_attribute_value
+          (attribute_text_double)))
       (number_attribute
         name: (number_attribute_name)
         value: (number_attribute_value

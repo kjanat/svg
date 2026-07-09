@@ -2934,6 +2934,10 @@
           {
             "type": "STRING",
             "value": "stroke"
+          },
+          {
+            "type": "STRING",
+            "value": "text-decoration-color"
           }
         ]
       }
@@ -3032,7 +3036,15 @@
         "members": [
           {
             "type": "STRING",
+            "value": "background"
+          },
+          {
+            "type": "STRING",
             "value": "clip-path"
+          },
+          {
+            "type": "STRING",
+            "value": "content"
           },
           {
             "type": "STRING",
@@ -3061,6 +3073,10 @@
           {
             "type": "STRING",
             "value": "mask"
+          },
+          {
+            "type": "STRING",
+            "value": "shape-outside"
           }
         ]
       }
@@ -3406,6 +3422,10 @@
           },
           {
             "type": "STRING",
+            "value": "font-width"
+          },
+          {
+            "type": "STRING",
             "value": "opacity"
           },
           {
@@ -3510,6 +3530,10 @@
           },
           {
             "type": "STRING",
+            "value": "block-size"
+          },
+          {
+            "type": "STRING",
             "value": "cx"
           },
           {
@@ -3542,7 +3566,15 @@
           },
           {
             "type": "STRING",
+            "value": "kerning"
+          },
+          {
+            "type": "STRING",
             "value": "letter-spacing"
+          },
+          {
+            "type": "STRING",
+            "value": "line-height"
           },
           {
             "type": "STRING",
@@ -3551,6 +3583,10 @@
           {
             "type": "STRING",
             "value": "markerWidth"
+          },
+          {
+            "type": "STRING",
+            "value": "object-position"
           },
           {
             "type": "STRING",
@@ -3587,6 +3623,18 @@
           {
             "type": "STRING",
             "value": "stroke-width"
+          },
+          {
+            "type": "STRING",
+            "value": "tab-size"
+          },
+          {
+            "type": "STRING",
+            "value": "text-combine-upright"
+          },
+          {
+            "type": "STRING",
+            "value": "text-indent"
           },
           {
             "type": "STRING",
@@ -3892,6 +3940,54 @@
           },
           {
             "type": "STRING",
+            "value": "aria-colcount"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-colindex"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-colspan"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-level"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-posinset"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-rowcount"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-rowindex"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-rowspan"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-setsize"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-valuemax"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-valuemin"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-valuenow"
+          },
+          {
+            "type": "STRING",
             "value": "azimuth"
           },
           {
@@ -3997,6 +4093,10 @@
           {
             "type": "STRING",
             "value": "targetY"
+          },
+          {
+            "type": "STRING",
+            "value": "version"
           },
           {
             "type": "STRING",
@@ -4235,6 +4335,10 @@
           {
             "type": "STRING",
             "value": "dy"
+          },
+          {
+            "type": "STRING",
+            "value": "font-feature-settings"
           }
         ]
       }
@@ -4586,6 +4690,78 @@
           },
           {
             "type": "STRING",
+            "value": "aria-autocomplete"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-checked"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-current"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-dropeffect"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-expanded"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-grabbed"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-haspopup"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-hidden"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-invalid"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-live"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-orientation"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-pressed"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-relevant"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-selected"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-sort"
+          },
+          {
+            "type": "STRING",
+            "value": "attributeType"
+          },
+          {
+            "type": "STRING",
+            "value": "border-style"
+          },
+          {
+            "type": "STRING",
+            "value": "border-top-style"
+          },
+          {
+            "type": "STRING",
             "value": "calcMode"
           },
           {
@@ -4610,6 +4786,10 @@
           },
           {
             "type": "STRING",
+            "value": "decoding"
+          },
+          {
+            "type": "STRING",
             "value": "direction"
           },
           {
@@ -4626,11 +4806,23 @@
           },
           {
             "type": "STRING",
+            "value": "externalResourcesRequired"
+          },
+          {
+            "type": "STRING",
+            "value": "fetchpriority"
+          },
+          {
+            "type": "STRING",
             "value": "fill-rule"
           },
           {
             "type": "STRING",
             "value": "filterUnits"
+          },
+          {
+            "type": "STRING",
+            "value": "font-kerning"
           },
           {
             "type": "STRING",
@@ -4646,6 +4838,10 @@
           },
           {
             "type": "STRING",
+            "value": "font-variant-ligatures"
+          },
+          {
+            "type": "STRING",
             "value": "font-weight"
           },
           {
@@ -4658,11 +4854,27 @@
           },
           {
             "type": "STRING",
+            "value": "hanging-punctuation"
+          },
+          {
+            "type": "STRING",
+            "value": "hyphens"
+          },
+          {
+            "type": "STRING",
             "value": "image-rendering"
           },
           {
             "type": "STRING",
+            "value": "isolation"
+          },
+          {
+            "type": "STRING",
             "value": "lengthAdjust"
+          },
+          {
+            "type": "STRING",
+            "value": "line-break"
           },
           {
             "type": "STRING",
@@ -4690,6 +4902,10 @@
           },
           {
             "type": "STRING",
+            "value": "object-fit"
+          },
+          {
+            "type": "STRING",
             "value": "operator"
           },
           {
@@ -4699,6 +4915,10 @@
           {
             "type": "STRING",
             "value": "overflow"
+          },
+          {
+            "type": "STRING",
+            "value": "overflow-wrap"
           },
           {
             "type": "STRING",
@@ -4762,7 +4982,27 @@
           },
           {
             "type": "STRING",
+            "value": "text-align-last"
+          },
+          {
+            "type": "STRING",
             "value": "text-anchor"
+          },
+          {
+            "type": "STRING",
+            "value": "text-decoration-line"
+          },
+          {
+            "type": "STRING",
+            "value": "text-decoration-style"
+          },
+          {
+            "type": "STRING",
+            "value": "text-justify"
+          },
+          {
+            "type": "STRING",
+            "value": "text-orientation"
           },
           {
             "type": "STRING",
@@ -4770,7 +5010,15 @@
           },
           {
             "type": "STRING",
+            "value": "text-transform"
+          },
+          {
+            "type": "STRING",
             "value": "timelinebegin"
+          },
+          {
+            "type": "STRING",
+            "value": "transform-box"
           },
           {
             "type": "STRING",
@@ -4786,6 +5034,18 @@
           },
           {
             "type": "STRING",
+            "value": "white-space"
+          },
+          {
+            "type": "STRING",
+            "value": "word-break"
+          },
+          {
+            "type": "STRING",
+            "value": "word-wrap"
+          },
+          {
+            "type": "STRING",
             "value": "writing-mode"
           },
           {
@@ -4794,11 +5054,23 @@
           },
           {
             "type": "STRING",
+            "value": "xlink:actuate"
+          },
+          {
+            "type": "STRING",
+            "value": "xlink:show"
+          },
+          {
+            "type": "STRING",
             "value": "xml:space"
           },
           {
             "type": "STRING",
             "value": "yChannelSelector"
+          },
+          {
+            "type": "STRING",
+            "value": "zoomAndPan"
           }
         ]
       }
@@ -4957,6 +5229,74 @@
         "members": [
           {
             "type": "STRING",
+            "value": "aria-activedescendant"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-atomic"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-busy"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-controls"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-describedby"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-details"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-disabled"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-errormessage"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-flowto"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-labelledby"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-modal"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-multiline"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-multiselectable"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-owns"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-readonly"
+          },
+          {
+            "type": "STRING",
+            "value": "aria-required"
+          },
+          {
+            "type": "STRING",
+            "value": "async"
+          },
+          {
+            "type": "STRING",
             "value": "attributeName"
           },
           {
@@ -4969,6 +5309,14 @@
           },
           {
             "type": "STRING",
+            "value": "color-profile"
+          },
+          {
+            "type": "STRING",
+            "value": "defer"
+          },
+          {
+            "type": "STRING",
             "value": "download"
           },
           {
@@ -4977,11 +5325,23 @@
           },
           {
             "type": "STRING",
+            "value": "float"
+          },
+          {
+            "type": "STRING",
+            "value": "font"
+          },
+          {
+            "type": "STRING",
             "value": "font-family"
           },
           {
             "type": "STRING",
             "value": "font-size"
+          },
+          {
+            "type": "STRING",
+            "value": "glyph-orientation-horizontal"
           },
           {
             "type": "STRING",
@@ -4997,11 +5357,23 @@
           },
           {
             "type": "STRING",
+            "value": "interestfor"
+          },
+          {
+            "type": "STRING",
             "value": "lang"
           },
           {
             "type": "STRING",
+            "value": "margin-top"
+          },
+          {
+            "type": "STRING",
             "value": "max"
+          },
+          {
+            "type": "STRING",
+            "value": "max-width"
           },
           {
             "type": "STRING",
@@ -5013,11 +5385,23 @@
           },
           {
             "type": "STRING",
+            "value": "min-width"
+          },
+          {
+            "type": "STRING",
             "value": "orient"
           },
           {
             "type": "STRING",
+            "value": "outline"
+          },
+          {
+            "type": "STRING",
             "value": "ping"
+          },
+          {
+            "type": "STRING",
+            "value": "position"
           },
           {
             "type": "STRING",
@@ -5049,7 +5433,27 @@
           },
           {
             "type": "STRING",
-            "value": "xlink:title"
+            "value": "text-align"
+          },
+          {
+            "type": "STRING",
+            "value": "text-decoration"
+          },
+          {
+            "type": "STRING",
+            "value": "text-overflow"
+          },
+          {
+            "type": "STRING",
+            "value": "vertical-align"
+          },
+          {
+            "type": "STRING",
+            "value": "will-change"
+          },
+          {
+            "type": "STRING",
+            "value": "xml:lang"
           }
         ]
       }
