@@ -37,6 +37,7 @@ mod extract;
 mod fetch;
 mod inventory;
 mod legacy;
+mod npm;
 mod paths;
 mod provenance;
 mod schema;
@@ -63,7 +64,8 @@ const PUBLISH_PATH: &str = "master/publish.xml";
 /// Directory the manifest's relative hrefs resolve against.
 const PUBLISH_DIR: &str = "master";
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+/// Crate-wide result alias: `Ok(T)` or a boxed dynamic error.
+pub(crate) type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
 
 fn main() -> ExitCode {
     match run() {

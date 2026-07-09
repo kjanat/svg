@@ -16,15 +16,15 @@
 
 use std::collections::BTreeMap;
 
-use tl::{HTMLTag, Parser, ParserOptions};
+use tl::{HTMLTag, Parser};
 
 use crate::catalog::{
     CatalogAttributeValueOverride, CatalogAttributeValues, CatalogLegacySource,
     CatalogSpecSnapshotId,
 };
-use crate::util::{boxed, is_keyword_token, normalize_html_ws};
+use crate::util::{boxed, handle_inner_text, is_keyword_token, normalize_html_ws};
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// One dated property-index source for a legacy SVG profile.
 pub struct LegacyPropertyIndexSource {
@@ -74,7 +74,7 @@ pub fn extract_svg11_property_index(
     source: &LegacyPropertyIndexSource,
     html: &str,
 ) -> Fallible<LegacyValueOverrides> {
-    let dom = tl::parse(html, ParserOptions::default())?;
+    let dom = crate::util::parse_html(html)?;
     let parser = dom.parser();
     let property_grammars = extract_property_grammars(&dom, parser);
     let value_overrides = extract_keyword_only_value_overrides(&dom, parser);
@@ -188,8 +188,7 @@ fn property_row_name_and_values(row: &HTMLTag, parser: &Parser) -> Option<(Strin
 }
 
 fn cell_text(handle: tl::NodeHandle, parser: &Parser) -> Option<String> {
-    let tag = handle.get(parser)?.as_tag()?;
-    Some(normalize_html_ws(&tag.inner_text(parser)))
+    handle_inner_text(handle, parser).map(|text| normalize_html_ws(&text))
 }
 
 fn normalized_property_name(name: &str) -> String {

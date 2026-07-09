@@ -32,7 +32,7 @@ const BODY_LIMIT: u64 = 64 * 1024 * 1024;
 /// Bound each upstream request so one slow spec host cannot hang regeneration.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// A resolved commit: its SHA and committer date.
 ///

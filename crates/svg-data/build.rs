@@ -749,20 +749,8 @@ fn emit_snapshot_metadata(out: &mut String, snapshot: &SnapshotDocument) {
 
 /// Append one generated snapshot lifecycle overlay.
 fn emit_snapshot_lifecycle(out: &mut String, snapshot: &SnapshotDocument) {
-    let elements = snapshot
-        .lifecycle
-        .elements
-        .iter()
-        .map(emit_lifecycle_entry)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let attributes = snapshot
-        .lifecycle
-        .attributes
-        .iter()
-        .map(emit_lifecycle_entry)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let elements = join_map(&snapshot.lifecycle.elements, emit_lifecycle_entry);
+    let attributes = join_map(&snapshot.lifecycle.attributes, emit_lifecycle_entry);
     let _ = writeln!(
         out,
         "    crate::types::SnapshotLifecycle {{ snapshot: {}, elements: &[{}], attributes: &[{}] \
@@ -778,12 +766,9 @@ fn emit_lifecycle_entry(entry: &LifecycleEntry) -> String {
         .catalog_name
         .as_ref()
         .map_or_else(|| "None".to_owned(), |name| format!("Some({name:?})"));
-    let known_in = entry
-        .known_in
-        .iter()
-        .map(|snapshot| emit_spec_snapshot(*snapshot))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let known_in = join_map(&entry.known_in, |snapshot| {
+        emit_spec_snapshot(*snapshot).to_string()
+    });
     format!(
         "crate::types::FeatureLifecycle {{ name: {:?}, catalog_name: {catalog_name}, present: {}, \
          lifecycle: {}, known_in: &[{}] }}",
@@ -806,12 +791,7 @@ const fn emit_lifecycle_status(status: &LifecycleStatus) -> &'static str {
 
 /// Append one generated edition inventory.
 fn emit_inventory(out: &mut String, inventory: &Inventory) {
-    let elements = inventory
-        .elements
-        .iter()
-        .map(emit_inventory_element)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let elements = join_map(&inventory.elements, emit_inventory_element);
     let _ = writeln!(
         out,
         "    crate::inventory::Inventory {{ edition: \
@@ -822,12 +802,9 @@ fn emit_inventory(out: &mut String, inventory: &Inventory) {
 }
 
 fn emit_inventory_element(element: &InventoryElement) -> String {
-    let attributes = element
-        .attributes
-        .iter()
-        .map(|attribute| format!("crate::inventory::Attribute {{ name: {attribute:?} }}"))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let attributes = join_map(&element.attributes, |attribute| {
+        format!("crate::inventory::Attribute {{ name: {attribute:?} }}")
+    });
     format!(
         "crate::inventory::Element {{ name: {:?}, attributes: &[{}] }}",
         element.name, attributes
@@ -838,18 +815,8 @@ fn emit_inventory_element(element: &InventoryElement) -> String {
 fn emit_catalog_graph(graph: &CatalogGraph) -> String {
     format!(
         "crate::types::CatalogGraph {{ nodes: &[{}], edges: &[{}] }}",
-        graph
-            .nodes
-            .iter()
-            .map(emit_catalog_graph_node)
-            .collect::<Vec<_>>()
-            .join(", "),
-        graph
-            .edges
-            .iter()
-            .map(emit_catalog_graph_edge)
-            .collect::<Vec<_>>()
-            .join(", "),
+        join_map(&graph.nodes, emit_catalog_graph_node),
+        join_map(&graph.edges, emit_catalog_graph_edge),
     )
 }
 
@@ -993,17 +960,13 @@ fn emit_attribute_element_values(overrides: &[AttributeElementValues]) -> String
     if overrides.is_empty() {
         return "&[]".to_owned();
     }
-    let entries = overrides
-        .iter()
-        .map(|override_| {
-            format!(
-                "crate::types::AttributeElementValues {{ element: {:?}, values: {} }}",
-                override_.element,
-                emit_attribute_values(&override_.values)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
+    let entries = join_map(overrides, |override_| {
+        format!(
+            "crate::types::AttributeElementValues {{ element: {:?}, values: {} }}",
+            override_.element,
+            emit_attribute_values(&override_.values)
+        )
+    });
     format!("&[{entries}]")
 }
 
@@ -1011,17 +974,13 @@ fn emit_attribute_value_overrides(overrides: &[AttributeValueOverride]) -> Strin
     if overrides.is_empty() {
         return "&[]".to_owned();
     }
-    let entries = overrides
-        .iter()
-        .map(|override_| {
-            format!(
-                "({}, {})",
-                emit_spec_snapshot(override_.profile),
-                emit_attribute_values(&override_.values)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
+    let entries = join_map(overrides, |override_| {
+        format!(
+            "({}, {})",
+            emit_spec_snapshot(override_.profile),
+            emit_attribute_values(&override_.values)
+        )
+    });
     format!("&[{entries}]")
 }
 
@@ -1038,17 +997,13 @@ fn emit_attribute_element_compat(overrides: &[AttributeElementCompat]) -> String
     if overrides.is_empty() {
         return "&[]".to_owned();
     }
-    let entries = overrides
-        .iter()
-        .map(|override_| {
-            format!(
-                "crate::types::AttributeElementCompat {{ element: {:?}, facts: {} }}",
-                override_.element,
-                emit_compat_facts(&override_.facts)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
+    let entries = join_map(overrides, |override_| {
+        format!(
+            "crate::types::AttributeElementCompat {{ element: {:?}, facts: {} }}",
+            override_.element,
+            emit_compat_facts(&override_.facts)
+        )
+    });
     format!("&[{entries}]")
 }
 
@@ -1147,11 +1102,9 @@ fn emit_browser_version(version: Option<&BrowserVersion>) -> String {
 }
 
 fn emit_browser_flags(flags: &[BrowserFlag]) -> String {
-    flags
-        .iter()
-        .map(|flag| format!("crate::types::BrowserFlag {{ name: {:?} }}", flag.name))
-        .collect::<Vec<_>>()
-        .join(", ")
+    join_map(flags, |flag| {
+        format!("crate::types::BrowserFlag {{ name: {:?} }}", flag.name)
+    })
 }
 
 const fn emit_option_bool(value: Option<bool>) -> &'static str {
@@ -1238,18 +1191,8 @@ fn emit_css_grammar_graph(graph: &CssGrammarGraph) -> String {
     format!(
         "crate::types::CssGrammarGraph {{ root: {}, nodes: &[{}], edges: &[{}] }}",
         graph.root,
-        graph
-            .nodes
-            .iter()
-            .map(emit_css_grammar_node)
-            .collect::<Vec<_>>()
-            .join(", "),
-        graph
-            .edges
-            .iter()
-            .map(emit_css_grammar_edge)
-            .collect::<Vec<_>>()
-            .join(", "),
+        join_map(&graph.nodes, emit_css_grammar_node),
+        join_map(&graph.edges, emit_css_grammar_edge),
     )
 }
 
@@ -1303,11 +1246,13 @@ fn emit_attribute_applicability(applicability: &AttributeApplicability) -> Strin
     }
 }
 
+/// Map each item to its generated source and join with `, ` — the separator for
+/// every emitted array/list literal in the generated catalog.
+fn join_map<T>(items: &[T], f: impl FnMut(&T) -> String) -> String {
+    items.iter().map(f).collect::<Vec<_>>().join(", ")
+}
+
 /// Render a slice of strings as comma-separated Rust string literals.
 fn quote_list(items: &[String]) -> String {
-    items
-        .iter()
-        .map(|item| format!("{item:?}"))
-        .collect::<Vec<_>>()
-        .join(", ")
+    join_map(items, |item| format!("{item:?}"))
 }

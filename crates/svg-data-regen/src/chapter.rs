@@ -62,11 +62,13 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
-use tl::{HTMLTag, Parser, ParserOptions};
+use tl::{HTMLTag, Parser};
 
-use crate::util::{is_keyword_token, normalize_html_ws as normalize_ws};
+use crate::util::{
+    handle_inner_text, has_class, is_keyword_token, normalize_html_ws as normalize_ws,
+};
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// An `id` anchor: a permalink target within a chapter.
 #[derive(Debug, Clone, Serialize)]
@@ -194,7 +196,7 @@ pub struct MacroIndex {
 /// # Errors
 /// Returns an error if the HTML cannot be parsed.
 pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<Chapter> {
-    let dom = tl::parse(html, ParserOptions::default())?;
+    let dom = crate::util::parse_html(html)?;
     let parser = dom.parser();
     let mut chapter = Chapter {
         name: name.to_owned(),
@@ -1568,11 +1570,6 @@ pub fn value_keywords(value: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether `tag` carries `class` among its space-separated class list.
-fn has_class(tag: &HTMLTag, class: &str) -> bool {
-    attr(tag, "class").is_some_and(|classes| classes.split_whitespace().any(|each| each == class))
-}
-
 fn propdef_row_label_and_value(row: &HTMLTag, parser: &Parser) -> Option<(String, String)> {
     if let Some(label) = first_text(row, parser, "th") {
         return Some((label, first_text(row, parser, "td").unwrap_or_default()));
@@ -1594,8 +1591,7 @@ fn first_text(tag: &HTMLTag, parser: &Parser, selector: &str) -> Option<String> 
 }
 
 fn handle_text(handle: tl::NodeHandle, parser: &Parser) -> Option<String> {
-    let found = handle.get(parser)?.as_tag()?;
-    Some(normalize_ws(&found.inner_text(parser)))
+    handle_inner_text(handle, parser).map(|text| normalize_ws(&text))
 }
 
 /// Whether a tag name is an HTML heading (`h1`..`h6`).

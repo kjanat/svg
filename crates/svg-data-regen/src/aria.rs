@@ -18,11 +18,9 @@
 
 use std::collections::BTreeMap;
 
-use tl::ParserOptions;
-
 use crate::{catalog::CatalogAttributeValues, fetch, util::normalize_ws};
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 const WAI_ARIA_URL: &str = "https://www.w3.org/TR/wai-aria-1.1/";
 
@@ -105,7 +103,7 @@ fn aria_sections(html: &str) -> Vec<(String, &str)> {
 /// Read one section's `Value:` characteristic (and, for `token` types, its
 /// enumerated values) and project it to a catalog value space.
 fn section_value_space(segment: &str) -> Fallible<Option<CatalogAttributeValues>> {
-    let dom = tl::parse(segment, ParserOptions::default())?;
+    let dom = crate::util::parse_html(segment)?;
     let parser = dom.parser();
 
     // WAI-ARIA formats *properties* and *states* identically but under distinct
@@ -208,9 +206,7 @@ fn map_value_type(value_type: &str, tokens: &[String]) -> Option<CatalogAttribut
 }
 
 fn first_text(tag: &tl::HTMLTag, parser: &tl::Parser, selector: &str) -> Option<String> {
-    let handle = tag.query_selector(parser, selector)?.next()?;
-    let found = handle.get(parser)?.as_tag()?;
-    Some(normalize_ws(&found.inner_text(parser)))
+    crate::util::selector_inner_text(tag, parser, selector).map(|text| normalize_ws(&text))
 }
 
 #[cfg(test)]

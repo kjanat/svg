@@ -16,9 +16,9 @@
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 
-use crate::util::boxed;
+use crate::util::{boxed, xml_attribute};
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// A named base URL from the `<versions>` block (e.g. `this`, `latest`, `cvs`).
 #[derive(Debug, Clone)]
@@ -105,7 +105,7 @@ fn handle_element(element: &BytesStart, graph: &mut PublishGraph) -> Fallible<()
         b"definitions" => {
             graph.definitions.push(DefinitionsModule {
                 href: required_attribute(element, b"href")?,
-                base: attribute(element, b"base")?,
+                base: xml_attribute(element, b"base")?,
             });
         }
         b"chapter" => {
@@ -155,26 +155,11 @@ fn local_name(element: &BytesStart) -> Fallible<String> {
     Ok(std::str::from_utf8(local.as_ref())?.to_owned())
 }
 
-/// The unescaped value of attribute `key` on `element`, if present.
-fn attribute(element: &BytesStart, key: &[u8]) -> Fallible<Option<String>> {
-    for attribute in element.attributes() {
-        let attribute = attribute?;
-        if attribute.key.local_name().as_ref() == key {
-            return Ok(Some(
-                attribute
-                    .normalized_value(quick_xml::XmlVersion::default())?
-                    .into_owned(),
-            ));
-        }
-    }
-    Ok(None)
-}
-
 /// Required attribute value for manifest elements this pipeline consumes.
 fn required_attribute(element: &BytesStart, key: &[u8]) -> Fallible<String> {
     let name = local_name(element)?;
     let key_name = std::str::from_utf8(key).unwrap_or("<invalid>");
-    match attribute(element, key)? {
+    match xml_attribute(element, key)? {
         Some(value) if !value.trim().is_empty() => Ok(value),
         _ => Err(boxed(format!(
             "publish.xml <{name}> missing required `{key_name}` attribute"

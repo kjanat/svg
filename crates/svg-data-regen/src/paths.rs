@@ -12,7 +12,10 @@ use std::{collections::BTreeSet, sync::LazyLock};
 
 use regex::Regex;
 
-use crate::{fetch, util::boxed};
+use crate::{
+    fetch,
+    util::{boxed, tag_open_end},
+};
 
 const PATHS_HTML_PATH: &str = "master/paths.html";
 const PATH_DATA_BNF_HEADING: &str = "id=\"PathDataBNF\"";
@@ -31,7 +34,7 @@ const EXPECTED_PATH_COMMAND_LETTERS: &[&str] = &[
     "z",
 ];
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 static QUOTED_LETTER_RE: LazyLock<Regex> =
     LazyLock::new(|| crate::util::compile_regex(r#"["']([A-Za-z])["']"#));
@@ -228,19 +231,6 @@ fn next_production_start(body: &str) -> Option<usize> {
 
 fn is_production_header(line: &str) -> bool {
     production_header_name(line).is_some()
-}
-
-fn tag_open_end(html: &str, start: usize) -> Option<usize> {
-    let mut quote = None;
-    for (offset, ch) in html[start..].char_indices() {
-        match (quote, ch) {
-            (Some(current), found) if found == current => quote = None,
-            (None, '"' | '\'') => quote = Some(ch),
-            (None, '>') => return Some(start + offset + ch.len_utf8()),
-            _ => {}
-        }
-    }
-    None
 }
 
 fn strip_tags(html: &str) -> String {

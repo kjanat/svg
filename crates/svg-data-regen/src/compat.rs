@@ -29,16 +29,17 @@ use crate::{
     catalog::{
         CatalogBaselineStatus, CatalogBrowserFlag, CatalogBrowserSupport, CatalogBrowserVersion,
         CatalogCompatFacts, CatalogCompatProvenance, CatalogCompatSubfeature,
-        CatalogCompatSubfeatureKind, CatalogPackageSource,
+        CatalogCompatSubfeatureKind,
     },
     fetch,
-    util::{boxed, decode_html_entities, normalize_ws},
+    npm::package_source,
+    util::{boxed, compile_regex, decode_html_entities, normalize_ws},
 };
 
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
 const WEB_FEATURES_PACKAGE: &str = "web-features";
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// Objective compat facts collected from BCD and web-features.
 pub struct CompatCatalog {
@@ -118,27 +119,6 @@ pub fn fetch_compat_catalog() -> Fallible<CompatCatalog> {
         elements,
         attributes,
     })
-}
-
-fn package_source(package: &str, path: &str) -> Fallible<CatalogPackageSource> {
-    let version = npm_latest_version(package)?;
-    let url = format!("https://unpkg.com/{package}@{version}/{path}");
-    Ok(CatalogPackageSource {
-        name: package.to_owned(),
-        version,
-        url,
-    })
-}
-
-fn npm_latest_version(package: &str) -> Fallible<String> {
-    let registry_package = package.replace('/', "%2f");
-    let url = format!("https://registry.npmjs.org/{registry_package}");
-    let json: Value = serde_json::from_str(&fetch::url_text(&url, "application/json")?)?;
-    let version = json
-        .pointer("/dist-tags/latest")
-        .and_then(Value::as_str)
-        .ok_or_else(|| boxed("npm package metadata missing dist-tags.latest"))?;
-    Ok(version.to_owned())
 }
 
 fn collect_element_facts(
@@ -379,13 +359,6 @@ static ANCHOR_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
     compile_regex("(?is)<a\\s+[^>]*href=(?:\"([^\"]*)\"|'([^']*)')[^>]*>(.*?)</a>")
 });
 static HTML_TAG_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex("(?is)<[^>]+>"));
-
-fn compile_regex(pattern: &str) -> Regex {
-    match Regex::new(pattern) {
-        Ok(regex) => regex,
-        Err(error) => panic!("invalid regex {pattern:?}: {error}"),
-    }
-}
 
 fn normalize_support_note(note: &str) -> String {
     let note = CODE_TAG_RE.replace_all(note, |captures: &Captures<'_>| {

@@ -34,9 +34,10 @@ use crate::{
     chapter::{self, PropertyValueDef},
     extract::{AttributeRef, Definitions},
     fetch,
+    util::{is_absolute_url, page_url, resolve_url},
 };
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// Property definitions extracted from external pages.
 pub struct ExternalPropertyDefinitions {
@@ -250,24 +251,6 @@ fn prose_backed_external_property_url(name: &str, href: &str) -> Option<&'static
         }
         _ => None,
     }
-}
-
-fn is_absolute_url(url: &str) -> bool {
-    url.starts_with("http://") || url.starts_with("https://")
-}
-
-fn resolve_url(base: &str, href: &str) -> String {
-    if is_absolute_url(href) {
-        href.to_owned()
-    } else {
-        format!("{base}{href}")
-    }
-}
-
-fn page_url(url: &str) -> String {
-    url.split_once('#')
-        .map_or(url, |(page, _fragment)| page)
-        .to_owned()
 }
 
 fn normalized_property_name(name: &str) -> String {

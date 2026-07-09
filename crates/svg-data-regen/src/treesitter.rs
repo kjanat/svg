@@ -21,10 +21,6 @@ use std::{
     sync::LazyLock,
 };
 
-use regex::Regex;
-use serde::Deserialize;
-use serde_json::Value;
-
 use crate::{
     catalog::{
         CatalogAttribute, CatalogAttributeValues, CatalogCssGrammarNodeKind, CatalogPackageSource,
@@ -32,9 +28,12 @@ use crate::{
         CatalogTreeSitterTokens,
     },
     fetch,
+    npm::package_source,
     paths::PathsGrammarFacts,
-    util::{boxed, compile_regex, normalize_html_ws},
+    util::{boxed, compile_regex, normalize_html_ws, page_url, tag_open_end},
 };
+use regex::Regex;
+use serde::Deserialize;
 
 static TOKEN_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex(r"[A-Za-z][A-Za-z0-9-]*"));
 static TYPE_REF_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex(r"<([^>]+)>"));
@@ -46,7 +45,7 @@ const WEBREF_CSS_PACKAGE: &str = "@webref/css";
 const WEBREF_CSS_DATA_PATH: &str = "css.json";
 const SVG_CLOCK_VALUE_SYNTAX_URL: &str = "https://svgwg.org/specs/animations/";
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 const EXPECTED_LENGTH_UNITS: &[&str] = &[
     "em", "ex", "px", "cm", "mm", "in", "pt", "pc", "Q", "rem", "ch", "vh", "vw", "vmin", "vmax",
@@ -1271,36 +1270,6 @@ fn ordered_type_refs(syntax: &str) -> Vec<String> {
         .collect()
 }
 
-fn package_source(package: &str, path: &str) -> Fallible<CatalogPackageSource> {
-    let version = npm_latest_version(package)?;
-    let url = format!("https://unpkg.com/{package}@{version}/{path}");
-    Ok(CatalogPackageSource {
-        name: package.to_owned(),
-        version,
-        url,
-    })
-}
-
-/// Resolve the npm `latest` dist-tag for `package`.
-///
-/// NOTE: this makes regeneration output depend on whatever `@webref/css` is
-/// "latest" at run time, so two runs on different days can differ. The crate has
-/// no version-pinning convention (`compat.rs` resolves bcd/web-features the same
-/// way); the resolved version is recorded into the catalog's package provenance
-/// so a given committed catalog stays reproducible from its own metadata.
-/// TODO: pin `@webref/css` (and the other npm sources) to an explicit version if
-/// fully deterministic regeneration from a clean checkout is required.
-fn npm_latest_version(package: &str) -> Fallible<String> {
-    let registry_package = package.replace('/', "%2f");
-    let url = format!("https://registry.npmjs.org/{registry_package}");
-    let json: Value = serde_json::from_str(&fetch::url_text(&url, "application/json")?)?;
-    let version = json
-        .pointer("/dist-tags/latest")
-        .and_then(Value::as_str)
-        .ok_or_else(|| boxed("npm package metadata missing dist-tags.latest"))?;
-    Ok(version.to_owned())
-}
-
 fn css_units(css: &WebrefCssIndex, type_name: &str) -> Fallible<(Vec<String>, String)> {
     let href = css
         .href(type_name)
@@ -1343,19 +1312,6 @@ fn dfn_values_for(html: &str, dfn_for: &str) -> Vec<String> {
         offset = close + "</dfn>".len();
     }
     unique_preserve(values)
-}
-
-fn tag_open_end(html: &str, start: usize) -> Option<usize> {
-    let mut quote = None;
-    for (offset, ch) in html[start..].char_indices() {
-        match (quote, ch) {
-            (Some(current), found) if found == current => quote = None,
-            (None, '"' | '\'') => quote = Some(ch),
-            (None, '>') => return Some(start + offset + ch.len_utf8()),
-            _ => {}
-        }
-    }
-    None
 }
 
 fn tag_attr(tag: &str, name: &str) -> Option<String> {
@@ -1411,12 +1367,6 @@ fn svg_clock_units() -> Fallible<Vec<String>> {
         return Err(boxed("SVG Animations clock Metric production had no units"));
     }
     Ok(units)
-}
-
-fn page_url(url: &str) -> String {
-    url.split_once('#')
-        .map_or(url, |(page, _fragment)| page)
-        .to_owned()
 }
 
 fn unique_sorted(values: impl IntoIterator<Item = String>) -> Vec<String> {
