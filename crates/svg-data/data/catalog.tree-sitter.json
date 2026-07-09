@@ -3,8 +3,8 @@
   "sources": {
     "webref_css": {
       "name": "@webref/css",
-      "version": "8.6.1",
-      "url": "https://unpkg.com/@webref/css@8.6.1/css.json"
+      "version": "8.7.0",
+      "url": "https://unpkg.com/@webref/css@8.7.0/css.json"
     },
     "css_unit_pages": [
       "https://drafts.csswg.org/css-values-4/"

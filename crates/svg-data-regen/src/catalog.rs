@@ -3790,7 +3790,8 @@ fn animation_from_type_string(animation_type: &str) -> Option<CatalogAnimation> 
     if animation_type == "yes" {
         return None;
     }
-    // `by computed value`, `by computed value type`, `repeatable list`, …
+    // Interpolable designations: the Web Animations `by computed value` family
+    // and the CSS `as <type>` forms (`as color`, `as length`, `as font weight`).
     Some(CatalogAnimation::Additive)
 }
 

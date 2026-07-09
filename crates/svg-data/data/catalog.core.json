@@ -12856,7 +12856,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-stretch",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-stretch-prop",
       "standard_track": true,
-      "animation": "discrete",
+      "animation": "additive",
       "presentation_attribute": "font-stretch",
       "browser_support": {
         "chrome": {
@@ -14222,7 +14222,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-weight",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-weight-prop",
       "standard_track": true,
-      "animation": "discrete",
+      "animation": "additive",
       "presentation_attribute": "font-weight",
       "baseline": {
         "kind": "widely",

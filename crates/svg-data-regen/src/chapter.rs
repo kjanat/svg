@@ -380,6 +380,12 @@ fn extract_raw_propdef(table_html: &str) -> Option<PropertyValueDef> {
             "inherited" => inherited = Some(cell),
             "computed value" => computed_value = Some(cell),
             "animation type" => animation_type = Some(cell),
+            "animatable"
+                if animation_type.is_none()
+                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
+            {
+                animation_type = Some(cell);
+            }
             _ => {}
         }
     }
@@ -454,6 +460,12 @@ fn extract_raw_propinfo_propdef(block_html: &str) -> Option<PropertyValueDef> {
             "inherited" => inherited = Some(cell),
             "computed value" => computed_value = Some(cell),
             "animation type" => animation_type = Some(cell),
+            "animatable"
+                if animation_type.is_none()
+                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
+            {
+                animation_type = Some(cell);
+            }
             _ => {}
         }
     }
@@ -1091,6 +1103,12 @@ fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Vec<PropertyValueDef> {
             "inherited" => inherited = Some(cell),
             "computed value" => computed_value = Some(cell),
             "animation type" => animation_type = Some(cell),
+            "animatable"
+                if animation_type.is_none()
+                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
+            {
+                animation_type = Some(cell);
+            }
             _ => {}
         }
     }
