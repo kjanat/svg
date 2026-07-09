@@ -1,20 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "CatalogAnimation": {
+      "description": "How an attribute or property can be animated.\n\nSVG 2 propdefs cite the Web Animations `animation-type` (`by computed value`\n/ `discrete` / `not animatable`); SVG Animations derives the additive\nsemantics (`yes` / `yes (non-additive)` / `no`) from it. This tri-state\nreplaces a lossy `animatable: bool` that could not express the non-additive\n(`discrete`) case — animating such a value swaps discretely rather than\ninterpolating, and `<animate additive=\"sum\">` is invalid on it.",
+      "oneOf": [
+        {
+          "description": "Cannot be animated (Web Animations `not animatable`).",
+          "type": "string",
+          "const": "not_animatable"
+        },
+        {
+          "description": "Animatable but non-additive — only discrete swaps between values (Web\nAnimations `discrete`; SVG Animations `yes (non-additive)`).",
+          "type": "string",
+          "const": "discrete"
+        },
+        {
+          "description": "Animatable and additive/interpolable (Web Animations `by computed value`;\nSVG Animations `yes`).",
+          "type": "string",
+          "const": "additive"
+        }
+      ]
+    },
     "CatalogAttribute": {
       "description": "One attribute's spec-derived catalog entry.",
       "type": "object",
       "required": [
-        "animatable",
+        "animation",
         "applicability",
         "name",
-        "value_overrides",
         "values"
       ],
       "properties": {
-        "animatable": {
-          "description": "Whether the spec marks the attribute animatable.",
-          "type": "boolean"
+        "animation": {
+          "$ref": "#/$defs/CatalogAnimation",
+          "description": "How the attribute animates (Web Animations `animation-type` the SVG 2\npropdefs cite; SVG Animations additive semantics)."
         },
         "applicability": {
           "$ref": "#/$defs/CatalogAttributeApplicability",
@@ -60,6 +79,13 @@
             "$ref": "#/$defs/CatalogAttributeElementCompat"
           }
         },
+        "element_values": {
+          "description": "Element-scoped value-space overrides for attributes whose value grammar\ngenuinely differs by bearer element within the same profile (e.g.\n`operator` on `feComposite` vs `feMorphology`).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogAttributeElementValues"
+          }
+        },
         "experimental": {
           "description": "Whether compat data marks the attribute experimental.",
           "type": "boolean"
@@ -95,14 +121,6 @@
             "boolean",
             "null"
           ]
-        },
-        "value_overrides": {
-          "description": "Per-profile value-space overrides, when older snapshots accepted a\ndifferent grammar.",
-          "writeOnly": true,
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/CatalogAttributeValueOverride"
-          }
         },
         "values": {
           "$ref": "#/$defs/CatalogAttributeValues",
@@ -219,21 +237,21 @@
         }
       }
     },
-    "CatalogAttributeValueOverride": {
-      "description": "One per-profile value-space override for an attribute.",
+    "CatalogAttributeElementValues": {
+      "description": "One element-scoped value-space override for an attribute whose value grammar\ngenuinely differs by bearer element within the same profile.\n\nThe canonical [`CatalogAttribute::values`] holds the value space of the\nfirst bearer (by sorted element name); each diverging bearer is recorded\nhere so no spec-defined value space is lost.",
       "type": "object",
       "required": [
-        "profile",
+        "element",
         "values"
       ],
       "properties": {
-        "profile": {
-          "$ref": "#/$defs/CatalogSpecSnapshotId",
-          "description": "Profile snapshot where this value grammar applies."
+        "element": {
+          "description": "Element this value-space override applies to.",
+          "type": "string"
         },
         "values": {
           "$ref": "#/$defs/CatalogAttributeValues",
-          "description": "Value space for that profile."
+          "description": "Value space when the attribute is borne by `element`."
         }
       }
     },
@@ -296,6 +314,19 @@
           }
         },
         {
+          "description": "An SVG paint value: `none | <color> | <url> [none | <color>]? |\ncontext-fill | context-stroke`. Strictly richer than [`Color`]; used by\n`fill` and `stroke` so their non-color alternatives are not dropped.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "paint"
+            }
+          }
+        },
+        {
           "description": "A length or length-percentage value.",
           "type": "object",
           "required": [
@@ -309,7 +340,7 @@
           }
         },
         {
-          "description": "A URL / fragment reference.",
+          "description": "A URL / fragment reference (ASCII, per the URL/URI grammar).",
           "type": "object",
           "required": [
             "kind"
@@ -318,6 +349,227 @@
             "kind": {
               "type": "string",
               "const": "url"
+            }
+          }
+        },
+        {
+          "description": "An SVG Internationalized Resource Identifier reference. A strict superset\nof [`Self::Url`] — IRIs permit non-ASCII (Unicode) characters that a URL\ndisallows, so the two are kept distinct rather than conflated.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "iri"
+            }
+          }
+        },
+        {
+          "description": "A boolean attribute as defined by HTML.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "boolean"
+            }
+          }
+        },
+        {
+          "description": "A space-separated token list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "token_list"
+            }
+          }
+        },
+        {
+          "description": "A comma-separated token list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "comma_token_list"
+            }
+          }
+        },
+        {
+          "description": "A space-separated list of URL tokens.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "url_token_list"
+            }
+          }
+        },
+        {
+          "description": "A BCP 47 / ABNF language tag.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "language_tag"
+            }
+          }
+        },
+        {
+          "description": "An integer value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "integer"
+            }
+          }
+        },
+        {
+          "description": "A MIME media type.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "media_type"
+            }
+          }
+        },
+        {
+          "description": "A CSS media query list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "media_query_list"
+            }
+          }
+        },
+        {
+          "description": "A CSS declaration list, as used by inline `style`.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "css_declaration_list"
+            }
+          }
+        },
+        {
+          "description": "An SVG element ID value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "id"
+            }
+          }
+        },
+        {
+          "description": "A referrer policy string.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "referrer_policy"
+            }
+          }
+        },
+        {
+          "description": "A suggested download file name.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "suggested_file_name"
+            }
+          }
+        },
+        {
+          "description": "SVG path data.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "path_data"
+            }
+          }
+        },
+        {
+          "description": "A semicolon-separated list of numbers.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "semicolon_number_list"
+            }
+          }
+        },
+        {
+          "description": "One motion-animation coordinate pair.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "coordinate_pair"
+            }
+          }
+        },
+        {
+          "description": "A semicolon-separated list of motion-animation coordinate pairs.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "coordinate_pair_list"
             }
           }
         },
@@ -331,6 +583,32 @@
             "kind": {
               "type": "string",
               "const": "number_or_percentage"
+            }
+          }
+        },
+        {
+          "description": "A bare number value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "number"
+            }
+          }
+        },
+        {
+          "description": "A space-separated list of element ID references.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "id_list"
             }
           }
         },
@@ -358,7 +636,7 @@
           }
         },
         {
-          "description": "Free-form text with no constrained grammar.",
+          "description": "Free-form text with no constrained grammar (genuinely unconstrained:\nevent handlers, `data-*`, ARIA string values).",
           "type": "object",
           "required": [
             "kind"
@@ -367,6 +645,19 @@
             "kind": {
               "type": "string",
               "const": "free_text"
+            }
+          }
+        },
+        {
+          "description": "A value space we expect to model but have not derived yet. Distinct from\n[`CatalogAttributeValues::FreeText`] so unparsed attributes are auditable\ninstead of hidden among genuinely free-form ones.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "unresolved"
             }
           }
         }
@@ -910,35 +1201,10 @@
           ]
         }
       }
-    },
-    "CatalogSpecSnapshotId": {
-      "description": "SVG specification snapshots understood by the catalog contract.",
-      "oneOf": [
-        {
-          "description": "SVG 1.1 First Edition (W3C REC 2003-01-14).",
-          "type": "string",
-          "const": "Svg11Rec20030114"
-        },
-        {
-          "description": "SVG 1.1 Second Edition (W3C REC 2011-08-16).",
-          "type": "string",
-          "const": "Svg11Rec20110816"
-        },
-        {
-          "description": "SVG 2 Candidate Recommendation (2018-10-04).",
-          "type": "string",
-          "const": "Svg2Cr20181004"
-        },
-        {
-          "description": "SVG 2 Editor's Draft (rolling).",
-          "type": "string",
-          "const": "Svg2EditorsDraft"
-        }
-      ]
     }
   },
   "title": "svg-data core catalog v1",
-  "description": "Canonical latest catalog data.",
+  "description": "Canonical latest catalog data after semantic projection.\n\nThis document is the runtime-facing catalog, not a raw upstream XML/HTML mirror.",
   "type": "object",
   "required": [
     "attributes",

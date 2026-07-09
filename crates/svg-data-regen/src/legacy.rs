@@ -3,18 +3,28 @@
 //! The main SVGWG fetch gives the current SVG 2 editor's draft. Snapshot-only
 //! value differences still need authoritative dated sources; this module keeps
 //! those fetches explicit and turns them into the same catalog override model.
+//!
+//! # Sources parsed
+//!
+//! SVG 1.1 property indexes, one `<table>` row per property:
+//!
+//! - SVG 1.1 First Edition [`propidx.html`][propidx-1]
+//! - SVG 1.1 Second Edition [`propidx.html`][propidx-2]
+//!
+//! [propidx-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/propidx.html
+//! [propidx-2]: https://www.w3.org/TR/SVG11/propidx.html
 
 use std::collections::BTreeMap;
 
-use tl::{HTMLTag, Parser, ParserOptions};
+use tl::{HTMLTag, Parser};
 
 use crate::catalog::{
     CatalogAttributeValueOverride, CatalogAttributeValues, CatalogLegacySource,
     CatalogSpecSnapshotId,
 };
-use crate::util::{boxed, is_keyword_token, normalize_ws};
+use crate::util::{boxed, handle_inner_text, is_keyword_token, normalize_html_ws};
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// One dated property-index source for a legacy SVG profile.
 pub struct LegacyPropertyIndexSource {
@@ -47,6 +57,12 @@ pub struct LegacyValueOverrides {
     pub sources: Vec<CatalogLegacySource>,
     /// Attribute value overrides keyed by attribute/property name.
     pub attributes: BTreeMap<String, Vec<CatalogAttributeValueOverride>>,
+    /// Full SVG 1.1 property value grammars keyed by property name (the whole
+    /// `Value:` column, with the universal `inherit` keyword dropped). Used as a
+    /// value source for properties SVG 2 removed (e.g. `kerning`,
+    /// `glyph-orientation-horizontal`, `color-profile`) so they resolve from the
+    /// spec we already fetch rather than a hand-maintained grammar.
+    pub property_grammars: BTreeMap<String, String>,
 }
 
 /// Extract value overrides from one SVG 1.1 property index HTML page.
@@ -58,8 +74,9 @@ pub fn extract_svg11_property_index(
     source: &LegacyPropertyIndexSource,
     html: &str,
 ) -> Fallible<LegacyValueOverrides> {
-    let dom = tl::parse(html, ParserOptions::default())?;
+    let dom = crate::util::parse_html(html)?;
     let parser = dom.parser();
+    let property_grammars = extract_property_grammars(&dom, parser);
     let value_overrides = extract_keyword_only_value_overrides(&dom, parser);
     if value_overrides.is_empty() {
         return Err(boxed("SVG 1.1 property index had no keyword-only rows"));
@@ -83,7 +100,41 @@ pub fn extract_svg11_property_index(
             url: source.url.to_owned(),
         }],
         attributes,
+        property_grammars,
     })
+}
+
+/// The full `Value:` grammar of every property row in the index, keyed by
+/// property name, with the universal `inherit` keyword removed.
+fn extract_property_grammars(dom: &tl::VDom<'_>, parser: &Parser) -> BTreeMap<String, String> {
+    let mut grammars = BTreeMap::new();
+    for node in dom.nodes() {
+        let Some(row) = node.as_tag() else {
+            continue;
+        };
+        if row.name().as_utf8_str() != "tr" {
+            continue;
+        }
+        let Some((name, values)) = property_row_name_and_values(row, parser) else {
+            continue;
+        };
+        let name = normalized_property_name(&name);
+        let grammar = strip_inherit_keyword(&values);
+        if !name.is_empty() && !grammar.is_empty() {
+            grammars.insert(name, grammar);
+        }
+    }
+    grammars
+}
+
+/// Drop the universal `inherit` alternative from a CSS-style value grammar.
+fn strip_inherit_keyword(value: &str) -> String {
+    value
+        .split('|')
+        .map(str::trim)
+        .filter(|token| !token.eq_ignore_ascii_case("inherit") && !token.is_empty())
+        .collect::<Vec<_>>()
+        .join(" | ")
 }
 
 /// Merge one legacy extraction into an accumulator.
@@ -95,6 +146,10 @@ pub fn merge_value_overrides(target: &mut LegacyValueOverrides, mut source: Lega
             .entry(attribute)
             .or_default()
             .append(&mut overrides);
+    }
+    // First edition wins on a tie; later editions only fill gaps.
+    for (name, grammar) in source.property_grammars {
+        target.property_grammars.entry(name).or_insert(grammar);
     }
 }
 
@@ -133,8 +188,7 @@ fn property_row_name_and_values(row: &HTMLTag, parser: &Parser) -> Option<(Strin
 }
 
 fn cell_text(handle: tl::NodeHandle, parser: &Parser) -> Option<String> {
-    let tag = handle.get(parser)?.as_tag()?;
-    Some(normalize_ws(&tag.inner_text(parser)))
+    handle_inner_text(handle, parser).map(|text| normalize_html_ws(&text))
 }
 
 fn normalized_property_name(name: &str) -> String {

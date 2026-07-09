@@ -1,4 +1,21 @@
 //! Browser-compat-data extraction for objective catalog facts.
+//!
+//! The fetched support statements remain the source of truth, but BCD's key
+//! shapes do not line up 1:1 with the catalog. This module therefore owns an
+//! explicit compatibility-normalization layer: mapping BCD spellings to
+//! canonical catalog names and classifying non-catalog subfeatures. That policy
+//! lives here instead of being mixed into the semantic catalog assembly path.
+//!
+//! # Sources parsed
+//!
+//! Latest published package `data.json` (via unpkg, falling back to the npm
+//! registry `https://registry.npmjs.org/<package>`):
+//!
+//! - `@mdn/browser-compat-data` [`data.json`][bcd] — browser support.
+//! - `web-features` [`data.json`][webfeatures] — Baseline status.
+//!
+//! [bcd]: https://unpkg.com/@mdn/browser-compat-data/data.json
+//! [webfeatures]: https://unpkg.com/web-features/data.json
 
 use std::{
     collections::{BTreeMap, btree_map::Entry},
@@ -12,16 +29,17 @@ use crate::{
     catalog::{
         CatalogBaselineStatus, CatalogBrowserFlag, CatalogBrowserSupport, CatalogBrowserVersion,
         CatalogCompatFacts, CatalogCompatProvenance, CatalogCompatSubfeature,
-        CatalogCompatSubfeatureKind, CatalogPackageSource,
+        CatalogCompatSubfeatureKind,
     },
     fetch,
-    util::{boxed, decode_html_entities, normalize_ws},
+    npm::package_source,
+    util::{boxed, compile_regex, decode_html_entities, normalize_ws},
 };
 
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
 const WEB_FEATURES_PACKAGE: &str = "web-features";
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// Objective compat facts collected from BCD and web-features.
 pub struct CompatCatalog {
@@ -101,27 +119,6 @@ pub fn fetch_compat_catalog() -> Fallible<CompatCatalog> {
         elements,
         attributes,
     })
-}
-
-fn package_source(package: &str, path: &str) -> Fallible<CatalogPackageSource> {
-    let version = npm_latest_version(package)?;
-    let url = format!("https://unpkg.com/{package}@{version}/{path}");
-    Ok(CatalogPackageSource {
-        name: package.to_owned(),
-        version,
-        url,
-    })
-}
-
-fn npm_latest_version(package: &str) -> Fallible<String> {
-    let registry_package = package.replace('/', "%2f");
-    let url = format!("https://registry.npmjs.org/{registry_package}");
-    let json: Value = serde_json::from_str(&fetch::url_text(&url, "application/json")?)?;
-    let version = json
-        .pointer("/dist-tags/latest")
-        .and_then(Value::as_str)
-        .ok_or_else(|| boxed("npm package metadata missing dist-tags.latest"))?;
-    Ok(version.to_owned())
 }
 
 fn collect_element_facts(
@@ -362,13 +359,6 @@ static ANCHOR_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
     compile_regex("(?is)<a\\s+[^>]*href=(?:\"([^\"]*)\"|'([^']*)')[^>]*>(.*?)</a>")
 });
 static HTML_TAG_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex("(?is)<[^>]+>"));
-
-fn compile_regex(pattern: &str) -> Regex {
-    match Regex::new(pattern) {
-        Ok(regex) => regex,
-        Err(error) => panic!("invalid regex {pattern:?}: {error}"),
-    }
-}
 
 fn normalize_support_note(note: &str) -> String {
     let note = CODE_TAG_RE.replace_all(note, |captures: &Captures<'_>| {
@@ -654,6 +644,9 @@ fn bcd_attribute_name(name: &str) -> Option<String> {
 }
 
 fn unmodeled_feature_kind(name: &str) -> Option<CatalogCompatSubfeatureKind> {
+    // Compatibility-normalization policy: some BCD keys describe behaviors or
+    // aliases that should be retained as compat records, not promoted to first-
+    // class catalog attributes.
     match name {
         "data_uri" | "external_uri" | "omit_external_fragment" | "tooltip_display" => {
             Some(CatalogCompatSubfeatureKind::Behavior)
@@ -664,6 +657,8 @@ fn unmodeled_feature_kind(name: &str) -> Option<CatalogCompatSubfeatureKind> {
 }
 
 fn canonical_attribute_name(name: &str) -> Option<String> {
+    // Compatibility-normalization policy: BCD key spellings are converted here
+    // before they ever merge into catalog-facing attribute facts.
     match name {
         "data_attributes" => Some("data-*".to_owned()),
         "xlink_actuate" => Some("xlink:actuate".to_owned()),
@@ -791,6 +786,19 @@ mod tests {
         );
         assert_eq!(bcd_attribute_name("path").as_deref(), Some("path"));
         assert_eq!(bcd_attribute_name("data_uri"), None);
+        assert_eq!(bcd_attribute_name("xlink_href"), None);
+    }
+
+    #[test]
+    fn compat_normalization_boundary_is_explicit() {
+        assert_eq!(
+            unmodeled_feature_kind("xlink_href"),
+            Some(CatalogCompatSubfeatureKind::LegacyXlinkAlias)
+        );
+        assert_eq!(
+            canonical_attribute_name("referrerPolicy").as_deref(),
+            Some("referrerpolicy")
+        );
         assert_eq!(bcd_attribute_name("xlink_href"), None);
     }
 }

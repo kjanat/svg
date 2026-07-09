@@ -4,9 +4,16 @@
 //! These operate on the raw compat JSON so the LSP can reconcile baseline /
 //! support at runtime against the same data the catalog was built from.
 
-use crate::BaselineStatus;
+use crate::{BaselineQualifier, BaselineStatus};
 
 /// A single browser's `version_added`, resolved to a comparable form.
+///
+/// # Examples
+///
+/// ```rust
+/// let version = svg_data::compat_parse::BrowserVersion::Version("124".to_owned());
+/// assert!(matches!(version, svg_data::compat_parse::BrowserVersion::Version(_)));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrowserVersion {
     /// Supported, but the first version is unknown.
@@ -16,6 +23,18 @@ pub enum BrowserVersion {
 }
 
 /// Per-browser `version_added` for the four tracked engines.
+///
+/// # Examples
+///
+/// ```rust
+/// let versions = svg_data::compat_parse::BrowserVersions {
+///     chrome: Some(svg_data::compat_parse::BrowserVersion::Unknown),
+///     edge: None,
+///     firefox: None,
+///     safari: None,
+/// };
+/// assert!(versions.chrome.is_some());
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BrowserVersions {
     /// Chrome support.
@@ -29,6 +48,14 @@ pub struct BrowserVersions {
 }
 
 /// Extract per-browser support from a compat record's `support` block.
+///
+/// # Examples
+///
+/// ```rust
+/// let compat = serde_json::json!({"support":{"chrome":{"version_added":"1"}}});
+/// let versions = svg_data::compat_parse::extract_browser_versions(&compat).expect("support");
+/// assert!(versions.chrome.is_some());
+/// ```
 #[must_use]
 pub fn extract_browser_versions(compat: &serde_json::Value) -> Option<BrowserVersions> {
     let support = compat.get("support")?.as_object()?;
@@ -60,6 +87,13 @@ fn browser_version_from_support_statement(value: &serde_json::Value) -> Option<B
 }
 
 /// Resolve a feature's web-platform baseline from compat + web-features data.
+///
+/// # Examples
+///
+/// ```rust
+/// let compat = serde_json::json!({});
+/// assert!(svg_data::compat_parse::resolve_baseline(&compat, None, "svg.elements.svg").is_none());
+/// ```
 #[must_use]
 pub fn resolve_baseline(
     compat: &serde_json::Value,
@@ -92,19 +126,17 @@ fn web_feature_for_compat_key<'a>(
 fn baseline_status_from_web_features(status: &serde_json::Value) -> Option<BaselineStatus> {
     match status.get("baseline")? {
         serde_json::Value::String(value) if value == "high" => {
-            year_from_date(status.get("baseline_high_date")?.as_str()?).map(|since| {
-                BaselineStatus::Widely {
-                    since,
-                    qualifier: None,
-                }
+            let date = status.get("baseline_high_date")?.as_str()?;
+            year_from_date(date).map(|since| BaselineStatus::Widely {
+                since,
+                qualifier: parse_version_qualifier(date),
             })
         }
         serde_json::Value::String(value) if value == "low" => {
-            year_from_date(status.get("baseline_low_date")?.as_str()?).map(|since| {
-                BaselineStatus::Newly {
-                    since,
-                    qualifier: None,
-                }
+            let date = status.get("baseline_low_date")?.as_str()?;
+            year_from_date(date).map(|since| BaselineStatus::Newly {
+                since,
+                qualifier: parse_version_qualifier(date),
             })
         }
         serde_json::Value::String(value) if value == "limited" => Some(BaselineStatus::Limited),
@@ -113,7 +145,31 @@ fn baseline_status_from_web_features(status: &serde_json::Value) -> Option<Basel
     }
 }
 
+/// The inexactness qualifier a web-features baseline date carries, if any
+/// (`≤`/`<=` → before, `≥`/`>=` → after, `~` → approximate).
+fn parse_version_qualifier(date: &str) -> Option<BaselineQualifier> {
+    if date.starts_with('\u{2264}') || date.starts_with("<=") {
+        Some(BaselineQualifier::Before)
+    } else if date.starts_with('\u{2265}') || date.starts_with(">=") {
+        Some(BaselineQualifier::After)
+    } else if date.starts_with('~') {
+        Some(BaselineQualifier::Approximately)
+    } else {
+        None
+    }
+}
+
+/// The four-digit year from a web-features baseline date, tolerating the
+/// `≤`/`≥`/`<=`/`>=`/`~` qualifier prefixes web-features uses on approximate
+/// dates (without this, a qualified date would drop the baseline entirely).
 fn year_from_date(date: &str) -> Option<u16> {
+    let date = date
+        .strip_prefix('\u{2264}')
+        .or_else(|| date.strip_prefix('\u{2265}'))
+        .or_else(|| date.strip_prefix("<="))
+        .or_else(|| date.strip_prefix(">="))
+        .or_else(|| date.strip_prefix('~'))
+        .unwrap_or(date);
     date.get(..4)?.parse().ok()
 }
 
@@ -196,6 +252,31 @@ mod tests {
             Some(BaselineStatus::Widely {
                 since: 2022,
                 qualifier: None
+            })
+        );
+    }
+
+    #[test]
+    fn qualified_baseline_date_yields_year_and_qualifier() {
+        // web-features writes approximate baseline dates with a `≤` prefix; the
+        // year must survive and the qualifier must be captured (not dropped).
+        let compat = serde_json::json!({});
+        let wf = serde_json::json!({
+            "svg": {
+                "compat_features": ["svg.elements.rect"],
+                "status": {
+                    "baseline": "high",
+                    "baseline_high_date": "\u{2264}2020-01-05",
+                    "baseline_low_date": "\u{2264}2018-01-05"
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_baseline(&compat, Some(&wf), "svg.elements.rect"),
+            Some(BaselineStatus::Widely {
+                since: 2020,
+                qualifier: Some(BaselineQualifier::Before)
             })
         );
     }

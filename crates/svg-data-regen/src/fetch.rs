@@ -4,6 +4,18 @@
 //! pulls raw files at that exact commit. The local, gitignored `svgwg/` clone
 //! is never read - the only source is canonical upstream over the network, so a
 //! regeneration is reproducible from nothing but the repo slug and a ref.
+//!
+//! # Sources parsed
+//!
+//! Hosts this primitive reaches (concrete per-page URLs are documented on the
+//! modules that consume them):
+//!
+//! - [GitHub API][gh-api] — `repos/{slug}` (default branch) and
+//!   `repos/{slug}/commits/{ref}` (resolve a ref to a commit + date).
+//! - [raw.githubusercontent.com][raw] — raw files at the pinned commit.
+//!
+//! [gh-api]: https://api.github.com/repos/w3c/svgwg
+//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/master/
 
 use std::time::Duration;
 
@@ -13,14 +25,14 @@ use ureq::config::IpFamily;
 use crate::util::boxed;
 
 /// User agent GitHub requires on API requests.
-const USER_AGENT: &str = "svg-data-regen (+https://github.com/kjanat/svg-language-server)";
+const USER_AGENT: &str = "svg-data-regen (+https://github.com/kjanat/svg)";
 /// Maximum body size accepted from a single fetch. Generous: the largest spec
 /// pages are a few megabytes; this only guards against a runaway response.
 const BODY_LIMIT: u64 = 64 * 1024 * 1024;
 /// Bound each upstream request so one slow spec host cannot hang regeneration.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 
 /// A resolved commit: its SHA and committer date.
 ///

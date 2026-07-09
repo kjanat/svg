@@ -1,16 +1,34 @@
 //! Per-edition inventory extraction from authoritative element/attribute indexes.
+//!
+//! # Sources parsed
+//!
+//! Each edition's element index and attribute index tables:
+//!
+//! - SVG 1.1 First Edition — [`eltindex.html`][elt-1] / [`attindex.html`][att-1]
+//! - SVG 1.1 Second Edition — [`eltindex.html`][elt-2] / [`attindex.html`][att-2]
+//! - SVG 2 CR 2018 — [`eltindex.html`][elt-cr] / [`attindex.html`][att-cr]
+//!
+//! The SVG 2 editor's-draft inventory is derived from the fetched
+//! `definitions.xml` rather than an index page.
+//!
+//! [elt-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/eltindex.html
+//! [att-1]: https://www.w3.org/TR/2003/REC-SVG11-20030114/attindex.html
+//! [elt-2]: https://www.w3.org/TR/SVG11/eltindex.html
+//! [att-2]: https://www.w3.org/TR/SVG11/attindex.html
+//! [elt-cr]: https://www.w3.org/TR/2018/CR-SVG2-20181004/eltindex.html
+//! [att-cr]: https://www.w3.org/TR/2018/CR-SVG2-20181004/attindex.html
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use tl::{HTMLTag, Parser, ParserOptions};
+use tl::{HTMLTag, Parser};
 
 use crate::{
     catalog::{CatalogInventory, CatalogInventoryElement, CatalogSpecSnapshotId},
     extract::Definitions,
-    util::{boxed, normalize_ws},
+    util::{boxed, has_class, normalize_ws},
 };
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::Fallible;
 type AttributeInventory = (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>);
 
 /// Element/attribute index pages for one curated snapshot.
@@ -152,7 +170,7 @@ pub fn inventory_from_definitions(
 }
 
 fn extract_element_index(html: &str) -> Fallible<BTreeSet<String>> {
-    let dom = tl::parse(html, ParserOptions::default())?;
+    let dom = crate::util::parse_html(html)?;
     let parser = dom.parser();
     let mut names = BTreeSet::new();
     for tag in tags_with_class(&dom, "element-name") {
@@ -167,7 +185,7 @@ fn extract_element_index(html: &str) -> Fallible<BTreeSet<String>> {
 }
 
 fn extract_attribute_index(html: &str) -> Fallible<AttributeInventory> {
-    let dom = tl::parse(html, ParserOptions::default())?;
+    let dom = crate::util::parse_html(html)?;
     let parser = dom.parser();
     let mut attributes = BTreeSet::new();
     for tag in tags_with_class(&dom, "attr-name") {
@@ -317,16 +335,7 @@ fn tags_with_class<'a>(
     dom.nodes()
         .iter()
         .filter_map(|node| node.as_tag())
-        .filter(move |tag| tag_has_class(tag, class_name))
-}
-
-fn tag_has_class(tag: &HTMLTag, class_name: &str) -> bool {
-    tag.attributes().class().is_some_and(|class| {
-        class
-            .as_utf8_str()
-            .split_whitespace()
-            .any(|item| item == class_name)
-    })
+        .filter(move |tag| has_class(tag, class_name))
 }
 
 fn inventory_name_from_tag(tag: &HTMLTag, parser: &Parser) -> Option<String> {

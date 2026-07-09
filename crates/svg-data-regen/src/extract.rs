@@ -8,12 +8,28 @@
 //! categories (a named set of member attributes). This module streams the XML
 //! once and routes each declaration into a typed record, preserving document
 //! order (which, pinned to a commit, is deterministic).
+//!
+//! # Sources parsed
+//!
+//! The definitions modules fetched by `main`, pinned to the run's commit (links
+//! resolve to the current `master`):
+//!
+//! - [`definitions.xml`][defs] / [`definitions-filters.xml`][filters] /
+//!   [`definitions-masking.xml`][masking] /
+//!   [`definitions-compositing.xml`][compositing]
+//! - the animations module [`definitions.xml`][anim]
+//!
+//! [defs]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions.xml
+//! [filters]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-filters.xml
+//! [masking]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-masking.xml
+//! [compositing]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-compositing.xml
+//! [anim]: https://raw.githubusercontent.com/w3c/svgwg/master/specs/animations/master/definitions.xml
 
 use quick_xml::events::{BytesEnd, BytesStart, Event};
 use quick_xml::reader::Reader;
 use serde::Serialize;
 
-type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
+use crate::{Fallible, util::xml_attribute};
 
 /// A reference to an attribute, as declared on an element or in an attribute
 /// category. The href is the spec anchor (often within the SVG spec, sometimes
@@ -234,11 +250,11 @@ fn empty_element(
         b"attribute" => route_attribute(parse_attribute_ref(element)?, defs, context),
         b"property" => defs.properties.push(PropertyDef {
             name: required(element, b"name")?,
-            href: attribute(element, b"href")?,
+            href: xml_attribute(element, b"href")?,
         }),
         b"elementcategory" => defs.element_categories.push(ElementCategory {
             name: required(element, b"name")?,
-            href: attribute(element, b"href")?,
+            href: xml_attribute(element, b"href")?,
             elements: comma_list(element, b"elements")?,
         }),
         b"attributecategory" => defs
@@ -279,7 +295,7 @@ fn end_element(
 fn parse_element_head(element: &BytesStart) -> Fallible<ElementDef> {
     Ok(ElementDef {
         name: required(element, b"name")?,
-        href: attribute(element, b"href")?,
+        href: xml_attribute(element, b"href")?,
         content_model: parse_content_model_kind(element)?,
         content_model_description: None,
         allowed_element_categories: comma_list(element, b"elementcategories")?,
@@ -295,7 +311,7 @@ fn parse_element_head(element: &BytesStart) -> Fallible<ElementDef> {
 /// Parse the `contentmodel` attribute into a typed kind, erroring on an
 /// unrecognised value rather than silently dropping it.
 fn parse_content_model_kind(element: &BytesStart) -> Fallible<Option<ContentModelKind>> {
-    let Some(raw) = attribute(element, b"contentmodel")? else {
+    let Some(raw) = xml_attribute(element, b"contentmodel")? else {
         return Ok(None);
     };
     let kind = match raw.as_str() {
@@ -316,8 +332,8 @@ fn parse_content_model_kind(element: &BytesStart) -> Fallible<Option<ContentMode
 fn parse_attribute_ref(element: &BytesStart) -> Fallible<AttributeRef> {
     Ok(AttributeRef {
         name: required(element, b"name")?,
-        href: attribute(element, b"href")?,
-        animatable: match attribute(element, b"animatable")?.as_deref() {
+        href: xml_attribute(element, b"href")?,
+        animatable: match xml_attribute(element, b"animatable")?.as_deref() {
             Some("yes") => Some(true),
             Some("no") => Some(false),
             _ => None,
@@ -330,7 +346,7 @@ fn parse_attribute_ref(element: &BytesStart) -> Fallible<AttributeRef> {
 fn parse_attribute_category_head(element: &BytesStart) -> Fallible<AttributeCategory> {
     Ok(AttributeCategory {
         name: required(element, b"name")?,
-        href: attribute(element, b"href")?,
+        href: xml_attribute(element, b"href")?,
         attributes: Vec::new(),
         presentation_attributes: comma_list(element, b"presentationattributes")?,
     })
@@ -364,35 +380,21 @@ fn append_content_model(element: &mut ElementDef, prose: &str) {
 fn glossary_entry(element: &BytesStart) -> Fallible<GlossaryEntry> {
     Ok(GlossaryEntry {
         name: required(element, b"name")?,
-        href: attribute(element, b"href")?,
+        href: xml_attribute(element, b"href")?,
     })
 }
 
 /// The value of a required attribute, erroring if it is absent.
 fn required(element: &BytesStart, key: &[u8]) -> Fallible<String> {
-    attribute(element, key)?.ok_or_else(|| {
+    xml_attribute(element, key)?.ok_or_else(|| {
         let key = String::from_utf8_lossy(key).into_owned();
         Box::<dyn std::error::Error>::from(format!("definitions entity missing `{key}`"))
     })
 }
 
-/// The unescaped value of attribute `key`, if present.
-fn attribute(element: &BytesStart, key: &[u8]) -> Fallible<Option<String>> {
-    for attr in element.attributes() {
-        let attr = attr?;
-        if attr.key.local_name().as_ref() == key {
-            return Ok(Some(
-                attr.normalized_value(quick_xml::XmlVersion::default())?
-                    .into_owned(),
-            ));
-        }
-    }
-    Ok(None)
-}
-
 /// Parse a comma-separated attribute value into trimmed, non-empty names.
 fn comma_list(element: &BytesStart, key: &[u8]) -> Fallible<Vec<String>> {
-    let Some(raw) = attribute(element, key)? else {
+    let Some(raw) = xml_attribute(element, key)? else {
         return Ok(Vec::new());
     };
     Ok(raw

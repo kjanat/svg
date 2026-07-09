@@ -60,6 +60,19 @@
           }
         },
         {
+          "description": "An SVG paint value: `none | <color> | <url> [none | <color>]? |\ncontext-fill | context-stroke`. Strictly richer than [`Color`]; used by\n`fill` and `stroke` so their non-color alternatives are not dropped.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "paint"
+            }
+          }
+        },
+        {
           "description": "A length or length-percentage value.",
           "type": "object",
           "required": [
@@ -73,7 +86,7 @@
           }
         },
         {
-          "description": "A URL / fragment reference.",
+          "description": "A URL / fragment reference (ASCII, per the URL/URI grammar).",
           "type": "object",
           "required": [
             "kind"
@@ -82,6 +95,227 @@
             "kind": {
               "type": "string",
               "const": "url"
+            }
+          }
+        },
+        {
+          "description": "An SVG Internationalized Resource Identifier reference. A strict superset\nof [`Self::Url`] — IRIs permit non-ASCII (Unicode) characters that a URL\ndisallows, so the two are kept distinct rather than conflated.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "iri"
+            }
+          }
+        },
+        {
+          "description": "A boolean attribute as defined by HTML.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "boolean"
+            }
+          }
+        },
+        {
+          "description": "A space-separated token list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "token_list"
+            }
+          }
+        },
+        {
+          "description": "A comma-separated token list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "comma_token_list"
+            }
+          }
+        },
+        {
+          "description": "A space-separated list of URL tokens.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "url_token_list"
+            }
+          }
+        },
+        {
+          "description": "A BCP 47 / ABNF language tag.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "language_tag"
+            }
+          }
+        },
+        {
+          "description": "An integer value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "integer"
+            }
+          }
+        },
+        {
+          "description": "A MIME media type.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "media_type"
+            }
+          }
+        },
+        {
+          "description": "A CSS media query list.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "media_query_list"
+            }
+          }
+        },
+        {
+          "description": "A CSS declaration list, as used by inline `style`.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "css_declaration_list"
+            }
+          }
+        },
+        {
+          "description": "An SVG element ID value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "id"
+            }
+          }
+        },
+        {
+          "description": "A referrer policy string.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "referrer_policy"
+            }
+          }
+        },
+        {
+          "description": "A suggested download file name.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "suggested_file_name"
+            }
+          }
+        },
+        {
+          "description": "SVG path data.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "path_data"
+            }
+          }
+        },
+        {
+          "description": "A semicolon-separated list of numbers.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "semicolon_number_list"
+            }
+          }
+        },
+        {
+          "description": "One motion-animation coordinate pair.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "coordinate_pair"
+            }
+          }
+        },
+        {
+          "description": "A semicolon-separated list of motion-animation coordinate pairs.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "coordinate_pair_list"
             }
           }
         },
@@ -95,6 +329,32 @@
             "kind": {
               "type": "string",
               "const": "number_or_percentage"
+            }
+          }
+        },
+        {
+          "description": "A bare number value.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "number"
+            }
+          }
+        },
+        {
+          "description": "A space-separated list of element ID references.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "id_list"
             }
           }
         },
@@ -122,7 +382,7 @@
           }
         },
         {
-          "description": "Free-form text with no constrained grammar.",
+          "description": "Free-form text with no constrained grammar (genuinely unconstrained:\nevent handlers, `data-*`, ARIA string values).",
           "type": "object",
           "required": [
             "kind"
@@ -131,6 +391,19 @@
             "kind": {
               "type": "string",
               "const": "free_text"
+            }
+          }
+        },
+        {
+          "description": "A value space we expect to model but have not derived yet. Distinct from\n[`CatalogAttributeValues::FreeText`] so unparsed attributes are auditable\ninstead of hidden among genuinely free-form ones.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "unresolved"
             }
           }
         }
