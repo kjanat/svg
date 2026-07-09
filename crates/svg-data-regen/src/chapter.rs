@@ -348,15 +348,84 @@ fn table_head_mentions_propdef(head: &str) -> bool {
     head.to_ascii_lowercase().contains("propdef")
 }
 
+/// The standard propdef metadata rows (`Value`, `Initial`, `Applies to`,
+/// `Inherited`, `Computed value`, `Animation type`) collected from a propdef
+/// table, independent of how the table's rows are iterated. Shared by every
+/// propdef parser so the recognized field set — and quirks like the CSS
+/// `Animatable: as <type>` interpolation designation — live in one place.
+#[derive(Default)]
+struct PropdefFields {
+    value: Option<String>,
+    initial: Option<String>,
+    applies_to: Option<String>,
+    inherited: Option<String>,
+    computed_value: Option<String>,
+    animation_type: Option<String>,
+}
+
+impl PropdefFields {
+    /// Route one `label: cell` propdef row into its field. The `Name:` row is
+    /// left to the caller (it carries the property's id / bearer scope), and
+    /// unknown labels are ignored.
+    fn assign(&mut self, label: &str, cell: String) {
+        match label
+            .trim_end_matches(':')
+            .trim()
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "value" => self.value = Some(cell),
+            "initial" => self.initial = Some(cell),
+            "applies to" => self.applies_to = Some(cell),
+            "inherited" => self.inherited = Some(cell),
+            "computed value" => self.computed_value = Some(cell),
+            "animation type" => self.animation_type = Some(cell),
+            // Older CSS specs state animation behaviour in an `Animatable:` row.
+            // Only the `as <type>` interpolation designation is authoritative
+            // (additive); the `no`/`yes`/`see …` forms are ambiguous and left to
+            // value-kind classification, so they are deliberately not captured.
+            "animatable"
+                if self.animation_type.is_none()
+                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
+            {
+                self.animation_type = Some(cell);
+            }
+            _ => {}
+        }
+    }
+
+    /// Assemble a [`PropertyValueDef`] for one property name/scope, deriving its
+    /// keyword set from the value grammar. Borrows so one field set can back
+    /// several names (a shared multi-name propdef row).
+    fn to_property(
+        &self,
+        name: String,
+        dfn_for: Option<String>,
+        id: Option<String>,
+    ) -> PropertyValueDef {
+        PropertyValueDef {
+            name,
+            dfn_for,
+            id,
+            keywords: self
+                .value
+                .as_deref()
+                .map(value_keywords)
+                .unwrap_or_default(),
+            value: self.value.clone(),
+            initial: self.initial.clone(),
+            applies_to: self.applies_to.clone(),
+            inherited: self.inherited.clone(),
+            computed_value: self.computed_value.clone(),
+            animation_type: self.animation_type.clone(),
+        }
+    }
+}
+
 fn extract_raw_propdef(table_html: &str) -> Option<PropertyValueDef> {
     let mut name = None;
     let mut id = None;
-    let mut value = None;
-    let mut initial = None;
-    let mut applies_to = None;
-    let mut inherited = None;
-    let mut computed_value = None;
-    let mut animation_type = None;
+    let mut fields = PropdefFields::default();
 
     for row in raw_rows(table_html) {
         let cells = raw_cells(row);
@@ -364,46 +433,19 @@ fn extract_raw_propdef(table_html: &str) -> Option<PropertyValueDef> {
             continue;
         };
         let cell = cells.get(1).cloned().unwrap_or_default();
-        match label
+        if label
             .trim_end_matches(':')
             .trim()
-            .to_ascii_lowercase()
-            .as_str()
+            .eq_ignore_ascii_case("name")
         {
-            "name" => {
-                name = Some(cell);
-                id = first_raw_dfn_id(row);
-            }
-            "value" => value = Some(cell),
-            "initial" => initial = Some(cell),
-            "applies to" => applies_to = Some(cell),
-            "inherited" => inherited = Some(cell),
-            "computed value" => computed_value = Some(cell),
-            "animation type" => animation_type = Some(cell),
-            "animatable"
-                if animation_type.is_none()
-                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
-            {
-                animation_type = Some(cell);
-            }
-            _ => {}
+            name = Some(cell);
+            id = first_raw_dfn_id(row);
+        } else {
+            fields.assign(label, cell);
         }
     }
 
-    let name = name?;
-    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
-    Some(PropertyValueDef {
-        name,
-        dfn_for: None,
-        id,
-        value,
-        keywords,
-        initial,
-        applies_to,
-        inherited,
-        computed_value,
-        animation_type,
-    })
+    Some(fields.to_property(name?, None, id))
 }
 
 fn extract_css2_propinfo_definitions(html: &str) -> Vec<PropertyValueDef> {
@@ -435,54 +477,17 @@ fn extract_css2_propinfo_definitions(html: &str) -> Vec<PropertyValueDef> {
 fn extract_raw_propinfo_propdef(block_html: &str) -> Option<PropertyValueDef> {
     let id = first_raw_propdef_anchor(block_html)?;
     let name = id.strip_prefix("propdef-")?.to_owned();
-    let mut value = None;
-    let mut initial = None;
-    let mut applies_to = None;
-    let mut inherited = None;
-    let mut computed_value = None;
-    let mut animation_type = None;
+    let mut fields = PropdefFields::default();
 
     for row in raw_rows(block_html) {
         let cells = raw_cells(row);
         let Some(label) = cells.first() else {
             continue;
         };
-        let cell = cells.get(1).cloned().unwrap_or_default();
-        match label
-            .trim_end_matches(':')
-            .trim()
-            .to_ascii_lowercase()
-            .as_str()
-        {
-            "value" => value = Some(cell),
-            "initial" => initial = Some(cell),
-            "applies to" => applies_to = Some(cell),
-            "inherited" => inherited = Some(cell),
-            "computed value" => computed_value = Some(cell),
-            "animation type" => animation_type = Some(cell),
-            "animatable"
-                if animation_type.is_none()
-                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
-            {
-                animation_type = Some(cell);
-            }
-            _ => {}
-        }
+        fields.assign(label, cells.get(1).cloned().unwrap_or_default());
     }
 
-    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
-    Some(PropertyValueDef {
-        name,
-        dfn_for: None,
-        id: Some(id),
-        value,
-        keywords,
-        initial,
-        applies_to,
-        inherited,
-        computed_value,
-        animation_type,
-    })
+    Some(fields.to_property(name, None, Some(id)))
 }
 
 fn extract_legacy_adef_dt_assignments(html: &str) -> Vec<PropertyValueDef> {
@@ -1073,12 +1078,7 @@ fn dfn_ids(tag: &HTMLTag, parser: &Parser) -> Vec<String> {
 /// by attribute name resolve every member instead of a single fused key.
 fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Vec<PropertyValueDef> {
     let mut names: Vec<AttrdefName> = Vec::new();
-    let mut value = None;
-    let mut initial = None;
-    let mut applies_to = None;
-    let mut inherited = None;
-    let mut computed_value = None;
-    let mut animation_type = None;
+    let mut fields = PropdefFields::default();
 
     let Some(rows) = table.query_selector(parser, "tr") else {
         return Vec::new();
@@ -1090,47 +1090,20 @@ fn extract_propdef(table: &HTMLTag, parser: &Parser) -> Vec<PropertyValueDef> {
         let Some((label, cell)) = propdef_row_label_and_value(row, parser) else {
             continue;
         };
-        match label
+        if label
             .trim_end_matches(':')
             .trim()
-            .to_ascii_lowercase()
-            .as_str()
+            .eq_ignore_ascii_case("name")
         {
-            "name" => names = propdef_names(row, parser),
-            "value" => value = Some(cell),
-            "initial" => initial = Some(cell),
-            "applies to" => applies_to = Some(cell),
-            "inherited" => inherited = Some(cell),
-            "computed value" => computed_value = Some(cell),
-            "animation type" => animation_type = Some(cell),
-            "animatable"
-                if animation_type.is_none()
-                    && cell.trim().to_ascii_lowercase().starts_with("as ") =>
-            {
-                animation_type = Some(cell);
-            }
-            _ => {}
+            names = propdef_names(row, parser);
+        } else {
+            fields.assign(&label, cell);
         }
     }
 
-    if names.is_empty() {
-        return Vec::new();
-    }
-    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
     names
         .into_iter()
-        .map(|name| PropertyValueDef {
-            name: name.name,
-            dfn_for: name.dfn_for,
-            id: name.id,
-            value: value.clone(),
-            keywords: keywords.clone(),
-            initial: initial.clone(),
-            applies_to: applies_to.clone(),
-            inherited: inherited.clone(),
-            computed_value: computed_value.clone(),
-            animation_type: animation_type.clone(),
-        })
+        .map(|name| fields.to_property(name.name, name.dfn_for, name.id))
         .collect()
 }
 
