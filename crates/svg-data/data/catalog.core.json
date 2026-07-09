@@ -3171,7 +3171,7 @@
     {
       "name": "accumulate",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AccumulateAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -3204,7 +3204,7 @@
     {
       "name": "additive",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AdditiveAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -3240,7 +3240,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/alignment-baseline",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#AlignmentBaselineProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "alignment-baseline",
       "baseline": {
         "kind": "limited"
@@ -3374,7 +3374,7 @@
     {
       "name": "amplitude",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-amplitude",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -3400,7 +3400,7 @@
     {
       "name": "aria-activedescendant",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-activedescendant",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id"
@@ -3433,7 +3433,7 @@
     {
       "name": "aria-atomic",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-atomic",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -3466,7 +3466,7 @@
     {
       "name": "aria-autocomplete",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-autocomplete",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -3505,7 +3505,7 @@
     {
       "name": "aria-busy",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-busy",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -3538,7 +3538,7 @@
     {
       "name": "aria-checked",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-checked",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -3577,7 +3577,7 @@
     {
       "name": "aria-colcount",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-colcount",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -3610,7 +3610,7 @@
     {
       "name": "aria-colindex",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-colindex",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -3643,7 +3643,7 @@
     {
       "name": "aria-colspan",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-colspan",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -3676,7 +3676,7 @@
     {
       "name": "aria-controls",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-controls",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id_list"
@@ -3709,7 +3709,7 @@
     {
       "name": "aria-current",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-current",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -3751,7 +3751,7 @@
     {
       "name": "aria-describedby",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-describedby",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id_list"
@@ -3784,7 +3784,7 @@
     {
       "name": "aria-details",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-details",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id"
@@ -3817,7 +3817,7 @@
     {
       "name": "aria-disabled",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-disabled",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -3850,7 +3850,7 @@
     {
       "name": "aria-dropeffect",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-dropeffect",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -3891,7 +3891,7 @@
     {
       "name": "aria-errormessage",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-errormessage",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id"
@@ -3924,7 +3924,7 @@
     {
       "name": "aria-expanded",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-expanded",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -3962,7 +3962,7 @@
     {
       "name": "aria-flowto",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-flowto",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id_list"
@@ -3995,7 +3995,7 @@
     {
       "name": "aria-grabbed",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-grabbed",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4033,7 +4033,7 @@
     {
       "name": "aria-haspopup",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-haspopup",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4075,7 +4075,7 @@
     {
       "name": "aria-hidden",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-hidden",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4113,7 +4113,7 @@
     {
       "name": "aria-invalid",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-invalid",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4152,7 +4152,7 @@
     {
       "name": "aria-keyshortcuts",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-keyshortcuts",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -4185,7 +4185,7 @@
     {
       "name": "aria-label",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-label",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -4218,7 +4218,7 @@
     {
       "name": "aria-labelledby",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-labelledby",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id_list"
@@ -4251,7 +4251,7 @@
     {
       "name": "aria-level",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-level",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4284,7 +4284,7 @@
     {
       "name": "aria-live",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-live",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4322,7 +4322,7 @@
     {
       "name": "aria-modal",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-modal",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -4355,7 +4355,7 @@
     {
       "name": "aria-multiline",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-multiline",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -4388,7 +4388,7 @@
     {
       "name": "aria-multiselectable",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-multiselectable",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -4421,7 +4421,7 @@
     {
       "name": "aria-orientation",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-orientation",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4459,7 +4459,7 @@
     {
       "name": "aria-owns",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-owns",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "id_list"
@@ -4492,7 +4492,7 @@
     {
       "name": "aria-placeholder",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-placeholder",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -4525,7 +4525,7 @@
     {
       "name": "aria-posinset",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-posinset",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4558,7 +4558,7 @@
     {
       "name": "aria-pressed",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-pressed",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4597,7 +4597,7 @@
     {
       "name": "aria-readonly",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-readonly",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -4630,7 +4630,7 @@
     {
       "name": "aria-relevant",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-relevant",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4670,7 +4670,7 @@
     {
       "name": "aria-required",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-required",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "boolean"
@@ -4703,7 +4703,7 @@
     {
       "name": "aria-roledescription",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-roledescription",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -4736,7 +4736,7 @@
     {
       "name": "aria-rowcount",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-rowcount",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4769,7 +4769,7 @@
     {
       "name": "aria-rowindex",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-rowindex",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4802,7 +4802,7 @@
     {
       "name": "aria-rowspan",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-rowspan",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4835,7 +4835,7 @@
     {
       "name": "aria-selected",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-selected",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4873,7 +4873,7 @@
     {
       "name": "aria-setsize",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-setsize",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "integer"
@@ -4906,7 +4906,7 @@
     {
       "name": "aria-sort",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-sort",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -4945,7 +4945,7 @@
     {
       "name": "aria-valuemax",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-valuemax",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "number"
@@ -4978,7 +4978,7 @@
     {
       "name": "aria-valuemin",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-valuemin",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "number"
@@ -5011,7 +5011,7 @@
     {
       "name": "aria-valuenow",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-valuenow",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "number"
@@ -5044,7 +5044,7 @@
     {
       "name": "aria-valuetext",
       "spec_url": "https://www.w3.org/TR/wai-aria-1.1/#aria-valuetext",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -5079,7 +5079,7 @@
       "spec_url": null,
       "experimental": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -5138,7 +5138,7 @@
       "name": "attributeName",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#AttributeNameAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -5309,7 +5309,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/attributeType",
       "spec_url": null,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -5385,7 +5385,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/autofocus",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SVGElementAutofocusAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -5430,7 +5430,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/azimuth",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedistantlight-azimuth",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -5506,7 +5506,7 @@
     {
       "name": "background",
       "spec_url": "https://drafts.csswg.org/css-backgrounds-3/#background",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -5602,7 +5602,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/baseFrequency",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-basefrequency",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -5731,7 +5731,7 @@
       "spec_url": null,
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -5799,7 +5799,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/baseline-shift",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#BaselineShiftProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "baseline-shift",
       "baseline": {
         "kind": "limited"
@@ -6053,7 +6053,7 @@
     {
       "name": "begin",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#BeginAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -6081,7 +6081,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/bias",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-bias",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -6157,7 +6157,7 @@
     {
       "name": "block-size",
       "spec_url": "https://drafts.csswg.org/css-writing-modes/#block-size",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -6191,7 +6191,7 @@
     {
       "name": "border-style",
       "spec_url": "https://www.w3.org/TR/css-backgrounds-3/#propdef-border-style",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -6270,7 +6270,7 @@
     {
       "name": "border-top-style",
       "spec_url": "https://www.w3.org/TR/css-backgrounds-3/#propdef-border-top-style",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -6296,7 +6296,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/by",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#ByAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -6381,7 +6381,7 @@
       "name": "calcMode",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#CalcModeAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -6459,7 +6459,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/class",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#ClassAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -6505,7 +6505,7 @@
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-clip",
       "deprecated": true,
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "clip",
       "baseline": {
         "kind": "limited"
@@ -6642,7 +6642,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/clip-path",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#the-clip-path",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "clip-path",
       "baseline": {
         "kind": "widely",
@@ -6847,7 +6847,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/clip-rule",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#the-clip-rule",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "clip-rule",
       "baseline": {
         "kind": "widely",
@@ -6938,7 +6938,7 @@
       "name": "clipPathUnits",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#element-attrdef-clippath-clippathunits",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -7024,7 +7024,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "color",
       "baseline": {
         "kind": "widely",
@@ -7109,7 +7109,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color-interpolation",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorInterpolationProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "color-interpolation",
       "baseline": {
         "kind": "limited"
@@ -7212,7 +7212,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color-interpolation-filters",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#ColorInterpolationFiltersProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "color-interpolation-filters",
       "baseline": {
         "kind": "widely",
@@ -7303,7 +7303,7 @@
     {
       "name": "color-profile",
       "spec_url": null,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "color-profile",
       "values": {
         "kind": "css_grammar",
@@ -7474,7 +7474,7 @@
     {
       "name": "content",
       "spec_url": "https://www.w3.org/TR/css-content-3/#propdef-content",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -7761,7 +7761,7 @@
       "name": "crossorigin",
       "description": "The crossorigin attribute is a CORS settings attribute, and unless otherwise specified follows the same processing rules as in HTML [HTML].",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/embedded.html#ImageElementCrossoriginAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -8013,7 +8013,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/cursor",
       "spec_url": "https://www.w3.org/TR/css-ui-3/#cursor",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "cursor",
       "baseline": {
         "kind": "widely",
@@ -8175,7 +8175,7 @@
       "name": "cx",
       "description": "The 'cx' property describes the horizontal center coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#CxProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -8279,7 +8279,7 @@
       "name": "cy",
       "description": "The 'cy' property describes the vertical center coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#CyProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -8385,7 +8385,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/d",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#DProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -8507,7 +8507,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/data-*",
       "spec_url": null,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -8544,7 +8544,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/decoding",
       "spec_url": null,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -8613,7 +8613,7 @@
       "spec_url": null,
       "experimental": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -8673,7 +8673,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/diffuseConstant",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fediffuselighting-diffuseconstant",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -8752,7 +8752,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/direction",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#DirectionProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "direction",
       "baseline": {
         "kind": "widely",
@@ -8841,7 +8841,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/display",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#VisibilityControl",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "display",
       "baseline": {
         "kind": "widely",
@@ -8943,7 +8943,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/divisor",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-divisor",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -9022,7 +9022,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/dominant-baseline",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#DominantBaselineProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "dominant-baseline",
       "baseline": {
         "kind": "widely",
@@ -9163,7 +9163,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/download",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementDownloadAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -9235,7 +9235,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/dur",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#DurAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -9478,7 +9478,7 @@
     {
       "name": "dx",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDXAttribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -9833,7 +9833,7 @@
     {
       "name": "dy",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDYAttribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -10188,7 +10188,7 @@
     {
       "name": "edgeMode",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-edgemode",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -10290,7 +10290,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/elevation",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedistantlight-elevation",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -10366,7 +10366,7 @@
     {
       "name": "end",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#EndAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -10392,7 +10392,7 @@
     {
       "name": "exponent",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-exponent",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -10418,7 +10418,7 @@
     {
       "name": "externalResourcesRequired",
       "spec_url": null,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -10442,7 +10442,7 @@
       "spec_url": null,
       "experimental": true,
       "standard_track": false,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -10557,7 +10557,7 @@
       "name": "fill",
       "description": "The 'fill' property paints the interior of the given graphical element. The area to be painted consists of any areas inside the outline of the shape. To determine the inside of the shape, all subpaths are considered, and the interior is determined according to the rules associated with the current value of the 'fill-rule' property. The zero-width geometric outline of a shape is included in the area to be painted.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "fill",
       "element_compat": [
         {
@@ -11030,7 +11030,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillOpacityProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "fill-opacity",
       "baseline": {
         "kind": "widely",
@@ -11118,7 +11118,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill-rule",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#FillRuleProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "fill-rule",
       "baseline": {
         "kind": "widely",
@@ -11208,7 +11208,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/filter",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FilterProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "filter",
       "baseline": {
         "kind": "widely",
@@ -11346,7 +11346,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/filterUnits",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-filterunits",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -11430,7 +11430,7 @@
     {
       "name": "float",
       "spec_url": "https://www.w3.org/TR/CSS21/visuren.html#propdef-float",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -11856,7 +11856,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/flood-color",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FloodColorProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "flood-color",
       "baseline": {
         "kind": "widely",
@@ -11940,7 +11940,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/flood-opacity",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#FloodOpacityProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "flood-opacity",
       "baseline": {
         "kind": "widely",
@@ -12022,7 +12022,7 @@
     {
       "name": "font",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-prop",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -12295,7 +12295,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-family",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-family-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "font-family",
       "baseline": {
         "kind": "widely",
@@ -12453,7 +12453,7 @@
     {
       "name": "font-feature-settings",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-feature-settings-prop",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -12532,7 +12532,7 @@
     {
       "name": "font-kerning",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-kerning-prop",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -12551,7 +12551,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-size",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-size-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "font-size",
       "baseline": {
         "kind": "widely",
@@ -12717,7 +12717,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-size-adjust",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-size-adjust-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "font-size-adjust",
       "baseline": {
         "kind": "newly",
@@ -12856,7 +12856,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-stretch",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-stretch-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "font-stretch",
       "browser_support": {
         "chrome": {
@@ -12949,7 +12949,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-style",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-style-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "font-style",
       "baseline": {
         "kind": "widely",
@@ -13041,7 +13041,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-variant",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#propdef-font-variant",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "font-variant",
       "baseline": {
         "kind": "widely",
@@ -14027,7 +14027,7 @@
     {
       "name": "font-variant-ligatures",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-variant-ligatures-prop",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -14222,7 +14222,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/font-weight",
       "spec_url": "https://www.w3.org/TR/css-fonts-3/#font-weight-prop",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "font-weight",
       "baseline": {
         "kind": "widely",
@@ -14322,7 +14322,7 @@
       "spec_url": null,
       "experimental": true,
       "standard_track": false,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "browser_support": {
         "chrome": {
@@ -14644,7 +14644,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fr",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFRAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -14712,7 +14712,7 @@
     {
       "name": "from",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#FromAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -14803,7 +14803,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fx",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFXAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -14874,7 +14874,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fy",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFYAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -14946,7 +14946,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationHorizontalProperty",
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "glyph-orientation-horizontal",
       "baseline": {
         "kind": "limited"
@@ -15050,7 +15050,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationVerticalProperty",
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "glyph-orientation-vertical",
       "baseline": {
         "kind": "limited"
@@ -15138,7 +15138,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/gradientTransform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementGradientTransformAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -15261,7 +15261,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/gradientUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -15362,7 +15362,7 @@
     {
       "name": "hanging-punctuation",
       "spec_url": "https://www.w3.org/TR/css-text-3/#hanging-punctuation-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -15535,7 +15535,7 @@
       "name": "height",
       "description": "See the CSS 2.1 specification for the definitions of width and height.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -15847,7 +15847,7 @@
       "name": "href",
       "description": "The location of the referenced object, expressed as an URL reference. Refer to the common handling defined for URL reference attributes.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementHrefAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -16280,7 +16280,7 @@
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementHreflangAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -16351,7 +16351,7 @@
     {
       "name": "hyphens",
       "spec_url": "https://www.w3.org/TR/css-text-3/#hyphens-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -16371,7 +16371,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/id",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#IDAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -16417,7 +16417,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/image-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ImageRenderingProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "image-rendering",
       "baseline": {
         "kind": "widely",
@@ -16504,7 +16504,7 @@
     {
       "name": "in",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitive-in",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -17331,7 +17331,7 @@
     {
       "name": "in2",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feblend-in2",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -18264,7 +18264,7 @@
       "name": "inline-size",
       "description": "An example of using 'inline-size' for wrapping horizontal text.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#InlineSizeProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -18328,7 +18328,7 @@
     {
       "name": "intercept",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-intercept",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -18356,7 +18356,7 @@
       "spec_url": null,
       "experimental": true,
       "standard_track": false,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -18416,7 +18416,7 @@
     {
       "name": "isolation",
       "spec_url": "https://www.w3.org/TR/2015/CR-compositing-1-20150113/#isolation",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -18434,7 +18434,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/k1",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomposite-k1",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -18512,7 +18512,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/k2",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomposite-k2",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -18590,7 +18590,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/k3",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomposite-k3",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -18668,7 +18668,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/k4",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomposite-k4",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -18746,7 +18746,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/kernelMatrix",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-kernelmatrix",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -18896,7 +18896,7 @@
     {
       "name": "kernelUnitLength",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-kernelunitlength",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -19106,7 +19106,7 @@
     {
       "name": "kerning",
       "spec_url": null,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "kerning",
       "values": {
         "kind": "css_grammar",
@@ -19219,7 +19219,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/keyPoints",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#KeyPointsAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -19301,7 +19301,7 @@
     {
       "name": "keySplines",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#KeySplinesAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -19478,7 +19478,7 @@
     {
       "name": "keyTimes",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#KeyTimesAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -19506,7 +19506,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/lang",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#LangAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -19550,7 +19550,7 @@
     {
       "name": "lengthAdjust",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementLengthAdjustAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -19640,7 +19640,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/letter-spacing",
       "spec_url": "https://www.w3.org/TR/css-text-3/#letter-spacing-property",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "letter-spacing",
       "baseline": {
         "kind": "widely",
@@ -19776,7 +19776,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/lighting-color",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#LightingColorProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "lighting-color",
       "baseline": {
         "kind": "widely",
@@ -19860,7 +19860,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/limitingConeAngle",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespotlight-limitingconeangle",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -19936,7 +19936,7 @@
     {
       "name": "line-break",
       "spec_url": "https://www.w3.org/TR/css-text-3/#line-break-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -19956,7 +19956,7 @@
       "name": "line-height",
       "description": "SVG uses the 'line-height' property to determine the amount of leading space which is added between lines in multi-line text (both for horizontal and vertical text). It is not applicable to text on a path.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#LineHeightProperty",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -20050,7 +20050,7 @@
     {
       "name": "margin-top",
       "spec_url": "https://www.w3.org/TR/css-box-3/#propdef-margin-top",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -20145,7 +20145,7 @@
       "name": "marker",
       "description": "The 'marker property' property sets values for the 'marker-start', 'marker-mid' and 'marker-end' properties. The value of the 'marker property' is used directly for all three of the corresponding longhand properties.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerProperty",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -20212,7 +20212,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-end",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerEndProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "marker-end",
       "baseline": {
         "kind": "widely",
@@ -20353,7 +20353,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-mid",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerMidProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "marker-mid",
       "baseline": {
         "kind": "widely",
@@ -20494,7 +20494,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/marker-start",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerStartProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "marker-start",
       "baseline": {
         "kind": "widely",
@@ -20635,7 +20635,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerHeight",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerHeightAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -20818,7 +20818,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerUnitsAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -20905,7 +20905,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerWidth",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerWidthAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -21087,7 +21087,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/mask",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-mask",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "mask",
       "baseline": {
         "kind": "widely",
@@ -21206,7 +21206,7 @@
     {
       "name": "mask-type",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#propdef-mask-type",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "mask-type",
       "values": {
         "kind": "enum",
@@ -21271,7 +21271,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/maskContentUnits",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#element-attrdef-mask-maskcontentunits",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -21357,7 +21357,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/maskUnits",
       "spec_url": "https://drafts.csswg.org/css-masking-1/#element-attrdef-mask-maskunits",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -21441,7 +21441,7 @@
     {
       "name": "max",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MaxAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -21571,7 +21571,7 @@
     {
       "name": "max-width",
       "spec_url": "https://www.w3.org/TR/css-sizing-3/#propdef-max-width",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -21878,7 +21878,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/media",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementMediaAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -21955,7 +21955,7 @@
       "name": "method",
       "description": "Indicates the method by which text should be rendered along the path.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementMethodAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -21974,7 +21974,7 @@
     {
       "name": "min",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#MinAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -22104,7 +22104,7 @@
     {
       "name": "min-width",
       "spec_url": "https://www.w3.org/TR/css-sizing-3/#propdef-min-width",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -22410,7 +22410,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/mode",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feblend-mode",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -22532,7 +22532,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/numOctaves",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-numoctaves",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -22652,7 +22652,7 @@
     {
       "name": "object-fit",
       "spec_url": "https://www.w3.org/TR/css3-images/#the-object-fit",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -22815,7 +22815,7 @@
     {
       "name": "object-position",
       "spec_url": "https://www.w3.org/TR/css3-images/#the-object-position",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -22851,7 +22851,7 @@
       "description": "Indicates were the gradient stop is placed. For linear gradients, the 'offset' attribute represents a location along the gradient vector. For radial gradients, it represents a fractional distance from the edge of the innermost/smallest circle to the edge of the outermost/largest circle.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopElementOffsetAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -22931,7 +22931,7 @@
       "name": "onabort",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -22947,7 +22947,7 @@
       "name": "onafterprint",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -22960,7 +22960,7 @@
       "name": "onbeforeprint",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -22973,7 +22973,7 @@
       "name": "onbegin",
       "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnBeginEventAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -23000,7 +23000,7 @@
       "name": "oncancel",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23050,7 +23050,7 @@
       "name": "oncanplay",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23100,7 +23100,7 @@
       "name": "oncanplaythrough",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23150,7 +23150,7 @@
       "name": "onchange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23200,7 +23200,7 @@
       "name": "onclick",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23250,7 +23250,7 @@
       "name": "onclose",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23300,7 +23300,7 @@
       "name": "oncopy",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23350,7 +23350,7 @@
       "name": "oncuechange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23400,7 +23400,7 @@
       "name": "oncut",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23450,7 +23450,7 @@
       "name": "ondblclick",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23500,7 +23500,7 @@
       "name": "ondrag",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23550,7 +23550,7 @@
       "name": "ondragend",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23600,7 +23600,7 @@
       "name": "ondragenter",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23650,7 +23650,7 @@
       "name": "ondragexit",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23700,7 +23700,7 @@
       "name": "ondragleave",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23750,7 +23750,7 @@
       "name": "ondragover",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23800,7 +23800,7 @@
       "name": "ondragstart",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23850,7 +23850,7 @@
       "name": "ondrop",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23900,7 +23900,7 @@
       "name": "ondurationchange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -23950,7 +23950,7 @@
       "name": "onemptied",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24000,7 +24000,7 @@
       "name": "onend",
       "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnEndEventAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -24027,7 +24027,7 @@
       "name": "onended",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24077,7 +24077,7 @@
       "name": "onerror",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24127,7 +24127,7 @@
       "name": "onfocus",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24177,7 +24177,7 @@
       "name": "onhashchange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24190,7 +24190,7 @@
       "name": "oninput",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24240,7 +24240,7 @@
       "name": "oninvalid",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24290,7 +24290,7 @@
       "name": "onkeydown",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24340,7 +24340,7 @@
       "name": "onkeypress",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24390,7 +24390,7 @@
       "name": "onkeyup",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24440,7 +24440,7 @@
       "name": "onload",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24490,7 +24490,7 @@
       "name": "onloadeddata",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24540,7 +24540,7 @@
       "name": "onloadedmetadata",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24590,7 +24590,7 @@
       "name": "onloadstart",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24640,7 +24640,7 @@
       "name": "onmessage",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24653,7 +24653,7 @@
       "name": "onmousedown",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24703,7 +24703,7 @@
       "name": "onmouseenter",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24753,7 +24753,7 @@
       "name": "onmouseleave",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24803,7 +24803,7 @@
       "name": "onmousemove",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24853,7 +24853,7 @@
       "name": "onmouseout",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24903,7 +24903,7 @@
       "name": "onmouseover",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -24953,7 +24953,7 @@
       "name": "onmouseup",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25003,7 +25003,7 @@
       "name": "onoffline",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25016,7 +25016,7 @@
       "name": "ononline",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25029,7 +25029,7 @@
       "name": "onpagehide",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25042,7 +25042,7 @@
       "name": "onpageshow",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25055,7 +25055,7 @@
       "name": "onpaste",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25105,7 +25105,7 @@
       "name": "onpause",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25155,7 +25155,7 @@
       "name": "onplay",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25205,7 +25205,7 @@
       "name": "onplaying",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25255,7 +25255,7 @@
       "name": "onpopstate",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25268,7 +25268,7 @@
       "name": "onprogress",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25318,7 +25318,7 @@
       "name": "onratechange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25368,7 +25368,7 @@
       "name": "onrepeat",
       "description": "Specifies some script to execute when \"bubbling\" or \"at target\" phase listeners for the corresponding event are fired on the element the attribute is specified on. See supported events table to determine which event each of these event attributes corresponds to. There are no restrictions on the values of this attribute.",
       "spec_url": "http://w3c.github.io/svgwg/svg2-draft/interact.html#OnRepeatEventAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -25395,7 +25395,7 @@
       "name": "onreset",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25445,7 +25445,7 @@
       "name": "onresize",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25495,7 +25495,7 @@
       "name": "onscroll",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25545,7 +25545,7 @@
       "name": "onseeked",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25595,7 +25595,7 @@
       "name": "onseeking",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25645,7 +25645,7 @@
       "name": "onselect",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25695,7 +25695,7 @@
       "name": "onshow",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25745,7 +25745,7 @@
       "name": "onstalled",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25795,7 +25795,7 @@
       "name": "onstorage",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25808,7 +25808,7 @@
       "name": "onsubmit",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25858,7 +25858,7 @@
       "name": "onsuspend",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25908,7 +25908,7 @@
       "name": "ontimeupdate",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -25958,7 +25958,7 @@
       "name": "ontoggle",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -26008,7 +26008,7 @@
       "name": "onunload",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -26024,7 +26024,7 @@
       "name": "onvolumechange",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -26074,7 +26074,7 @@
       "name": "onwaiting",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -26124,7 +26124,7 @@
       "name": "onwheel",
       "description": "For every event type that the user agent supports, SVG supports that as an event attribute, following the same requirements as for event handler content attributes [HTML]. The event attributes are available on all SVG elements.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#EventAttributes",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "free_text"
@@ -26176,7 +26176,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#ObjectAndGroupOpacityProperties",
       "standard_track": true,
-      "animatable": false,
+      "animation": "additive",
       "presentation_attribute": "opacity",
       "baseline": {
         "kind": "widely",
@@ -26258,7 +26258,7 @@
     {
       "name": "operator",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomposite-operator",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -26369,7 +26369,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/order",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-order",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -26492,7 +26492,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/orient",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#OrientAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -26793,7 +26793,7 @@
       "name": "origin",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#OriginAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -26883,7 +26883,7 @@
     {
       "name": "outline",
       "spec_url": "https://www.w3.org/TR/css-ui-4/#propdef-outline",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -26980,7 +26980,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/overflow",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#OverflowAndClipProperties",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "overflow",
       "baseline": {
         "kind": "widely",
@@ -27069,7 +27069,7 @@
     {
       "name": "overflow-wrap",
       "spec_url": "https://www.w3.org/TR/css-text-3/#overflow-wrap-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -27089,7 +27089,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/paint-order",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#PaintOrderProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "paint-order",
       "baseline": {
         "kind": "widely",
@@ -27296,7 +27296,7 @@
       "name": "path",
       "description": "A path data string describing the path onto which the typographic characters will be rendered. If the attribute is not specified, or if the path data results in no valid path segments (e.g., the value is an empty string or an error occurs before any valid path segments), the path specified with 'href' is used instead. If the path data contains an error but produces at least one valid path segment before the error, the valid portion of the path is used following the rules in Error handling in path data.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementPathAttribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -27364,7 +27364,7 @@
     {
       "name": "path-length",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathLengthProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "path-length",
       "values": {
         "kind": "css_grammar",
@@ -27476,7 +27476,7 @@
       "name": "pathLength",
       "description": "The author's computation of the total length of the path, in user units. This value is used to calibrate the user agent's own distance-along-a-path calculations with that of the author. The user agent will scale all distance-along-a-path computations by the ratio of 'pathLength' to the user agent's own computed value for total path length. 'pathLength' potentially affects calculations for text on a path, motion animation and various stroke operations.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathLengthAttribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "values": {
         "kind": "number"
@@ -27500,7 +27500,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternContentUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -27575,7 +27575,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternTransform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternTransformAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -27669,7 +27669,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/patternUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#PatternElementPatternUnitsAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -27744,7 +27744,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementPingAttribute",
       "experimental": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -27818,7 +27818,7 @@
     {
       "name": "playbackorder",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#SVGElementPlaybackorderAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -27840,7 +27840,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pointer-events",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "pointer-events",
       "baseline": {
         "kind": "widely",
@@ -27937,7 +27937,7 @@
       "description": "The points that make up the polygon. All coordinate values are in the user coordinate system.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#PolygonElementPointsAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28114,7 +28114,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pointsAtX",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespotlight-pointsatx",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28192,7 +28192,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pointsAtY",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespotlight-pointsaty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28270,7 +28270,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pointsAtZ",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespotlight-pointsatz",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28346,7 +28346,7 @@
     {
       "name": "position",
       "spec_url": "https://www.w3.org/TR/css-position-3/#propdef-position",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -28532,7 +28532,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/preserveAlpha",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-preservealpha",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28617,7 +28617,7 @@
       "name": "preserveAspectRatio",
       "description": "Indicates whether or not to force uniform scaling. Applies to all elements that establish a new SVG viewport (see elements that establish SVG viewports), plus the 'image', 'marker element', 'pattern' and 'view' elements",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#PreserveAspectRatioAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -28889,7 +28889,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/primitiveUnits",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitiveunits",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -28974,7 +28974,7 @@
       "name": "r",
       "description": "The 'r' property describes the radius of the 'circle' element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -29050,7 +29050,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/radius",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-femorphology-radius",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -29172,7 +29172,7 @@
       "description": "New in SVG 2: geometric keywords (matches use in 'symbol').",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerElementRefXAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -29652,7 +29652,7 @@
       "description": "New in SVG 2: geometric keywords (matches use in 'symbol').",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerElementRefYAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -30132,7 +30132,7 @@
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementReferrerpolicyAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -30209,7 +30209,7 @@
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementRelAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -30284,7 +30284,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/repeatCount",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#RepeatCountAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -30467,7 +30467,7 @@
     {
       "name": "repeatDur",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#RepeatDurAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -30600,7 +30600,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/requiredExtensions",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#RequiredExtensionsAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -30660,7 +30660,7 @@
     {
       "name": "restart",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#RestartAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -30696,7 +30696,7 @@
     {
       "name": "result",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitive-result",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -30780,7 +30780,7 @@
       "name": "role",
       "description": "The 'role' attribute must be a set of space-separated tokens having values defined in Definition of Roles ([wai-aria], section 5.4).",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#RoleAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "token_list"
@@ -30813,7 +30813,7 @@
     {
       "name": "rotate",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementRotateAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -31311,7 +31311,7 @@
       "name": "rx",
       "description": "The 'rx' property describes the horizontal radius of the 'ellipse' element and the curve radius of the 'rect' element. When the computed value of 'rx' is auto, the used radius is equal to the absolute length used for 'ry', creating a circular arc. If both 'rx' and 'ry' have a computed value of auto, the used value is 0.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RxProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -31436,7 +31436,7 @@
       "name": "ry",
       "description": "The 'ry' property describes the vertical radius of the 'ellipse' element and the vertical curve radius of the 'rect' element. When the computed value of 'ry' is auto, the used radius is equal to the absolute length used for 'rx', creating a circular arc. If both 'rx' and 'ry' have a computed value of auto, the used value is 0.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#RyProperty",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -31562,7 +31562,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/scale",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedisplacementmap-scale",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -31640,7 +31640,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/seed",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-seed",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -31722,7 +31722,7 @@
     {
       "name": "shape-outside",
       "spec_url": "https://www.w3.org/TR/css-shapes/#shape-outside-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -31858,7 +31858,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/shape-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ShapeRenderingProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "shape-rendering",
       "baseline": {
         "kind": "widely",
@@ -31954,7 +31954,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementSideAttribute",
       "experimental": true,
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -32017,7 +32017,7 @@
     {
       "name": "slope",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-slope",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -32046,7 +32046,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/spacing",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementSpacingAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32120,7 +32120,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/specularConstant",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespecularlighting-specularconstant",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32197,7 +32197,7 @@
       "name": "specularExponent",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fespecularlighting-specularexponent",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32309,7 +32309,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/spreadMethod",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#LinearGradientElementSpreadMethodAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32414,7 +32414,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/startOffset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementStartOffsetAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32534,7 +32534,7 @@
     {
       "name": "stdDeviation",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedropshadow-stddeviation",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -32691,7 +32691,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stitchTiles",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-stitchtiles",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -32777,7 +32777,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stop-color",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopColorProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stop-color",
       "baseline": {
         "kind": "widely",
@@ -32861,7 +32861,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stop-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopOpacityProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stop-opacity",
       "baseline": {
         "kind": "widely",
@@ -32946,7 +32946,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke",
       "baseline": {
         "kind": "widely",
@@ -33035,7 +33035,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-dasharray",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDasharrayProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke-dasharray",
       "baseline": {
         "kind": "widely",
@@ -33175,7 +33175,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-dashoffset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashoffsetProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke-dashoffset",
       "baseline": {
         "kind": "widely",
@@ -33315,7 +33315,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-linecap",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinecapProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "stroke-linecap",
       "baseline": {
         "kind": "widely",
@@ -33408,7 +33408,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-linejoin",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeLinejoinProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "stroke-linejoin",
       "baseline": {
         "kind": "widely",
@@ -33501,7 +33501,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-miterlimit",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeMiterlimitProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke-miterlimit",
       "baseline": {
         "kind": "widely",
@@ -33589,7 +33589,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-opacity",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeOpacityProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke-opacity",
       "baseline": {
         "kind": "widely",
@@ -33677,7 +33677,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/stroke-width",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeWidthProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "stroke-width",
       "baseline": {
         "kind": "widely",
@@ -33817,7 +33817,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/style",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -33860,7 +33860,7 @@
     {
       "name": "surfaceScale",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fediffuselighting-surfacescale",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -33948,7 +33948,7 @@
       "name": "systemLanguage",
       "description": "The value is a set of comma-separated tokens, each of which must be a Language-Tag value, as defined in BCP 47 [BCP47].",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SystemLanguageAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -34687,7 +34687,7 @@
     {
       "name": "tab-size",
       "spec_url": "https://www.w3.org/TR/css-text-3/#tab-size-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -34754,7 +34754,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/tabindex",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#SVGElementTabindexAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -34798,7 +34798,7 @@
     {
       "name": "tableValues",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-tablevalues",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_values": [
         {
@@ -34901,7 +34901,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/target",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementTargetAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -35263,7 +35263,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/targetX",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-targetx",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -35385,7 +35385,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/targetY",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-targety",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -35505,7 +35505,7 @@
     {
       "name": "text-align",
       "spec_url": "https://www.w3.org/TR/css-text-3/#text-align-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -35779,7 +35779,7 @@
     {
       "name": "text-align-last",
       "spec_url": "https://www.w3.org/TR/css-text-3/#text-align-last-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -35804,7 +35804,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-anchor",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextAnchorProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "text-anchor",
       "baseline": {
         "kind": "widely",
@@ -35895,7 +35895,7 @@
     {
       "name": "text-combine-upright",
       "spec_url": "https://www.w3.org/TR/css-writing-modes-3/#text-combine-upright",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -36031,7 +36031,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-decoration",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "text-decoration",
       "baseline": {
         "kind": "widely",
@@ -36226,7 +36226,7 @@
       "name": "text-decoration-color",
       "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "color"
@@ -36239,7 +36239,7 @@
       "name": "text-decoration-line",
       "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -36463,7 +36463,7 @@
       "name": "text-decoration-style",
       "description": "Text in SVG can be decorated with an underline, overline, and/or strike-through. The position and style of the decoration is determined respectively by the 'text-decoration-line' and 'text-decoration-style' properties, or by the 'text-decoration' shorthand property as defined in the Line Decoration section of the CSS Text Decoration Module Level 3 [(css-text-decor-3)] specification.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextDecorationProperties",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -36482,7 +36482,7 @@
     {
       "name": "text-indent",
       "spec_url": "https://www.w3.org/TR/css-text-3/#text-indent-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -36615,7 +36615,7 @@
     {
       "name": "text-justify",
       "spec_url": "https://www.w3.org/TR/css-text-3/#text-justify-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -36808,7 +36808,7 @@
     {
       "name": "text-orientation",
       "spec_url": "https://www.w3.org/TR/css3-writing-modes/#text-orientation",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -36828,7 +36828,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-overflow",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextOverflowProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -37065,7 +37065,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-rendering",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#TextRenderingProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "text-rendering",
       "baseline": {
         "kind": "widely",
@@ -37165,7 +37165,7 @@
     {
       "name": "text-transform",
       "spec_url": "https://www.w3.org/TR/css-text-3/#text-transform-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -37388,7 +37388,7 @@
     {
       "name": "textLength",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementTextLengthAttribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -37600,7 +37600,7 @@
     {
       "name": "timelinebegin",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#SVGElementTimelinebeginAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -37621,7 +37621,7 @@
       "description": "This attribute specifies a title for the style sheet, which is used when exposing and selecting between alternate style sheets. The attribute takes any value.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementTitleAttribute",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -37696,7 +37696,7 @@
     {
       "name": "to",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#ToAttribute",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -37842,7 +37842,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/transform",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#TransformProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "transform",
       "baseline": {
         "kind": "widely",
@@ -37947,7 +37947,7 @@
     {
       "name": "transform-box",
       "spec_url": "https://drafts.csswg.org/css-transforms/#transform-box",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -37968,7 +37968,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/transform-origin",
       "spec_url": "https://drafts.csswg.org/css-transforms/#propdef-transform-origin",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "transform-origin",
       "baseline": {
         "kind": "limited"
@@ -38747,7 +38747,7 @@
       "name": "type",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementTypeAttribute",
-      "animatable": true,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -39004,7 +39004,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/unicode-bidi",
       "spec_url": "https://www.w3.org/TR/css-writing-modes-3/#unicode-bidi",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": "unicode-bidi",
       "baseline": {
         "kind": "widely",
@@ -39095,7 +39095,7 @@
       "name": "values",
       "spec_url": "https://w3c.github.io/svgwg/specs/animations/#ValuesAttribute",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -39225,7 +39225,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/vector-effect",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#VectorEffectProperty",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": "vector-effect",
       "baseline": {
         "kind": "widely",
@@ -39321,7 +39321,7 @@
       "spec_url": null,
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -39386,7 +39386,7 @@
     {
       "name": "vertical-align",
       "spec_url": "https://drafts.csswg.org/css-inline/#transverse-alignment",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -39520,7 +39520,7 @@
       "name": "viewBox",
       "description": "The 'viewBox' attribute, in conjunction with the 'preserveAspectRatio' attribute, provides the capability to stretch an SVG viewport to fit a particular container element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#ViewBoxAttribute",
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -39992,7 +39992,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/visibility",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/render.html#VisibilityControl",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "visibility",
       "baseline": {
         "kind": "widely",
@@ -40082,7 +40082,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/white-space",
       "spec_url": "https://www.w3.org/TR/css-text-3/#white-space-property",
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -40320,7 +40320,7 @@
       "name": "width",
       "description": "See the CSS 2.1 specification for the definitions of width and height.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -40631,7 +40631,7 @@
     {
       "name": "will-change",
       "spec_url": "https://drafts.csswg.org/css-will-change/#will-change",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
@@ -40710,7 +40710,7 @@
     {
       "name": "word-break",
       "spec_url": "https://www.w3.org/TR/css-text-3/#word-break-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -40732,7 +40732,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/word-spacing",
       "spec_url": "https://www.w3.org/TR/css-text-3/#word-spacing-property",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": "word-spacing",
       "baseline": {
         "kind": "widely",
@@ -40866,7 +40866,7 @@
     {
       "name": "word-wrap",
       "spec_url": "https://www.w3.org/TR/css-text-3/#overflow-wrap-property",
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "values": {
         "kind": "enum",
@@ -40886,7 +40886,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/writing-mode",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#WritingModeProperty",
       "standard_track": true,
-      "animatable": false,
+      "animation": "discrete",
       "presentation_attribute": "writing-mode",
       "baseline": {
         "kind": "widely",
@@ -40979,7 +40979,7 @@
       "name": "x",
       "description": "The 'x' property describes the horizontal coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#XProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -41352,7 +41352,7 @@
       "name": "x1",
       "description": "The x- and y-axis coordinates of the start of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementX1Attribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -41487,7 +41487,7 @@
       "name": "x2",
       "description": "The x- and y-axis coordinates of the end of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementX2Attribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -41623,7 +41623,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xChannelSelector",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedisplacementmap-xchannelselector",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -41713,7 +41713,7 @@
       "spec_url": null,
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -41786,7 +41786,7 @@
       "spec_url": null,
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -41862,7 +41862,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#XLinkTitleAttribute",
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -41918,56 +41918,12 @@
         {
           "element": "a, image, linearGradient, pattern, radialGradient, script, textPath, use",
           "values": {
-            "kind": "css_grammar",
-            "grammar": "<anything>",
-            "graph": {
-              "root": 0,
-              "nodes": [
-                {
-                  "id": 0,
-                  "kind": "root"
-                },
-                {
-                  "id": 1,
-                  "kind": "type",
-                  "text": "<anything>"
-                }
-              ],
-              "edges": [
-                {
-                  "from": 0,
-                  "to": 1,
-                  "kind": "contains"
-                }
-              ]
-            }
+            "kind": "free_text"
           }
         }
       ],
       "values": {
-        "kind": "css_grammar",
-        "grammar": "<anything>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "type",
-              "text": "<anything>"
-            }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            }
-          ]
-        }
+        "kind": "free_text"
       },
       "applicability": {
         "kind": "none"
@@ -41979,7 +41935,7 @@
       "spec_url": null,
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -42017,7 +41973,7 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/struct.html#XMLSpaceAttribute",
       "deprecated": true,
       "standard_track": true,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "baseline": {
         "kind": "limited"
@@ -42067,7 +42023,7 @@
       "name": "y",
       "description": "The 'y' property describes the vertical coordinate of the position of the element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/geometry.html#YProperty",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -42440,7 +42396,7 @@
       "name": "y1",
       "description": "The x- and y-axis coordinates of the start of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementY1Attribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -42575,7 +42531,7 @@
       "name": "y2",
       "description": "The x- and y-axis coordinates of the end of the line.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/shapes.html#LineElementY2Attribute",
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "element_compat": [
         {
@@ -42711,7 +42667,7 @@
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/yChannelSelector",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fedisplacementmap-ychannelselector",
       "standard_track": true,
-      "animatable": true,
+      "animation": "discrete",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -42800,7 +42756,7 @@
       "name": "z",
       "spec_url": "https://drafts.csswg.org/filter-effects-1/#element-attrdef-fepointlight-z",
       "standard_track": true,
-      "animatable": true,
+      "animation": "additive",
       "presentation_attribute": null,
       "baseline": {
         "kind": "widely",
@@ -42909,7 +42865,7 @@
     {
       "name": "zoomAndPan",
       "spec_url": null,
-      "animatable": false,
+      "animation": "not_animatable",
       "presentation_attribute": null,
       "element_compat": [
         {

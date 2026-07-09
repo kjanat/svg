@@ -901,7 +901,7 @@ mod tests {
         deprecated: false,
         experimental: false,
         standard_track: None,
-        animatable: false,
+        animation: svg_data::Animation::NotAnimatable,
         presentation_attribute: None,
         baseline: None,
         browser_support: None,

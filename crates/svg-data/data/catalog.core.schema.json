@@ -1,19 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "CatalogAnimation": {
+      "description": "How an attribute or property can be animated.\n\nSVG 2 propdefs cite the Web Animations `animation-type` (`by computed value`\n/ `discrete` / `not animatable`); SVG Animations derives the additive\nsemantics (`yes` / `yes (non-additive)` / `no`) from it. This tri-state\nreplaces a lossy `animatable: bool` that could not express the non-additive\n(`discrete`) case — animating such a value swaps discretely rather than\ninterpolating, and `<animate additive=\"sum\">` is invalid on it.",
+      "oneOf": [
+        {
+          "description": "Cannot be animated (Web Animations `not animatable`).",
+          "type": "string",
+          "const": "not_animatable"
+        },
+        {
+          "description": "Animatable but non-additive — only discrete swaps between values (Web\nAnimations `discrete`; SVG Animations `yes (non-additive)`).",
+          "type": "string",
+          "const": "discrete"
+        },
+        {
+          "description": "Animatable and additive/interpolable (Web Animations `by computed value`;\nSVG Animations `yes`).",
+          "type": "string",
+          "const": "additive"
+        }
+      ]
+    },
     "CatalogAttribute": {
       "description": "One attribute's spec-derived catalog entry.",
       "type": "object",
       "required": [
-        "animatable",
+        "animation",
         "applicability",
         "name",
         "values"
       ],
       "properties": {
-        "animatable": {
-          "description": "Whether the spec marks the attribute animatable.",
-          "type": "boolean"
+        "animation": {
+          "$ref": "#/$defs/CatalogAnimation",
+          "description": "How the attribute animates (Web Animations `animation-type` the SVG 2\npropdefs cite; SVG Animations additive semantics)."
         },
         "applicability": {
           "$ref": "#/$defs/CatalogAttributeApplicability",

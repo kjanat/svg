@@ -270,8 +270,9 @@ pub struct CatalogAttribute {
     /// Whether compat data marks the attribute as standards-track.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub standard_track: Option<bool>,
-    /// Whether the spec marks the attribute animatable.
-    pub animatable: bool,
+    /// How the attribute animates (Web Animations `animation-type` the SVG 2
+    /// propdefs cite; SVG Animations additive semantics).
+    pub animation: CatalogAnimation,
     /// Backing CSS property name when this is a presentation attribute.
     pub presentation_attribute: Option<String>,
     /// Web-platform baseline status, when known.
@@ -1113,6 +1114,27 @@ pub enum CatalogAttributeApplicability {
     },
     /// Known attribute that applies to no elements in this catalog.
     None,
+}
+
+/// How an attribute or property can be animated.
+///
+/// SVG 2 propdefs cite the Web Animations `animation-type` (`by computed value`
+/// / `discrete` / `not animatable`); SVG Animations derives the additive
+/// semantics (`yes` / `yes (non-additive)` / `no`) from it. This tri-state
+/// replaces a lossy `animatable: bool` that could not express the non-additive
+/// (`discrete`) case — animating such a value swaps discretely rather than
+/// interpolating, and `<animate additive="sum">` is invalid on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogAnimation {
+    /// Cannot be animated (Web Animations `not animatable`).
+    NotAnimatable,
+    /// Animatable but non-additive — only discrete swaps between values (Web
+    /// Animations `discrete`; SVG Animations `yes (non-additive)`).
+    Discrete,
+    /// Animatable and additive/interpolable (Web Animations `by computed value`;
+    /// SVG Animations `yes`).
+    Additive,
 }
 
 /// Derived graph view over the catalog.
@@ -2074,6 +2096,26 @@ fn build_attributes(
             descriptions_by_id,
         );
     }
+    // Presentation attributes SVG delegates to CSS (`opacity`, `color`,
+    // `font-*`) reach `finish` before their value space is resolved by
+    // `apply_derived_value_space` above, and their defining CSS spec's propdef
+    // often omits an animation type. Re-derive their animation from the resolved
+    // value per SVG Animations §2.17 unless a local propdef already stated one.
+    // Gated on `presentation_attribute` so structural attributes (`id`, `class`)
+    // are untouched.
+    for attribute in &mut attributes {
+        let has_local_animation_type =
+            properties_by_name
+                .get(attribute.name.as_str())
+                .is_some_and(|group| {
+                    group
+                        .iter()
+                        .any(|property| property.animation_type.is_some())
+                });
+        if attribute.presentation_attribute.is_some() && !has_local_animation_type {
+            attribute.animation = animation_from_value_kind(&attribute.values);
+        }
+    }
     propagate_shared_element_values(&mut attributes);
     attributes.sort_by(|a, b| a.name.cmp(&b.name));
     attributes
@@ -2226,9 +2268,10 @@ fn apply_derived_value_space(
 fn definitional_value_space(name: &str) -> Option<CatalogAttributeValues> {
     match name {
         "xml:lang" => Some(CatalogAttributeValues::LanguageTag),
-        // Advisory prose, polymorphic SMIL values, and the free-form
-        // `baseProfile` profile-name (SVG 1.1: `= profile-name`, no enumeration).
-        "by" | "from" | "to" | "values" | "title" | "baseProfile" => {
+        // Advisory prose, polymorphic SMIL values, the free-form `baseProfile`
+        // profile-name (SVG 1.1: `= profile-name`, no enumeration), and the
+        // deprecated `xlink:title` (SVG 2 linking.html: value `<anything>`).
+        "by" | "from" | "to" | "values" | "title" | "baseProfile" | "xlink:title" => {
             Some(CatalogAttributeValues::FreeText)
         }
         _ => None,
@@ -2430,7 +2473,7 @@ fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat:
             deprecated: false,
             experimental: false,
             standard_track: None,
-            animatable: false,
+            animation: CatalogAnimation::NotAnimatable,
             presentation_attribute: None,
             baseline: None,
             browser_support: None,
@@ -2874,9 +2917,7 @@ impl AttributeAccumulator {
             .get(&self.name)
             .cloned()
             .unwrap_or_default();
-        let animatable = self
-            .animatable
-            .unwrap_or_else(|| property.is_some_and(property_is_animatable));
+        let animation = resolve_animation(self.animatable, property, &values);
         let applicability = if self.global || self.bearers == *all_elements {
             CatalogAttributeApplicability::Global
         } else if self.bearers.is_empty() {
@@ -2894,7 +2935,7 @@ impl AttributeAccumulator {
             deprecated: false,
             experimental: false,
             standard_track: None,
-            animatable,
+            animation,
             presentation_attribute: self.presentation_attribute,
             baseline: None,
             browser_support: None,
@@ -3263,6 +3304,12 @@ fn values_for_property(
                 CatalogAttributeValues::FreeText,
                 value_from_see_below_description,
             );
+    }
+    // `<anything>` is the SVG spec's literal "any value" (e.g. `xlink:title`),
+    // not a CSS type production — genuinely unconstrained, so free text rather
+    // than a grammar with a meaningless `<anything>` type node.
+    if normalized == "<anything>" {
+        return CatalogAttributeValues::FreeText;
     }
     if let Some(values) = value_from_property_reference(value) {
         return values;
@@ -3722,15 +3769,140 @@ fn push_grammar_node(
     id
 }
 
-/// Whether a CSS/SVG property definition says the property is animatable.
-fn property_is_animatable(property: &PropertyValueDef) -> bool {
-    let Some(animation_type) = property.animation_type.as_deref() else {
-        return false;
-    };
-    !matches!(
-        animation_type.trim().to_ascii_lowercase().as_str(),
+/// Map a propdef's stated animation designation to the tri-state. Handles both
+/// the SVG 2 / Web Animations vocabulary (`by computed value`, `discrete`, `not
+/// animatable`) and the SVG 1.1 form (`yes`, `no`, `yes (non-additive)`).
+///
+/// Returns `None` for a bare `yes`: SVG 1.1's `Animatable: yes` states only that
+/// the value animates, not whether additively, so the additive distinction must
+/// come from the value kind (a `<length>` interpolates; a token list does not).
+fn animation_from_type_string(animation_type: &str) -> Option<CatalogAnimation> {
+    let animation_type = animation_type.trim().to_ascii_lowercase();
+    if matches!(
+        animation_type.as_str(),
         "" | "no" | "none" | "not animatable"
-    )
+    ) {
+        return Some(CatalogAnimation::NotAnimatable);
+    }
+    if animation_type == "discrete" || animation_type.contains("non-additive") {
+        return Some(CatalogAnimation::Discrete);
+    }
+    if animation_type == "yes" {
+        return None;
+    }
+    // `by computed value`, `by computed value type`, `repeatable list`, …
+    Some(CatalogAnimation::Additive)
+}
+
+/// Classify animation behaviour from the resolved value space, per the SVG
+/// Animations §2.17 by-data-type table. Used for attributes whose defining spec
+/// states no explicit animation designation — chiefly presentation attributes
+/// SVG delegates to CSS (`opacity`, `color`, `font-*`), whose value space is
+/// only known after the derived resolution.
+fn animation_from_value_kind(values: &CatalogAttributeValues) -> CatalogAnimation {
+    use CatalogAttributeValues as V;
+    match values {
+        // SVG Animations additive types: angle, color, integer, length, number,
+        // paint, percentage — plus the numeric/geometric lists and path data,
+        // which interpolate component-wise.
+        V::Color
+        | V::Paint
+        | V::Length
+        | V::Number
+        | V::Integer
+        | V::NumberOrPercentage
+        | V::Transform { .. }
+        | V::CoordinatePair
+        | V::CoordinatePairList
+        | V::SemicolonNumberList
+        | V::PathData => CatalogAnimation::Additive,
+        // Animatable but non-additive: keyword/enumerated, boolean, reference,
+        // list-of-token and URL types animate by discrete swap (SVG Animations:
+        // URL is `yes` but non-additive; "all other data types" animate via
+        // `set`).
+        V::Enum { .. }
+        | V::Boolean
+        | V::TokenList
+        | V::CommaTokenList
+        | V::UrlTokenList
+        | V::Url
+        | V::Iri
+        | V::Id
+        | V::IdList
+        | V::LanguageTag
+        | V::MediaType
+        | V::MediaQueryList
+        | V::ReferrerPolicy
+        | V::SuggestedFileName
+        | V::CssDeclarationList => CatalogAnimation::Discrete,
+        // A CSS grammar that admits a numeric/dimensional/colour value
+        // interpolates (SVG Animations additive types), e.g. `font-size`
+        // (`<length-percentage>`); a purely keyword grammar animates discretely.
+        V::CssGrammar { grammar, .. } => {
+            if grammar_admits_interpolable_type(grammar) {
+                CatalogAnimation::Additive
+            } else {
+                CatalogAnimation::Discrete
+            }
+        }
+        // Genuinely unconstrained or not-yet-modelled: no defined animation
+        // behaviour.
+        V::FreeText | V::Unresolved => CatalogAnimation::NotAnimatable,
+    }
+}
+
+/// Whether a CSS value grammar references an interpolable numeric/dimensional/
+/// colour type (per the SVG Animations §2.17 additive types). `<time>` and
+/// `<frequency>` are excluded — those are not animatable.
+fn grammar_admits_interpolable_type(grammar: &str) -> bool {
+    [
+        "<length",
+        "<number",
+        "<percentage",
+        "<integer",
+        "<angle",
+        "<color",
+    ]
+    .iter()
+    .any(|type_ref| grammar.contains(type_ref))
+}
+
+/// Animation for an attribute already known to be animatable (an explicit
+/// `Animatable: yes`), classified additive-vs-discrete from its value kind. A
+/// value space that carries no additive signal (or is unresolved) is `Discrete`
+/// rather than `NotAnimatable` — the explicit designation is authoritative.
+fn known_animatable_from_value_kind(values: &CatalogAttributeValues) -> CatalogAnimation {
+    match animation_from_value_kind(values) {
+        CatalogAnimation::Additive => CatalogAnimation::Additive,
+        CatalogAnimation::Discrete | CatalogAnimation::NotAnimatable => CatalogAnimation::Discrete,
+    }
+}
+
+/// Resolve an attribute's animation behaviour from the strongest available
+/// signal: an explicit `Animatable: no` (SVG definitions), then the propdef's
+/// stated animation type, then the value-space fallback for value-bearing
+/// attributes the spec designates animatable or delegates to CSS.
+fn resolve_animation(
+    explicit: Option<bool>,
+    property: Option<&PropertyValueDef>,
+    values: &CatalogAttributeValues,
+) -> CatalogAnimation {
+    if explicit == Some(false) {
+        return CatalogAnimation::NotAnimatable;
+    }
+    if let Some(animation_type) = property.and_then(|property| property.animation_type.as_deref()) {
+        // A definite designation wins; a bare `yes` defers to the value kind but,
+        // being an explicit "animatable", is never demoted to non-animatable.
+        return animation_from_type_string(animation_type)
+            .unwrap_or_else(|| known_animatable_from_value_kind(values));
+    }
+    if explicit == Some(true) {
+        return known_animatable_from_value_kind(values);
+    }
+    // No explicit designation and no local propdef: presentation attributes SVG
+    // delegates to CSS are still animatable (their value space, resolved later,
+    // drives the additive distinction); everything else stays non-animatable.
+    CatalogAnimation::NotAnimatable
 }
 
 /// Resolve `href` against a module base unless it is already absolute.
@@ -3988,11 +4160,11 @@ mod tests {
             fill.description.as_deref(),
             Some("The fill property paints shapes.")
         );
-        assert!(fill.animatable);
+        assert_ne!(fill.animation, CatalogAnimation::NotAnimatable);
     }
 
     fn assert_href_attribute(href: &CatalogAttribute) {
-        assert!(href.animatable);
+        assert_ne!(href.animation, CatalogAnimation::NotAnimatable);
         assert_eq!(
             href.spec_url.as_deref(),
             Some("https://example.test/linking.html#AElementHrefAttribute")

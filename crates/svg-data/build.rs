@@ -136,7 +136,7 @@ struct Attribute {
     experimental: bool,
     #[serde(default)]
     standard_track: Option<bool>,
-    animatable: bool,
+    animation: Animation,
     #[serde(rename = "presentation_attribute")]
     presentation: Option<String>,
     #[serde(default)]
@@ -225,6 +225,23 @@ enum LifecycleStatus {
     Experimental,
     Obsolete,
     NotYetIntroduced,
+}
+
+/// How an attribute animates (mirrors `catalog::CatalogAnimation`).
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+enum Animation {
+    NotAnimatable,
+    Discrete,
+    Additive,
+}
+
+const fn emit_animation(animation: Animation) -> &'static str {
+    match animation {
+        Animation::NotAnimatable => "crate::types::Animation::NotAnimatable",
+        Animation::Discrete => "crate::types::Animation::Discrete",
+        Animation::Additive => "crate::types::Animation::Additive",
+    }
 }
 
 /// The inventory payload inside one snapshot overlay.
@@ -960,7 +977,7 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
         out,
         "    crate::types::AttributeDef {{ name: {:?}, description: {description:?}, mdn_url: \
          {mdn_url:?}, spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, \
-         animatable: {}, presentation_attribute: {presentation_attribute}, baseline: {baseline}, \
+         animation: {}, presentation_attribute: {presentation_attribute}, baseline: {baseline}, \
          browser_support: {browser_support}, element_compat: {element_compat}, element_values: \
          {element_values}, values: {values}, value_overrides: {value_overrides}, applicability: \
          {applicability} }},",
@@ -968,7 +985,7 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
         attribute.deprecated,
         attribute.experimental,
         emit_option_bool(attribute.standard_track),
-        attribute.animatable,
+        emit_animation(attribute.animation),
     );
 }
 

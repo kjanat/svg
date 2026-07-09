@@ -16,14 +16,14 @@ mod catalog;
 pub mod types;
 
 pub use types::{
-    AttributeApplicability, AttributeDef, AttributeElementCompat, AttributeElementValues,
-    AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag, BrowserSupport,
-    BrowserVersion, CatalogGraph, CatalogGraphEdge, CatalogGraphEdgeKind, CatalogGraphNode,
-    CatalogGraphNodeKind, CompatFacts, CompatSubfeature, CompatSubfeatureKind, CompatVerdict,
-    ContentModel, CssGrammarEdge, CssGrammarEdgeKind, CssGrammarGraph, CssGrammarNode,
-    CssGrammarNodeKind, ElementCategory, ElementDef, FeatureLifecycle, ProfileLookup,
-    ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata, SpecLifecycle,
-    SpecSnapshotId, VerdictReason, VerdictRecommendation,
+    Animation, AttributeApplicability, AttributeDef, AttributeElementCompat,
+    AttributeElementValues, AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag,
+    BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge, CatalogGraphEdgeKind,
+    CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature, CompatSubfeatureKind,
+    CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind, CssGrammarGraph,
+    CssGrammarNode, CssGrammarNodeKind, ElementCategory, ElementDef, FeatureLifecycle,
+    ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata,
+    SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{
@@ -1110,7 +1110,7 @@ mod catalog_tests {
             deprecated: true,
             experimental: false,
             standard_track: Some(false),
-            animatable: false,
+            animation: Animation::NotAnimatable,
             presentation_attribute: None,
             baseline: Some(BaselineStatus::Limited),
             browser_support: Some(BrowserSupport {
@@ -1161,7 +1161,7 @@ mod catalog_tests {
             deprecated: false,
             experimental: false,
             standard_track: Some(true),
-            animatable: false,
+            animation: Animation::NotAnimatable,
             presentation_attribute: None,
             baseline: Some(BaselineStatus::Widely {
                 since: 2020,

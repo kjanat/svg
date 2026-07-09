@@ -66,6 +66,35 @@ pub enum SpecLifecycle {
     Obsolete,
 }
 
+/// How an attribute or property can be animated.
+///
+/// Follows the Web Animations `animation-type` SVG 2 propdefs cite and the SVG
+/// Animations additive semantics, distinguishing non-additive (`discrete`) from
+/// interpolable (`additive`) animation instead of a plain animatable/not bool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Animation {
+    /// Cannot be animated.
+    NotAnimatable,
+    /// Animatable but non-additive — animates by discrete value swap.
+    Discrete,
+    /// Animatable and additive/interpolable.
+    Additive,
+}
+
+impl Animation {
+    /// Whether the attribute can be animated at all (`discrete` or `additive`).
+    #[must_use]
+    pub const fn is_animatable(self) -> bool {
+        !matches!(self, Self::NotAnimatable)
+    }
+
+    /// Whether additive animation (`<animate additive="sum">`) is valid.
+    #[must_use]
+    pub const fn is_additive(self) -> bool {
+        matches!(self, Self::Additive)
+    }
+}
+
 /// Structural child-content model of an element.
 ///
 /// # Examples
@@ -906,8 +935,8 @@ pub struct AttributeDef {
     pub experimental: bool,
     /// Whether compat data marks the attribute as standards-track.
     pub standard_track: Option<bool>,
-    /// Whether the spec marks the attribute animatable.
-    pub animatable: bool,
+    /// How the attribute animates (spec animation type / additive semantics).
+    pub animation: Animation,
     /// CSS presentation-attribute property name, when applicable.
     pub presentation_attribute: Option<&'static str>,
     /// Web-platform baseline status, when known.

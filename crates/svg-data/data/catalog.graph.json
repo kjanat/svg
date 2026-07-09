@@ -6314,7 +6314,7 @@
     {
       "id": "value:xlink:title",
       "kind": "value_grammar",
-      "name": "xlink:title (css_grammar)"
+      "name": "xlink:title (free_text)"
     },
     {
       "id": "value:xml:lang",
