@@ -1,5 +1,5 @@
 //! SVG specification series, the rolling editor's-draft pin, and the pure
-//! freshness-classification logic the LSP's network probe builds on.
+//! drift-classification logic the LSP's network probe builds on.
 
 /// An SVG specification series.
 ///
@@ -67,7 +67,7 @@ pub static ROLLING_PIN: RollingPin = RollingPin {
     captured_date: "",
 };
 
-/// Identity of a captured (baked) edition, for freshness classification.
+/// Identity of a captured (baked) edition, for drift classification.
 ///
 /// # Examples
 ///
@@ -91,18 +91,18 @@ pub enum CapturedEditionIdentity {
     },
 }
 
-/// Freshness verdict for a captured edition versus what is published upstream.
+/// Drift verdict for a captured edition versus what is published upstream.
 ///
 /// # Examples
 ///
 /// ```rust
-/// let freshness = svg_data::edition::Freshness::Fresh;
-/// assert_eq!(freshness, svg_data::edition::Freshness::Fresh);
+/// let drift = svg_data::edition::Drift::UpToDate;
+/// assert_eq!(drift, svg_data::edition::Drift::UpToDate);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Freshness {
+pub enum Drift {
     /// The captured edition is up to date.
-    Fresh,
+    UpToDate,
     /// The rolling pin's upstream HEAD advanced past the captured commit.
     RollingStale {
         /// The upstream HEAD commit.
@@ -119,19 +119,19 @@ pub enum Freshness {
 ///
 /// ```rust
 /// let captured = svg_data::edition::CapturedEditionIdentity::Rolling { commit: "old" };
-/// let freshness = svg_data::edition::classify_freshness(&captured, Some("new"));
-/// assert!(matches!(freshness, svg_data::edition::Freshness::RollingStale { .. }));
+/// let drift = svg_data::edition::classify_drift(&captured, Some("new"));
+/// assert!(matches!(drift, svg_data::edition::Drift::RollingStale { .. }));
 /// ```
 #[must_use]
-pub fn classify_freshness(captured: &CapturedEditionIdentity, head: Option<&str>) -> Freshness {
+pub fn classify_drift(captured: &CapturedEditionIdentity, head: Option<&str>) -> Drift {
     match captured {
         CapturedEditionIdentity::Rolling { commit } => match head {
-            Some(head) if head != *commit => Freshness::RollingStale {
+            Some(head) if head != *commit => Drift::RollingStale {
                 head: head.to_owned(),
             },
-            _ => Freshness::Fresh,
+            _ => Drift::UpToDate,
         },
-        CapturedEditionIdentity::Dated { .. } => Freshness::Fresh,
+        CapturedEditionIdentity::Dated { .. } => Drift::UpToDate,
     }
 }
 

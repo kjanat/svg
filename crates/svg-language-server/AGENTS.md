@@ -34,13 +34,13 @@ and fanout into lint/format/color/references/data/tree crates.
 
 All read under the top-level `svg` key.
 
-| Setting                    | Type   | Default | Effect                                                                                                |
-| -------------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------- |
-| `svg.profile`              | string | unset   | Curated snapshot id/alias, or `svg-native` for the SVG Native profile.                                |
-| `svg.force_profile`        | bool   | `false` | Pin the resolved profile for every document, ignoring root `<svg version>`.                           |
-| `svg.edition`              | object | unset   | `{ series, date }` or `{ series, editors_draft: true }` — selects an edition-keyed inventory.         |
-| `svg.runtime_compat`       | bool   | `true`  | Opt-out gate for the unpkg BCD + web-features fetch. `false` keeps the session fully offline/private. |
-| `svg.spec_freshness_check` | bool   | `false` | Opt-in W3C/svgwg staleness probe (contacts `api.w3.org` + `api.github.com`).                          |
+| Setting                 | Type   | Default | Effect                                                                                                |
+| ----------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------- |
+| `svg.profile`           | string | unset   | Curated snapshot id/alias, or `svg-native` for the SVG Native profile.                                |
+| `svg.force_profile`     | bool   | `false` | Pin the resolved profile for every document, ignoring root `<svg version>`.                           |
+| `svg.edition`           | object | unset   | `{ series, date }` or `{ series, editors_draft: true }` — selects an edition-keyed inventory.         |
+| `svg.runtime_compat`    | bool   | `true`  | Opt-out gate for the unpkg BCD + web-features fetch. `false` keeps the session fully offline/private. |
+| `svg.svgwg_drift_check` | bool   | `false` | Opt-in W3C/svgwg staleness probe (contacts `api.w3.org` + `api.github.com`).                          |
 
 - `svg.runtime_compat=false` skips the `fetch_runtime_compat` spawn in
   `initialize`; hover and lint then use baked compat data only.

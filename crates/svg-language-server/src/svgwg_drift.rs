@@ -1,4 +1,4 @@
-//! Best-effort runtime spec-freshness check.
+//! Best-effort runtime svgwg drift check.
 //!
 //! Mirrors the [`compat`](crate::compat) runtime fetch: a synchronous,
 //! `spawn_blocking`-friendly network probe that compares the crate's **baked**
@@ -6,7 +6,7 @@
 //! logic is the pure, offline-tested half in [`svg_data::edition`]; this module
 //! only adds the network shell and a user-facing message.
 //!
-//! It is opt-in (the `svg.spec_freshness_check` initialization option) because it
+//! It is opt-in (the `svg.svgwg_drift_check` initialization option) because it
 //! contacts `api.w3.org` and `api.github.com`, and degrades silently when
 //! offline — a failed probe is never reported as "fresh" *or* surfaced to the
 //! user; only a confirmed staleness shows a message.
@@ -14,19 +14,19 @@
 use std::time::Duration;
 
 use svg_data::edition::{
-    CapturedEditionIdentity, Freshness, ROLLING_PIN, Series, VersionsEnvelope, classify_freshness,
+    CapturedEditionIdentity, Drift, ROLLING_PIN, Series, VersionsEnvelope, classify_drift,
     unseen_versions,
 };
 
-/// Outcome of a runtime freshness probe.
-pub struct SpecFreshness {
+/// Outcome of a runtime drift probe.
+pub struct DriftReport {
     /// `svgwg`'s default-branch HEAD has advanced past the baked rolling pin.
     rolling_stale: bool,
     /// Dated `/TR/` URIs W3C has published that the baked index does not carry.
     unseen_uris: Vec<String>,
 }
 
-impl SpecFreshness {
+impl DriftReport {
     /// Whether anything upstream has moved past the baked catalog.
     pub const fn is_stale(&self) -> bool {
         self.rolling_stale || !self.unseen_uris.is_empty()
@@ -98,7 +98,7 @@ const TRACKED_SPEC_PATH_PREFIX: &str = "master/";
 /// changed file across the range. Returns `None` when the probe could not be
 /// completed (network failure, parse failure, or the range was too large for the
 /// API to enumerate files), so the caller can fall back conservatively rather
-/// than mis-report freshness.
+/// than mis-report the catalog as up to date.
 fn tracked_inputs_changed(agent: &ureq::Agent, base: &str, head: &str) -> Option<bool> {
     let url = format!("{SVGWG_REPO_API}/compare/{base}...{head}");
     let json = fetch_text(agent, &url)?;
@@ -132,12 +132,12 @@ fn w3c_versions_url(series: Series) -> String {
     )
 }
 
-/// Probe W3C + `svgwg` and classify the baked catalog's freshness.
+/// Probe W3C + `svgwg` and classify the baked catalog's drift.
 ///
 /// Synchronous (intended for `spawn_blocking`). Returns `None` only when *every*
 /// probe failed (offline); a reachable-but-up-to-date catalog returns
-/// `Some(report)` whose [`SpecFreshness::is_stale`] is `false`.
-pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
+/// `Some(report)` whose [`DriftReport::is_stale`] is `false`.
+pub fn fetch_report() -> Option<DriftReport> {
     let agent = ureq::Agent::new_with_config(
         ureq::config::Config::builder()
             .timeout_global(Some(Duration::from_secs(30)))
@@ -149,17 +149,17 @@ pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
         let captured = CapturedEditionIdentity::Rolling {
             commit: ROLLING_PIN.commit,
         };
-        // `classify_freshness` only knows commit identity, so it reports stale on
+        // `classify_drift` only knows commit identity, so it reports stale on
         // *any* HEAD movement. The svgwg default branch carries far more than the
         // SVG 2 spec sources (CI config, other specs, scripts), so a bare HEAD
         // advance is not evidence the baked inventory drifted. Gate the verdict
         // on whether the commits between the pin and HEAD actually touched the
         // tracked spec input paths — a `None` from the compare probe (offline or
-        // an API hiccup) conservatively keeps the raw `classify_freshness` answer
-        // rather than silently declaring "fresh".
+        // an API hiccup) conservatively keeps the raw `classify_drift` answer
+        // rather than silently declaring "up to date".
         let moved = matches!(
-            classify_freshness(&captured, Some(head)),
-            Freshness::RollingStale { .. }
+            classify_drift(&captured, Some(head)),
+            Drift::RollingStale { .. }
         );
         if !moved {
             return false;
@@ -187,10 +187,10 @@ pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
     }
 
     if head.is_none() && !any_published_probe {
-        // Every probe failed — treat as offline, not as a freshness verdict.
+        // Every probe failed — treat as offline, not as a drift verdict.
         return None;
     }
-    Some(SpecFreshness {
+    Some(DriftReport {
         rolling_stale,
         unseen_uris,
     })
@@ -202,7 +202,7 @@ pub fn fetch_spec_freshness() -> Option<SpecFreshness> {
 fn fetch_text(agent: &ureq::Agent, url: &str) -> Option<String> {
     let mut request = agent
         .get(url)
-        .header("User-Agent", "svg-language-server-spec-freshness");
+        .header("User-Agent", "svg-language-server-svgwg-drift");
     if url.starts_with("https://api.github.com/")
         && let Ok(token) = std::env::var("GITHUB_TOKEN")
         && !token.is_empty()
@@ -211,11 +211,11 @@ fn fetch_text(agent: &ureq::Agent, url: &str) -> Option<String> {
     }
     request
         .call()
-        .map_err(|err| tracing::warn!(url, error = %err, "freshness HTTP request failed"))
+        .map_err(|err| tracing::warn!(url, error = %err, "drift probe HTTP request failed"))
         .ok()?
         .body_mut()
         .read_to_string()
-        .map_err(|err| tracing::warn!(url, error = %err, "freshness response body read failed"))
+        .map_err(|err| tracing::warn!(url, error = %err, "drift probe response body read failed"))
         .ok()
 }
 
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn fresh_report_is_not_stale_and_has_no_message_trigger() {
-        let report = SpecFreshness {
+        let report = DriftReport {
             rolling_stale: false,
             unseen_uris: Vec::new(),
         };
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn rolling_drift_alone_is_stale() {
-        let report = SpecFreshness {
+        let report = DriftReport {
             rolling_stale: true,
             unseen_uris: Vec::new(),
         };
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn published_drift_alone_is_stale_and_lists_uris() {
-        let report = SpecFreshness {
+        let report = DriftReport {
             rolling_stale: false,
             unseen_uris: vec!["https://www.w3.org/TR/2099/CR-SVG2-20990101/".to_string()],
         };

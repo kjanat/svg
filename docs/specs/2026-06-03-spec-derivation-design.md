@@ -59,7 +59,7 @@ re-pinned to the **same** captured commit so the two stop disagreeing.
 
 ---
 
-## A. Edition catalog & versioning model (frozen vs rolling + freshness)
+## A. Edition catalog & versioning model (frozen vs rolling + drift)
 
 **Requirement:** the SVG 2 Editor's Draft must **not** be a dated Rust enum
 variant that has to be bumped on every refresh. Only **frozen, immutable**
@@ -96,7 +96,7 @@ Today the enum (`src/types.rs:410`) has 4 dated variants with
 files**; renaming to an undated `Svg2EditorsDraft` (date → `snapshot.json` data)
 is the mechanical change that kills the date-bumping toil.
 
-### Freshness / usability signal (LSP feature — the point of capturing editions)
+### Drift / usability signal (LSP feature — the point of capturing editions)
 
 - **Frozen editions**: never stale — report "final"; for SVG 2 link the
   `https://www.w3.org/TR/SVG2/` "latest published" pointer for context.
@@ -106,7 +106,7 @@ is the mechanical change that kills the date-bumping toil.
   latest is `<date>` — N commits behind / current."* Network check stays opt-in
   so offline use degrades gracefully.
 
-### Edition discovery & freshness via the W3C API
+### Edition discovery & drift via the W3C API
 
 Don't hardcode the edition list — the **W3C API** (`api.w3.org`, public, no
 auth, JSON, ISO-8601 dates, rate limit 6000/IP/10min) is the authoritative
@@ -117,8 +117,8 @@ source:
   **`SVG11`**, **`SVG2`**.
 - `GET /specifications/{shortname}/versions/latest` → redirect to the latest
   published version — drives the "is there a newer published edition?" check.
-- For the rolling ED (not on `/TR/`), freshness compares against the svgwg git
-  repo HEAD (`github.com/w3c/svgwg`).
+- For the rolling ED (not on `/TR/`), drift compares against the svgwg git repo
+  HEAD (`github.com/w3c/svgwg`).
 
 Authoritative milestone inventory (REC/PR/CR — pulled live 2026-06-03; WDs
 omitted, available but low value):
@@ -140,7 +140,7 @@ The user's requested editions map 1:1 to these REC/PR/CR milestones. **Capture
 priority = REC/PR/CR; WDs optional.** Build vs runtime split: the build derives
 from **vendored** dated artifacts (the API may be used offline-gated at
 *capture* time to resolve URLs + record `status`/`date` per snapshot); the
-**LSP** hits the API (opt-in) only for the runtime freshness signal.
+**LSP** hits the API (opt-in) only for the runtime drift signal.
 
 #### What the API actually returns (payload + scope)
 
@@ -150,7 +150,7 @@ from **vendored** dated artifacts (the API may be used offline-gated at
 > technical spec data — no elements, attributes, properties, value grammars, or
 > content models. All of that still comes from parsing the **vendored spec
 > documents** (propidx.html, `definitions*.xml`, DTD, chapter HTML). The API is
-> purely the *edition-index + freshness* layer, never a content source.
+> purely the *edition-index + drift* layer, never a content source.
 
 Format: **HAL+JSON** — every response is a pagination envelope
 `{ page, limit, pages, total, _links, _embedded }`; related resources are linked
@@ -163,13 +163,13 @@ Format: **HAL+JSON** — every response is a pagination envelope
 | single version detail                               | ~1.1 KB                       |
 | series root `/specifications/SVG2`                  | ~1.2 KB                       |
 
-Per-version object (11 typed fields, all the index/freshness layer needs):
-`status`, `rec-track` (bool), `editor-draft` (ED URL), `uri` (dated TR URL —
-**the vendor target**), `date` (ISO 8601), `implementation-feedback-due`,
-`informative` (bool), `title`, `shortlink` (the `/TR/SVG2/` latest pointer),
-`process-rules`, plus `_links` (self/editors/deliverers/specification/
-predecessor-version). `…/versions/latest` is a **302 redirect** to the latest
-dated version resource — latest-published date with one HEAD, no body parse.
+Per-version object (11 typed fields, all the index/drift layer needs): `status`,
+`rec-track` (bool), `editor-draft` (ED URL), `uri` (dated TR URL — **the vendor
+target**), `date` (ISO 8601), `implementation-feedback-due`, `informative`
+(bool), `title`, `shortlink` (the `/TR/SVG2/` latest pointer), `process-rules`,
+plus `_links` (self/editors/deliverers/specification/ predecessor-version).
+`…/versions/latest` is a **302 redirect** to the latest dated version resource —
+latest-published date with one HEAD, no body parse.
 
 The whole SVG edition universe is ~55 KB of structured JSON over 3 GETs → cheap
 to **vendor as a static edition index** and refresh occasionally; a Rust struct
@@ -198,7 +198,7 @@ profile axis rather than the version axis.
   `Group: SVG`); published at `https://svgwg.org/specs/svg-native/`. **Rolling
   like the SVG2 ED** (not on `/TR/` — the W3C API knows the shortname but has no
   dated versions). → treat as an **undated `SvgNative` profile**, capture
-  commit/date as data, freshness vs svgwg git HEAD.
+  commit/date as data, drift vs svgwg git HEAD.
 - **This is real spec data** (unlike the W3C API). SVG Native is defined as
   *reductive differences* from SVG 2 Secure Static Mode: explicit lists of
   **unsupported** elements / attributes / properties / values (e.g. no `text`/
@@ -370,14 +370,14 @@ entry + `added` + `upstream_ref` + self-prune-on-no-match pattern):
 
 ## 6. Decisions (resolved 2026-06-03)
 
-- **Q-EDITIONS → frozen are hard-set, ED is rolling/undated + freshness (see
-  §A).** Capture all reachable frozen editions (SVG 1.0 2001, SVG 1.1 FE 2003,
-  SVG 1.1 PR 2011-06, SVG 1.1 SE 2011-08, SVG 2 CR 2016-09 / 2018-08 / 2018-10)
-  as hard-set Rust variants, derived once from their dated TR artifacts. The
+- **Q-EDITIONS → frozen are hard-set, ED is rolling/undated + drift (see §A).**
+  Capture all reachable frozen editions (SVG 1.0 2001, SVG 1.1 FE 2003, SVG 1.1
+  PR 2011-06, SVG 1.1 SE 2011-08, SVG 2 CR 2016-09 / 2018-08 / 2018-10) as
+  hard-set Rust variants, derived once from their dated TR artifacts. The
   Editor's Draft becomes a single **undated** `Svg2EditorsDraft` variant whose
   captured commit/date is data (no Rust bump on refresh). The LSP surfaces a
-  freshness signal: frozen = "final"; ED = baked-capture vs live, "N commits
-  behind / current."
+  drift signal: frozen = "final"; ED = baked-capture vs live, "N commits behind
+  / current."
 - **Q-PIN → provenance, not a constraint.** `svgwg/` is a gitignored throwaway
   discovery clone; the build may `git clone` it freely. The pin only records
   which commit the vendored artifacts were captured at. No need to stay on

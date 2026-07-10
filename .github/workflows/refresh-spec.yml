@@ -2,8 +2,8 @@
 name: Spec refresh
 on: { schedule: [cron: "0 6 * * 1"], workflow_dispatch: {} }
 permissions: { contents: read }
-concurrency: { group: spec-freshness, cancel-in-progress: false }
-env: { ISSUE_LABEL: spec-freshness }
+concurrency: { group: svgwg-drift, cancel-in-progress: false }
+env: { ISSUE_LABEL: svgwg-drift }
 defaults: { run: { shell: pwsh } }
 jobs:
   check:
@@ -23,13 +23,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: Run freshness sentinel
+      - name: Run drift sentinel
         id: sentinel
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
 
-          $runSentinel = { cargo run --quiet --package svg-data --features freshness-cli --bin spec-freshness -- --json > report.json }
+          $runSentinel = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --json > report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
           $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { break } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
@@ -40,7 +40,7 @@ jobs:
           "Sentinel exit code: {0}" -f $code
           Get-Content -Raw report.json -ErrorAction SilentlyContinue
 
-          &$acceptExit $code "spec-freshness check"
+          &$acceptExit $code "svgwg-drift check"
 
       - name: Check compat drift
         id: compat
@@ -48,7 +48,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
 
-          $runCompat = { cargo run --quiet --package svg-data --features freshness-cli --bin spec-freshness -- --compat-drift --json > compat-report.json }
+          $runCompat = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --compat-drift --json > compat-report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
           $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { break } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
@@ -164,7 +164,7 @@ jobs:
           }
 
           $body = @"
-          Automated re-vendor from the weekly **spec-freshness** sentinel.
+          Automated re-vendor from the weekly **svgwg-drift** sentinel.
 
           Drift detected:
           - W3C published editions / compat versions: ``$($check.published)`` published, ``$($check.compat)`` compat
@@ -223,7 +223,7 @@ jobs:
           $runUrl = "{0}/{1}/actions/runs/{2}" -f $github.server_url, $github.repository, $github.run_id
 
           $body = @"
-          The ``spec-freshness`` sentinel detected drift between the baked spec catalog and upstream.
+          The ``svgwg-drift`` sentinel detected drift between the baked spec catalog and upstream.
 
           Drift summary:
           - W3C published editions: ``$($check.published)``
@@ -264,7 +264,7 @@ jobs:
           foreach ($number in $numbers) {
             if ([string]::IsNullOrWhiteSpace($number)) { continue }
 
-            $comment = "Resolved: ``spec-freshness`` now reports the baked data up to date."
+            $comment = "Resolved: ``svgwg-drift`` now reports the baked data up to date."
             "Spec data is fresh again - closing #{0}" -f $number
 
             &$closeIssue $number $comment

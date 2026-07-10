@@ -1,4 +1,4 @@
-//! CI sentinel for baked SVG spec and compat-source freshness.
+//! CI sentinel for baked SVG spec and compat-source drift.
 
 use std::{process::ExitCode, time::Duration};
 
@@ -8,7 +8,7 @@ use ureq::config::IpFamily;
 
 const SVGWG_REPO_API: &str = "https://api.github.com/repos/w3c/svgwg";
 const TRACKED_SPEC_PATH_PREFIX: &str = "master/";
-const USER_AGENT: &str = "svg-data-spec-freshness (+https://github.com/kjanat/svg)";
+const USER_AGENT: &str = "svg-data-svgwg-drift (+https://github.com/kjanat/svg)";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const BODY_LIMIT: u64 = 64 * 1024 * 1024;
 const COMPAT_CATALOG: &str = include_str!("../../data/catalog.compat.json");
@@ -19,7 +19,7 @@ fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("spec-freshness: {error}");
+            eprintln!("svgwg-drift: {error}");
             ExitCode::from(2)
         }
     }
@@ -33,7 +33,7 @@ fn run() -> Fallible<ExitCode> {
         .iter()
         .any(|arg| !matches!(arg.as_str(), "--json" | "--compat-drift"))
     {
-        return Err(boxed("usage: spec-freshness [--json] [--compat-drift]"));
+        return Err(boxed("usage: svgwg-drift [--json] [--compat-drift]"));
     }
 
     if compat_drift {

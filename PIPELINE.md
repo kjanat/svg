@@ -63,7 +63,7 @@ flowchart TD
 ## ① Sources (raw / upstream)
 
 All default build inputs are checked into the repo. Network access is only used
-for explicit refresh overrides or runtime freshness checks.
+for explicit refresh overrides or runtime drift checks.
 
 | Path                                                                                       | Format      | Authority                  | Holds                                                                                                                                 |
 | ------------------------------------------------------------------------------------------ | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |

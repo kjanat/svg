@@ -34,11 +34,11 @@ mod compat;
 mod completion;
 mod definition;
 mod diagnostics;
-mod freshness;
 mod hover;
 mod logging;
 mod positions;
 mod stylesheets;
+mod svgwg_drift;
 
 use clipboard::{copy_text_to_system_clipboard, svg_data_uri};
 use code_actions::{
@@ -309,14 +309,14 @@ fn configured_force_profile(config: &Value) -> bool {
         .unwrap_or(false)
 }
 
-/// Whether the client opted into the runtime spec-freshness check
-/// (`svg.spec_freshness_check`). Off by default: it contacts `api.w3.org` and
+/// Whether the client opted into the runtime svgwg drift check
+/// (`svg.svgwg_drift_check`). Off by default: it contacts `api.w3.org` and
 /// `api.github.com`, which users must consent to.
-fn configured_spec_freshness(config: &Value) -> bool {
+fn configured_drift_check(config: &Value) -> bool {
     config
         .get("svg")
         .and_then(Value::as_object)
-        .and_then(|svg| svg.get("spec_freshness_check"))
+        .and_then(|svg| svg.get("svgwg_drift_check"))
         .and_then(Value::as_bool)
         .unwrap_or(false)
 }
@@ -1110,10 +1110,10 @@ impl LanguageServer for SvgLanguageServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("initialize");
 
-        let spec_freshness_enabled = params
+        let drift_check_enabled = params
             .initialization_options
             .as_ref()
-            .is_some_and(configured_spec_freshness);
+            .is_some_and(configured_drift_check);
 
         // Runtime compat refresh is opt-out (default on). Absent options keep the
         // default so a client that sends no config still gets fresh BCD.
@@ -1126,21 +1126,21 @@ impl LanguageServer for SvgLanguageServer {
             self.apply_profile_config(config).await;
         }
 
-        // Opt-in background spec-freshness probe: warn once if the baked spec
+        // Opt-in background svgwg-drift probe: warn once if the baked spec
         // catalog has drifted from live W3C / svgwg. Best-effort and silent when
-        // offline or up to date (see `freshness`).
-        if spec_freshness_enabled {
+        // offline or up to date (see `svgwg_drift`).
+        if drift_check_enabled {
             let server = self.clone();
             tokio::spawn(async move {
-                match tokio::task::spawn_blocking(freshness::fetch_spec_freshness).await {
+                match tokio::task::spawn_blocking(svgwg_drift::fetch_report).await {
                     Ok(Some(report)) if report.is_stale() => {
                         server
                             .client
                             .show_message(MessageType::WARNING, report.message())
                             .await;
                     }
-                    Ok(_) => tracing::info!("spec freshness: up to date or undetermined"),
-                    Err(error) => tracing::warn!(%error, "spec freshness task panicked"),
+                    Ok(_) => tracing::info!("svgwg drift: up to date or undetermined"),
+                    Err(error) => tracing::warn!(%error, "svgwg drift task panicked"),
                 }
             });
         }

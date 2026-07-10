@@ -11,10 +11,14 @@ keywords.workspace   = true
 categories.workspace = true
 build                = "build.rs"
 
+# svgwg-drift is internal spec tooling, not a distributable app
+[package.metadata.dist]
+dist = false
+
 [[bin]]
-name              = "spec-freshness"
-path              = "src/bin/spec-freshness.rs"
-required-features = ["freshness-cli"]
+name              = "svgwg-drift"
+path              = "src/bin/svgwg-drift.rs"
+required-features = ["drift-cli"]
 
 [dependencies]
 serde      = { workspace = true }
@@ -26,7 +30,7 @@ serde      = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
-freshness-cli = ["ureq"]
+drift-cli = ["ureq"]
 
 [lints]
 workspace = true
