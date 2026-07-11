@@ -1,0 +1,29 @@
+{
+	"name": "@kjanat/svg-toolkit",
+	"description": "All svg-toolkit CLIs in one install: svg-language-server (svg-ls), svg-lint, and svg-format.",
+	"keywords": [
+		"svg",
+		"lsp",
+		"language-server",
+		"linter",
+		"formatter",
+		"toolkit",
+		"cli"
+	],
+	"repository": "kjanat/svg",
+	"type": "module",
+	"exports": {
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"svg-language-server": "bin/svg-language-server.mjs",
+		"svg-ls": "bin/svg-language-server.mjs",
+		"svg-lint": "bin/svg-lint.mjs",
+		"svg-format": "bin/svg-format.mjs"
+	},
+	"files": [
+		"bin/",
+		"README.md",
+		"LICENSE"
+	]
+}

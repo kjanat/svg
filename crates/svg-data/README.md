@@ -1,5 +1,7 @@
 # svg-data
 
+[![Crates.io](https://img.shields.io/crates/v/svg-data?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-data)
+
 Structured SVG specification data — a typed, profile-aware catalog of elements,
 attributes, content models, and browser-compat verdicts, generated from
 canonical upstream sources (the W3C SVG specs, MDN browser-compat-data, and

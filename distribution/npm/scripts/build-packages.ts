@@ -121,9 +121,19 @@ interface Target {
 
 interface Facade {
 	name: string;
+	/** Additional npm names this facade publishes under (byte-identical twins). */
+	alsoPublishAs?: string[];
+	/** Template dir under `facade/`; defaults to `name` (required for scoped names). */
+	template?: string;
 	/** Tool prefix for this facade's platform sub-packages: `<scope>/<pkg>-<target.pkg>`. */
 	pkg: string;
 	bin: string;
+	description?: string;
+}
+
+interface Bundle {
+	name: string;
+	template: string;
 	description?: string;
 }
 
@@ -131,7 +141,22 @@ interface Matrix {
 	scope: string;
 	binaries: string[];
 	facades: Facade[];
+	bundle?: Bundle;
 	targets: Target[];
+}
+
+/**
+ * Directory name for a package inside `dist/`, npm-pack style: the scope `@`
+ * is dropped and `/` becomes `-`, so scoped names stay valid path segments
+ * (`@svg-toolkit/svg-lint` → `svg-toolkit-svg-lint`).
+ */
+function dirName(packageName: string): string {
+	return packageName.replace(/^@/, '').replace(/\//g, '-');
+}
+
+/** All npm names a facade publishes under, primary first. */
+function publishNames(facade: Facade): string[] {
+	return [facade.name, ...(facade.alsoPublishAs ?? [])];
 }
 
 interface BuildOptions {
@@ -202,6 +227,7 @@ const matrix = readMatrix();
 const [firstPackageName, ...restPackageNames] = [
 	...matrix.targets.map((t) => t.pkg),
 	...matrix.facades.map((f) => f.name),
+	...(matrix.bundle ? [matrix.bundle.name] : []),
 ];
 if (!firstPackageName) {
 	throw new Error('targets.json defines no packages');
@@ -214,8 +240,9 @@ async function cleanDist(): Promise<void> {
 
 /**
  * Build one facade package from its checked-in template plus the shared
- * launcher lib. The bin shim is generated so the template dir stays free of
- * per-binary boilerplate.
+ * launcher lib, once per publish name (a scoped twin is byte-identical apart
+ * from `package.json.name`). The bin shim is generated so the template dir
+ * stays free of per-binary boilerplate.
  */
 async function buildFacade(
 	matrix: Matrix,
@@ -224,42 +251,88 @@ async function buildFacade(
 	builtTargets: Target[],
 	meta: Record<string, unknown>,
 ): Promise<void> {
-	const templateDir = join(npmDir, 'facade', facade.name);
+	const templateDir = join(npmDir, 'facade', facade.template ?? facade.name);
 	const template = JSON.parse(await readFile(join(templateDir, 'package.json'), 'utf8')) as Record<string, unknown>;
 
-	const dest = join(distDir, facade.name);
-	await mkdir(join(dest, 'bin'), { recursive: true });
-	await mkdir(join(dest, 'lib'), { recursive: true });
+	for (const packageName of publishNames(facade)) {
+		const dest = join(distDir, dirName(packageName));
+		await mkdir(join(dest, 'bin'), { recursive: true });
+		await mkdir(join(dest, 'lib'), { recursive: true });
 
-	// Cargo metadata wins over the template for the fields it owns (license,
-	// author, homepage, repository, bugs) so there's one source of truth.
+		// Cargo metadata wins over the template for the fields it owns (license,
+		// author, homepage, repository, bugs) so there's one source of truth.
+		const packageJson = {
+			...template,
+			...meta,
+			name: packageName,
+			version,
+			optionalDependencies: Object.fromEntries(
+				builtTargets.map((target) => [`${matrix.scope}/${facade.pkg}-${target.pkg}`, version]),
+			),
+		};
+
+		await writeJson(join(dest, 'package.json'), packageJson);
+		await cp(join(templateDir, 'README.md'), join(dest, 'README.md'));
+		await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
+
+		for (const file of FACADE_LIB_FILES) {
+			await cp(join(npmDir, 'facade', 'lib', file), join(dest, 'lib', file));
+		}
+		await writeFile(
+			join(dest, 'bin', `${facade.bin}.mjs`),
+			`\
+#!/usr/bin/env node
+import launch from "#launch";
+launch("${facade.bin}");
+`,
+			{ mode: 0o755 },
+		);
+
+		console.log(`built ${formatPackage(undefined, packageName, version)}`);
+	}
+}
+
+/**
+ * Build the bundle meta-package: exact-pinned `dependencies` on every
+ * facade's primary name, plus one generated shim per facade bin that defers
+ * to that facade's own shim (facades export `./bin/*` for exactly this).
+ */
+async function buildBundle(
+	matrix: Matrix,
+	bundle: Bundle,
+	version: string,
+	meta: Record<string, unknown>,
+): Promise<void> {
+	const templateDir = join(npmDir, 'facade', bundle.template);
+	const template = JSON.parse(await readFile(join(templateDir, 'package.json'), 'utf8')) as Record<string, unknown>;
+
+	const dest = join(distDir, dirName(bundle.name));
+	await mkdir(join(dest, 'bin'), { recursive: true });
+
 	const packageJson = {
 		...template,
 		...meta,
+		name: bundle.name,
 		version,
-		optionalDependencies: Object.fromEntries(
-			builtTargets.map((target) => [`${matrix.scope}/${facade.pkg}-${target.pkg}`, version]),
-		),
+		dependencies: Object.fromEntries(matrix.facades.map((facade) => [facade.name, version])),
 	};
 
 	await writeJson(join(dest, 'package.json'), packageJson);
 	await cp(join(templateDir, 'README.md'), join(dest, 'README.md'));
 	await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
 
-	for (const file of FACADE_LIB_FILES) {
-		await cp(join(npmDir, 'facade', 'lib', file), join(dest, 'lib', file));
-	}
-	await writeFile(
-		join(dest, 'bin', `${facade.bin}.mjs`),
-		`\
+	for (const facade of matrix.facades) {
+		await writeFile(
+			join(dest, 'bin', `${facade.bin}.mjs`),
+			`\
 #!/usr/bin/env node
-import launch from "#launch";
-launch("${facade.bin}");
+import "${facade.name}/bin/${facade.bin}.mjs";
 `,
-		{ mode: 0o755 },
-	);
+			{ mode: 0o755 },
+		);
+	}
 
-	console.log(`built ${formatPackage(undefined, facade.name, version)}`);
+	console.log(`built ${formatPackage(undefined, bundle.name, version)}`);
 }
 
 /**
@@ -540,6 +613,11 @@ async function build(opts: BuildOptions): Promise<void> {
 			throw new Error(`no platform packages built for ${facade.name}; refusing a facade with empty optionalDependencies`);
 		}
 		await withLogGroup(facade.name, () => buildFacade(matrix, facade, opts.version, builtTargets, meta));
+	}
+
+	if (matrix.bundle && (!opts.only || opts.only.has(matrix.bundle.name))) {
+		const bundle = matrix.bundle;
+		await withLogGroup(bundle.name, () => buildBundle(matrix, bundle, opts.version, meta));
 	}
 }
 

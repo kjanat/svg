@@ -1,5 +1,7 @@
 # svg-tree
 
+[![Crates.io](https://img.shields.io/crates/v/svg-tree?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-tree)
+
 Shared tree-sitter traversal and query helpers used by the SVG workspace crates.
 
 ## API

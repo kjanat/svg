@@ -48,6 +48,7 @@ jobs:
       dry-run: ${{ steps.derive.outputs.dry-run }}
       platforms: ${{ steps.matrix.outputs.platforms }}
       facades: ${{ steps.matrix.outputs.facades }}
+      bundle: ${{ steps.matrix.outputs.bundle }}
     steps:
       # Sparse-checkout from default branch — no tag-supplied code on disk.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -125,7 +126,7 @@ jobs:
           only-package: ${{ matrix.pkg }}
           token: ${{ secrets.NPM_TOKEN }}
 
-  # Facades last so their optionalDependencies resolve on install.
+  # Facades after platforms so their optionalDependencies resolve on install.
   publish-facades:
     name: publish ${{ matrix.pkg }}
     needs: [setup, publish]
@@ -157,4 +158,38 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
+          token: ${{ secrets.NPM_TOKEN }}
+
+  # Bundle last: its exact-pinned dependencies are the facades above.
+  publish-bundle:
+    name: publish ${{ needs.setup.outputs.bundle }}
+    needs: [setup, publish-facades]
+    if: needs.setup.outputs.bundle != ''
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write, actions: read }
+    environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with: { registry-url: "${{ env.REGISTRY }}" }
+
+      - name: download dist artifact
+        uses: ./.github/actions/dist-artifact
+        with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
+
+      - name: publish to npm
+        id: publish
+        uses: ./.github/actions/npm-publish
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          dist-tag: ${{ needs.setup.outputs.dist-tag }}
+          dry-run: ${{ needs.setup.outputs.dry-run }}
+          registry: ${{ env.REGISTRY }}
+          only-package: ${{ needs.setup.outputs.bundle }}
           token: ${{ secrets.NPM_TOKEN }}

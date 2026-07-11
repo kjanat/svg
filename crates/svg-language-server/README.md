@@ -1,5 +1,8 @@
 # svg-language-server
 
+[![Crates.io](https://img.shields.io/crates/v/svg-language-server?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-language-server)
+[![NPM](https://img.shields.io/npm/v/svg-language-server?logo=npm&labelColor=CB3837&color=black)](https://npm.im/svg-language-server)
+
 LSP server for SVG files — hover docs, completions, diagnostics, and color
 swatches.
 

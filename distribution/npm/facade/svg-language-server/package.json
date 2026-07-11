@@ -19,7 +19,8 @@
 		"#resolve": "./lib/resolve.mjs"
 	},
 	"exports": {
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./bin/*": "./bin/*"
 	},
 	"bin": {
 		"svg-language-server": "bin/svg-language-server.mjs",

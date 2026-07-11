@@ -1,5 +1,7 @@
 # svg-color
 
+[![Crates.io](https://img.shields.io/crates/v/svg-color?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-color)
+
 Color extraction and format conversion for SVG documents.
 
 ## Features

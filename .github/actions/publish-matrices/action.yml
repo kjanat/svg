@@ -8,8 +8,11 @@ outputs:
     description: JSON array of platform packages with experimental flags
     value: ${{ steps.gen.outputs.platforms }}
   facades:
-    description: JSON array of facade packages
+    description: JSON array of facade packages (every publish name, twins included)
     value: ${{ steps.gen.outputs.facades }}
+  bundle:
+    description: Bundle package name, or empty when targets.json defines none
+    value: ${{ steps.gen.outputs.bundle }}
 
 runs:
   using: composite

@@ -1,5 +1,5 @@
 {
-	"name": "svg-lint",
+	"name": "@svg-toolkit/svg-lint",
 	"description": "Structural linter for SVG documents.",
 	"keywords": [
 		"svg",
@@ -17,7 +17,8 @@
 		"#resolve": "./lib/resolve.mjs"
 	},
 	"exports": {
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./bin/*": "./bin/*"
 	},
 	"bin": "bin/svg-lint.mjs",
 	"directories": {

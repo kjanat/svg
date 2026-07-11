@@ -1,11 +1,18 @@
 # svg-language-server
 
+[![NPM](https://img.shields.io/npm/v/svg-language-server?logo=npm&labelColor=CB3837&color=black)](https://npm.im/svg-language-server)
+
 LSP server for SVG: diagnostics, completions, hover, formatting, and references.
 
 ```sh
-npm install -g svg-language-server
-svg-language-server --version
+npm install -g svg-language-server                 # unscoped
+npm install -g @svg-toolkit/svg-language-server    # same package, scoped
+svg-language-server --version                      # `svg-ls` works too
 ```
+
+Both names ship byte-identical content; pick whichever you like. Or grab the
+whole toolkit at once with
+[`@kjanat/svg-toolkit`](https://npm.im/@kjanat/svg-toolkit).
 
 The package resolves a prebuilt native binary for your platform via
 `optionalDependencies` — no postinstall step, no install-time network access.

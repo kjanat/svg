@@ -7,6 +7,30 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-11
+
+### Added
+
+- `@kjanat/svg-toolkit` npm bundle: installs all three CLIs (plus the `svg-ls`
+  alias) in one go via exact-pinned dependencies
+- Scoped npm twins `@svg-toolkit/svg-language-server` and
+  `@svg-toolkit/svg-format`, byte-identical to their unscoped packages
+- Version badges on the root, crate, grammar, and npm facade READMEs
+- `svg-data` crate README
+
+### Changed
+
+- The npm linter facade is `@svg-toolkit/svg-lint`: npm's typosquat filter
+  permanently blocks the unscoped name as too similar to the unrelated `svglint`
+  package (the binary is still `svg-lint`)
+
+### Fixed
+
+- Release workflow passed no environment secrets to the npm and crates publish
+  child workflows (`secrets: inherit`)
+- Release build-dist smoke test now derives its packages from `targets.json`
+  instead of a hardcoded list
+
 ## [0.1.0] - 2026-07-11
 
 ### Added

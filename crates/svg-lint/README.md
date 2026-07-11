@@ -1,5 +1,8 @@
 # svg-lint
 
+[![Crates.io](https://img.shields.io/crates/v/svg-lint?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-lint)
+[![NPM](https://img.shields.io/npm/v/%40svg-toolkit%2Fsvg-lint?logo=npm&labelColor=CB3837&color=black)](https://npm.im/@svg-toolkit/svg-lint)
+
 Structural linting for SVG documents — validates element nesting, attribute
 usage, and ID uniqueness against the SVG spec.
 
@@ -21,9 +24,14 @@ usage, and ID uniqueness against the SVG spec.
 ## Install
 
 ```sh
-cargo install svg-lint          # from crates.io
-npm install --global svg-lint   # prebuilt binary via npm
+cargo install svg-lint                       # from crates.io
+npm install --global @svg-toolkit/svg-lint   # prebuilt binary via npm
 ```
+
+npm refuses the unscoped name `svg-lint` ("too similar" to the unrelated
+`svglint` — fucking great, thanks npm), so the npm package lives under the
+`@svg-toolkit` scope; the binary is still plain `svg-lint`. It also ships in the
+[`@kjanat/svg-toolkit`](https://npm.im/@kjanat/svg-toolkit) bundle.
 
 ## API
 

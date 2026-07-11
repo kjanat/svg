@@ -166,20 +166,19 @@ jobs:
       - name: build npm packages
         run: node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
 
+      # Dirs and bins derive from targets.json so a facade change cannot
+      # leave these steps referencing packages that no longer exist.
       - name: add bin dirs to path
         run: |
-          {
-            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/lint-linux-x64-gnu/bin"
-            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/format-linux-x64-gnu/bin"
-            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/language-server-linux-x64-gnu/bin"
-          } >> "${GITHUB_PATH}"
+          jq -r --arg ws "${GITHUB_WORKSPACE}" '.facades[].pkg | "\($ws)/distribution/npm/dist/\(.)-linux-x64-gnu/bin"' \
+            distribution/npm/targets.json >> "${GITHUB_PATH}"
 
       # Only target executable on ubuntu-latest; others exercised at install.
       - name: smoke-test packaged linux-x64-gnu binaries
         run: |
-          svg-lint --version
-          svg-format --version
-          svg-language-server --version
+          for bin in $(jq -r '.facades[].bin' distribution/npm/targets.json); do
+            "${bin}" --version
+          done
 
       - name: tar dist (preserve file modes)
         run: tar -cf distribution/npm/dist.tar -C distribution/npm dist

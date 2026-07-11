@@ -16,7 +16,8 @@
 		"#resolve": "./lib/resolve.mjs"
 	},
 	"exports": {
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./bin/*": "./bin/*"
 	},
 	"bin": "bin/svg-format.mjs",
 	"directories": {

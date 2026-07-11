@@ -2,6 +2,32 @@
 	"$id": "https://github.com/kjanat/svg/blob/master/npm/targets.schema.json",
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$defs": {
+		"bundle": {
+			"description": "Meta-package that installs every facade at once via exact-pinned \"dependencies\" and re-exposes all their bins.",
+			"type": "object",
+			"required": [
+				"name",
+				"template"
+			],
+			"properties": {
+				"description": {
+					"description": "npm package.json description for the bundle.",
+					"type": "string",
+					"minLength": 1
+				},
+				"name": {
+					"description": "npm package name of the bundle.",
+					"type": "string",
+					"pattern": "^(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9._-]*$"
+				},
+				"template": {
+					"description": "Template directory under \"distribution/npm/facade/\".",
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9._-]*$"
+				}
+			},
+			"additionalProperties": false
+		},
 		"facade": {
 			"description": "A user-facing npm package exposing one binary. \nEach facade has its own per-platform sub-packages (\"<scope>/<pkg>-<target.pkg>\", one binary each) via \"optionalDependencies\".",
 			"type": "object",
@@ -11,6 +37,16 @@
 				"pkg"
 			],
 			"properties": {
+				"alsoPublishAs": {
+					"description": "Additional npm names this facade is published under, byte-identical apart from \"name\" (e.g. a scoped twin of an unscoped facade).",
+					"type": "array",
+					"minItems": 1,
+					"uniqueItems": true,
+					"items": {
+						"type": "string",
+						"pattern": "^(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9._-]*$"
+					}
+				},
 				"bin": {
 					"description": "Binary this facade launches. Must be listed in \"binaries\".",
 					"type": "string",
@@ -22,14 +58,19 @@
 					"minLength": 1
 				},
 				"name": {
-					"description": "npm package name users install (unscoped).",
+					"description": "npm package name users install. Unscoped or scoped.",
 					"type": "string",
-					"pattern": "^[a-z0-9][a-z0-9._-]*$"
+					"pattern": "^(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9._-]*$"
 				},
 				"pkg": {
 					"description": "Tool prefix for this facade's platform sub-packages: \"<scope>/<pkg>-<target.pkg>\".",
 					"type": "string",
 					"pattern": "^[a-z0-9][a-z0-9-]*$"
+				},
+				"template": {
+					"description": "Template directory under \"distribution/npm/facade/\". Defaults to \"name\"; required when \"name\" is scoped (a \"/\" cannot appear in a directory name).",
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9._-]*$"
 				}
 			},
 			"additionalProperties": false
@@ -233,6 +274,9 @@
 				"type": "string",
 				"pattern": "^[a-zA-Z0-9_-]+$"
 			}
+		},
+		"bundle": {
+			"$ref": "#/$defs/bundle"
 		},
 		"facades": {
 			"description": "User-facing npm packages, one per binary. \nEach resolves to the correct platform sub-package via \"optionalDependencies\".",

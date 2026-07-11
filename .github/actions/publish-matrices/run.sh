@@ -6,9 +6,12 @@ GITHUB_OUTPUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT required}"
 
 # One platform package per facade × target: <facade.pkg>-<target.pkg>.
 platforms=$(jq -c '[.facades[] as $f | .targets[] | {pkg: ($f.pkg + "-" + .pkg), experimental: (.experimental // false)}]' distribution/npm/targets.json)
-facades=$(jq -c '[.facades[] | {pkg: .name}]' distribution/npm/targets.json)
+# One publish job per facade publish name (scoped twins included).
+facades=$(jq -c '[.facades[] | .name, (.alsoPublishAs // [])[] | {pkg: .}]' distribution/npm/targets.json)
+bundle=$(jq -r '.bundle.name // empty' distribution/npm/targets.json)
 
 {
 	echo "platforms=${platforms}"
 	echo "facades=${facades}"
+	echo "bundle=${bundle}"
 } | tee -a "${GITHUB_OUTPUT}"

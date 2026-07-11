@@ -1,5 +1,6 @@
 # tree-sitter-svg-path
 
+[![Crates.io](https://img.shields.io/crates/v/tree-sitter-svg-path?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/tree-sitter-svg-path)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)][LICENSE-MIT]
 
 A [Tree-sitter] grammar for **SVG path data** — the value of the `d` (and

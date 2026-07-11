@@ -1,5 +1,8 @@
 # svg-format
 
+[![Crates.io](https://img.shields.io/crates/v/svg-format?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-format)
+[![NPM](https://img.shields.io/npm/v/svg-format?logo=npm&labelColor=CB3837&color=black)](https://npm.im/svg-format)
+
 Structural formatter for SVG documents.
 
 This crate formats SVG by parsing with tree-sitter and rebuilding a normalized
@@ -41,7 +44,8 @@ let pretty_custom = format_with_options(
 ## CLI
 
 `svg-format` is also available as a CLI binary from the same crate
-(`cargo install svg-format` or `npm install --global svg-format`).
+(`cargo install svg-format`, or `npm install --global svg-format` /
+`@svg-toolkit/svg-format` for the prebuilt binary).
 
 ```sh
 # Format from stdin to stdout

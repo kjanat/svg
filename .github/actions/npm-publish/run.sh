@@ -24,10 +24,12 @@ TARGETS_JSON="${GITHUB_WORKSPACE:-.}/distribution/npm/targets.json"
 SCOPE=$(jq -r '.scope' "${TARGETS_JSON}")
 # Assign before mapfile so a jq failure aborts under `set -e`; guard
 # empty output, which `<<<` would turn into a phantom "" element.
-facade_list=$(jq -r '.facades[].name' "${TARGETS_JSON}")
+# Every publish name per facade: the primary name plus its scoped twins.
+facade_list=$(jq -r '.facades[] | .name, (.alsoPublishAs // [])[]' "${TARGETS_JSON}")
 # One platform package per facade × target: <facade.pkg>-<target.pkg>.
 required_list=$(jq -r '.facades[] as $f | .targets[] | select((.experimental // false) | not) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
 optional_list=$(jq -r '.facades[] as $f | .targets[] | select(.experimental // false) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
+BUNDLE_NAME=$(jq -r '.bundle.name // empty' "${TARGETS_JSON}")
 FACADES=()
 REQUIRED_PLATFORMS=()
 OPTIONAL_PLATFORMS=()
@@ -35,6 +37,13 @@ OPTIONAL_PLATFORMS=()
 [[ -n "${required_list}" ]] && mapfile -t REQUIRED_PLATFORMS <<<"${required_list}"
 [[ -n "${optional_list}" ]] && mapfile -t OPTIONAL_PLATFORMS <<<"${optional_list}"
 EXPECTED_VERSION="${RELEASE_TAG#v}"
+
+# dist/ directory for a package name, npm-pack style: strip the scope's "@",
+# "/" becomes "-" ("@svg-toolkit/svg-lint" -> "svg-toolkit-svg-lint").
+dir_for() {
+	local name="${1#@}"
+	printf '%s' "${name//\//-}"
+}
 
 # publish_allowed publishes a single package from the artifact when it exists
 # and its package.json matches the expected name and version, skips optional
@@ -83,16 +92,33 @@ publish_allowed() {
 		exit 1
 	fi
 
-	# optionalDependencies validation. Facades are the only packages that
-	# legitimately ship optionalDependencies (one entry per built platform
-	# package, all pinned to EXPECTED_VERSION). Platform packages must have
-	# none — a tampered platform package could otherwise smuggle attacker-
+	# Dependency validation. Facades are the only packages that legitimately
+	# ship optionalDependencies (one entry per built platform package, all
+	# pinned to EXPECTED_VERSION); the bundle is the only package with
+	# runtime dependencies on the facades. Platform packages must have
+	# neither — a tampered package could otherwise smuggle attacker-
 	# controlled deps that npm would happily install transitively.
-	if [[ " ${FACADES[*]} " == *" ${expected_name} "* ]]; then
+	if [[ -n "${BUNDLE_NAME}" && "${expected_name}" == "${BUNDLE_NAME}" ]]; then
+		if jq -e '(.optionalDependencies // {}) | length > 0' "${dir}/package.json" >/dev/null; then
+			echo "error: bundle ${expected_name} has optionalDependencies; only facades may declare any" >&2
+			exit 1
+		fi
+		# The bundle's dependencies must be exactly every facade's primary
+		# name, pinned to EXPECTED_VERSION — nothing more, nothing less.
+		if ! jq -e --arg v "${EXPECTED_VERSION}" '
+			(.dependencies // {}) as $deps
+			| ($deps | to_entries | all(.value == $v)) and
+			  (($deps | keys | sort) == ([input.facades[].name] | sort))
+		' "${dir}/package.json" "${TARGETS_JSON}" >/dev/null; then
+			echo "error: bundle dependencies must be exactly the facade names pinned to ${EXPECTED_VERSION}" >&2
+			exit 1
+		fi
+	elif [[ " ${FACADES[*]} " == *" ${expected_name} "* ]]; then
 		# A facade may only reference ITS OWN tool's platform packages
-		# (prefix <facade.pkg>-), never a sibling tool's.
+		# (prefix <facade.pkg>-), never a sibling tool's. Scoped twins share
+		# their primary facade's pkg prefix.
 		local facade_pkg
-		facade_pkg=$(jq -r --arg n "${expected_name}" '.facades[] | select(.name == $n) | .pkg' "${TARGETS_JSON}")
+		facade_pkg=$(jq -r --arg n "${expected_name}" '.facades[] | select(.name == $n or ((.alsoPublishAs // []) | index($n) != null)) | .pkg' "${TARGETS_JSON}")
 		if [[ -z "${facade_pkg}" ]]; then
 			echo "error: facade ${expected_name} has no pkg prefix in targets.json" >&2
 			exit 1
@@ -188,7 +214,13 @@ publish_allowed() {
 
 # Refuse to proceed if the artifact contains anything outside the
 # allowlist — that's either a misconfiguration or an attack.
-allowed_set=" ${FACADES[*]} ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} "
+allowed_set=" ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} "
+for name in "${FACADES[@]}"; do
+	allowed_set+="$(dir_for "${name}") "
+done
+if [[ -n "${BUNDLE_NAME}" ]]; then
+	allowed_set+="$(dir_for "${BUNDLE_NAME}") "
+fi
 for dir in distribution/npm/dist/*/; do
 	base=$(basename "${dir%/}")
 	if [[ "${allowed_set}" != *" ${base} "* ]]; then
@@ -208,14 +240,17 @@ for platform in "${REQUIRED_PLATFORMS[@]}" "${OPTIONAL_PLATFORMS[@]}"; do
 done
 
 if [[ -n "${ONLY_PACKAGE}" ]]; then
-	if [[ " ${FACADES[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
-		publish_allowed "distribution/npm/dist/${ONLY_PACKAGE}" "${ONLY_PACKAGE}" true
+	only_dir=$(dir_for "${ONLY_PACKAGE}")
+	if [[ -n "${BUNDLE_NAME}" && "${ONLY_PACKAGE}" == "${BUNDLE_NAME}" ]]; then
+		publish_allowed "distribution/npm/dist/${only_dir}" "${ONLY_PACKAGE}" true
+	elif [[ " ${FACADES[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
+		publish_allowed "distribution/npm/dist/${only_dir}" "${ONLY_PACKAGE}" true
 	elif [[ " ${REQUIRED_PLATFORMS[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
 		publish_allowed "distribution/npm/dist/${ONLY_PACKAGE}" "${SCOPE}/${ONLY_PACKAGE}" true
 	elif [[ " ${OPTIONAL_PLATFORMS[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
 		publish_allowed "distribution/npm/dist/${ONLY_PACKAGE}" "${SCOPE}/${ONLY_PACKAGE}" false
 	else
-		echo "error: ONLY_PACKAGE '${ONLY_PACKAGE}' is not a facade or a known platform" >&2
+		echo "error: ONLY_PACKAGE '${ONLY_PACKAGE}' is not a facade, bundle, or known platform" >&2
 		exit 1
 	fi
 	exit 0
@@ -236,5 +271,12 @@ done
 # Facades are mandatory either way — no point publishing a half-empty
 # set of platform packages with no entry points.
 for facade in "${FACADES[@]}"; do
-	publish_allowed "distribution/npm/dist/${facade}" "${facade}" true
+	facade_dir=$(dir_for "${facade}")
+	publish_allowed "distribution/npm/dist/${facade_dir}" "${facade}" true
 done
+
+# Bundle last: its exact-pinned dependencies are the facades above.
+if [[ -n "${BUNDLE_NAME}" ]]; then
+	bundle_dir=$(dir_for "${BUNDLE_NAME}")
+	publish_allowed "distribution/npm/dist/${bundle_dir}" "${BUNDLE_NAME}" true
+fi

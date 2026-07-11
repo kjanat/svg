@@ -9,17 +9,35 @@
 	"facades": [
 		{
 			"name": "svg-language-server",
+			"alsoPublishAs": [
+				"@svg-toolkit/svg-language-server"
+			],
 			"pkg": "language-server",
 			"bin": "svg-language-server",
 			"description": "LSP server for SVG: diagnostics, completions, hover, formatting, and references."
 		},
 		{
+			"name": "@svg-toolkit/svg-lint",
+			"template": "svg-lint",
+			"pkg": "lint",
+			"bin": "svg-lint",
+			"description": "Structural linter for SVG documents."
+		},
+		{
 			"name": "svg-format",
+			"alsoPublishAs": [
+				"@svg-toolkit/svg-format"
+			],
 			"pkg": "format",
 			"bin": "svg-format",
 			"description": "Structural formatter for SVG documents."
 		}
 	],
+	"bundle": {
+		"name": "@kjanat/svg-toolkit",
+		"template": "svg-toolkit",
+		"description": "All svg-toolkit CLIs in one install: svg-language-server (svg-ls), svg-lint, and svg-format."
+	},
 	"targets": [
 		{
 			"pkg": "linux-x64-gnu",

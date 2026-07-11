@@ -1,5 +1,6 @@
 # tree-sitter-svg-transform
 
+[![Crates.io](https://img.shields.io/crates/v/tree-sitter-svg-transform?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/tree-sitter-svg-transform)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)][LICENSE-MIT]
 
 A [Tree-sitter] grammar for **SVG transform lists** — the value of `transform`

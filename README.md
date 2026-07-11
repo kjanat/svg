@@ -1,5 +1,9 @@
 # svg
 
+[![Crates.io](https://img.shields.io/crates/v/svg-language-server?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-language-server)
+[![NPM](https://img.shields.io/npm/v/svg-language-server?logo=npm&labelColor=CB3837&color=black)](https://npm.im/svg-language-server)
+[![License: MIT](https://img.shields.io/npm/l/svg-language-server?color=blue)](./LICENSE)
+
 SVG tooling monorepo.
 
 This repository contains the SVG language server, parser grammar, editor
@@ -23,8 +27,14 @@ cargo install svg-format
 From npm (prebuilt binaries, no Rust toolchain needed):
 
 ```sh
-npm install --global svg-language-server svg-lint svg-format
+npm install --global @kjanat/svg-toolkit   # everything at once
+# or per tool — unscoped and @svg-toolkit/ scoped names ship identical content
+npm install --global svg-language-server svg-format @svg-toolkit/svg-lint
 ```
+
+There is no unscoped `svg-lint` on npm: the registry's typosquat filter blocks
+the name as "too similar" to the unrelated `svglint`. Fucking great, thanks npm.
+The binary is still called plain `svg-lint`.
 
 From source:
 
@@ -136,14 +146,16 @@ just install-svg-format
 ### Install Published Binaries With npm
 
 ```sh
-npm install --global svg-language-server   # also installs the `svg-ls` alias
-npm install --global svg-lint
-npm install --global svg-format
+npm install --global @kjanat/svg-toolkit     # all three tools (incl. `svg-ls` alias)
+npm install --global svg-language-server     # or @svg-toolkit/svg-language-server
+npm install --global @svg-toolkit/svg-lint   # unscoped name blocked by npm
+npm install --global svg-format              # or @svg-toolkit/svg-format
 ```
 
 Each package resolves a prebuilt binary for the current OS/architecture through
 `optionalDependencies` on `@svg-toolkit/*` platform packages — no postinstall
-step, no install-time downloads outside npm.
+step, no install-time downloads outside npm. The unscoped and scoped facade
+names ship byte-identical content.
 
 If you want to install directly from GitHub instead of a local checkout:
 
@@ -248,9 +260,10 @@ The dprint plugin lives in a separate repository: [kjanat/dprint-plugin-svg]
 
 - Git tags publish all three binaries (`svg-language-server`, `svg-lint`,
   `svg-format`) for every supported target to one GitHub Release.
-- npm facades `svg-language-server`, `svg-lint`, and `svg-format` plus their
-  `@svg-toolkit/*` platform packages are published from GitHub Actions; the
-  workspace crates are published to crates.io.
+- npm facades `svg-language-server`, `@svg-toolkit/svg-lint`, and `svg-format`
+  (the first and last also as `@svg-toolkit/` twins), the `@kjanat/svg-toolkit`
+  bundle, and their `@svg-toolkit/*` platform packages are published from GitHub
+  Actions; the workspace crates are published to crates.io.
 - Run `just release-local <version>` to bump versions, run `just verify`,
   commit, and create the local `v<version>` tag. This requires `bun` locally.
   Pushing that tag triggers publication.

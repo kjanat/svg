@@ -1,5 +1,7 @@
 # svg-references
 
+[![Crates.io](https://img.shields.io/crates/v/svg-references?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/svg-references)
+
 Symbol extraction for SVG ids, CSS classes, and custom properties — resolves
 reference targets to their definition locations.
 
