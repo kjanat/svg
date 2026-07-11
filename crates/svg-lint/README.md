@@ -18,6 +18,13 @@ usage, and ID uniqueness against the SVG spec.
 | `MissingReferenceDefinition` | Warning  | `url(#id)` target has no matching definition      |
 | `UnusedSuppression`          | Warning  | Suppression comment did not suppress anything     |
 
+## Install
+
+```sh
+cargo install svg-lint          # from crates.io
+npm install --global svg-lint   # prebuilt binary via npm
+```
+
 ## API
 
 ```rust

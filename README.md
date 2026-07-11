@@ -12,18 +12,24 @@ spec data lookup, and definition/reference navigation.
 
 ## Install
 
-LSP:
+From crates.io:
 
 ```sh
-cargo install --git https://github.com/kjanat/svg \
-  svg-language-server
+cargo install svg-language-server
+cargo install svg-lint
+cargo install svg-format
 ```
 
-Formatter:
+From npm (prebuilt binaries, no Rust toolchain needed):
 
-```bash
-cargo install --git https://github.com/kjanat/svg \
-  svg-format
+```sh
+npm install --global svg-language-server svg-lint svg-format
+```
+
+From source:
+
+```sh
+cargo install --git https://github.com/kjanat/svg svg-language-server
 ```
 
 ## Workspace Contents
