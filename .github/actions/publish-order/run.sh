@@ -9,7 +9,7 @@ cd "${SOURCE_DIR:-.}"
 # cargo's own dry run resolves the intra-workspace dependency DAG; its upload
 # order is the publish order. No registry interaction happens on a dry run.
 # Run and scrape separately: a pipe would eat cargo's stderr on failure.
-dry_run_output=$(cargo publish --workspace --locked --dry-run --no-verify 2>&1) || {
+dry_run_output=$(CARGO_TERM_COLOR=never cargo publish --workspace --locked --dry-run --no-verify 2>&1) || {
 	printf '%s\n' "${dry_run_output}" >&2
 	echo "error: cargo publish --dry-run failed" >&2
 	exit 1
