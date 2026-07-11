@@ -54,11 +54,12 @@ if (cargoToml === cargoTomlSource) {
 	exit(1);
 }
 
-const internalDepCount = (cargoToml.match(/= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = "/g) ?? []).length;
-const bumpedDepCount =
-	(cargoToml.match(new RegExp(`= \\{ package = "(?:svg-|tree-sitter-svg)[\\w-]*", version = "${version.replace(/\./g, '\\.')}"`, 'g')) ?? []).length;
-if (internalDepCount !== bumpedDepCount) {
-	error(`only ${bumpedDepCount}/${internalDepCount} internal dep version requirements were bumped to ${version}`);
+const internalDeps = Array.from(
+	cargoToml.matchAll(/= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = "([^"]+)"/g),
+);
+const bumpedDepCount = internalDeps.filter(([, depVersion]) => depVersion === version).length;
+if (internalDeps.length !== bumpedDepCount) {
+	error(`only ${bumpedDepCount}/${internalDeps.length} internal dep version requirements were bumped to ${version}`);
 	exit(1);
 }
 
