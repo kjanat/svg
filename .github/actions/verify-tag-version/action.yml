@@ -1,0 +1,28 @@
+name: verify tag version
+description: >-
+  Assert the release tag matches the Cargo workspace version (read from the
+  named package, which inherits workspace.package.version).
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  package:
+    description: workspace package whose version represents the workspace
+    required: false
+    default: svg-language-server
+
+outputs:
+  version:
+    description: the verified version (tag without the v prefix)
+    value: ${{ steps.verify.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: verify
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        META_PACKAGE: ${{ inputs.package }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

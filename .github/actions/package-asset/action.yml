@@ -1,0 +1,32 @@
+name: package asset
+description: >-
+  Package built binaries into a release tarball matching the layout
+  `taiki-e/upload-rust-binary-action` produces, then upload the archive and
+  its `.sha256` companion to the GitHub release for the tag. Used for build
+  paths that can't go through the action: tier-3 targets requiring
+  `-Z build-std`.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  target:
+    description: rust target triple; also names the archive
+    required: true
+  bin-dir:
+    description: directory containing the built binaries
+    required: true
+  token:
+    description: token with `contents:write` on this repo
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        TARGET: ${{ inputs.target }}
+        BIN_DIR: ${{ inputs.bin-dir }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

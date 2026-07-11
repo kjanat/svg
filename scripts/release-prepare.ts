@@ -36,13 +36,30 @@ if (cargoTomlParsed.workspace?.package?.version == null) {
 	exit(1);
 }
 
-const cargoToml = cargoTomlSource.replace(
-	/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
-	`$1${version}$3`,
-);
+const cargoToml = cargoTomlSource
+	.replace(
+		/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
+		`$1${version}$3`,
+	)
+	// Internal workspace deps carry crates.io version requirements that must
+	// track the workspace version, or `cargo publish --workspace` breaks the
+	// release after the first bump.
+	.replace(
+		/(= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = ")([^"]+)(")/g,
+		`$1${version}$3`,
+	);
 
 if (cargoToml === cargoTomlSource) {
 	error('failed to update workspace.package.version in Cargo.toml');
+	exit(1);
+}
+
+const internalDeps = Array.from(
+	cargoToml.matchAll(/= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = "([^"]+)"/g),
+);
+const bumpedDepCount = internalDeps.filter(([, depVersion]) => depVersion === version).length;
+if (internalDeps.length !== bumpedDepCount) {
+	error(`only ${bumpedDepCount}/${internalDeps.length} internal dep version requirements were bumped to ${version}`);
 	exit(1);
 }
 
@@ -61,7 +78,7 @@ await Bun.$`cargo check --workspace`;
 await Bun.$`just verify`;
 await Bun.$`git add Cargo.toml Cargo.lock`;
 await Bun.$`git commit -m ${`chore(release): ${tag}`}`;
-await Bun.$`git tag -a ${tag} -m ${tag}`;
+await Bun.$`git tag -s ${tag} -m ${tag}`;
 
 const branch = (await Bun.$`git branch --show-current`.text()).trim();
 log('release prepared locally');

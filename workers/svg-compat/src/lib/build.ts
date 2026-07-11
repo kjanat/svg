@@ -12,15 +12,7 @@
 // @ts-nocheck Deno
 
 import { getCompat, getRecordProperty, makeCompatEntry } from '#lib/parse.ts';
-import type {
-	AttributeEntry,
-	Baseline,
-	BrowserSupport,
-	BrowserVersion,
-	CompatEntry,
-	SvgCompatOutput,
-	SvgCompatSnapshot,
-} from '#lib/types.ts';
+import type { AttributeEntry, Baseline, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput, SvgCompatSnapshot } from '#lib/types.ts';
 import type { JsonRecord, LoadedSourceData } from '#src/sources.ts';
 import { isRecord, UpstreamSourceError } from '#src/sources.ts';
 

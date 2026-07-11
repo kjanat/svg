@@ -11,10 +11,6 @@ keywords.workspace   = true
 categories.workspace = true
 build                = "build.rs"
 
-# svgwg-drift is internal spec tooling, not a distributable app
-[package.metadata.dist]
-dist = false
-
 [[bin]]
 name              = "svgwg-drift"
 path              = "src/bin/svgwg-drift.rs"

@@ -1,0 +1,15 @@
+name: release matrix
+description: >-
+  Derive the per-target build matrix from distribution/npm/targets.json.
+
+outputs:
+  include:
+    description: JSON array for `strategy.matrix.include`
+    value: ${{ steps.gen.outputs.include }}
+
+runs:
+  using: composite
+  steps:
+    - id: gen
+      shell: bash
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

@@ -431,9 +431,7 @@ function generateCase(
 function renderCorpus(cases: readonly GeneratedCase[]): string {
 	// Input follows the divider with no intervening blank line: a leading blank
 	// would be fed to the parser as a leading `(text)` node (extras are empty).
-	const blocks = cases.map(({ title, input, sexp }) =>
-		[DIVIDER, title, DIVIDER, input, '', '---', '', sexp].join('\n')
-	);
+	const blocks = cases.map(({ title, input, sexp }) => [DIVIDER, title, DIVIDER, input, '', '---', '', sexp].join('\n'));
 	return `${GENERATED_HEADER}\n\n${blocks.join('\n\n')}\n`;
 }
 

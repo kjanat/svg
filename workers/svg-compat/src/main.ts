@@ -28,12 +28,7 @@ import {
 	textResponse,
 } from '#src/http.ts';
 import { renderErrorHtml, renderHtml } from '#src/render.tsx';
-import {
-	InvalidSourceRequestError,
-	loadSourceDataForSelection,
-	parseSourceSelection,
-	UpstreamSourceError,
-} from '#src/sources.ts';
+import { InvalidSourceRequestError, loadSourceDataForSelection, parseSourceSelection, UpstreamSourceError } from '#src/sources.ts';
 
 // Re-export the public lib surface so existing consumers
 // (`view.ts`, `render.tsx`, `main_test.ts`) can continue to import

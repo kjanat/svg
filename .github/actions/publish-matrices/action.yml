@@ -1,0 +1,19 @@
+name: publish matrices
+description: >-
+  Derive the platform-package and facade publish matrices from
+  distribution/npm/targets.json.
+
+outputs:
+  platforms:
+    description: JSON array of platform packages with experimental flags
+    value: ${{ steps.gen.outputs.platforms }}
+  facades:
+    description: JSON array of facade packages
+    value: ${{ steps.gen.outputs.facades }}
+
+runs:
+  using: composite
+  steps:
+    - id: gen
+      shell: bash
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

@@ -1,10 +1,5 @@
 import 'bun';
-import {
-	D_ATTRIBUTE_NAMES,
-	GENERATED_ATTRIBUTE_BUCKET_KEYS,
-	GRAMMAR_DEDICATED_ATTRIBUTE_NAMES,
-	TOKEN_KEYS,
-} from '#grammarFixtures';
+import { D_ATTRIBUTE_NAMES, GENERATED_ATTRIBUTE_BUCKET_KEYS, GRAMMAR_DEDICATED_ATTRIBUTE_NAMES, TOKEN_KEYS } from '#grammarFixtures';
 import type { CatalogTreeSitter } from '#grammarMatchers';
 import { bucketAttributeOverlaps, expectExactSetMatch, intersection, unionBucketAttributes } from '#grammarMatchers';
 import { file, fileURLToPath } from 'bun';

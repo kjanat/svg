@@ -1,0 +1,36 @@
+{
+	"name": "svg-lint",
+	"description": "Structural linter for SVG documents.",
+	"keywords": [
+		"svg",
+		"lint",
+		"linter",
+		"cli",
+		"diagnostics",
+		"ansispeck"
+	],
+	"repository": "kjanat/svg",
+	"type": "module",
+	"imports": {
+		"#launch": "./lib/launch.mjs",
+		"#pkg": "./package.json",
+		"#resolve": "./lib/resolve.mjs"
+	},
+	"exports": {
+		"./package.json": "./package.json"
+	},
+	"bin": "bin/svg-lint.mjs",
+	"directories": {
+		"lib": "./lib"
+	},
+	"files": [
+		"bin/",
+		"lib/",
+		"README.md",
+		"LICENSE"
+	],
+	"dependencies": {
+		"ansispeck": "^0.1.2"
+	},
+	"optionalDependencies": {}
+}

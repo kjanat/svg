@@ -1,0 +1,27 @@
+name: verify asset
+description: >-
+  Assert the release assets for this matrix leg actually landed on the GitHub
+  release; a build leg can report `success` while uploading nothing
+  (observed: taiki-e action silent no-op on windows-11-arm). Turns the silent
+  no-op into a red leg at the source.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  target:
+    description: rust target triple; names the expected archive
+    required: true
+  token:
+    description: token with `contents:read` on this repo
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        TARGET: ${{ inputs.target }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

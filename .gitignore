@@ -11,3 +11,5 @@ target/
 tsconfig.tsbuildinfo
 !/grammars/tree-sitter-svg/bun.lock
 !/samples/mdn
+distribution/npm/dist/
+distribution/npm/downloads/
