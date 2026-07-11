@@ -15,6 +15,8 @@
 name: release
 run-name: "release ${{ github.ref_name }}"
 on: { push: { tags: [v*] } }
+# Serialize runs per tag without cancelling an active publish mid-flight.
+concurrency: { group: "release-${{ github.ref }}", cancel-in-progress: false }
 permissions: { contents: read }
 env: { CARGO_TERM_COLOR: always }
 
@@ -24,11 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { persist-credentials: false }
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@2ca9b94c269419b7b0c711c09d0b21c4e1d51145 # v2
         with: { tool: rust+clippy }
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
 
@@ -38,11 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { persist-credentials: false }
 
       - name: create github release
-        uses: taiki-e/create-gh-release-action@v1
+        uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1
         with: { token: "${{ github.token }}", changelog: CHANGELOG.md, draft: true, branch: master }
 
       - name: append GitHub auto-generated notes
@@ -56,7 +58,7 @@ jobs:
     permissions: { contents: read }
     outputs: { include: "${{ steps.gen.outputs.include }}" }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -69,33 +71,35 @@ jobs:
     name: build+upload ${{ matrix.target }}
     needs: [matrix, create-release]
     runs-on: ${{ matrix.runner }}
+    # Tier-3 build-std legs compile core+std from source.
+    timeout-minutes: 60
     permissions: { contents: write }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.matrix.outputs.include) }}" } }
     continue-on-error: ${{ matrix.experimental }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { persist-credentials: false }
 
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
-        uses: dtolnay/rust-toolchain@stable
-        with: { targets: "${{ matrix.target }}" }
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
       - name: install nightly rust (tier-3 build-std)
         if: matrix.build-tool == 'cargo-build-std'
-        uses: dtolnay/rust-toolchain@nightly
-        with: { components: rust-src }
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # nightly
+        with: { toolchain: nightly, components: rust-src }
 
       # Tier-2/3 cross targets: installs the cross C toolchain and exports
       # CARGO_TARGET_*_LINKER so host cargo can link the target.
       - name: setup cross toolchain
         if: contains(fromJSON('["cargo-cross-toolchain", "cargo-build-std"]'), matrix.build-tool)
-        uses: taiki-e/setup-cross-toolchain-action@v1
+        uses: taiki-e/setup-cross-toolchain-action@3d9770ce98eb7dbcf378563182a5e8031165f75b # v1
         with: { target: "${{ matrix.target }}" }
 
       - name: build and upload binaries (taiki-e)
         if: contains(fromJSON('["cargo", "cross", "cargo-cross-toolchain"]'), matrix.build-tool)
-        uses: taiki-e/upload-rust-binary-action@v1
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1
         with:
           token: ${{ github.token }}
           bin: svg-language-server,svg-lint,svg-format
@@ -135,16 +139,17 @@ jobs:
     name: build dist
     needs: upload-assets
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions: { contents: write }
     env: { RELEASE_TAG: "${{ github.ref_name }}" }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { persist-credentials: false }
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with: { node-version: latest }
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       - run: bun install --frozen-lockfile
 
       - name: download and verify release archives
@@ -173,7 +178,7 @@ jobs:
         run: tar -cf distribution/npm/dist.tar -C distribution/npm dist
 
       - name: upload dist artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
   publish-release:

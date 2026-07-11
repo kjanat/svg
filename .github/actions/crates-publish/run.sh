@@ -21,7 +21,7 @@ MAX_RETRIES="${MAX_RETRIES:-8}"
 # are all >= 4 chars, so the index path is <name[0..2]>/<name[2..4]>/<name>.
 published_state() {
 	local name="$1" body
-	if ! body=$(curl -fs "https://index.crates.io/${name:0:2}/${name:2:2}/${name}"); then
+	if ! body=$(curl -fs --connect-timeout 10 --max-time 30 "https://index.crates.io/${name:0:2}/${name:2:2}/${name}"); then
 		echo no
 		return 0
 	fi

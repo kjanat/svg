@@ -24,11 +24,19 @@ mkdir "${scratch}/app"
 (cd "${scratch}/app" && npm install --no-audit --no-fund --ignore-scripts "${scratch}"/*.tgz)
 
 assert_version() {
-	local label="$1" out
+	local label="$1" out word found=''
 	shift
 	out=$("$@")
-	if [[ "${out}" != *"${expected_version}"* ]]; then
-		echo "error: ${label}: expected ${expected_version}, got: ${out}" >&2
+	# Exact whitespace-delimited token match: a substring test would accept
+	# e.g. 0.1.00 or unrelated text that merely contains the version.
+	for word in ${out}; do
+		if [[ "${word}" == "${expected_version}" ]]; then
+			found=1
+			break
+		fi
+	done
+	if [[ -z "${found}" ]]; then
+		echo "error: ${label}: expected version token ${expected_version}, got: ${out}" >&2
 		exit 1
 	fi
 	echo "ok ${label}: ${out}"

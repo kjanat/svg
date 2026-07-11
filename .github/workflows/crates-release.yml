@@ -11,6 +11,9 @@ on:
 
 permissions: { contents: read }
 
+# Serialize publish runs per tag without cancelling an in-flight publish.
+concurrency: { group: "crates-release-${{ inputs.tag }}", cancel-in-progress: false }
+
 env:
   RELEASE_TAG: ${{ inputs.tag }}
   CARGO_TERM_COLOR: always
@@ -25,10 +28,11 @@ jobs:
       version: ${{ steps.verify.outputs.version }}
       crates: ${{ steps.order.outputs.crates }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with: { toolchain: stable }
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: verify tag matches Cargo.toml version
         id: verify
@@ -45,20 +49,22 @@ jobs:
     if: inputs.dry-run != true
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # id-token: write lets crates.io trusted publishing mint a short-lived token.
     permissions: { contents: read, id-token: write }
     environment: { name: crates-io, url: "https://crates.io/crates/${{ matrix.crate }}/${{ needs.setup.outputs.version }}" }
     strategy: { max-parallel: 1, fail-fast: true, matrix: { include: "${{ fromJSON(needs.setup.outputs.crates) }}" } }
     env: { HAS_CRATES_TOKEN: "${{ secrets.CARGO_REGISTRY_TOKEN != '' }}" }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with: { toolchain: stable }
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: mint crates.io token (trusted publishing)
         if: env.HAS_CRATES_TOKEN != 'true'
         id: auth
-        uses: rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1
 
       - name: cargo publish
         uses: ./.github/actions/crates-publish

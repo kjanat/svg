@@ -15,7 +15,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       with: { name: dist, path: distribution/npm/, run-id: "${{ inputs.run-id }}", github-token: "${{ inputs.token }}" }
 
     - run: tar -xf distribution/npm/dist.tar -C distribution/npm && rm distribution/npm/dist.tar

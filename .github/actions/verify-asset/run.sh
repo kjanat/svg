@@ -14,20 +14,22 @@ checksum="${archive_basename}.sha256"
 # Retry the listing a few times: a transient network blip on the read
 # shouldn't fail a leg that genuinely uploaded.
 missing=()
+gh_failed=''
 for attempt in 1 2 3; do
+	# The listing itself can fail (auth, network); track that separately so
+	# the final error doesn't misreport a broken query as a missing artifact.
+	gh_failed=''
+	listing=$(gh release view "${RELEASE_TAG}" \
+		--repo "${GITHUB_REPOSITORY}" \
+		--json assets \
+		--jq '.assets[].name') || gh_failed=1
+
 	# Read line-by-line rather than `mapfile`: macOS runners ship
 	# bash 3.2, which predates the builtin.
 	assets=()
 	while IFS= read -r asset; do
-		assets+=("${asset}")
-	done < <(
-		# `|| true`: a failed listing leaves `assets` empty, which the
-		# retry loop treats as missing and re-fetches.
-		gh release view "${RELEASE_TAG}" \
-			--repo "${GITHUB_REPOSITORY}" \
-			--json assets \
-			--jq '.assets[].name' || true
-	)
+		[[ -n "${asset}" ]] && assets+=("${asset}")
+	done <<<"${listing}"
 
 	missing=()
 	for want in "${archive}" "${checksum}"; do
@@ -50,6 +52,11 @@ for attempt in 1 2 3; do
 		sleep "$((attempt * 2))"
 	fi
 done
+
+if [[ -n "${gh_failed}" ]]; then
+	echo "error: could not list assets on release ${RELEASE_TAG} after 3 attempts (auth or network failure), so upload state for ${TARGET} is unknown." >&2
+	exit 1
+fi
 
 if [[ "${#missing[@]}" -gt 0 ]]; then
 	echo "error: build+upload for ${TARGET} reported success but these assets are not on release ${RELEASE_TAG}:" >&2
