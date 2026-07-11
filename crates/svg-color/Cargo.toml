@@ -10,6 +10,7 @@ repository.workspace = true
 license.workspace    = true
 keywords             = ["color", "hex", "hsl", "rgb", "svg"]
 categories           = ["graphics", "parsing"]
+include              = ["/README.md", "/src/*"]
 
 [dependencies]
 svg-tree.workspace              = true

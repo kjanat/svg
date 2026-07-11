@@ -10,6 +10,7 @@ repository.workspace = true
 license.workspace    = true
 keywords             = ["css", "references", "svg", "tree-sitter"]
 categories           = ["development-tools"]
+include              = ["/README.md", "/src/*"]
 
 [dependencies]
 svg-tree.workspace              = true

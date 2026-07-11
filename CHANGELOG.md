@@ -7,6 +7,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-11
+
 ### Added
 
 - Shared `svg-tree` crate for tree-sitter traversal helpers

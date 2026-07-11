@@ -10,6 +10,7 @@ repository.workspace = true
 license.workspace    = true
 keywords             = ["diagnostics", "lint", "svg", "validation"]
 categories           = ["development-tools"]
+include              = ["/README.md", "/src/*", "/tests/*"]
 
 [lib]
 name = "svg_lint"

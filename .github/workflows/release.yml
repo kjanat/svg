@@ -45,7 +45,9 @@ jobs:
 
       - name: create github release
         uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1
-        with: { token: "${{ github.token }}", changelog: CHANGELOG.md, draft: true, branch: master }
+        # allow-missing-changelog: prerelease tags (v0.1.0-rc.1) have no
+        # changelog section; the auto-generated notes are appended regardless.
+        with: { token: "${{ github.token }}", changelog: CHANGELOG.md, draft: true, branch: master, allow-missing-changelog: true }
 
       - name: append GitHub auto-generated notes
         uses: ./.github/actions/append-release-notes

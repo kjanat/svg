@@ -10,6 +10,7 @@ license.workspace    = true
 keywords.workspace   = true
 categories.workspace = true
 build                = "build.rs"
+include              = ["/build.rs", "/data/*", "/src/*"]
 
 [[bin]]
 name              = "svgwg-drift"

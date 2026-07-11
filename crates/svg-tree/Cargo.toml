@@ -10,6 +10,7 @@ repository.workspace = true
 license.workspace    = true
 keywords             = ["svg", "traversal", "tree-sitter"]
 categories           = ["development-tools"]
+include              = ["/README.md", "/src/*"]
 
 [dependencies]
 tree-sitter.workspace = true

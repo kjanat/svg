@@ -10,6 +10,7 @@ repository.workspace = true
 license.workspace    = true
 keywords             = ["completions", "diagnostics", "language-server", "lsp", "svg"]
 categories           = ["development-tools", "text-editors"]
+include              = ["!/tests/AGENTS.md", "/README.md", "/assets/*", "/src/*", "/tests/*"]
 
 [lib]
 name = "svg_language_server"
