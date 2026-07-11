@@ -4,6 +4,10 @@ description: >-
   named package, which inherits workspace.package.version).
 
 inputs:
+  source-dir:
+    description: directory holding the checked-out source to operate on
+    required: false
+    default: "."
   tag:
     description: release tag (vX.Y.Z)
     required: true
@@ -23,6 +27,7 @@ runs:
     - id: verify
       shell: bash
       env:
+        SOURCE_DIR: ${{ inputs.source-dir }}
         RELEASE_TAG: ${{ inputs.tag }}
         META_PACKAGE: ${{ inputs.package }}
       run: bash "${GITHUB_ACTION_PATH}/run.sh"

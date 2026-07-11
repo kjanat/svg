@@ -9,6 +9,8 @@ CRATE="${CRATE:?CRATE required}"
 VERSION="${VERSION:?VERSION required}"
 export CARGO_REGISTRY_TOKEN
 
+cd "${SOURCE_DIR:-.}"
+
 # crates.io refills the new-crate-name allowance on the order of one per ten
 # minutes; anything shorter than that just burns a retry.
 RETRY_WAIT="${RETRY_WAIT:-630}"

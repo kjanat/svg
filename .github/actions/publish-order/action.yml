@@ -4,6 +4,12 @@ description: >-
   from cargo's own dry run, as a matrix include list. Consumed with
   `max-parallel: 1` so per-crate jobs run in this exact order.
 
+inputs:
+  source-dir:
+    description: directory holding the checked-out source to operate on
+    required: false
+    default: "."
+
 outputs:
   crates:
     description: JSON array of `{crate}` entries in dependency order
@@ -14,4 +20,6 @@ runs:
   steps:
     - id: gen
       shell: bash
+      env:
+        SOURCE_DIR: ${{ inputs.source-dir }}
       run: bash "${GITHUB_ACTION_PATH}/run.sh"

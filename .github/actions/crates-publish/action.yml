@@ -6,6 +6,10 @@ description: >-
   absorbed by waiting and retrying instead of failing the release.
 
 inputs:
+  source-dir:
+    description: directory holding the checked-out source to operate on
+    required: false
+    default: "."
   crate:
     description: crate to publish
     required: true
@@ -25,6 +29,7 @@ runs:
   steps:
     - shell: bash
       env:
+        SOURCE_DIR: ${{ inputs.source-dir }}
         CARGO_REGISTRY_TOKEN: ${{ inputs.token }}
         CRATE: ${{ inputs.crate }}
         VERSION: ${{ inputs.version }}

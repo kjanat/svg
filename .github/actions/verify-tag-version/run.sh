@@ -6,6 +6,8 @@ RELEASE_TAG="${RELEASE_TAG:?RELEASE_TAG required}"
 META_PACKAGE="${META_PACKAGE:?META_PACKAGE required}"
 GITHUB_OUTPUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT required}"
 
+cd "${SOURCE_DIR:-.}"
+
 tag_version="${RELEASE_TAG#v}"
 manifest_version=$(cargo metadata --no-deps --format-version 1 \
 	| jq -r --arg pkg "${META_PACKAGE}" '.packages[] | select(.name == $pkg) | .version')
