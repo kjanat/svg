@@ -7,8 +7,8 @@ and its variants (`gradientTransform`, `patternTransform`) — built against the
 [SVG2 transform syntax].
 
 > [!IMPORTANT]
-> NOT PUBLISHED, NO PUBLICATION TIMELINE. IN DEVELOPMENT, SUBJECT TO BREAKING
-> CHANGES.
+> Pre-1.0 (`0.x`): the grammar and CST shape are still evolving and subject to
+> breaking changes between releases.
 
 ## What This Parses
 

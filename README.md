@@ -7,8 +7,8 @@ integration, and the Rust crates that power formatting, linting, color analysis,
 spec data lookup, and definition/reference navigation.
 
 > [!IMPORTANT]
-> This project is not published to crates.io yet. Expect breaking changes while
-> the workspace is still under active development.
+> Published as pre-1.0 (`0.x`): expect breaking changes between releases while
+> the workspace is under active development.
 
 ## Install
 

@@ -7,8 +7,8 @@ A [Tree-sitter] grammar for **SVG paint and color** values — `fill`, `stroke`,
 and [CSS Color].
 
 > [!IMPORTANT]
-> NOT PUBLISHED, NO PUBLICATION TIMELINE. IN DEVELOPMENT, SUBJECT TO BREAKING
-> CHANGES.
+> Pre-1.0 (`0.x`): the grammar and CST shape are still evolving and subject to
+> breaking changes between releases.
 
 ## What This Parses
 

@@ -6,8 +6,8 @@ A [Tree-sitter] grammar for **SVG** (Scalable Vector Graphics), built against
 the [SVG2 specification].
 
 > [!IMPORTANT]
-> THIS GRAMMAR IS NOT PUBLISHED NOR DO I HAVE A TIMELINE FOR PUBLICATION. IT IS
-> CURRENTLY IN DEVELOPMENT AND SUBJECT TO BREAKING CHANGES.
+> Pre-1.0 (`0.x`): the grammar and CST shape are still evolving and subject to
+> breaking changes between releases.
 
 ## What This Parser Does
 
