@@ -28,18 +28,21 @@ cargo install --git https://github.com/kjanat/svg \
 
 ## Workspace Contents
 
-| Path                         | Purpose                                                                |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| `crates/svg-language-server` | LSP binary for SVG files                                               |
-| `crates/svg-format`          | Structural SVG formatter library and CLI                               |
-| `crates/svg-lint`            | Structural SVG diagnostics                                             |
-| `crates/svg-color`           | Color extraction and color presentation helpers                        |
-| `crates/svg-data`            | Generated SVG catalog from spec, BCD, and web-features data            |
-| `crates/svg-data-regen`      | Deterministic catalog regeneration pipeline                            |
-| `crates/svg-references`      | Symbol extraction for `id`, CSS class, and custom property definitions |
-| `crates/svg-tree`            | Shared tree-sitter helpers and tree utilities                          |
-| `grammars/tree-sitter-svg`   | Tree-sitter grammar for SVG                                            |
-| `editors/zed-svg`            | Zed extension for SVG language support                                 |
+| Path                                 | Purpose                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| `crates/svg-language-server`         | LSP binary for SVG files                                               |
+| `crates/svg-format`                  | Structural SVG formatter library and CLI                               |
+| `crates/svg-lint`                    | Structural SVG diagnostics                                             |
+| `crates/svg-color`                   | Color extraction and color presentation helpers                        |
+| `crates/svg-data`                    | Generated SVG catalog from spec, BCD, and web-features data            |
+| `crates/svg-data-regen`              | Deterministic catalog regeneration pipeline                            |
+| `crates/svg-references`              | Symbol extraction for `id`, CSS class, and custom property definitions |
+| `crates/svg-tree`                    | Shared tree-sitter helpers and tree utilities                          |
+| `grammars/tree-sitter-svg`           | Tree-sitter grammar for SVG                                            |
+| `grammars/tree-sitter-svg-paint`     | Injected grammar for paint/color attribute values                      |
+| `grammars/tree-sitter-svg-path`      | Injected grammar for path data (`d`)                                   |
+| `grammars/tree-sitter-svg-transform` | Injected grammar for transform lists                                   |
+| `editors/zed-svg`                    | Zed extension for SVG language support                                 |
 
 ### Dependency Graph
 
@@ -127,13 +130,14 @@ just install-svg-format
 ### Install Published Binaries With npm
 
 ```sh
-npm install --global svg-language-server
+npm install --global svg-language-server   # also installs the `svg-ls` alias
+npm install --global svg-lint
 npm install --global svg-format
 ```
 
-These are thin installer packages: they fetch only the matching GitHub Release
-artifact for the current OS/architecture instead of bundling every platform into
-the npm tarball.
+Each package resolves a prebuilt binary for the current OS/architecture through
+`optionalDependencies` on `@svg-toolkit/*` platform packages — no postinstall
+step, no install-time downloads outside npm.
 
 If you want to install directly from GitHub instead of a local checkout:
 
@@ -246,9 +250,11 @@ The dprint plugin lives in a separate repository: [kjanat/dprint-plugin-svg]
 
 ## Release Publishing
 
-- Git tags publish both binaries to one GitHub Release.
-- npm packages `svg-language-server` and `svg-format` are published from GitHub
-  Actions.
+- Git tags publish all three binaries (`svg-language-server`, `svg-lint`,
+  `svg-format`) for every supported target to one GitHub Release.
+- npm facades `svg-language-server`, `svg-lint`, and `svg-format` plus their
+  `@svg-toolkit/*` platform packages are published from GitHub Actions; the
+  workspace crates are published to crates.io.
 - Run `just release-local <version>` to bump versions, run `just verify`,
   commit, and create the local `v<version>` tag. This requires `bun` locally.
   Pushing that tag triggers publication.

@@ -40,17 +40,18 @@ let pretty_custom = format_with_options(
 
 ## CLI
 
-`svg-format` is also available as a CLI binary from the same crate.
+`svg-format` is also available as a CLI binary from the same crate
+(`cargo install svg-format` or `npm install --global svg-format`).
 
 ```sh
 # Format from stdin to stdout
-cat icon.svg | cargo run -p svg-format -- --stdin
+cat icon.svg | svg-format --stdin
 
 # Check whether a file would change
-cargo run -p svg-format -- --check icon.svg
+svg-format --check icon.svg
 
 # Format file in place
-cargo run -p svg-format -- --in-place icon.svg
+svg-format --in-place icon.svg
 ```
 
 ## Part of [svg-language-server]
