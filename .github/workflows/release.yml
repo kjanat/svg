@@ -196,12 +196,17 @@ jobs:
     env: { GH_TOKEN: "${{ github.token }}", RELEASE_TAG: "${{ github.ref_name }}" }
     steps: [run: 'gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false']
 
+  # secrets: inherit is required for the called workflows' environment
+  # secrets (npm/NPM_TOKEN, crates-io/CARGO_REGISTRY_TOKEN): a workflow_call
+  # child gets an empty `secrets` context otherwise, even when its jobs
+  # declare the environment. Same-repo reusable workflows only.
   call-npm-release:
     name: npm publish
     needs: [publish-release]
     permissions: { contents: read, id-token: write, actions: read }
     uses: ./.github/workflows/npm-release.yml
     with: { tag: "${{ github.ref_name }}", run-id: "${{ github.run_id }}" }
+    secrets: inherit
 
   call-crates-release:
     name: crates publish
@@ -209,3 +214,4 @@ jobs:
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/crates-release.yml
     with: { tag: "${{ github.ref_name }}" }
+    secrets: inherit
