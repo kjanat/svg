@@ -117,6 +117,7 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
+          token: ${{ secrets.NPM_TOKEN }}
 
   # Facades last so their optionalDependencies resolve on install.
   publish-facades:
@@ -150,3 +151,4 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
+          token: ${{ secrets.NPM_TOKEN }}

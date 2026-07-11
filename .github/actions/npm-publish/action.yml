@@ -21,6 +21,12 @@ inputs:
     description: single package (facade or platform pkg) for matrix jobs; empty publishes everything
     required: false
     default: ""
+  token:
+    description: >-
+      npm auth token for the bootstrap publishes; empty relies on OIDC
+      trusted publishing (configurable per package only after it exists)
+    required: false
+    default: ""
 
 outputs:
   package-url:
@@ -38,4 +44,5 @@ runs:
         DRY_RUN: ${{ inputs.dry-run }}
         REGISTRY: ${{ inputs.registry }}
         ONLY_PACKAGE: ${{ inputs.only-package }}
+        NPM_TOKEN: ${{ inputs.token }}
       run: bash "${GITHUB_ACTION_PATH}/run.sh"

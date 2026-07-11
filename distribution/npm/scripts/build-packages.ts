@@ -125,6 +125,8 @@ interface Target {
 
 interface Facade {
 	name: string;
+	/** Tool prefix for this facade's platform sub-packages: `<scope>/<pkg>-<target.pkg>`. */
+	pkg: string;
 	bin: string;
 	description?: string;
 }
@@ -247,7 +249,7 @@ async function buildFacade(
 		...meta,
 		version,
 		optionalDependencies: Object.fromEntries(
-			builtTargets.map((target) => [`${matrix.scope}/${target.pkg}`, version]),
+			builtTargets.map((target) => [`${matrix.scope}/${facade.pkg}-${target.pkg}`, version]),
 		),
 	};
 
@@ -303,89 +305,83 @@ async function buildHostTarball(
 }
 
 /**
- * Build a platform package by extracting the release tarball's binaries into
- * `distribution/npm/dist/<target.pkg>/bin/`.
- *
- * @returns The provided `target` when built, or `null` when skipped
- *   (missing tarball honoring `--skip-missing`, tier 3, or a local non-host run).
+ * Extract one target's tarball binaries, or `null` when the tarball is
+ * missing/incomplete and that is tolerable (missing tarball honoring
+ * `--skip-missing`, tier 3, or a local non-host run). The host target's
+ * tarball is built on demand in local runs.
  */
-async function buildPlatformPackage(
+async function extractTargetBinaries(
 	matrix: Matrix,
 	target: Target,
 	opts: BuildOptions,
-	meta: Record<string, unknown>,
-): Promise<Target | null> {
-	const packageName = `${matrix.scope}/${target.pkg}`;
-	const dest = join(distDir, target.pkg);
+): Promise<Map<string, Buffer> | null> {
 	const tarball = tarballPath(opts.downloadsDir, opts.version, target);
 	const maySkip = opts.skipMissing || target.tier === 3 || opts.local;
 	const isHost = opts.local && opts.hostTriple === target.rust;
 
-	await mkdir(join(dest, 'bin'), { recursive: true });
-
-	let binaries: Map<string, Buffer>;
-
 	try {
-		binaries = await extractBinariesFromTarball(tarball, matrix.binaries);
+		return await extractBinariesFromTarball(tarball, matrix.binaries);
 	} catch (error) {
 		if (isHost && errorCode(error) === 'ENOENT') {
 			await buildHostTarball(matrix, target, opts.version, opts.downloadsDir);
-			binaries = await extractBinariesFromTarball(tarball, matrix.binaries);
-		} else if (maySkip) {
-			console.warn(`skipping ${packageName}: ${errorCode(error) ?? errorMessage(error)}`);
-			await removePartialPackage(dest);
-			return null;
-		} else {
-			throw new Error(`failed to read ${tarball}: ${errorMessage(error)}`);
+			return await extractBinariesFromTarball(tarball, matrix.binaries);
 		}
-	}
-
-	const missing = await writePlatformBinaries(dest, matrix.binaries, target, binaries);
-
-	if (missing) {
 		if (maySkip) {
-			console.warn(`skipping ${packageName}: missing ${missing} in archive`);
-			await removePartialPackage(dest);
+			console.warn(`skipping ${target.pkg}: ${errorCode(error) ?? errorMessage(error)}`);
 			return null;
 		}
-		throw new Error(`missing ${missing} in ${tarball}`);
+		throw new Error(`failed to read ${tarball}: ${errorMessage(error)}`);
+	}
+}
+
+/**
+ * Build one facade's platform package for one target by writing its single
+ * binary into `distribution/npm/dist/<facade.pkg>-<target.pkg>/bin/`.
+ *
+ * @returns The provided `target` when built, or `null` when the binary is
+ *   missing from the archive and skipping is tolerable.
+ */
+async function buildPlatformPackage(
+	matrix: Matrix,
+	facade: Facade,
+	target: Target,
+	binaries: Map<string, Buffer>,
+	opts: BuildOptions,
+	meta: Record<string, unknown>,
+): Promise<Target | null> {
+	const pkgSuffix = `${facade.pkg}-${target.pkg}`;
+	const packageName = `${matrix.scope}/${pkgSuffix}`;
+	const dest = join(distDir, pkgSuffix);
+	const maySkip = opts.skipMissing || target.tier === 3 || opts.local;
+
+	const fileName = target.os.includes('win32') ? `${facade.bin}.exe` : facade.bin;
+	const data = binaries.get(fileName);
+	if (!data) {
+		if (maySkip) {
+			console.warn(`skipping ${packageName}: missing ${fileName} in archive`);
+			return null;
+		}
+		throw new Error(`missing ${fileName} in the ${target.rust} archive`);
 	}
 
-	const pkg = platformPackageJson(matrix, target, opts.version, meta);
+	await mkdir(join(dest, 'bin'), { recursive: true });
+	await writeFile(join(dest, 'bin', fileName), data, { mode: 0o755 });
+
+	const pkg = platformPackageJson(matrix, facade, target, opts.version, meta);
 	await writeJson(join(dest, 'package.json'), pkg);
 
-	const readme = platformReadme(matrix, target);
+	const readme = platformReadme(matrix, facade, target);
 	await writeFile(join(dest, 'README.md'), readme);
 
 	await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
 
-	console.log(`built ${formatPackage(matrix.scope, target.pkg, opts.version)}`);
+	console.log(`built ${formatPackage(matrix.scope, pkgSuffix, opts.version)}`);
 	return target;
-}
-
-/**
- * @returns The missing filename not found in `binaries`, or `null` if all were written.
- */
-async function writePlatformBinaries(
-	dest: string,
-	binaryNames: string[],
-	target: Target,
-	binaries: Map<string, Buffer>,
-): Promise<string | null> {
-	for (const binaryName of binaryNames) {
-		const fileName = target.os.includes('win32') ? `${binaryName}.exe` : binaryName;
-		const data = binaries.get(fileName);
-
-		if (!data) return fileName;
-
-		await writeFile(join(dest, 'bin', fileName), data, { mode: 0o755 });
-	}
-
-	return null;
 }
 
 function platformPackageJson(
 	matrix: Matrix,
+	facade: Facade,
 	target: Target,
 	version: string,
 	meta: Record<string, unknown>,
@@ -393,76 +389,69 @@ function platformPackageJson(
 	const keywords = [
 		...new Set([
 			'svg',
+			facade.pkg,
 			'prebuilt',
 			'binary',
 			'native',
-			'lsp',
-			'linter',
-			'formatter',
 			...target.os,
 			...target.cpu,
 			...(target.libc ?? []),
 		]),
 	];
 	return {
-		name: `${matrix.scope}/${target.pkg}`,
+		name: `${matrix.scope}/${facade.pkg}-${target.pkg}`,
 		version,
-		description: `Prebuilt ${matrix.binaries.join(' + ')} ${target.rust} binaries; selected automatically by npm, also runnable standalone via npx.`,
+		description: `Prebuilt ${facade.bin} ${target.rust} binary; selected automatically by npm, also runnable standalone via npx.`,
 		keywords,
 		...meta,
 		os: target.os,
 		cpu: target.cpu,
 		...(target.libc ? { libc: target.libc } : {}),
 		// npm chmods bin targets at link time; a `directories.bin` alongside `bin` is an error.
-		bin: Object.fromEntries(
-			matrix.binaries.map((name) => [name, `bin/${name}${target.os.includes('win32') ? '.exe' : ''}`]),
-		),
+		bin: { [facade.bin]: `bin/${facade.bin}${target.os.includes('win32') ? '.exe' : ''}` },
 		exports: { './package.json': './package.json' },
 		files: ['bin/'],
 	};
 }
 
-function platformReadme(matrix: Matrix, target: Target): string {
-	const packageName = `${matrix.scope}/${target.pkg}`;
-	const binaries = matrix.binaries.map((name) => `\`${name}\``).join(', ');
+function platformReadme(matrix: Matrix, facade: Facade, target: Target): string {
+	const packageName = `${matrix.scope}/${facade.pkg}-${target.pkg}`;
 	const platform = [...target.os, ...target.cpu, ...(target.libc ? [target.libc] : [])].join(' · ');
-	const facadeList = matrix.facades.map((f) => `[\`${f.name}\`](https://npm.im/${f.name})`).join(', ');
 
 	return `\
 # ${packageName}
 
-Prebuilt ${binaries} binaries for **${platform}** (rustc target \`${target.rust}\`).
-The platform-specific package shared by ${facadeList}.
+Prebuilt \`${facade.bin}\` binary for **${platform}** (rustc target \`${target.rust}\`).
+The platform-specific package of [\`${facade.name}\`](https://npm.im/${facade.name}).
 
 ## Do I install this?
 
-Usually not. Install one of the main packages and npm picks the matching binary
+Usually not. Install the main package and npm picks the matching binary
 for your platform automatically:
 
 \`\`\`sh
-npm install ${matrix.facades[0]?.name}
+npm install ${facade.name}
 \`\`\`
 
-This package is listed in each facade's \`optionalDependencies\`. npm resolves the one
+This package is listed in \`${facade.name}\`'s \`optionalDependencies\`. npm resolves the one
 whose \`os\`/\`cpu\`${target.libc ? '/`libc`' : ''} matches your machine and skips the rest. Depending on it
-directly pins you to a single platform, so prefer a facade for anything portable.
+directly pins you to a single platform, so prefer \`${facade.name}\` for anything portable.
 
 ## Standalone use
 
-The package is a working CLI in its own right — its bins point straight at the
-bundled binaries, so on a matching machine it runs without a facade:
+The package is a working CLI in its own right — its bin points straight at the
+bundled binary, so on a matching machine it runs without the facade:
 
 \`\`\`sh
-npx --package ${packageName} svg-lint icon.svg
-npx --package ${packageName} svg-format icon.svg
+npx --package ${packageName} ${facade.bin} --version
 \`\`\`
 
 ## Contents
 
-- ${binaries}: prebuilt native binaries under \`bin/\`.
+- \`${facade.bin}\`: prebuilt native binary under \`bin/\`.
 - No dependencies, no install scripts, no network access.
 
-Released under the same license as the facades (see \`LICENSE\`).
+Released under the same license as \`${facade.name}\` (see \`LICENSE\`).
 `;
 }
 
@@ -575,10 +564,6 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 	await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function removePartialPackage(path: string): Promise<void> {
-	await rm(path, { recursive: true, force: true });
-}
-
 function formatPackage(scope: string | undefined, name: string, version: string): string {
 	const packageName = scope ? `${scope}/${name}` : name;
 	return `${blue(underline(packageName))}${green('@')}${magenta(italic(version))}`;
@@ -593,24 +578,39 @@ async function build(opts: BuildOptions): Promise<void> {
 
 	await cleanDist();
 
-	const builtTargets: Target[] = [];
+	// A platform pkg (facade × target) is selected by naming either side in
+	// --only: the target platform (all tools for it) or the facade (all its
+	// platforms). Facade packages themselves are only built when named.
+	const builtByFacade = new Map<string, Target[]>(matrix.facades.map((f) => [f.name, []]));
 
 	for (const target of matrix.targets) {
-		if (opts.only && !opts.only.has(target.pkg)) continue;
-
-		const built = await withLogGroup(
-			`${matrix.scope}/${target.pkg}`,
-			() => buildPlatformPackage(matrix, target, opts, meta),
+		const selectedFacades = matrix.facades.filter(
+			(f) => !opts.only || opts.only.has(target.pkg) || opts.only.has(f.name),
 		);
-		if (built) builtTargets.push(built);
+		if (selectedFacades.length === 0) continue;
+
+		const binaries = await extractTargetBinaries(matrix, target, opts);
+		if (!binaries) continue;
+
+		for (const facade of selectedFacades) {
+			const built = await withLogGroup(
+				`${matrix.scope}/${facade.pkg}-${target.pkg}`,
+				() => buildPlatformPackage(matrix, facade, target, binaries, opts, meta),
+			);
+			if (built) builtByFacade.get(facade.name)?.push(built);
+		}
 	}
 
-	if (builtTargets.length === 0) {
+	if ([...builtByFacade.values()].every((targets) => targets.length === 0)) {
 		throw new Error('no platform packages were built; refusing to publish facades with empty optionalDependencies');
 	}
 
 	for (const facade of matrix.facades) {
 		if (opts.only && !opts.only.has(facade.name)) continue;
+		const builtTargets = builtByFacade.get(facade.name) ?? [];
+		if (builtTargets.length === 0) {
+			throw new Error(`no platform packages built for ${facade.name}; refusing a facade with empty optionalDependencies`);
+		}
 		await withLogGroup(facade.name, () => buildFacade(matrix, facade, opts.version, builtTargets, meta));
 	}
 }
@@ -618,7 +618,7 @@ async function build(opts: BuildOptions): Promise<void> {
 export const buildPackages = command('build-packages')
 	.description('Build the npm package trees in distribution/npm/dist/ from release tarballs')
 	.flag('version', flag.string().default(readCargoManifest().version).describe('Version to stamp. Defaults to the Cargo workspace version'))
-	.flag('only', flag.array(flag.enum([firstPackageName, ...restPackageNames])).separator(',').unique().describe('Package names to build'))
+	.flag('only', flag.array(flag.enum([firstPackageName, ...restPackageNames])).separator(',').unique().describe('Platform or facade names to build'))
 	.flag('skip-missing', flag.boolean().default(false).describe('Skip targets whose tarball is missing'))
 	.flag('downloads', flag.path({ type: 'directory', mustExist: false }).default(join(npmDir, 'downloads')).describe('Tarball directory'))
 	.action(async ({ flags }) => {

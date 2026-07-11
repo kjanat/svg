@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Required env: RELEASE_TAG, DIST_TAG, DRY_RUN, REGISTRY, GITHUB_OUTPUT.
-# Optional env: ONLY_PACKAGE (single-package mode for matrix jobs).
+# Optional env: ONLY_PACKAGE (single-package mode for matrix jobs),
+# NPM_TOKEN (bootstrap auth; empty relies on OIDC trusted publishing).
 set -euo pipefail
 
 RELEASE_TAG="${RELEASE_TAG:?RELEASE_TAG required}"
@@ -12,13 +13,21 @@ shopt -s nullglob
 
 ONLY_PACKAGE="${ONLY_PACKAGE-}"
 
+# setup-node's .npmrc references NODE_AUTH_TOKEN; only export it when a
+# bootstrap token was actually provided, so a tokenless run falls through
+# to OIDC trusted publishing instead of sending an empty _authToken.
+if [[ -n "${NPM_TOKEN-}" ]]; then
+	export NODE_AUTH_TOKEN="${NPM_TOKEN}"
+fi
+
 TARGETS_JSON="${GITHUB_WORKSPACE:-.}/distribution/npm/targets.json"
 SCOPE=$(jq -r '.scope' "${TARGETS_JSON}")
 # Assign before mapfile so a jq failure aborts under `set -e`; guard
 # empty output, which `<<<` would turn into a phantom "" element.
 facade_list=$(jq -r '.facades[].name' "${TARGETS_JSON}")
-required_list=$(jq -r '.targets[] | select((.experimental // false) | not) | .pkg' "${TARGETS_JSON}")
-optional_list=$(jq -r '.targets[] | select(.experimental // false) | .pkg' "${TARGETS_JSON}")
+# One platform package per facade × target: <facade.pkg>-<target.pkg>.
+required_list=$(jq -r '.facades[] as $f | .targets[] | select((.experimental // false) | not) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
+optional_list=$(jq -r '.facades[] as $f | .targets[] | select(.experimental // false) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
 FACADES=()
 REQUIRED_PLATFORMS=()
 OPTIONAL_PLATFORMS=()
@@ -80,12 +89,21 @@ publish_allowed() {
 	# none — a tampered platform package could otherwise smuggle attacker-
 	# controlled deps that npm would happily install transitively.
 	if [[ " ${FACADES[*]} " == *" ${expected_name} "* ]]; then
+		# A facade may only reference ITS OWN tool's platform packages
+		# (prefix <facade.pkg>-), never a sibling tool's.
+		local facade_pkg
+		facade_pkg=$(jq -r --arg n "${expected_name}" '.facades[] | select(.name == $n) | .pkg' "${TARGETS_JSON}")
+		if [[ -z "${facade_pkg}" ]]; then
+			echo "error: facade ${expected_name} has no pkg prefix in targets.json" >&2
+			exit 1
+		fi
+
 		local dep_name dep_version platform dep_entries expected_dep_set=" ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} "
 		dep_entries=$(jq -r '(.optionalDependencies // {}) | to_entries[] | "\(.key)\t\(.value)"' "${dir}/package.json")
 		while IFS=$'\t' read -r dep_name dep_version; do
 			[[ -z "${dep_name}" ]] && continue
-			if [[ "${dep_name}" != "${SCOPE}/"* ]]; then
-				echo "error: facade optionalDependencies entry '${dep_name}' not under scope '${SCOPE}'" >&2
+			if [[ "${dep_name}" != "${SCOPE}/${facade_pkg}-"* ]]; then
+				echo "error: facade optionalDependencies entry '${dep_name}' not under '${SCOPE}/${facade_pkg}-'" >&2
 				exit 1
 			fi
 			platform="${dep_name#"${SCOPE}/"}"
@@ -99,8 +117,9 @@ publish_allowed() {
 			fi
 		done <<<"${dep_entries}"
 
-		# Required platforms must all be referenced.
+		# This facade's required platforms must all be referenced.
 		for platform in "${REQUIRED_PLATFORMS[@]}"; do
+			[[ "${platform}" == "${facade_pkg}-"* ]] || continue
 			if ! jq -e --arg dep "${SCOPE}/${platform}" '(.optionalDependencies // {}) | has($dep)' "${dir}/package.json" >/dev/null; then
 				echo "error: facade optionalDependencies missing required package '${SCOPE}/${platform}'" >&2
 				exit 1

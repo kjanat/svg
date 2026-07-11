@@ -164,7 +164,7 @@ commit model="openai/gpt-5.4" variant="medium" message='':
 [group('release')]
 release-config-check:
     jq -e '(.binaries | length > 0) and ([.facades[].bin] - .binaries == []) and ([.targets[] | select(.experimental and .tier != 3)] == [])' distribution/npm/targets.json > /dev/null
-    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml
+    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml
     shellcheck -x -o all --shell=bash .github/actions/*/run.sh
     node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
 

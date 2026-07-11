@@ -3,11 +3,12 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$defs": {
 		"facade": {
-			"description": "A user-facing npm package exposing one binary. \nEvery facade shares the same platform sub-packages (which bundle all binaries) via \"optionalDependencies\".",
+			"description": "A user-facing npm package exposing one binary. \nEach facade has its own per-platform sub-packages (\"<scope>/<pkg>-<target.pkg>\", one binary each) via \"optionalDependencies\".",
 			"type": "object",
 			"required": [
 				"bin",
-				"name"
+				"name",
+				"pkg"
 			],
 			"properties": {
 				"bin": {
@@ -24,6 +25,11 @@
 					"description": "npm package name users install (unscoped).",
 					"type": "string",
 					"pattern": "^[a-z0-9][a-z0-9._-]*$"
+				},
+				"pkg": {
+					"description": "Tool prefix for this facade's platform sub-packages: \"<scope>/<pkg>-<target.pkg>\".",
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9-]*$"
 				}
 			},
 			"additionalProperties": false
@@ -112,7 +118,7 @@
 					}
 				},
 				"pkg": {
-					"description": "Final package name is \"<scope>/<pkg>\".",
+					"description": "Platform identifier. Final package names are \"<scope>/<facade.pkg>-<pkg>\", one per facade.",
 					"type": "string",
 					"pattern": "^[a-z0-9][a-z0-9-]*$"
 				},

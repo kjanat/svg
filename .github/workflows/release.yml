@@ -193,3 +193,11 @@ jobs:
     uses: ./.github/workflows/npm-release.yml
     with: { tag: "${{ github.ref_name }}", run-id: "${{ github.run_id }}" }
     secrets: inherit
+
+  call-crates-release:
+    name: crates publish
+    needs: [publish-release]
+    permissions: { contents: read, id-token: write }
+    uses: ./.github/workflows/crates-release.yml
+    with: { tag: "${{ github.ref_name }}" }
+    secrets: inherit

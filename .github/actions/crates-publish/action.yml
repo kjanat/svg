@@ -1,0 +1,34 @@
+name: crates publish
+description: >-
+  Publish all publishable workspace crates to crates.io in dependency order
+  (derived from cargo's own dry-run), resumably: already-published versions
+  are skipped via the sparse index, and 429 rate limits — crates.io refills
+  the new-crate-name allowance roughly once per ten minutes — are absorbed
+  by waiting and retrying instead of failing the release.
+
+inputs:
+  token:
+    description: crates.io token (bootstrap secret or OIDC-minted)
+    required: true
+  version:
+    description: the version being published (tag without the v prefix)
+    required: true
+  publish-interval:
+    description: seconds to wait between successful publishes
+    required: false
+    default: "5"
+  retry-wait:
+    description: seconds to wait after a 429 before retrying
+    required: false
+    default: "630"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ inputs.token }}
+        VERSION: ${{ inputs.version }}
+        PUBLISH_INTERVAL: ${{ inputs.publish-interval }}
+        RETRY_WAIT: ${{ inputs.retry-wait }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

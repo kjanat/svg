@@ -4,7 +4,8 @@ set -euo pipefail
 
 GITHUB_OUTPUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT required}"
 
-platforms=$(jq -c '[.targets[] | {pkg: .pkg, experimental: (.experimental // false)}]' distribution/npm/targets.json)
+# One platform package per facade × target: <facade.pkg>-<target.pkg>.
+platforms=$(jq -c '[.facades[] as $f | .targets[] | {pkg: ($f.pkg + "-" + .pkg), experimental: (.experimental // false)}]' distribution/npm/targets.json)
 facades=$(jq -c '[.facades[] | {pkg: .name}]' distribution/npm/targets.json)
 
 {

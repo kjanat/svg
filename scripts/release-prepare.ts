@@ -36,13 +36,29 @@ if (cargoTomlParsed.workspace?.package?.version == null) {
 	exit(1);
 }
 
-const cargoToml = cargoTomlSource.replace(
-	/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
-	`$1${version}$3`,
-);
+const cargoToml = cargoTomlSource
+	.replace(
+		/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
+		`$1${version}$3`,
+	)
+	// Internal workspace deps carry crates.io version requirements that must
+	// track the workspace version, or `cargo publish --workspace` breaks the
+	// release after the first bump.
+	.replace(
+		/(= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = ")([^"]+)(")/g,
+		`$1${version}$3`,
+	);
 
 if (cargoToml === cargoTomlSource) {
 	error('failed to update workspace.package.version in Cargo.toml');
+	exit(1);
+}
+
+const internalDepCount = (cargoToml.match(/= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = "/g) ?? []).length;
+const bumpedDepCount =
+	(cargoToml.match(new RegExp(`= \\{ package = "(?:svg-|tree-sitter-svg)[\\w-]*", version = "${version.replace(/\./g, '\\.')}"`, 'g')) ?? []).length;
+if (internalDepCount !== bumpedDepCount) {
+	error(`only ${bumpedDepCount}/${internalDepCount} internal dep version requirements were bumped to ${version}`);
 	exit(1);
 }
 

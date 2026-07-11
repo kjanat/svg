@@ -25,6 +25,12 @@
 - `.github/workflows/npm-release.yml` — smoke-tests the dist artifact, then
   publishes platform packages and facades. Also runnable via `workflow_dispatch`
   for backfills and dry runs.
+- `.github/workflows/crates-release.yml` — publishes the 11 publishable
+  workspace crates to crates.io in dependency order
+  (`cargo publish
+  --workspace`). Bootstrap auth via the `CARGO_REGISTRY_TOKEN`
+  secret in the `crates-io` environment; delete it once every crate has a
+  trusted publisher configured and OIDC takes over.
 - `.github/actions/*/action.yml` — composite subactions holding all multi-step
   logic (asset packaging/verification, archive download, npm smoke/derive/
   publish, matrix generation).
@@ -47,7 +53,7 @@ publish of each new package name may require a temporary `NPM_TOKEN` secret in
 GitHub Actions. Once the first publish exists:
 
 1. Configure trusted publishers for the facades (`svg-language-server`,
-   `svg-lint`, `svg-format`) and every `@kjanat/*` platform package.
+   `svg-lint`, `svg-format`) and every `@svg-toolkit/*` platform package.
 2. Point each package at this repository and the stable workflow file
    `.github/workflows/npm-release.yml`.
 3. Remove the temporary `NPM_TOKEN` secret so later releases rely on OIDC only.
