@@ -123,8 +123,7 @@ const DEFINITION_TAG = /<(element|attribute|property)\s+name=['"]([^'"]+)['"]/g;
  * Regex for the per-property `<h4 id='XxxProperty'>` headings in
  * `text.html`. Captures the property name from the nested span.
  */
-const TEXT_HTML_H4_PROPERTY =
-	/<h4\s+id=['"]([^'"]*Property)['"][^>]*>\s*The\s*<span[^>]*class=['"]property['"][^>]*>'?([^<']+)'?<\/span>/i;
+const TEXT_HTML_H4_PROPERTY = /<h4\s+id=['"]([^'"]*Property)['"][^>]*>\s*The\s*<span[^>]*class=['"]property['"][^>]*>'?([^<']+)'?<\/span>/i;
 
 /**
  * Multiline regex for "has been removed in SVG 2" / "has been obsoleted"
@@ -263,8 +262,7 @@ export function parseTextHtmlOverrides(
 	// Additionally find any h4 whose *text* contains a property span but
 	// whose id didn't match the "Property" suffix pattern — covers
 	// variant heading forms. Safe because downstream dedupes by name.
-	const genericHeadingRe =
-		/<h4\s+[^>]*>\s*The\s*<span[^>]*class=['"]property['"][^>]*>'?([^<']+)'?<\/span>[^<]*<\/h4>/gi;
+	const genericHeadingRe = /<h4\s+[^>]*>\s*The\s*<span[^>]*class=['"]property['"][^>]*>'?([^<']+)'?<\/span>[^<]*<\/h4>/gi;
 	for (
 		let generic = genericHeadingRe.exec(content);
 		generic !== null;

@@ -1,0 +1,219 @@
+{
+	"$schema": "./targets.schema.json",
+	"scope": "@kjanat",
+	"binaries": ["svg-language-server", "svg-lint", "svg-format"],
+	"facades": [
+		{
+			"name": "svg-language-server",
+			"bin": "svg-language-server",
+			"description": "LSP server for SVG: diagnostics, completions, hover, formatting, and references."
+		},
+		{
+			"name": "svg-lint",
+			"bin": "svg-lint",
+			"description": "Structural linter for SVG documents."
+		},
+		{
+			"name": "svg-format",
+			"bin": "svg-format",
+			"description": "Structural formatter for SVG documents."
+		}
+	],
+	"targets": [
+		{
+			"pkg": "linux-x64-gnu",
+			"rust": "x86_64-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["x64"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 1
+		},
+		{
+			"pkg": "linux-x64-musl",
+			"rust": "x86_64-unknown-linux-musl",
+			"os": ["linux"],
+			"cpu": ["x64"],
+			"libc": ["musl"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 1
+		},
+		{
+			"pkg": "linux-arm64-gnu",
+			"rust": "aarch64-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["arm64"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 1
+		},
+		{
+			"pkg": "linux-arm64-musl",
+			"rust": "aarch64-unknown-linux-musl",
+			"os": ["linux"],
+			"cpu": ["arm64"],
+			"libc": ["musl"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 1
+		},
+		{
+			"pkg": "darwin-x64",
+			"rust": "x86_64-apple-darwin",
+			"os": ["darwin"],
+			"cpu": ["x64"],
+			"runner": "macos-15-intel",
+			"build": "cargo",
+			"tier": 1
+		},
+		{
+			"pkg": "darwin-arm64",
+			"rust": "aarch64-apple-darwin",
+			"os": ["darwin"],
+			"cpu": ["arm64"],
+			"runner": "macos-latest",
+			"build": "cargo",
+			"tier": 1
+		},
+		{
+			"pkg": "win32-x64-msvc",
+			"rust": "x86_64-pc-windows-msvc",
+			"os": ["win32"],
+			"cpu": ["x64"],
+			"runner": "windows-latest",
+			"build": "cargo",
+			"tier": 1
+		},
+		{
+			"pkg": "win32-arm64-msvc",
+			"rust": "aarch64-pc-windows-msvc",
+			"os": ["win32"],
+			"cpu": ["arm64"],
+			"runner": "windows-11-arm",
+			"build": "cargo",
+			"tier": 1
+		},
+		{
+			"pkg": "linux-armv7-gnueabihf",
+			"rust": "armv7-unknown-linux-gnueabihf",
+			"os": ["linux"],
+			"cpu": ["arm"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-armv7-musleabihf",
+			"rust": "armv7-unknown-linux-musleabihf",
+			"os": ["linux"],
+			"cpu": ["arm"],
+			"libc": ["musl"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-ia32-gnu",
+			"rust": "i686-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["ia32"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-ia32-musl",
+			"rust": "i686-unknown-linux-musl",
+			"os": ["linux"],
+			"cpu": ["ia32"],
+			"libc": ["musl"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "win32-ia32-msvc",
+			"rust": "i686-pc-windows-msvc",
+			"os": ["win32"],
+			"cpu": ["ia32"],
+			"runner": "windows-latest",
+			"build": "cargo",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-riscv64-gnu",
+			"rust": "riscv64gc-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["riscv64"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-ppc64-gnu",
+			"rust": "powerpc64le-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["ppc64"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "linux-s390x-gnu",
+			"rust": "s390x-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["s390x"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "freebsd-x64",
+			"rust": "x86_64-unknown-freebsd",
+			"os": ["freebsd"],
+			"cpu": ["x64"],
+			"runner": "ubuntu-latest",
+			"build": "cross",
+			"tier": 2
+		},
+		{
+			"pkg": "freebsd-arm64",
+			"rust": "aarch64-unknown-freebsd",
+			"os": ["freebsd"],
+			"cpu": ["arm64"],
+			"runner": "ubuntu-latest",
+			"build": "cargo-build-std",
+			"tier": 3,
+			"experimental": true
+		},
+		{
+			"pkg": "netbsd-x64",
+			"rust": "x86_64-unknown-netbsd",
+			"os": ["netbsd"],
+			"cpu": ["x64"],
+			"runner": "ubuntu-latest",
+			"build": "cargo-cross-toolchain",
+			"tier": 3,
+			"experimental": true
+		},
+		{
+			"pkg": "linux-loong64-gnu",
+			"rust": "loongarch64-unknown-linux-gnu",
+			"os": ["linux"],
+			"cpu": ["loong64"],
+			"libc": ["glibc"],
+			"runner": "ubuntu-latest",
+			"build": "cargo-cross-toolchain",
+			"tier": 3,
+			"experimental": true
+		}
+	]
+}

@@ -1,0 +1,22 @@
+name: npm smoke
+description: >-
+  Install the packed tarballs into a scratch project and execute every bin —
+  runs on the exact bytes `npm publish` ships.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z); binaries must report this version
+    required: true
+  host-pkg:
+    description: platform package matching the runner (linux-x64-gnu on ubuntu)
+    required: false
+    default: linux-x64-gnu
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        HOST_PKG: ${{ inputs.host-pkg }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

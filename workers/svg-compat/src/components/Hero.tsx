@@ -14,8 +14,7 @@ export function Hero({ model }: Props) {
 				<p class='eyebrow'>SVG compatibility catalog</p>
 				<h1>Browser face. Dynamic source knobs.</h1>
 				<p class='muted hero-description'>
-					Generated <time>{model.generatedAt}</time>. Ask for <code>/data.json</code>, <code>?format=json</code>, or
-					{' '}
+					Generated <time>{model.generatedAt}</time>. Ask for <code>/data.json</code>, <code>?format=json</code>, or{' '}
 					<code>Accept: application/json</code>.
 				</p>
 				<div class='muted hero-description'>

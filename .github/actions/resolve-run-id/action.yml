@@ -1,0 +1,33 @@
+name: resolve run-id
+description: >-
+  Resolve the release.yml run ID that produced the dist artifact for a tag.
+  An explicit input wins; otherwise the latest successful release.yml run on
+  the tag's branch is used.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  run-id:
+    description: explicit release.yml run ID; empty to auto-resolve
+    required: false
+    default: ""
+  token:
+    description: token with `actions:read` on this repo
+    required: true
+
+outputs:
+  run-id:
+    description: the resolved numeric run ID
+    value: ${{ steps.resolve.outputs.run-id }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        INPUT_RUN_ID: ${{ inputs.run-id }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

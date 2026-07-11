@@ -1,0 +1,42 @@
+name: npm derive
+description: >-
+  Derive the npm dist-tag and dry-run flag from trigger metadata. A manual
+  dist-tag override always wins; otherwise a prerelease tag (v1.0.0-rc.1)
+  maps to `next` and anything else to `latest`. dry-run is only honored on
+  workflow_dispatch.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  event-name:
+    description: github.event_name of the triggering event
+    required: true
+  dist-tag:
+    description: manual npm dist-tag override; empty to infer from the tag
+    required: false
+    default: ""
+  dry-run:
+    description: dry-run flag from workflow_dispatch inputs
+    required: false
+    default: "false"
+
+outputs:
+  dist-tag:
+    description: npm dist-tag to publish with
+    value: ${{ steps.derive.outputs.dist-tag }}
+  dry-run:
+    description: normalized `true`/`false`
+    value: ${{ steps.derive.outputs.dry-run }}
+
+runs:
+  using: composite
+  steps:
+    - id: derive
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        EVENT_NAME: ${{ inputs.event-name }}
+        INPUT_DIST_TAG: ${{ inputs.dist-tag }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

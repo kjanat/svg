@@ -1,0 +1,152 @@
+---
+name: npm-release
+run-name: "npm publish ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}"
+
+on:
+  workflow_call: { inputs: { tag: { required: true, type: string }, run-id: { required: true, type: string } } }
+  release: { types: [published] }
+  workflow_dispatch:
+    inputs:
+      tag: { description: Release tag to publish (e.g. v0.1.0), required: true, type: string }
+      run-id:
+        description: |-
+          release.yml run ID that produced the dist artifact for this tag.
+          Find it via `gh run list --workflow=release.yml --branch=<tag> --status=success`.
+        required: true
+        type: string
+      dist-tag:
+        description: |-
+          npm dist-tag (latest, next, etc.).
+          Leave empty to infer from the tag (prerelease → next, otherwise → latest).
+        required: false
+        options: [latest, next]
+        type: choice
+      dry-run: { description: Dry run only, required: true, default: false, type: boolean }
+
+permissions: { contents: read }
+
+env:
+  REGISTRY: https://registry.npmjs.org/
+  # Trusted trigger metadata only.
+  RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  setup:
+    name: verify dist
+    runs-on: ubuntu-latest
+    if: startsWith(inputs.tag, 'v') || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
+    permissions: { contents: read, actions: read }
+    outputs:
+      run-id: ${{ steps.resolve.outputs.run-id }}
+      dist-tag: ${{ steps.derive.outputs.dist-tag }}
+      dry-run: ${{ steps.derive.outputs.dry-run }}
+      platforms: ${{ steps.matrix.outputs.platforms }}
+      facades: ${{ steps.matrix.outputs.facades }}
+    steps:
+      # Sparse-checkout from default branch — no tag-supplied code on disk.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v6
+        with: { registry-url: "${{ env.REGISTRY }}" }
+
+      - name: resolve build run-id
+        id: resolve
+        uses: ./.github/actions/resolve-run-id
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          run-id: ${{ inputs.run-id }}
+          token: ${{ github.token }}
+
+      - name: download dist artifact
+        uses: ./.github/actions/dist-artifact
+        with: { run-id: "${{ steps.resolve.outputs.run-id }}", token: "${{ github.token }}" }
+
+      # Execute what will be published; build-dist's smoke test runs
+      # before the artifact handoff and can't see what it breaks.
+      - name: smoke-test dist artifact
+        uses: ./.github/actions/npm-smoke
+        with: { tag: "${{ env.RELEASE_TAG }}" }
+
+      - name: derive dist-tag and dry-run
+        id: derive
+        uses: ./.github/actions/npm-derive
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          event-name: ${{ github.event_name }}
+          dist-tag: ${{ inputs.dist-tag }}
+          dry-run: ${{ inputs.dry-run || false }}
+
+      - name: generate publish matrices
+        id: matrix
+        uses: ./.github/actions/publish-matrices
+
+  publish:
+    name: publish ${{ matrix.pkg }}
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write, actions: read }
+    environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
+    strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.platforms) }}" } }
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v6
+        with: { registry-url: "${{ env.REGISTRY }}" }
+
+      - name: download dist artifact
+        uses: ./.github/actions/dist-artifact
+        with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
+
+      - name: publish to npm
+        id: publish
+        uses: ./.github/actions/npm-publish
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          dist-tag: ${{ needs.setup.outputs.dist-tag }}
+          dry-run: ${{ needs.setup.outputs.dry-run }}
+          registry: ${{ env.REGISTRY }}
+          only-package: ${{ matrix.pkg }}
+
+  # Facades last so their optionalDependencies resolve on install.
+  publish-facades:
+    name: publish ${{ matrix.pkg }}
+    needs: [setup, publish]
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write, actions: read }
+    environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
+    strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.facades) }}" } }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v6
+        with: { registry-url: "${{ env.REGISTRY }}" }
+
+      - name: download dist artifact
+        uses: ./.github/actions/dist-artifact
+        with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
+
+      - name: publish to npm
+        id: publish
+        uses: ./.github/actions/npm-publish
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          dist-tag: ${{ needs.setup.outputs.dist-tag }}
+          dry-run: ${{ needs.setup.outputs.dry-run }}
+          registry: ${{ env.REGISTRY }}
+          only-package: ${{ matrix.pkg }}

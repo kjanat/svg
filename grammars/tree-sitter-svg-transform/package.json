@@ -2,7 +2,13 @@
 	"name": "tree-sitter-svg-transform",
 	"version": "0.0.1",
 	"description": "SVG transform-list sub-grammar for Tree-sitter, injected into transform attribute values by tree-sitter-svg",
-	"keywords": ["incremental", "parsing", "tree-sitter", "svg", "svg_transform"],
+	"keywords": [
+		"incremental",
+		"parsing",
+		"tree-sitter",
+		"svg",
+		"svg_transform"
+	],
 	"homepage": "https://github.com/kjanat/svg/tree/HEAD/grammars/tree-sitter-svg-transform#readme",
 	"bugs": {
 		"url": "https://github.com/kjanat/svg/issues"
@@ -15,8 +21,6 @@
 	"license": "MIT OR Apache-2.0",
 	"author": "Kaj Kowalski <info@kajkowalski.nl> (https://github.com/kjanat)",
 	"type": "module",
-	"main": "bindings/node",
-	"types": "bindings/node",
 	"exports": {
 		".": {
 			"types": "./bindings/node/index.d.ts",
@@ -24,6 +28,8 @@
 		},
 		"./package.json": "./package.json"
 	},
+	"main": "bindings/node",
+	"types": "bindings/node",
 	"directories": {
 		"test": "test"
 	},
@@ -38,19 +44,19 @@
 		"*.wasm"
 	],
 	"scripts": {
+		"fmt": "dprint fmt",
 		"generate": "tree-sitter generate",
 		"postinstall": "node scripts/ensure-native.mjs",
+		"lint": "biome check",
 		"prepare": "node scripts/ensure-clangd-headers.mjs",
+		"setup:clangd-headers": "node scripts/ensure-clangd-headers.mjs",
+		"setup:native": "node scripts/ensure-native.mjs",
 		"prestart": "tree-sitter build --wasm",
 		"start": "tree-sitter playground --quiet",
 		"test": "tree-sitter test",
 		"test:corpus": "tree-sitter test",
 		"test:node": "node --test bindings/node/*_test.js",
-		"typecheck": "tsc --noEmit",
-		"fmt": "dprint fmt",
-		"lint": "biome check",
-		"setup:native": "node scripts/ensure-native.mjs",
-		"setup:clangd-headers": "node scripts/ensure-clangd-headers.mjs"
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"node-addon-api": "catalog:",

@@ -23,15 +23,7 @@
  */
 // @ts-nocheck Deno
 
-import type {
-	Baseline,
-	BaselineDate,
-	BrowserFlag,
-	BrowserSupport,
-	BrowserVersion,
-	CompatEntry,
-	VersionQualifier,
-} from '#lib/types.ts';
+import type { Baseline, BaselineDate, BrowserFlag, BrowserSupport, BrowserVersion, CompatEntry, VersionQualifier } from '#lib/types.ts';
 import type { JsonRecord } from '#src/sources.ts';
 import { isRecord } from '#src/sources.ts';
 
@@ -145,9 +137,7 @@ export function parseBaselineDate(
 	if (!match) {
 		warnOnce(
 			`wf-date-unparseable:${raw}`,
-			`svg-compat: could not extract YYYY-MM-DD from baseline date ${
-				stringifyUnknown(raw)
-			} for "${compatKey}". Preserving as raw.`,
+			`svg-compat: could not extract YYYY-MM-DD from baseline date ${stringifyUnknown(raw)} for "${compatKey}". Preserving as raw.`,
 		);
 		return { raw };
 	}
@@ -155,9 +145,7 @@ export function parseBaselineDate(
 	if (Number.isNaN(Date.parse(isoDate))) {
 		warnOnce(
 			`wf-date-invalid-iso:${isoDate}`,
-			`svg-compat: extracted "${isoDate}" from ${
-				stringifyUnknown(raw)
-			} but it is not a valid date for "${compatKey}". Preserving as raw.`,
+			`svg-compat: extracted "${isoDate}" from ${stringifyUnknown(raw)} but it is not a valid date for "${compatKey}". Preserving as raw.`,
 		);
 		return { raw };
 	}
@@ -397,9 +385,7 @@ export function parseBrowserVersion(
 	if (!stmt) {
 		warnOnce(
 			`wf-browser-shape:${browser}`,
-			`svg-compat: unrecognised support statement shape ${
-				stringifyUnknown(value)
-			} for "${compatKey}" / ${browser}. Skipping.`,
+			`svg-compat: unrecognised support statement shape ${stringifyUnknown(value)} for "${compatKey}" / ${browser}. Skipping.`,
 		);
 		return undefined;
 	}
@@ -415,9 +401,7 @@ export function parseBrowserVersion(
 	} else {
 		warnOnce(
 			`wf-version-added-type:${typeof rawAdded}`,
-			`svg-compat: unexpected version_added type ${
-				stringifyUnknown(rawAdded)
-			} for "${compatKey}" / ${browser}. Coercing to null.`,
+			`svg-compat: unexpected version_added type ${stringifyUnknown(rawAdded)} for "${compatKey}" / ${browser}. Coercing to null.`,
 		);
 		raw_value_added = null;
 	}

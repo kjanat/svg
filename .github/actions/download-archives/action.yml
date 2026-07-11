@@ -1,0 +1,24 @@
+name: download archives
+description: >-
+  Download every release tarball + checksum for the tag into
+  distribution/npm/downloads, then verify each tarball against its .sha256.
+  Both directions are checked: every tarball needs a matching checksum file
+  and every checksum file must reference its own tarball — otherwise an
+  unchecksummed binary could slip through to publish.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  token:
+    description: token with `contents:read` on this repo (drafts need write)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

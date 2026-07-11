@@ -1,0 +1,41 @@
+{
+	"name": "svg-language-server",
+	"description": "LSP server for SVG: diagnostics, completions, hover, formatting, and references.",
+	"keywords": [
+		"svg",
+		"lsp",
+		"language-server",
+		"diagnostics",
+		"completions",
+		"formatter",
+		"linter",
+		"ansispeck"
+	],
+	"repository": "kjanat/svg",
+	"type": "module",
+	"imports": {
+		"#launch": "./lib/launch.mjs",
+		"#pkg": "./package.json",
+		"#resolve": "./lib/resolve.mjs"
+	},
+	"exports": {
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"svg-language-server": "bin/svg-language-server.mjs",
+		"svg-ls": "bin/svg-language-server.mjs"
+	},
+	"directories": {
+		"lib": "./lib"
+	},
+	"files": [
+		"bin/",
+		"lib/",
+		"README.md",
+		"LICENSE"
+	],
+	"dependencies": {
+		"ansispeck": "^0.1.2"
+	},
+	"optionalDependencies": {}
+}

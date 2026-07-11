@@ -13,7 +13,7 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 ## STRUCTURE
 
 ```text
-./
+.
 ├── crates/
 │   ├── svg-language-server/   # LSP binary, protocol glue, feature orchestration
 │   ├── svg-data/              # generated SVG catalog + compat metadata
@@ -42,21 +42,21 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 
 ## WHERE TO LOOK
 
-| Task                                          | Location                                                                   | Notes                                                |
-| --------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Add or debug LSP method                       | `crates/svg-language-server/src/lib.rs`                                    | Main async server/orchestrator                       |
-| Change lint behavior                          | `crates/svg-lint/src/rules/mod.rs`                                         | Rule engine + suppression handling                   |
-| Add hover/completion metadata                 | `crates/svg-data/build.rs`, `crates/svg-data/src/lib.rs`                   | Build-time catalog generation + runtime API          |
-| Change formatter output                       | `crates/svg-format/src/lib.rs`                                             | Attribute layout/sort, ignore directives, tag policy |
-| Change color extraction/presentation          | `crates/svg-color/src/extract.rs`, `crates/svg-color/src/present.rs`       | CSS + SVG extraction and output labels               |
-| Change definition/reference lookup            | `crates/svg-references/src/lib.rs`                                         | Shared symbol model for ids/classes/custom props     |
-| Change shared tree traversal                  | `crates/svg-tree/src/lib.rs`                                               | Shared node-walk, ancestor, and kind helpers         |
-| Change parser grammar or grammar-side queries | `grammars/tree-sitter-svg/grammar.js`, `grammars/tree-sitter-svg/queries/` | Tree-sitter SVG source of truth                      |
-| Change Zed extension behavior                 | `editors/zed-svg/`                                                         | Extension manifest, Rust wrapper, Zed queries        |
-| Validate E2E feature behavior                 | `crates/svg-language-server/tests/*.rs`                                    | Spawns binary, speaks raw JSON-RPC                   |
-| Change release automation                     | `.github/workflows/*.yml`, `dist-workspace.toml`                           | `release.yml` generated; publish workflow custom     |
-| Check design intent / file maps               | `docs/plans/*.md`, `docs/specs/*.md`                                       | Dated plan/spec pairs with verification guidance     |
-| Repro behavior manually                       | `samples/`                                                                 | Manual fixtures; not wired into automated test runs  |
+| Task                                          | Location                                                                        | Notes                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Add or debug LSP method                       | `crates/svg-language-server/src/lib.rs`                                         | Main async server/orchestrator                       |
+| Change lint behavior                          | `crates/svg-lint/src/rules/mod.rs`                                              | Rule engine + suppression handling                   |
+| Add hover/completion metadata                 | `crates/svg-data/build.rs`, `crates/svg-data/src/lib.rs`                        | Build-time catalog generation + runtime API          |
+| Change formatter output                       | `crates/svg-format/src/lib.rs`                                                  | Attribute layout/sort, ignore directives, tag policy |
+| Change color extraction/presentation          | `crates/svg-color/src/extract.rs`, `crates/svg-color/src/present.rs`            | CSS + SVG extraction and output labels               |
+| Change definition/reference lookup            | `crates/svg-references/src/lib.rs`                                              | Shared symbol model for ids/classes/custom props     |
+| Change shared tree traversal                  | `crates/svg-tree/src/lib.rs`                                                    | Shared node-walk, ancestor, and kind helpers         |
+| Change parser grammar or grammar-side queries | `grammars/tree-sitter-svg/grammar.js`, `grammars/tree-sitter-svg/queries/`      | Tree-sitter SVG source of truth                      |
+| Change Zed extension behavior                 | `editors/zed-svg/`                                                              | Extension manifest, Rust wrapper, Zed queries        |
+| Validate E2E feature behavior                 | `crates/svg-language-server/tests/*.rs`                                         | Spawns binary, speaks raw JSON-RPC                   |
+| Change release automation                     | `.github/workflows/*.yml`, `.github/actions/*`, `distribution/npm/targets.json` | Hand-owned pipeline; targets.json is source of truth |
+| Check design intent / file maps               | `docs/plans/*.md`, `docs/specs/*.md`                                            | Dated plan/spec pairs with verification guidance     |
+| Repro behavior manually                       | `samples/`                                                                      | Manual fixtures; not wired into automated test runs  |
 
 ## CODE MAP
 
@@ -80,8 +80,9 @@ color analysis, reference lookup, and shared tree-sitter helpers.
   tree; leaf crates consume shared trees where possible.
 - Workspace split is intentional: LSP crate integrates; leaf crates own domain
   logic and stay free of transport types.
-- Release automation is split: `dist-workspace.toml` drives generated
-  `release.yml`, while `publish-npm-oidc.yml` is hand-maintained.
+- Release automation is fully hand-owned: `distribution/npm/targets.json`
+  defines the build/publish matrix consumed by `release.yml` and
+  `npm-release.yml`.
 - `docs/plans/*` and `docs/specs/*` are date-paired design history, not
   generated output.
 - `grammars/tree-sitter-svg` is the canonical grammar in this repo. Keep parser

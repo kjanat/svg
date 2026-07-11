@@ -61,7 +61,7 @@ await Bun.$`cargo check --workspace`;
 await Bun.$`just verify`;
 await Bun.$`git add Cargo.toml Cargo.lock`;
 await Bun.$`git commit -m ${`chore(release): ${tag}`}`;
-await Bun.$`git tag -a ${tag} -m ${tag}`;
+await Bun.$`git tag -s ${tag} -m ${tag}`;
 
 const branch = (await Bun.$`git branch --show-current`.text()).trim();
 log('release prepared locally');

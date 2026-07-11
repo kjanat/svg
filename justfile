@@ -160,20 +160,23 @@ verify:
 commit model="openai/gpt-5.4" variant="medium" message='':
     opencode run --command commit --model={{ model }} --variant={{ variant }} '{{ message }}'
 
-# validate cargo-dist config
+# validate the release target matrix and workflow scripts
 [group('release')]
 release-config-check:
-    cargo dist plan --output-format=json > /dev/null
+    jq -e '(.binaries | length > 0) and ([.facades[].bin] - .binaries == []) and ([.targets[] | select(.experimental and .tier != 3)] == [])' distribution/npm/targets.json > /dev/null
+    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml
+    shellcheck -x -o all --shell=bash .github/actions/*/run.sh
+    node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
 
-# preview what cargo-dist would ship
+# preview the per-target build matrix release.yml will run
 [group('release')]
-release-preview *ARGS:
-    cargo dist plan --allow-dirty {{ ARGS }}
+release-preview:
+    jq -r '.targets[] | [.rust, .runner, .build, "tier \(.tier)", (if .experimental then "experimental" else "" end)] | @tsv' distribution/npm/targets.json | column -t
 
-# regenerate the release CI workflow
+# build the npm package trees locally (host tarball auto-built if missing)
 [group('release')]
-release-ci-regen:
-    cargo dist generate --mode=ci
+release-npm-preview *ARGS:
+    node distribution/npm/scripts/build-packages.ts {{ ARGS }}
 
 # bump version, verify, commit, tag; no push
 [group('release')]

@@ -1,0 +1,22 @@
+name: append release notes
+description: >-
+  Append GitHub's auto-generated notes to the draft release body.
+  release:published never fires for token-created releases, so the final
+  body is assembled here.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  token:
+    description: token with `contents:write` on this repo
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

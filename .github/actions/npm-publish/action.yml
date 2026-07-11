@@ -1,0 +1,41 @@
+name: npm publish
+description: >-
+  Publish one package (or the full set) from the built dist artifact, with
+  allowlist/name/version integrity defenses run before npm is invoked. See
+  run.sh for the full threat model.
+
+inputs:
+  tag:
+    description: release tag (vX.Y.Z)
+    required: true
+  dist-tag:
+    description: npm dist-tag to publish with
+    required: true
+  dry-run:
+    description: pass --dry-run to npm publish
+    required: true
+  registry:
+    description: npm registry URL
+    required: true
+  only-package:
+    description: single package (facade or platform pkg) for matrix jobs; empty publishes everything
+    required: false
+    default: ""
+
+outputs:
+  package-url:
+    description: npm.im URL of the published package (last one in full-set mode)
+    value: ${{ steps.publish.outputs.package-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: publish
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        DIST_TAG: ${{ inputs.dist-tag }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        REGISTRY: ${{ inputs.registry }}
+        ONLY_PACKAGE: ${{ inputs.only-package }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"
