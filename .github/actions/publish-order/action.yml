@@ -1,0 +1,17 @@
+name: publish order
+description: >-
+  Derive the crates.io publish order (the intra-workspace dependency DAG)
+  from cargo's own dry run, as a matrix include list. Consumed with
+  `max-parallel: 1` so per-crate jobs run in this exact order.
+
+outputs:
+  crates:
+    description: JSON array of `{crate}` entries in dependency order
+    value: ${{ steps.gen.outputs.crates }}
+
+runs:
+  using: composite
+  steps:
+    - id: gen
+      shell: bash
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

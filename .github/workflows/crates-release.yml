@@ -15,21 +15,16 @@ env:
   RELEASE_TAG: ${{ inputs.tag }}
   INPUT_DRY_RUN: ${{ inputs.dry-run || 'false' }}
   CARGO_TERM_COLOR: always
-  # Bootstrap fallback: crates.io trusted publishing is configured per
-  # existing crate, so the first publish of each crate needs a real token.
-  # Once every crate has a trusted publisher, delete the secret and the
-  # OIDC mint below takes over.
-  CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
-  publish:
-    name: publish to crates.io
+  setup:
+    name: verify + publish order
     runs-on: ubuntu-latest
-    # First-ever release: 11 new crate names against a small burst allowance
-    # refilled ~1/10min means the publish loop can legitimately take >1h.
-    timeout-minutes: 150
-    permissions: { contents: read, id-token: write }
-    environment: { name: crates-io }
+    timeout-minutes: 15
+    permissions: { contents: read }
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      crates: ${{ steps.order.outputs.crates }}
     steps:
       - uses: actions/checkout@v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false }
@@ -41,11 +36,41 @@ jobs:
         uses: ./.github/actions/verify-tag-version
         with: { tag: "${{ env.RELEASE_TAG }}" }
 
-      # Resolves the intra-workspace dependency DAG and publishes the 11
-      # publishable crates in order; `publish = false` members are skipped.
+      - name: derive publish order
+        id: order
+        uses: ./.github/actions/publish-order
+
+  publish:
+    name: publish ${{ matrix.crate }}
+    needs: setup
+    runs-on: ubuntu-latest
+    # First-ever publish of a new crate name can sit out several ~10min
+    # rate-limit refills before its slot opens.
+    timeout-minutes: 90
+    permissions: { contents: read, id-token: write }
+    environment: { name: crates-io, url: "https://crates.io/crates/${{ matrix.crate }}/${{ needs.setup.outputs.version }}" }
+    # max-parallel 1 preserves the dependency order the matrix encodes;
+    # fail-fast stops dependents when a dependency's publish fails.
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix: { include: "${{ fromJSON(needs.setup.outputs.crates) }}" }
+    env:
+      # Bootstrap fallback: crates.io trusted publishing is configured per
+      # existing crate, so the first publish of each crate needs a real
+      # token. Once every crate has a trusted publisher, delete the secret
+      # and the OIDC mint below takes over.
+      CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
       - name: cargo publish (dry run)
         if: env.INPUT_DRY_RUN == 'true'
-        run: cargo publish --workspace --locked --dry-run --no-verify
+        env: { CRATE: "${{ matrix.crate }}" }
+        run: cargo publish -p "${CRATE}" --locked --dry-run --no-verify
 
       - name: mint crates.io token (trusted publishing)
         if: env.INPUT_DRY_RUN != 'true' && env.CRATES_TOKEN == ''
@@ -56,5 +81,6 @@ jobs:
         if: env.INPUT_DRY_RUN != 'true'
         uses: ./.github/actions/crates-publish
         with:
+          crate: ${{ matrix.crate }}
+          version: ${{ needs.setup.outputs.version }}
           token: ${{ env.CRATES_TOKEN || steps.auth.outputs.token }}
-          version: ${{ steps.verify.outputs.version }}
