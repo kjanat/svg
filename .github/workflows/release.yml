@@ -76,9 +76,6 @@ jobs:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
 
-      # Toolchain MUST land before setup-cross-toolchain-action (it calls
-      # rustup against whatever's active). Tier-3 floats on nightly because
-      # `experimental: true` + `continue-on-error` absorbs regressions.
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
         uses: dtolnay/rust-toolchain@stable
@@ -103,7 +100,6 @@ jobs:
           token: ${{ github.token }}
           bin: svg-language-server,svg-lint,svg-format
           target: ${{ matrix.target }}
-          # Our `cargo-cross-toolchain` is host cargo with a pre-set linker.
           build-tool: ${{ matrix.build-tool == 'cargo-cross-toolchain' && 'cargo' || matrix.build-tool }}
           archive: svg-$tag-$target
           tar: all
@@ -128,9 +124,6 @@ jobs:
           bin-dir: ${{ github.workspace }}/target/${{ matrix.target }}/release
           token: ${{ github.token }}
 
-      # A leg can report success while uploading nothing (observed: taiki-e
-      # action no-ops on windows-11-arm). Fail loudly here so the empty leg
-      # goes red at the source instead of ENOENT-ing later in build-dist.
       - name: verify asset uploaded
         uses: ./.github/actions/verify-asset
         with:
@@ -142,7 +135,7 @@ jobs:
     name: build dist
     needs: upload-assets
     runs-on: ubuntu-latest
-    permissions: { contents: write } # contents: write — drafts are invisible to read-only tokens.
+    permissions: { contents: write }
     env: { RELEASE_TAG: "${{ github.ref_name }}" }
     steps:
       - uses: actions/checkout@v7
@@ -151,8 +144,6 @@ jobs:
       - uses: actions/setup-node@v6
         with: { node-version: latest }
 
-      # build-packages.ts depends on @kjanat/dreamcli + ansispeck
-      # (distribution/npm/scripts is a bun workspace member).
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
 
@@ -163,12 +154,20 @@ jobs:
       - name: build npm packages
         run: node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
 
-      - name: add bin dir to path
-        run: echo "${GITHUB_WORKSPACE}/distribution/npm/dist/linux-x64-gnu/bin" >> "${GITHUB_PATH}"
+      - name: add bin dirs to path
+        run: |
+          {
+            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/lint-linux-x64-gnu/bin"
+            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/format-linux-x64-gnu/bin"
+            echo "${GITHUB_WORKSPACE}/distribution/npm/dist/language-server-linux-x64-gnu/bin"
+          } >> "${GITHUB_PATH}"
 
       # Only target executable on ubuntu-latest; others exercised at install.
       - name: smoke-test packaged linux-x64-gnu binaries
-        run: svg-lint --version && svg-format --version && svg-language-server --version
+        run: |
+          svg-lint --version
+          svg-format --version
+          svg-language-server --version
 
       - name: tar dist (preserve file modes)
         run: tar -cf distribution/npm/dist.tar -C distribution/npm dist
@@ -177,7 +176,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
-  # Flip draft→published once binaries + dist are in place.
   publish-release:
     name: publish github release
     needs: [build-dist]
@@ -192,7 +190,6 @@ jobs:
     permissions: { contents: read, id-token: write, actions: read }
     uses: ./.github/workflows/npm-release.yml
     with: { tag: "${{ github.ref_name }}", run-id: "${{ github.run_id }}" }
-    secrets: inherit
 
   call-crates-release:
     name: crates publish
@@ -200,4 +197,3 @@ jobs:
     permissions: { contents: read, id-token: write }
     uses: ./.github/workflows/crates-release.yml
     with: { tag: "${{ github.ref_name }}" }
-    secrets: inherit

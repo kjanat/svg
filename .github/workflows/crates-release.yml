@@ -13,7 +13,6 @@ permissions: { contents: read }
 
 env:
   RELEASE_TAG: ${{ inputs.tag }}
-  INPUT_DRY_RUN: ${{ inputs.dry-run || 'false' }}
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -43,44 +42,27 @@ jobs:
   publish:
     name: publish ${{ matrix.crate }}
     needs: setup
+    if: inputs.dry-run != true
     runs-on: ubuntu-latest
-    # First-ever publish of a new crate name can sit out several ~10min
-    # rate-limit refills before its slot opens.
     timeout-minutes: 90
     permissions: { contents: read, id-token: write }
     environment: { name: crates-io, url: "https://crates.io/crates/${{ matrix.crate }}/${{ needs.setup.outputs.version }}" }
-    # max-parallel 1 preserves the dependency order the matrix encodes;
-    # fail-fast stops dependents when a dependency's publish fails.
-    strategy:
-      max-parallel: 1
-      fail-fast: true
-      matrix: { include: "${{ fromJSON(needs.setup.outputs.crates) }}" }
-    env:
-      # Bootstrap fallback: crates.io trusted publishing is configured per
-      # existing crate, so the first publish of each crate needs a real
-      # token. Once every crate has a trusted publisher, delete the secret
-      # and the OIDC mint below takes over.
-      CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    strategy: { max-parallel: 1, fail-fast: true, matrix: { include: "${{ fromJSON(needs.setup.outputs.crates) }}" } }
+    env: { HAS_CRATES_TOKEN: "${{ secrets.CARGO_REGISTRY_TOKEN != '' }}" }
     steps:
       - uses: actions/checkout@v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: cargo publish (dry run)
-        if: env.INPUT_DRY_RUN == 'true'
-        env: { CRATE: "${{ matrix.crate }}" }
-        run: cargo publish -p "${CRATE}" --locked --dry-run --no-verify
-
       - name: mint crates.io token (trusted publishing)
-        if: env.INPUT_DRY_RUN != 'true' && env.CRATES_TOKEN == ''
+        if: env.HAS_CRATES_TOKEN != 'true'
         id: auth
         uses: rust-lang/crates-io-auth-action@v1
 
       - name: cargo publish
-        if: env.INPUT_DRY_RUN != 'true'
         uses: ./.github/actions/crates-publish
         with:
           crate: ${{ matrix.crate }}
           version: ${{ needs.setup.outputs.version }}
-          token: ${{ env.CRATES_TOKEN || steps.auth.outputs.token }}
+          token: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.auth.outputs.token }}

@@ -12,6 +12,8 @@ export CARGO_REGISTRY_TOKEN
 # crates.io refills the new-crate-name allowance on the order of one per ten
 # minutes; anything shorter than that just burns a retry.
 RETRY_WAIT="${RETRY_WAIT:-630}"
+# Index propagation of a just-published dependency is seconds, not minutes.
+PROPAGATION_WAIT="${PROPAGATION_WAIT:-30}"
 MAX_RETRIES="${MAX_RETRIES:-8}"
 
 # Prints "yes" when CRATE@VERSION is already on crates.io (sparse index),
@@ -57,6 +59,18 @@ while true; do
 		fi
 		echo "rate limited on ${CRATE} (attempt ${attempt}/${MAX_RETRIES}); waiting ${RETRY_WAIT}s"
 		sleep "${RETRY_WAIT}"
+		continue
+	fi
+	# A just-published dependency can lag index propagation: the previous
+	# job's visibility poll may have timed out while the upload succeeded.
+	if grep -Eiq 'no matching package named' <<<"${output}"; then
+		if [[ "${attempt}" -ge "${MAX_RETRIES}" ]]; then
+			printf '%s\n' "${output}" >&2
+			echo "error: ${CRATE} dependencies still unresolvable after ${MAX_RETRIES} attempts" >&2
+			exit 1
+		fi
+		echo "dependency not in index yet for ${CRATE} (attempt ${attempt}/${MAX_RETRIES}); waiting ${PROPAGATION_WAIT}s"
+		sleep "${PROPAGATION_WAIT}"
 		continue
 	fi
 	# Lost race with a concurrent/partial publish of the same version.
