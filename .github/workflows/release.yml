@@ -76,6 +76,11 @@ jobs:
     permissions: { contents: write }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.matrix.outputs.include) }}" } }
     continue-on-error: ${{ matrix.experimental }}
+    env:
+      # KAJ-274: windows-11-arm runners intermittently fail crate fetches with
+      # HTTP/2 stream errors; forcing HTTP/1.1 there is the standard workaround.
+      CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner == 'windows-11-arm' && 'false' || 'true' }}
+      CARGO_NET_RETRY: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { persist-credentials: false }

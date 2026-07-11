@@ -6,6 +6,7 @@
 	"type": "module",
 	"dependencies": {
 		"@kjanat/dreamcli": "3.0.0-rc.8",
-		"ansispeck": "^0.1.2"
+		"ansispeck": "^0.1.2",
+		"tar": "^7"
 	}
 }

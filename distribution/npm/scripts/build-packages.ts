@@ -27,16 +27,12 @@ import { readFileSync } from 'node:fs';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, posix, resolve } from 'node:path';
 import { env, stdout } from 'node:process';
-import { promisify } from 'node:util';
-import { gunzip } from 'node:zlib';
-
-const gunzipAsync = promisify(gunzip);
+import { Parser, type ReadEntry } from 'tar';
 
 const npmDir = resolve(import.meta.dirname, '..');
 const repoDir = resolve(npmDir, '..', '..');
 const distDir = join(npmDir, 'dist');
 
-const BLOCK_SIZE = 512;
 const ARCHIVE_PREFIX = 'svg';
 const META_PACKAGE = 'svg-language-server';
 const FACADE_LIB_FILES = ['resolve.mjs', 'launch.mjs'] as const;
@@ -152,13 +148,6 @@ interface BuildOptions {
 	local: boolean;
 	/** This machine's Rust target triple, or `null` if `rustc` isn't on `PATH`. */
 	hostTriple: string | null;
-}
-
-interface TarEntry {
-	name: string;
-	size: number;
-	type: string;
-	bodyOffset: number;
 }
 
 function errorMessage(error: unknown): string {
@@ -460,7 +449,6 @@ async function extractBinariesFromTarball(
 	binaryNames: string[],
 ): Promise<Map<string, Buffer>> {
 	const compressed = await readFile(tarballPath);
-	const tar = await gunzipAsync(compressed);
 
 	const wanted = new Set([
 		...binaryNames,
@@ -469,90 +457,30 @@ async function extractBinariesFromTarball(
 
 	const found = new Map<string, Buffer>();
 
-	for (const entry of readTarEntries(tar)) {
-		if (!isRegularTarFile(entry.type)) continue;
-
-		const fileName = posix.basename(entry.name);
-		if (!wanted.has(fileName)) continue;
-
-		found.set(fileName, Buffer.from(tar.subarray(entry.bodyOffset, entry.bodyOffset + entry.size)));
-	}
+	// node-tar handles gzip, GNU longname/longlink, PAX headers, and base-256
+	// sizes — formats the archives may grow into that a hand-rolled ustar
+	// parser would silently mis-read.
+	await new Promise<void>((resolvePromise, reject) => {
+		const parser = new Parser({
+			onReadEntry: (entry: ReadEntry) => {
+				const fileName = posix.basename(entry.path);
+				if (entry.type !== 'File' || !wanted.has(fileName)) {
+					entry.resume();
+					return;
+				}
+				const chunks: Buffer[] = [];
+				entry.on('data', (chunk: Buffer) => chunks.push(chunk));
+				entry.on('end', () => {
+					found.set(fileName, Buffer.concat(chunks));
+				});
+			},
+		});
+		parser.on('error', reject);
+		parser.on('end', resolvePromise);
+		parser.end(compressed);
+	});
 
 	return found;
-}
-
-/**
- * Parse an uncompressed tar buffer into entry metadata. Parsing stops at the
- * tar end marker (a zero block).
- *
- * @throws Error if an entry's declared size extends past the end of the buffer.
- */
-function readTarEntries(tar: Buffer): TarEntry[] {
-	const entries: TarEntry[] = [];
-
-	let offset = 0;
-
-	while (offset + BLOCK_SIZE <= tar.length) {
-		const header = tar.subarray(offset, offset + BLOCK_SIZE);
-
-		if (isZeroBlock(header)) break;
-
-		const name = readTarPath(header);
-		const size = readTarSize(header);
-		const type = readTarString(header, 156, 1) || '0';
-		const bodyOffset = offset + BLOCK_SIZE;
-		const nextOffset = bodyOffset + alignToBlock(size);
-
-		if (nextOffset > tar.length) {
-			throw new Error(`malformed tar archive: ${name} extends past end of file`);
-		}
-
-		entries.push({ name, size, type, bodyOffset });
-		offset = nextOffset;
-	}
-
-	return entries;
-}
-
-function readTarPath(header: Buffer): string {
-	const name = readTarString(header, 0, 100);
-	const prefix = readTarString(header, 345, 155);
-
-	return prefix ? `${prefix}/${name}` : name;
-}
-
-function readTarSize(header: Buffer): number {
-	const raw = readTarString(header, 124, 12).trim();
-
-	if (!raw) return 0;
-
-	const size = Number.parseInt(raw, 8);
-
-	if (!Number.isFinite(size)) {
-		throw new Error(`malformed tar archive: invalid size ${JSON.stringify(raw)}`);
-	}
-
-	return size;
-}
-
-function readTarString(buffer: Buffer, start: number, length: number): string {
-	const bytes = buffer.subarray(start, start + length);
-	const end = bytes.indexOf(0);
-	const slice = end === -1 ? bytes : bytes.subarray(0, end);
-
-	return slice.toString('utf8');
-}
-
-function isZeroBlock(block: Buffer): boolean {
-	return block.every((byte) => byte === 0);
-}
-
-function isRegularTarFile(type: string): boolean {
-	return type === '0' || type === '\0';
-}
-
-function alignToBlock(size: number): number {
-	return Math.ceil(size / BLOCK_SIZE) * BLOCK_SIZE;
 }
 
 function tarballPath(downloadsDir: string, version: string, target: Target): string {
