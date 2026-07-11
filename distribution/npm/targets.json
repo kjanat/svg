@@ -14,12 +14,6 @@
 			"description": "LSP server for SVG: diagnostics, completions, hover, formatting, and references."
 		},
 		{
-			"name": "svg-lint",
-			"pkg": "lint",
-			"bin": "svg-lint",
-			"description": "Structural linter for SVG documents."
-		},
-		{
 			"name": "svg-format",
 			"pkg": "format",
 			"bin": "svg-format",
