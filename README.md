@@ -187,20 +187,10 @@ just verify
 
 ### VS Code
 
-Add to `.vscode/settings.json`:
-
-```jsonc
-{
-	"svg-language-server.path": "svg-language-server", // or absolute path
-	"[svg]": {
-		"editor.defaultFormatter": "svg-language-server",
-	},
-}
-```
-
-Or use a generic LSP extension like
+There is no dedicated VS Code extension yet. Use a generic LSP client extension
+like
 [vscode-lsp-client](https://marketplace.visualstudio.com/items?itemName=nicolo-ribaudo.vscode-lsp-client)
-and point it at the `svg-language-server` binary.
+and point it at the `svg-language-server` binary for the `svg` filetype.
 
 ### Neovim (nvim-lspconfig)
 

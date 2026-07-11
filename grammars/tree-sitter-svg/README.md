@@ -229,7 +229,7 @@ func main() {
 Add to `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/kjanat/tree-sitter-svg", from: "0.1.0")
+.package(url: "https://github.com/kjanat/svg", from: "0.1.0")
 ```
 
 ### C/C++
@@ -250,7 +250,7 @@ Add to `build.zig.zon` dependencies:
 
 ```zig
 .@"tree-sitter-svg" = .{
-    .url = "https://github.com/kjanat/tree-sitter-svg/archive/refs/heads/master.tar.gz",
+    .url = "https://github.com/kjanat/svg/archive/refs/heads/master.tar.gz",
 },
 ```
 

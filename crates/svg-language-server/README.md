@@ -10,9 +10,12 @@ swatches.
 - **Completions** — context-aware suggestions for elements, attributes, and
   values
 - **Diagnostics** — structural validation (invalid nesting, unknown elements,
-  duplicate IDs)
-- **Colors** — color swatches and conversions between hex, `rgb()`, `hsl()`, and
-  named colors
+  duplicate IDs, deprecated usage, missing local references)
+- **Colors** — color swatches and conversions across hex, `rgb()`, `hsl()`,
+  `hwb()`, `lab()`/`lch()`, `oklab()`/`oklch()`, and named colors, including
+  `var()` and `color-mix()` resolution in embedded CSS
+- **Formatting** — deterministic structural SVG formatting
+- **Definitions** — jump to `id`, CSS class, and custom property definitions
 
 ## Install
 
