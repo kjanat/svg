@@ -1,5 +1,5 @@
 [install]
-pms = ["bun", "cargo", "uv"]
+pms = ["cargo", "bun", "uv"]
 
 [pm]
 node = "bun"
@@ -14,3 +14,6 @@ grouped = true
 [resolution]
 fallback    = "error"
 on_mismatch = "error"
+
+[tasks.overrides]
+lint = "cargo"

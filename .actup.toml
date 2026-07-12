@@ -1,7 +1,7 @@
 update_policy    = "latest"
 ref_style        = "preserve"
-branch_policy    = "ignore"
-allow_prerelease = false
+branch_policy    = "warn"
+allow_prerelease = true
 ignore           = []
 extra_paths      = []
 

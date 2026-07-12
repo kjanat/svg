@@ -97,7 +97,7 @@ jobs:
   # Tree-sitter grammar node packages, published from the tag's sources —
   # independent of the dist artifact, so this runs parallel to the platform
   # wave.
-  publish-grammars:
+  grammars:
     name: publish ${{ matrix.pkg }}
     needs: setup
     if: needs.setup.outputs.grammars != '[]'
@@ -132,7 +132,7 @@ jobs:
           source-dir: source
           token: ${{ secrets.NPM_TOKEN }}
 
-  publish:
+  scoped:
     name: publish ${{ matrix.pkg }}
     needs: setup
     runs-on: ubuntu-latest
@@ -167,9 +167,9 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
 
   # Facades after platforms so their optionalDependencies resolve on install.
-  publish-facades:
+  facades:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, publish]
+    needs: [setup, scoped]
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
@@ -201,9 +201,9 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
 
   # Unscoped alias shims after their canonical facades.
-  publish-shims:
+  shims:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, publish-facades]
+    needs: [setup, facades]
     if: needs.setup.outputs.shims != '[]'
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
@@ -237,13 +237,13 @@ jobs:
 
   # Bundle last: its exact-pinned dependencies are the shims above. A skipped
   # shims job (no shims defined) must not skip the bundle with it.
-  publish-bundle:
+  bundles:
     name: publish ${{ needs.setup.outputs.bundle }}
-    needs: [setup, publish-facades, publish-shims]
+    needs: [setup, facades, shims]
     if: >-
       !cancelled() && needs.setup.outputs.bundle != '' &&
-      needs.publish-facades.result == 'success' &&
-      contains(fromJSON('["success", "skipped"]'), needs.publish-shims.result)
+      needs.facades.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.shims.result)
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
