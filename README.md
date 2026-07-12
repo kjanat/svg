@@ -10,6 +10,12 @@ This repository contains the SVG language server, parser grammar, editor
 integration, and the Rust crates that power formatting, linting, color analysis,
 spec data lookup, and definition/reference navigation.
 
+<img alt="svg-language-server in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints" src="https://raw.githubusercontent.com/kjanat/svg/master/docs/assets/editor-hover.png" width="100%">
+
+*Hover docs with live browser-compat status, deprecated/experimental
+diagnostics, and missing-reference hints — here in Zed, works with any LSP
+client.*
+
 > [!IMPORTANT]
 > Published as pre-1.0 (`0.x`): expect breaking changes between releases while
 > the workspace is under active development.

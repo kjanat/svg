@@ -4,6 +4,8 @@
 
 LSP server for SVG: diagnostics, completions, hover, formatting, and references.
 
+<img alt="svg-language-server in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints" src="https://raw.githubusercontent.com/kjanat/svg/master/docs/assets/editor-hover.png" width="100%">
+
 ```sh
 npm install -g svg-language-server                 # unscoped alias
 npm install -g @svg-toolkit/svg-language-server    # canonical package
