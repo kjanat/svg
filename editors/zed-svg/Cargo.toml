@@ -1,9 +1,9 @@
 [package]
-name    = "zed-svg"
-version = "0.1.0"
-edition = "2024"
-exclude = ["/grammars"]
-publish = false
+name              = "zed-svg"
+version.workspace = true
+edition           = "2024"
+exclude           = ["/grammars"]
+publish           = false
 
 [lib]
 crate-type = ["cdylib"]

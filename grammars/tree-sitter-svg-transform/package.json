@@ -1,6 +1,6 @@
 {
 	"name": "tree-sitter-svg-transform",
-	"version": "0.0.1",
+	"version": "0.1.2",
 	"description": "SVG transform-list sub-grammar for Tree-sitter, injected into transform attribute values by tree-sitter-svg",
 	"keywords": [
 		"incremental",

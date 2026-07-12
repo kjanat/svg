@@ -16,6 +16,9 @@ outputs:
   bundle:
     description: Bundle package name, or empty when targets.json defines none
     value: ${{ steps.gen.outputs.bundle }}
+  grammars:
+    description: JSON array of tree-sitter grammar node packages (may be empty)
+    value: ${{ steps.gen.outputs.grammars }}
 
 runs:
   using: composite

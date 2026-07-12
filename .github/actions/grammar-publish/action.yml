@@ -1,0 +1,49 @@
+name: grammar publish
+description: >-
+  Publish one tree-sitter grammar's node package to npm from the tag's
+  sources: stamps the release version, resolves Bun catalog: dependency
+  references against the root package.json catalog, skips already-published
+  versions, and publishes with provenance via pinned npm@11.
+
+inputs:
+  tag:
+    description: Release tag (vX.Y.Z); the version is stamped from it
+    required: true
+  grammar:
+    description: Grammar package name (directory under grammars/)
+    required: true
+  registry:
+    description: npm registry URL
+    required: true
+  dist-tag:
+    description: npm dist-tag to publish under
+    required: true
+  dry-run:
+    description: Pass --dry-run to npm publish
+    required: true
+  source-dir:
+    description: Directory holding the tag's checkout
+    required: true
+  token:
+    description: npm token (empty relies on OIDC trusted publishing)
+    required: false
+
+outputs:
+  package-url:
+    description: npm package URL for the published grammar version
+    value: ${{ steps.publish.outputs.package-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: publish
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+        GRAMMAR: ${{ inputs.grammar }}
+        REGISTRY: ${{ inputs.registry }}
+        DIST_TAG: ${{ inputs.dist-tag }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        SOURCE_DIR: ${{ inputs.source-dir }}
+        NPM_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"

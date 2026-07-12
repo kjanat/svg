@@ -9,6 +9,19 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.1.2] - 2026-07-12
 
+### Added
+
+- The four tree-sitter grammar node packages (`tree-sitter-svg`,
+  `tree-sitter-svg-paint`, `tree-sitter-svg-path`, `tree-sitter-svg-transform`)
+  are published to npm from the release tag, with Bun `catalog:` dependency
+  references resolved at publish
+- Per-package release tags: every published crate and npm package gets a signed
+  `<name>-v<version>` tag (npm scopes sanitized: `@kjanat/svg-toolkit` →
+  `kjanat-svg-toolkit-v0.1.2`), created by `scripts/release-tags.ts`
+- `version-check` reusable workflow: gates CI and releases on every version
+  carrier (grammar manifests, zed extension, root `tree-sitter.json`) matching
+  the workspace version; `release-prepare.ts` bumps the same shared carrier list
+
 ### Changed
 
 - The `@svg-toolkit/*` facades are now the canonical npm packages (platform

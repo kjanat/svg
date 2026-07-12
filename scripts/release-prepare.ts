@@ -4,6 +4,7 @@
 import { error, log } from 'node:console';
 import { normalize, relative } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
+import { carriers } from '../.github/actions/version-check/carriers.mjs';
 
 const version = argv[2];
 if (!version || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
@@ -74,9 +75,30 @@ if (updatedCargoToml.workspace?.package?.version !== version) {
 
 await Bun.write(cargoTomlPath, cargoToml);
 
+// Every non-Cargo version carrier (grammar manifests, zed extension, root
+// tree-sitter.json) tracks the workspace version; the shared list also backs
+// version-check.ts, so a carrier this misses fails CI instead of shipping
+// stale.
+const repoRoot = normalize(`${import.meta.dir}/..`);
+for (const carrier of carriers) {
+	const path = `${repoRoot}/${carrier.file}`;
+	const file = Bun.file(path);
+	if (!(await file.exists())) continue;
+	const source = await file.text();
+	const match = source.match(carrier.pattern);
+	if (!match || match.index == null) {
+		error(`version pattern not found in ${carrier.file}`);
+		exit(1);
+	}
+	const versionStart = match.index + match[0].indexOf(match[1]);
+	const updated = source.slice(0, versionStart) + version + source.slice(versionStart + match[1].length);
+	await Bun.write(path, updated);
+	log(`bumped: ${carrier.file}`);
+}
+
 await Bun.$`cargo check --workspace`;
 await Bun.$`just verify`;
-await Bun.$`git add Cargo.toml Cargo.lock`;
+await Bun.$`git add Cargo.toml Cargo.lock grammars editors/zed-svg/extension.toml tree-sitter.json`;
 await Bun.$`git commit -m ${`chore(release): ${tag}`}`;
 await Bun.$`git tag -s ${tag} -m ${tag}`;
 

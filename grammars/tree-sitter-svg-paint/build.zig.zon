@@ -1,7 +1,7 @@
 .{
     .name = .tree_sitter_svg_paint,
     .fingerprint = 0x30d269ac1224fe1e,
-    .version = "0.1.0",
+    .version = "0.1.2",
     .paths = .{
         "build.zig",
         "build.zig.zon",

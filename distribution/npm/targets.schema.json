@@ -291,6 +291,16 @@
 				"$ref": "#/$defs/facade"
 			}
 		},
+		"grammars": {
+			"description": "Tree-sitter grammar node packages published to npm from \"grammars/<name>/\" at the release tag, version stamped from the tag and Bun \"catalog:\" references resolved at publish.",
+			"type": "array",
+			"minItems": 1,
+			"uniqueItems": true,
+			"items": {
+				"type": "string",
+				"pattern": "^[a-z0-9][a-z0-9-]*$"
+			}
+		},
 		"scope": {
 			"description": "npm scope under which platform sub-packages are published. \nEach sub-package is published as \"<scope>/<pkg>\". Must be a scope the publishing npm account owns.",
 			"type": "string",

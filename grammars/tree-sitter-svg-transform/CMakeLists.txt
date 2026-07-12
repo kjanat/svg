@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 project(tree-sitter-svg-transform
-        VERSION "0.1.0"
+        VERSION "0.1.2"
         DESCRIPTION "SVG transform-list grammar for Tree-sitter"
         HOMEPAGE_URL "https://github.com/kjanat/svg"
         LANGUAGES C)

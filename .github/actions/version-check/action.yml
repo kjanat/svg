@@ -1,0 +1,12 @@
+name: version check
+description: >-
+  Verify that every version carrier (grammar manifests, zed extension, root
+  tree-sitter.json) matches the workspace version in Cargo.toml. The carrier
+  list is colocated here and shared with scripts/release-prepare.ts, which
+  bumps the same files at release time.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: node "${GITHUB_ACTION_PATH}/check.mjs"

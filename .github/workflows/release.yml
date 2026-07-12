@@ -21,6 +21,11 @@ permissions: { contents: read }
 env: { CARGO_TERM_COLOR: always }
 
 jobs:
+  version-check:
+    name: version carriers
+    permissions: { contents: read }
+    uses: ./.github/workflows/version-check.yml
+
   verify:
     name: verify
     runs-on: ubuntu-latest
@@ -36,7 +41,7 @@ jobs:
 
   create-release:
     name: create draft release
-    needs: verify
+    needs: [verify, version-check]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -55,7 +60,7 @@ jobs:
 
   matrix:
     name: build matrix
-    needs: verify
+    needs: [verify, version-check]
     runs-on: ubuntu-latest
     permissions: { contents: read }
     outputs: { include: "${{ steps.gen.outputs.include }}" }

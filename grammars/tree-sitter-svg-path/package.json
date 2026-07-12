@@ -1,6 +1,6 @@
 {
 	"name": "tree-sitter-svg-path",
-	"version": "0.0.1",
+	"version": "0.1.2",
 	"description": "SVG path-data sub-grammar for Tree-sitter, injected into the d/path attribute values by tree-sitter-svg",
 	"keywords": [
 		"incremental",

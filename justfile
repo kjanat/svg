@@ -136,7 +136,7 @@ regen-test *ARGS:
 # typecheck the Deno-checked scripts
 [group('scripts')]
 typecheck:
-    deno check scripts/release-prepare.ts
+    deno check scripts/release-prepare.ts scripts/release-tags.ts .github/actions/version-check/check.mjs
 
 # run the svg-compat worker's Deno test suite
 [group('scripts')]

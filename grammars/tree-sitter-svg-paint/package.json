@@ -1,6 +1,6 @@
 {
 	"name": "tree-sitter-svg-paint",
-	"version": "0.0.1",
+	"version": "0.1.2",
 	"description": "SVG paint/color sub-grammar for Tree-sitter, injected into paint attribute values by tree-sitter-svg",
 	"keywords": [
 		"incremental",

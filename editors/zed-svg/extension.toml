@@ -5,7 +5,7 @@
 id             = "svg"
 name           = "SVG"
 description    = "Syntax highlighting and language injections for SVG files."
-version        = "0.1.0"
+version        = "0.1.2"
 schema_version = 1
 authors        = ["Kaj Kowalski <info@kajkowalski.nl>"]
 repository     = "https://github.com/kjanat/svg"

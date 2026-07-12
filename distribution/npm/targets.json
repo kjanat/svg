@@ -36,6 +36,12 @@
 		"template": "svg-toolkit",
 		"description": "All svg-toolkit CLIs in one install: svg-language-server (svg-ls), svg-lint, and svg-format."
 	},
+	"grammars": [
+		"tree-sitter-svg",
+		"tree-sitter-svg-paint",
+		"tree-sitter-svg-path",
+		"tree-sitter-svg-transform"
+	],
 	"targets": [
 		{
 			"pkg": "linux-x64-gnu",

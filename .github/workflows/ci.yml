@@ -7,6 +7,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  version-check:
+    name: version carriers
+    permissions: { contents: read }
+    uses: ./.github/workflows/version-check.yml
+
   rust:
     name: Rust (clippy + test)
     runs-on: ubuntu-latest

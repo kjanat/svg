@@ -11,10 +11,13 @@ facades=$(jq -c '[.facades[] | .name, (.alsoPublishAs // [])[] | {pkg: .}]' dist
 # Unscoped alias shims publish after their canonical facades.
 shims=$(jq -c '[.facades[] | select(.shim) | {pkg: .shim}]' distribution/npm/targets.json)
 bundle=$(jq -r '.bundle.name // empty' distribution/npm/targets.json)
+# Tree-sitter grammar node packages, published from the tag's grammars/ tree.
+grammars=$(jq -c '[(.grammars // [])[] | {pkg: .}]' distribution/npm/targets.json)
 
 {
 	echo "platforms=${platforms}"
 	echo "facades=${facades}"
 	echo "shims=${shims}"
 	echo "bundle=${bundle}"
+	echo "grammars=${grammars}"
 } | tee -a "${GITHUB_OUTPUT}"

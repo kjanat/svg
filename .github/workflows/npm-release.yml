@@ -50,6 +50,7 @@ jobs:
       facades: ${{ steps.matrix.outputs.facades }}
       shims: ${{ steps.matrix.outputs.shims }}
       bundle: ${{ steps.matrix.outputs.bundle }}
+      grammars: ${{ steps.matrix.outputs.grammars }}
     steps:
       # Sparse-checkout from default branch — no tag-supplied code on disk.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -92,6 +93,44 @@ jobs:
       - name: generate publish matrices
         id: matrix
         uses: ./.github/actions/publish-matrices
+
+  # Tree-sitter grammar node packages, published from the tag's sources —
+  # independent of the dist artifact, so this runs parallel to the platform
+  # wave.
+  publish-grammars:
+    name: publish ${{ matrix.pkg }}
+    needs: setup
+    if: needs.setup.outputs.grammars != '[]'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
+    strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.grammars) }}" } }
+    steps:
+      # Action code and allowlist from the default branch; grammar sources
+      # from the tag, in source/ — no tag-supplied action code.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with: { registry-url: "${{ env.REGISTRY }}" }
+
+      - name: publish to npm
+        id: publish
+        uses: ./.github/actions/grammar-publish
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          grammar: ${{ matrix.pkg }}
+          registry: ${{ env.REGISTRY }}
+          dist-tag: ${{ needs.setup.outputs.dist-tag }}
+          dry-run: ${{ needs.setup.outputs.dry-run }}
+          source-dir: source
+          token: ${{ secrets.NPM_TOKEN }}
 
   publish:
     name: publish ${{ matrix.pkg }}
