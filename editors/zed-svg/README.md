@@ -15,8 +15,13 @@ local [`tree-sitter-svg`] grammar.
 
 <img alt="SVG extension in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints" src="https://raw.githubusercontent.com/kjanat/svg/master/docs/assets/editor-hover.png" width="100%">
 
-*With `svg-language-server` on PATH: hover docs with live browser-compat status,
-deprecated/experimental diagnostics, and missing-reference hints.*
+*Hover docs with live browser-compat status, deprecated/experimental
+diagnostics, and missing-reference hints. The extension installs
+[`svg-language-server`](https://npm.im/svg-language-server) from npm
+automatically (a binary already on PATH is the fallback); server settings are
+documented in the
+[server README](../../crates/svg-language-server/README.md#configuration) and go
+under `lsp.svg-language-server.initialization_options` in Zed settings.*
 
 ## Features
 
