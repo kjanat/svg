@@ -22,9 +22,10 @@ path              = "src/bin/svg-lint.rs"
 required-features = ["cli"]
 
 [dependencies]
+tree-sitter.workspace = true
+
 svg-data.workspace        = true
 svg-tree.workspace        = true
-tree-sitter.workspace     = true
 tree-sitter-svg.workspace = true
 
 [dependencies.clap]

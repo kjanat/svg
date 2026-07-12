@@ -13,9 +13,10 @@ categories           = ["graphics", "parsing"]
 include              = ["/README.md", "/src/*"]
 
 [dependencies]
+tree-sitter.workspace     = true
+tree-sitter-css.workspace = true
+
 svg-tree.workspace              = true
-tree-sitter.workspace           = true
-tree-sitter-css.workspace       = true
 tree-sitter-svg.workspace       = true
 tree-sitter-svg-paint.workspace = true
 

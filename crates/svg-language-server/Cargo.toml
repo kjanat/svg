@@ -23,21 +23,22 @@ path = "src/main.rs"
 [dependencies]
 base64.workspace             = true
 serde_json.workspace         = true
-svg-color.workspace          = true
-svg-data.workspace           = true
-svg-format.workspace         = true
-svg-lint.workspace           = true
-svg-references.workspace     = true
-svg-tree.workspace           = true
 tokio.workspace              = true
 tower-lsp-server.workspace   = true
 tracing.workspace            = true
 tracing-appender.workspace   = true
 tracing-subscriber.workspace = true
 tree-sitter.workspace        = true
-tree-sitter-svg.workspace    = true
 ureq.workspace               = true
 url.workspace                = true
+
+svg-color.workspace       = true
+svg-data.workspace        = true
+svg-format.workspace      = true
+svg-lint.workspace        = true
+svg-references.workspace  = true
+svg-tree.workspace        = true
+tree-sitter-svg.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
