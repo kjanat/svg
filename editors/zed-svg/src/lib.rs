@@ -9,7 +9,10 @@ use zed_extension_api as zed;
 
 const LSP_BINARY_NAME: &str = "svg-language-server";
 const LSP_PACKAGE_NAME: &str = "svg-language-server";
-const LSP_RUN_PATH: &str = "node_modules/svg-language-server/run.js";
+// The facade's bin shim: resolves the platform binary through the package's
+// optionalDependencies and execs it. Same path in the unscoped alias and the
+// canonical @svg-toolkit package.
+const LSP_RUN_PATH: &str = "node_modules/svg-language-server/bin/svg-language-server.mjs";
 
 struct SvgExtension;
 

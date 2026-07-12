@@ -203,6 +203,11 @@ just verify
 
 ## Editor Setup
 
+Server settings (spec profile, edition pinning, offline mode, drift probe) are
+documented in
+[`crates/svg-language-server/README.md`](crates/svg-language-server/README.md#configuration);
+pass them as LSP `initializationOptions`.
+
 ### VS Code
 
 There is no dedicated VS Code extension yet. Use a generic LSP client extension

@@ -1,6 +1,7 @@
 # tree-sitter-svg
 
 [![Crates.io](https://img.shields.io/crates/v/tree-sitter-svg?logo=rust&labelColor=B7410E&color=black)](https://crates.io/crates/tree-sitter-svg)
+[![NPM](https://img.shields.io/npm/v/tree-sitter-svg?logo=npm&labelColor=CB3837&color=black)](https://npm.im/tree-sitter-svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)][LICENSE]
 
 A [Tree-sitter] grammar for **SVG** (Scalable Vector Graphics), built against
