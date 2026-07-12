@@ -7,6 +7,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-12
+
+### Changed
+
+- The `@svg-toolkit/*` facades are now the canonical npm packages (platform
+  `optionalDependencies` + launcher live there); unscoped `svg-language-server`
+  and `svg-format` became thin aliases with an exact-pinned dependency on their
+  canonical facade, so installs count on both names
+- The `@kjanat/svg-toolkit` bundle depends on the unscoped aliases, chaining
+  bundle → alias → canonical → platform package
+
 ## [0.1.1] - 2026-07-11
 
 ### Added

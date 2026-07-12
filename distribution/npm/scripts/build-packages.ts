@@ -123,6 +123,8 @@ interface Facade {
 	name: string;
 	/** Additional npm names this facade publishes under (byte-identical twins). */
 	alsoPublishAs?: string[];
+	/** Unscoped alias package: exact-pinned dependency + bin shims deferring to this facade. */
+	shim?: string;
 	/** Template dir under `facade/`; defaults to `name` (required for scoped names). */
 	template?: string;
 	/** Tool prefix for this facade's platform sub-packages: `<scope>/<pkg>-<target.pkg>`. */
@@ -227,6 +229,7 @@ const matrix = readMatrix();
 const [firstPackageName, ...restPackageNames] = [
 	...matrix.targets.map((t) => t.pkg),
 	...matrix.facades.map((f) => f.name),
+	...matrix.facades.flatMap((f) => (f.shim ? [f.shim] : [])),
 	...(matrix.bundle ? [matrix.bundle.name] : []),
 ];
 if (!firstPackageName) {
@@ -293,9 +296,59 @@ launch("${facade.bin}");
 }
 
 /**
+ * Build a facade's unscoped alias package: an exact-pinned dependency on the
+ * canonical (scoped) facade plus the same bin map, each bin a one-line shim
+ * importing the canonical facade's bin script (facades export `./bin/*` for
+ * exactly this). Installing the alias counts a download on both names.
+ */
+async function buildShim(
+	facade: Facade,
+	shimName: string,
+	version: string,
+	meta: Record<string, unknown>,
+): Promise<void> {
+	const templateDir = join(npmDir, 'facade', facade.template ?? facade.name);
+	const template = JSON.parse(await readFile(join(templateDir, 'package.json'), 'utf8')) as Record<string, unknown>;
+
+	const dest = join(distDir, dirName(shimName));
+	await mkdir(join(dest, 'bin'), { recursive: true });
+
+	const packageJson = {
+		name: shimName,
+		description: template.description,
+		keywords: template.keywords,
+		repository: template.repository,
+		type: 'module',
+		// ./bin/* stays importable so the bundle's shims can defer to this one.
+		exports: { './package.json': './package.json', './bin/*': './bin/*' },
+		bin: template.bin,
+		files: ['bin/', 'README.md', 'LICENSE'],
+		...meta,
+		version,
+		dependencies: { [facade.name]: version },
+	};
+
+	await writeJson(join(dest, 'package.json'), packageJson);
+	await cp(join(templateDir, 'README.md'), join(dest, 'README.md'));
+	await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
+
+	await writeFile(
+		join(dest, 'bin', `${facade.bin}.mjs`),
+		`\
+#!/usr/bin/env node
+import "${facade.name}/bin/${facade.bin}.mjs";
+`,
+		{ mode: 0o755 },
+	);
+
+	console.log(`built ${formatPackage(undefined, shimName, version)}`);
+}
+
+/**
  * Build the bundle meta-package: exact-pinned `dependencies` on every
- * facade's primary name, plus one generated shim per facade bin that defers
- * to that facade's own shim (facades export `./bin/*` for exactly this).
+ * facade's user-facing name (the unscoped shim when one exists), plus one
+ * generated shim per facade bin that defers to that facade's own shim
+ * (facades export `./bin/*` for exactly this).
  */
 async function buildBundle(
 	matrix: Matrix,
@@ -314,7 +367,7 @@ async function buildBundle(
 		...meta,
 		name: bundle.name,
 		version,
-		dependencies: Object.fromEntries(matrix.facades.map((facade) => [facade.name, version])),
+		dependencies: Object.fromEntries(matrix.facades.map((facade) => [facade.shim ?? facade.name, version])),
 	};
 
 	await writeJson(join(dest, 'package.json'), packageJson);
@@ -326,7 +379,7 @@ async function buildBundle(
 			join(dest, 'bin', `${facade.bin}.mjs`),
 			`\
 #!/usr/bin/env node
-import "${facade.name}/bin/${facade.bin}.mjs";
+import "${facade.shim ?? facade.name}/bin/${facade.bin}.mjs";
 `,
 			{ mode: 0o755 },
 		);
@@ -613,6 +666,13 @@ async function build(opts: BuildOptions): Promise<void> {
 			throw new Error(`no platform packages built for ${facade.name}; refusing a facade with empty optionalDependencies`);
 		}
 		await withLogGroup(facade.name, () => buildFacade(matrix, facade, opts.version, builtTargets, meta));
+	}
+
+	for (const facade of matrix.facades) {
+		const shim = facade.shim;
+		if (!shim) continue;
+		if (opts.only && !opts.only.has(shim) && !opts.only.has(facade.name)) continue;
+		await withLogGroup(shim, () => buildShim(facade, shim, opts.version, meta));
 	}
 
 	if (matrix.bundle && (!opts.only || opts.only.has(matrix.bundle.name))) {

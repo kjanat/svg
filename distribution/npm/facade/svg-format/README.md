@@ -5,14 +5,15 @@
 Structural formatter for SVG documents.
 
 ```sh
-npm install -g svg-format                 # unscoped
-npm install -g @svg-toolkit/svg-format    # same package, scoped
+npm install -g svg-format                 # unscoped alias
+npm install -g @svg-toolkit/svg-format    # canonical package
 svg-format icon.svg
 npx svg-format icon.svg
 ```
 
-Both names ship byte-identical content; pick whichever you like. Or grab the
-whole toolkit at once with
+`@svg-toolkit/svg-format` is the canonical package; unscoped `svg-format` is a
+thin alias that depends on it. Either install gives you the same bin. Or grab
+the whole toolkit at once with
 [`@kjanat/svg-toolkit`](https://npm.im/@kjanat/svg-toolkit).
 
 The package resolves a prebuilt native binary for your platform via

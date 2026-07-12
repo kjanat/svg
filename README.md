@@ -28,7 +28,7 @@ From npm (prebuilt binaries, no Rust toolchain needed):
 
 ```sh
 npm install --global @kjanat/svg-toolkit   # everything at once
-# or per tool — unscoped and @svg-toolkit/ scoped names ship identical content
+# or per tool — unscoped names are aliases of the canonical @svg-toolkit/ ones
 npm install --global svg-language-server svg-format @svg-toolkit/svg-lint
 ```
 
@@ -154,8 +154,8 @@ npm install --global svg-format              # or @svg-toolkit/svg-format
 
 Each package resolves a prebuilt binary for the current OS/architecture through
 `optionalDependencies` on `@svg-toolkit/*` platform packages — no postinstall
-step, no install-time downloads outside npm. The unscoped and scoped facade
-names ship byte-identical content.
+step, no install-time downloads outside npm. The `@svg-toolkit/*` facades are
+canonical; the unscoped names are thin aliases that depend on them.
 
 If you want to install directly from GitHub instead of a local checkout:
 

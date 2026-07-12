@@ -19,7 +19,7 @@ scoped it is.
 
 ## Prefer the individual tools?
 
-| Tool       | Unscoped              | Scoped                             |
+| Tool       | Unscoped alias        | Canonical                          |
 | ---------- | --------------------- | ---------------------------------- |
 | LSP server | `svg-language-server` | `@svg-toolkit/svg-language-server` |
 | Linter     | — (blocked by npm)    | `@svg-toolkit/svg-lint`            |

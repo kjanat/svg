@@ -10,6 +10,9 @@ outputs:
   facades:
     description: JSON array of facade packages (every publish name, twins included)
     value: ${{ steps.gen.outputs.facades }}
+  shims:
+    description: JSON array of unscoped alias shim packages (may be empty)
+    value: ${{ steps.gen.outputs.shims }}
   bundle:
     description: Bundle package name, or empty when targets.json defines none
     value: ${{ steps.gen.outputs.bundle }}

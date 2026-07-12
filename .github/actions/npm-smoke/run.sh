@@ -99,9 +99,38 @@ smoke_app() {
 smoke_app primary "${primary_rows}"
 smoke_app twins "${twin_rows}"
 
-# Bundle: install it with its (locally packed) facade dependencies and run
-# each of its shims directly — its bin names intentionally shadow the
-# facades' own, so .bin link assertions would be ambiguous here.
+# name<TAB>canonical<TAB>pkg rows for the unscoped alias shims.
+shim_rows=$(jq -r '.facades[] | select(.shim) | "\(.shim)\t\(.name)\t\(.pkg)"' "${targets_json}")
+
+# Shims: install each with its canonical facade and platform package, then
+# run its bin scripts directly — a shim's bin names intentionally shadow the
+# canonical facade's, so .bin link assertions would be ambiguous.
+if [[ -n "${shim_rows}" ]]; then
+	while IFS=$'\t' read -r shim_name canonical_name facade_pkg; do
+		shim_pack="${scratch}/shim-${facade_pkg}-pkgs"
+		shim_app="${scratch}/shim-${facade_pkg}-app"
+		mkdir -p "${shim_pack}" "${shim_app}"
+
+		shim_src_dir=$(dir_for "${shim_name}")
+		canonical_dir=$(dir_for "${canonical_name}")
+		(cd "distribution/npm/dist/${shim_src_dir}" && npm pack --pack-destination "${shim_pack}" >/dev/null)
+		(cd "distribution/npm/dist/${canonical_dir}" && npm pack --pack-destination "${shim_pack}" >/dev/null)
+		(cd "distribution/npm/dist/${facade_pkg}-${host_pkg}" && npm pack --pack-destination "${shim_pack}" >/dev/null)
+
+		(cd "${shim_app}" && npm install --no-audit --no-fund --ignore-scripts "${shim_pack}"/*.tgz)
+
+		shim_mod="${shim_app}/node_modules/${shim_name}"
+		shim_bins=$(jq -r '.bin | if type == "string" then [.] else [.[]] end | unique | .[]' "${shim_mod}/package.json")
+		while IFS= read -r target; do
+			assert_version "shim ${shim_name} ${target}" node "${shim_mod}/${target}" --version
+		done <<<"${shim_bins}"
+	done <<<"${shim_rows}"
+fi
+
+# Bundle: install it with its (locally packed) shim, facade, and platform
+# dependencies and run each of its bin scripts directly — its bin names
+# intentionally shadow the facades' own, so .bin link assertions would be
+# ambiguous here.
 if [[ -n "${bundle_name}" ]]; then
 	bundle_pack="${scratch}/bundle-pkgs"
 	mkdir -p "${bundle_pack}" "${scratch}/bundle-app"
@@ -113,6 +142,12 @@ if [[ -n "${bundle_name}" ]]; then
 		(cd "distribution/npm/dist/${facade_pkg}-${host_pkg}" && npm pack --pack-destination "${bundle_pack}" >/dev/null)
 		(cd "distribution/npm/dist/${facade_dir}" && npm pack --pack-destination "${bundle_pack}" >/dev/null)
 	done <<<"${primary_rows}"
+	if [[ -n "${shim_rows}" ]]; then
+		while IFS=$'\t' read -r shim_name _ _; do
+			shim_src_dir=$(dir_for "${shim_name}")
+			(cd "distribution/npm/dist/${shim_src_dir}" && npm pack --pack-destination "${bundle_pack}" >/dev/null)
+		done <<<"${shim_rows}"
+	fi
 
 	(cd "${scratch}/bundle-app" && npm install --no-audit --no-fund --ignore-scripts "${bundle_pack}"/*.tgz)
 

@@ -26,14 +26,18 @@ SCOPE=$(jq -r '.scope' "${TARGETS_JSON}")
 # empty output, which `<<<` would turn into a phantom "" element.
 # Every publish name per facade: the primary name plus its scoped twins.
 facade_list=$(jq -r '.facades[] | .name, (.alsoPublishAs // [])[]' "${TARGETS_JSON}")
+# Unscoped alias shims: thin packages deferring to their canonical facade.
+shim_list=$(jq -r '.facades[].shim // empty' "${TARGETS_JSON}")
 # One platform package per facade × target: <facade.pkg>-<target.pkg>.
 required_list=$(jq -r '.facades[] as $f | .targets[] | select((.experimental // false) | not) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
 optional_list=$(jq -r '.facades[] as $f | .targets[] | select(.experimental // false) | $f.pkg + "-" + .pkg' "${TARGETS_JSON}")
 BUNDLE_NAME=$(jq -r '.bundle.name // empty' "${TARGETS_JSON}")
 FACADES=()
+SHIMS=()
 REQUIRED_PLATFORMS=()
 OPTIONAL_PLATFORMS=()
 [[ -n "${facade_list}" ]] && mapfile -t FACADES <<<"${facade_list}"
+[[ -n "${shim_list}" ]] && mapfile -t SHIMS <<<"${shim_list}"
 [[ -n "${required_list}" ]] && mapfile -t REQUIRED_PLATFORMS <<<"${required_list}"
 [[ -n "${optional_list}" ]] && mapfile -t OPTIONAL_PLATFORMS <<<"${optional_list}"
 EXPECTED_VERSION="${RELEASE_TAG#v}"
@@ -103,14 +107,28 @@ publish_allowed() {
 			echo "error: bundle ${expected_name} has optionalDependencies; only facades may declare any" >&2
 			exit 1
 		fi
-		# The bundle's dependencies must be exactly every facade's primary
-		# name, pinned to EXPECTED_VERSION — nothing more, nothing less.
+		# The bundle's dependencies must be exactly every facade's user-facing
+		# name (the shim when one exists), pinned to EXPECTED_VERSION.
 		if ! jq -e --arg v "${EXPECTED_VERSION}" '
 			(.dependencies // {}) as $deps
 			| ($deps | to_entries | all(.value == $v)) and
-			  (($deps | keys | sort) == ([input.facades[].name] | sort))
+			  (($deps | keys | sort) == ([input.facades[] | .shim // .name] | sort))
 		' "${dir}/package.json" "${TARGETS_JSON}" >/dev/null; then
-			echo "error: bundle dependencies must be exactly the facade names pinned to ${EXPECTED_VERSION}" >&2
+			echo "error: bundle dependencies must be exactly the facade shim/primary names pinned to ${EXPECTED_VERSION}" >&2
+			exit 1
+		fi
+	elif [[ " ${SHIMS[*]} " == *" ${expected_name} "* ]]; then
+		if jq -e '(.optionalDependencies // {}) | length > 0' "${dir}/package.json" >/dev/null; then
+			echo "error: shim ${expected_name} has optionalDependencies; only facades may declare any" >&2
+			exit 1
+		fi
+		# A shim's only dependency is its canonical facade, exact-pinned.
+		if ! jq -e --arg n "${expected_name}" --arg v "${EXPECTED_VERSION}" '
+			(.dependencies // {}) as $deps
+			| ($deps | to_entries | all(.value == $v)) and
+			  (($deps | keys) == [input.facades[] | select(.shim == $n) | .name])
+		' "${dir}/package.json" "${TARGETS_JSON}" >/dev/null; then
+			echo "error: shim ${expected_name} must depend on exactly its canonical facade pinned to ${EXPECTED_VERSION}" >&2
 			exit 1
 		fi
 	elif [[ " ${FACADES[*]} " == *" ${expected_name} "* ]]; then
@@ -215,7 +233,7 @@ publish_allowed() {
 # Refuse to proceed if the artifact contains anything outside the
 # allowlist — that's either a misconfiguration or an attack.
 allowed_set=" ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} "
-for name in "${FACADES[@]}"; do
+for name in "${FACADES[@]}" "${SHIMS[@]}"; do
 	allowed_set+="$(dir_for "${name}") "
 done
 if [[ -n "${BUNDLE_NAME}" ]]; then
@@ -242,6 +260,8 @@ done
 if [[ -n "${ONLY_PACKAGE}" ]]; then
 	only_dir=$(dir_for "${ONLY_PACKAGE}")
 	if [[ -n "${BUNDLE_NAME}" && "${ONLY_PACKAGE}" == "${BUNDLE_NAME}" ]]; then
+		publish_allowed "distribution/npm/dist/${only_dir}" "${ONLY_PACKAGE}" true
+	elif [[ " ${SHIMS[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
 		publish_allowed "distribution/npm/dist/${only_dir}" "${ONLY_PACKAGE}" true
 	elif [[ " ${FACADES[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
 		publish_allowed "distribution/npm/dist/${only_dir}" "${ONLY_PACKAGE}" true
@@ -275,7 +295,13 @@ for facade in "${FACADES[@]}"; do
 	publish_allowed "distribution/npm/dist/${facade_dir}" "${facade}" true
 done
 
-# Bundle last: its exact-pinned dependencies are the facades above.
+# Shims after their canonical facades.
+for shim in "${SHIMS[@]}"; do
+	shim_dir=$(dir_for "${shim}")
+	publish_allowed "distribution/npm/dist/${shim_dir}" "${shim}" true
+done
+
+# Bundle last: its exact-pinned dependencies are the shims/facades above.
 if [[ -n "${BUNDLE_NAME}" ]]; then
 	bundle_dir=$(dir_for "${BUNDLE_NAME}")
 	publish_allowed "distribution/npm/dist/${bundle_dir}" "${BUNDLE_NAME}" true

@@ -8,10 +8,9 @@
 	],
 	"facades": [
 		{
-			"name": "svg-language-server",
-			"alsoPublishAs": [
-				"@svg-toolkit/svg-language-server"
-			],
+			"name": "@svg-toolkit/svg-language-server",
+			"shim": "svg-language-server",
+			"template": "svg-language-server",
 			"pkg": "language-server",
 			"bin": "svg-language-server",
 			"description": "LSP server for SVG: diagnostics, completions, hover, formatting, and references."
@@ -24,10 +23,9 @@
 			"description": "Structural linter for SVG documents."
 		},
 		{
-			"name": "svg-format",
-			"alsoPublishAs": [
-				"@svg-toolkit/svg-format"
-			],
+			"name": "@svg-toolkit/svg-format",
+			"shim": "svg-format",
+			"template": "svg-format",
 			"pkg": "format",
 			"bin": "svg-format",
 			"description": "Structural formatter for SVG documents."

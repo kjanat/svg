@@ -67,6 +67,11 @@
 					"type": "string",
 					"pattern": "^[a-z0-9][a-z0-9-]*$"
 				},
+				"shim": {
+					"description": "Unscoped alias package published alongside this facade: a thin package whose exact-pinned dependency and bin shims defer to the canonical (scoped) facade, so installs count on both names.",
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9._-]*$"
+				},
 				"template": {
 					"description": "Template directory under \"distribution/npm/facade/\". Defaults to \"name\"; required when \"name\" is scoped (a \"/\" cannot appear in a directory name).",
 					"type": "string",

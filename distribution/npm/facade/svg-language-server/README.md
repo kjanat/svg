@@ -5,13 +5,14 @@
 LSP server for SVG: diagnostics, completions, hover, formatting, and references.
 
 ```sh
-npm install -g svg-language-server                 # unscoped
-npm install -g @svg-toolkit/svg-language-server    # same package, scoped
+npm install -g svg-language-server                 # unscoped alias
+npm install -g @svg-toolkit/svg-language-server    # canonical package
 svg-language-server --version                      # `svg-ls` works too
 ```
 
-Both names ship byte-identical content; pick whichever you like. Or grab the
-whole toolkit at once with
+`@svg-toolkit/svg-language-server` is the canonical package; unscoped
+`svg-language-server` is a thin alias that depends on it. Either install gives
+you the same bins. Or grab the whole toolkit at once with
 [`@kjanat/svg-toolkit`](https://npm.im/@kjanat/svg-toolkit).
 
 The package resolves a prebuilt native binary for your platform via
