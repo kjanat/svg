@@ -13,6 +13,11 @@
 Syntax highlighting for Scalable Vector Graphics (`.svg`) files, backed by the
 local [`tree-sitter-svg`] grammar.
 
+<img alt="SVG extension in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints" src="https://raw.githubusercontent.com/kjanat/svg/master/docs/assets/editor-hover.png" width="100%">
+
+*With `svg-language-server` on PATH: hover docs with live browser-compat status,
+deprecated/experimental diagnostics, and missing-reference hints.*
+
 ## Features
 
 - XML-aware SVG parsing
