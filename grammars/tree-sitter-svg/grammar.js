@@ -31,11 +31,13 @@ function quoted(value) {
 	);
 }
 
-// Data-driven alternation over a catalog-derived list (attribute spellings,
-// unit tokens, etc.). Wrap the bucket in one token so tree-sitter emits one
-// compact lexer branch instead of one token per spelling. A one-element bucket
-// (e.g. `view_box: ['viewBox']`) still avoids `choice(x)`, which tree-sitter
-// flags as unnecessary.
+/**
+ * Data-driven alternation over a catalog-derived list (attribute spellings,
+ * unit tokens, etc.). Wrap the bucket in one token so tree-sitter emits one
+ * compact lexer branch instead of one token per spelling. A one-element bucket
+ * (e.g. `view_box: ['viewBox']`) still avoids `choice(x)`, which tree-sitter
+ * flags as unnecessary.
+ */
 /** @param {readonly RuleOrLiteral[]} members */
 function oneOf(members) {
 	if (members.length === 0) {
@@ -67,37 +69,43 @@ export default grammar({
 
 	extras: () => [],
 
-	// A lone number (`values="0"`) is a list-of-one shared by the whitespace/
-	// comma-separated `number_list` (filter context) and the `;`-separated
-	// `semicolon_number_list` (SMIL animation context). Both are valid for the
-	// `values` attribute; the GLR parser keeps both stacks until the first
-	// separator selects the arm.
+	/**
+	 * A lone number (`values="0"`) is a list-of-one shared by the whitespace/
+	 * comma-separated `number_list` (filter context) and the `;`-separated
+	 * `semicolon_number_list` (SMIL animation context). Both are valid for the
+	 * `values` attribute; the GLR parser keeps both stacks until the first
+	 * separator selects the arm.
+	 */
 	conflicts: $ => [
 		[$.number_list, $.semicolon_number_list],
 	],
 
-	// Each rule here was a visible `choice` wrapper over single named symbols;
-	// promoting it to a supertype makes that wrapper node TRANSPARENT in the
-	// CST (the concrete subtype appears directly, no extra level) while
-	// node-types.json links it via a `subtypes` array. Consumers query the
-	// supertype name to match all kinds in one capture — e.g. `(attribute)`,
-	// `(path_segment)` — or switch on the concrete subtype. Because the wrapper
-	// level is removed, queries that nested a subtype under the supertype
-	// (`(attribute (id_attribute ...))`) must drop that level
-	// (`(id_attribute ...)`), and corpus expectations lose the wrapper node.
+	/**
+	 * Each rule here was a visible `choice` wrapper over single named symbols;
+	 * promoting it to a supertype makes that wrapper node TRANSPARENT in the
+	 * CST (the concrete subtype appears directly, no extra level) while
+	 * node-types.json links it via a `subtypes` array. Consumers query the
+	 * supertype name to match all kinds in one capture — e.g. `(attribute)`,
+	 * `(path_segment)` — or switch on the concrete subtype. Because the wrapper
+	 * level is removed, queries that nested a subtype under the supertype
+	 * (`(attribute (id_attribute ...))`) must drop that level
+	 * (`(id_attribute ...)`), and corpus expectations lose the wrapper node.
+	 */
 	supertypes: $ => [
 		$.attribute,
 	],
 
-	// Hidden single-use wrapper rules substituted at their (one) use site. Each
-	// is referenced exactly once and bears no `field()`, so inlining removes a
-	// hidden node-type and a few LR states with no visible-tree change. Limited
-	// to single-use rules ON PURPOSE: inlining the multi-use color components
-	// (`_color_component` ×15, `_color_alpha` ×8, `_color_hue_component` ×3)
-	// DUPLICATES their choice bodies across all nine color functions and
-	// EXPLODES the state count (~+850 states, measured) — the opposite of the
-	// goal — so they stay as hidden shared rules. `_length_or_keyword_item`
-	// (×2) is state-neutral but a thin dispatcher, kept for node-type clarity.
+	/**
+	 * Hidden single-use wrapper rules substituted at their (one) use site. Each
+	 * is referenced exactly once and bears no `field()`, so inlining removes a
+	 * hidden node-type and a few LR states with no visible-tree change. Limited
+	 * to single-use rules ON PURPOSE: inlining the multi-use color components
+	 * (`_color_component` ×15, `_color_alpha` ×8, `_color_hue_component` ×3)
+	 * DUPLICATES their choice bodies across all nine color functions and
+	 * EXPLODES the state count (~+850 states, measured) — the opposite of the
+	 * goal — so they stay as hidden shared rules. `_length_or_keyword_item`
+	 * (×2) is state-neutral but a thin dispatcher, kept for node-type clarity.
+	 */
 	inline: $ => [
 		$._length_or_keyword_item,
 	],
@@ -105,11 +113,13 @@ export default grammar({
 	rules: {
 		source_file: $ =>
 			seq(
-				// XML 1.0 §2.8 requires xml_declaration to be absolute first,
-				// but real-world SVGs (incl. W3C reference samples) often
-				// have a leading newline/BOM/whitespace; be lenient here.
-				// Leading misc only permitted when an xml_declaration follows,
-				// to keep source_file_repeat1 unambiguous.
+				/**
+				 * XML 1.0 §2.8 requires xml_declaration to be absolute first,
+				 * but real-world SVGs (incl. W3C reference samples) often
+				 * have a leading newline/BOM/whitespace; be lenient here.
+				 * Leading misc only permitted when an xml_declaration follows,
+				 * to keep source_file_repeat1 unambiguous.
+				 */
 				optional(seq(repeat($._misc), $.xml_declaration)),
 				repeat($._misc),
 				optional(seq($.doctype, repeat($._misc))),
@@ -126,14 +136,16 @@ export default grammar({
 
 		misc_text: _ => token(prec(-1, /[ \t\r\n]+/)),
 
-		// ─── Document Nodes ─────────────────────────────────────────
+		// Document Nodes
 
 		xml_declaration: $ =>
 			seq(
-				// Start token consumes `<?xml` + mandatory whitespace. The
-				// trailing ws disambiguates from PI targets that begin with
-				// `xml` (e.g. `<?xml-stylesheet`), which XML 1.0 §2.8 and the
-				// pi_target_name regex reserve as valid PIs.
+				/**
+				 * Start token consumes `<?xml` + mandatory whitespace. The
+				 * trailing ws disambiguates from PI targets that begin with
+				 * `xml` (e.g. `<?xml-stylesheet`), which XML 1.0 §2.8 and the
+				 * pi_target_name regex reserve as valid PIs.
+				 */
 				$._xml_declaration_start,
 				$.xml_version_attribute,
 				optional(seq($._s, $.xml_encoding_attribute)),
@@ -227,7 +239,7 @@ export default grammar({
 
 		cdata_text: $ => repeat1($._cdata_text),
 
-		// ─── SVG Root Element ───────────────────────────────────────
+		// SVG Root Element
 
 		svg_root_element: $ =>
 			choice(
@@ -239,7 +251,7 @@ export default grammar({
 				),
 			),
 
-		// ─── Generic Element ────────────────────────────────────────
+		// Generic Element
 
 		element: $ =>
 			choice(
@@ -266,7 +278,7 @@ export default grammar({
 				$.text,
 			),
 
-		// ─── Script Element (raw_text for JS injection) ─────────────
+		// Script Element (raw_text for JS injection)
 
 		_script_element: $ =>
 			choice(
@@ -304,7 +316,7 @@ export default grammar({
 				'/>',
 			),
 
-		// ─── Style Element (raw_text for CSS injection) ─────────────
+		// Style Element (raw_text for CSS injection)
 
 		_style_element: $ =>
 			choice(
@@ -352,7 +364,7 @@ export default grammar({
 				'/>',
 			),
 
-		// ─── Path Element (d attribute sub-grammar) ─────────────────
+		// Path Element (d attribute sub-grammar)
 
 		_path_element: $ =>
 			choice(
@@ -390,7 +402,7 @@ export default grammar({
 				'/>',
 			),
 
-		// ─── animateMotion Element (motion coordinate attrs) ───────────
+		// animateMotion Element (motion coordinate attrs)
 
 		_animate_motion_element: $ =>
 			choice(
@@ -457,7 +469,7 @@ export default grammar({
 
 		animate_motion_values_attribute_value: $ => quoted($.semicolon_coordinate_pair_list),
 
-		// ─── Generic Tags ───────────────────────────────────────────
+		// Generic Tags
 
 		start_tag: $ =>
 			seq(
@@ -493,13 +505,15 @@ export default grammar({
 				RANGLE,
 			),
 
-		// ─── Attributes ─────────────────────────────────────────────
+		// Attributes
 
-		// Supertype over every concrete attribute bucket. The members are a
-		// flat choice of single named symbols (28 typed + generic) so the
-		// tree-sitter supertype validator accepts it; the former hidden
-		// `_typed_attribute` intermediate produced zero CST nodes, so
-		// flattening it here is tree-identical.
+		/**
+		 * Supertype over every concrete attribute bucket. The members are a
+		 * flat choice of single named symbols (28 typed + generic) so the
+		 * tree-sitter supertype validator accepts it; the former hidden
+		 * `_typed_attribute` intermediate produced zero CST nodes, so
+		 * flattening it here is tree-identical.
+		 */
 		attribute: $ =>
 			choice(
 				$.d_attribute,
@@ -534,7 +548,7 @@ export default grammar({
 				$.generic_attribute,
 			),
 
-		// ─── d attribute (path data sub-grammar) ────────────────────
+		// d attribute (path data sub-grammar)
 
 		d_attribute: $ =>
 			seq(
@@ -565,14 +579,16 @@ export default grammar({
 				SQUOTE,
 			),
 
-		// Opaque path-data capture. The rich path sub-grammar (commands,
-		// coordinates, arcs) is evicted to a sibling `tree-sitter-svg-path`
-		// grammar injected over this token's range via injections.scm — same
-		// pattern as CSS-in-`<style>`. Excludes only the quote delimiters and
-		// XML-significant `<`/`&`, mirroring `data_uri_payload`.
+		/**
+		 * Opaque path-data capture. The rich path sub-grammar (commands,
+		 * coordinates, arcs) is evicted to a sibling `tree-sitter-svg-path`
+		 * grammar injected over this token's range via injections.scm — same
+		 * pattern as CSS-in-`<style>`. Excludes only the quote delimiters and
+		 * XML-significant `<`/`&`, mirroring `data_uri_payload`.
+		 */
 		path_data_payload: _ => token(/[^"'<&]+/),
 
-		// ─── style attribute (CSS injection) ────────────────────────
+		// style attribute (CSS injection)
 
 		style_attribute: $ =>
 			seq(
@@ -606,7 +622,7 @@ export default grammar({
 		style_text_double: _ => token(/[^"]+/),
 		style_text_single: _ => token(/[^']+/),
 
-		// ─── viewBox attribute ──────────────────────────────────────
+		// viewBox attribute
 
 		viewbox_attribute: $ =>
 			seq(
@@ -630,7 +646,7 @@ export default grammar({
 				$.number,
 			),
 
-		// ─── preserveAspectRatio attribute ──────────────────────────
+		// preserveAspectRatio attribute
 
 		preserve_aspect_ratio_attribute: $ =>
 			seq(
@@ -666,7 +682,7 @@ export default grammar({
 
 		meet_or_slice_keyword: _ => token(choice('meet', 'slice')),
 
-		// ─── transform attribute ────────────────────────────────────
+		// transform attribute
 
 		transform_attribute: $ =>
 			seq(
@@ -682,14 +698,16 @@ export default grammar({
 				'patternTransform',
 			)),
 
-		// Opaque transform-list capture. The transform-function sub-grammar is
-		// evicted to the sibling tree-sitter-svg-transform grammar, injected over
-		// this token's range via injections.scm — same pattern as path data.
+		/**
+		 * Opaque transform-list capture. The transform-function sub-grammar is
+		 * evicted to the sibling tree-sitter-svg-transform grammar, injected over
+		 * this token's range via injections.scm — same pattern as path data.
+		 */
 		transform_attribute_value: $ => quoted($.transform_payload),
 
 		transform_payload: _ => token(/[^"'<&]+/),
 
-		// ─── points attribute ───────────────────────────────────────
+		// points attribute
 
 		points_attribute: $ =>
 			seq(
@@ -710,7 +728,7 @@ export default grammar({
 
 		coordinate_pair: $ => seq($.number, optional($.comma_wsp), $.number),
 
-		// ─── paint attribute (fill, stroke, color, etc.) ────────────
+		// paint attribute (fill, stroke, color, etc.)
 
 		paint_attribute: $ =>
 			seq(
@@ -721,14 +739,16 @@ export default grammar({
 
 		paint_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.color),
 
-		// Opaque paint/color capture. The paint + color-value sub-grammar is
-		// evicted to the sibling tree-sitter-svg-paint grammar, injected over this
-		// token's range via injections.scm — same pattern as path/transform.
+		/**
+		 * Opaque paint/color capture. The paint + color-value sub-grammar is
+		 * evicted to the sibling tree-sitter-svg-paint grammar, injected over this
+		 * token's range via injections.scm — same pattern as path/transform.
+		 */
 		paint_attribute_value: $ => quoted($.paint_payload),
 
 		paint_payload: _ => token(/[^"'<&]+/),
 
-		// ─── functional IRI attribute (url(#ref)) ───────────────────
+		// functional IRI attribute (url(#ref))
 
 		functional_iri_attribute: $ =>
 			seq(
@@ -743,7 +763,7 @@ export default grammar({
 
 		functional_iri: $ => seq('url(', optional($.wsp), $.iri_reference, optional($.wsp), RPAREN),
 
-		// ─── clip attribute (deprecated, rect() function) ───────────
+		// clip attribute (deprecated, rect() function)
 
 		clip_attribute: $ =>
 			seq(
@@ -772,7 +792,7 @@ export default grammar({
 				RPAREN,
 			),
 
-		// ─── opacity attribute ──────────────────────────────────────
+		// opacity attribute
 
 		opacity_attribute: $ =>
 			seq(
@@ -785,7 +805,7 @@ export default grammar({
 
 		opacity_attribute_value: $ => quoted($.number_or_percentage),
 
-		// ─── length attribute (x, y, width, height, etc.) ───────────
+		// length attribute (x, y, width, height, etc.)
 
 		length_attribute: $ =>
 			seq(
@@ -796,24 +816,28 @@ export default grammar({
 
 		length_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.length),
 
-		// The `length` bucket holds attributes whose value space is a length or
-		// percentage, but many spec grammars are a union with keyword alternatives
-		// or keyword/length combinations: `baseline-shift` (`sub | super |
-		// <length-percentage>`), `letter-spacing`/`word-spacing` (`normal |
-		// <length>`), `font-size-adjust` (`none | <number>`), `refX`/`refY`
-		// (`<length> | left | center | …`), and `transform-origin`
-		// (`[ left | center | … | <length-percentage> ]…`). The plain
-		// length/percentage/auto value keeps its existing shape; a keyword-bearing
-		// value (one or more whitespace-separated keywords, optionally mixed with
-		// lengths) is the alternative. A genuine pure-length attribute (`x`,
-		// `width`) never carries a keyword in valid SVG, so this superset is
-		// lossless and keeps the value typed.
+		/**
+		 * The `length` bucket holds attributes whose value space is a length or
+		 * percentage, but many spec grammars are a union with keyword alternatives
+		 * or keyword/length combinations: `baseline-shift` (`sub | super |
+		 * <length-percentage>`), `letter-spacing`/`word-spacing` (`normal |
+		 * <length>`), `font-size-adjust` (`none | <number>`), `refX`/`refY`
+		 * (`<length> | left | center | …`), and `transform-origin`
+		 * (`[ left | center | … | <length-percentage> ]…`). The plain
+		 * length/percentage/auto value keeps its existing shape; a keyword-bearing
+		 * value (one or more whitespace-separated keywords, optionally mixed with
+		 * lengths) is the alternative. A genuine pure-length attribute (`x`,
+		 * `width`) never carries a keyword in valid SVG, so this superset is
+		 * lossless and keeps the value typed.
+		 */
 		length_attribute_value: $ => quoted(choice($.length_or_percentage_or_auto, $.length_keyword_value)),
 
-		// Distinct from the plain length/percentage/auto branch: this fires only
-		// when a keyword participates, so a bare single length never matches both
-		// branches. Either it leads with a keyword, or it leads with a length that
-		// is followed by at least one more whitespace-separated item.
+		/**
+		 * Distinct from the plain length/percentage/auto branch: this fires only
+		 * when a keyword participates, so a bare single length never matches both
+		 * branches. Either it leads with a keyword, or it leads with a length that
+		 * is followed by at least one more whitespace-separated item.
+		 */
 		length_keyword_value: $ =>
 			choice(
 				seq($.keyword_value, repeat(seq($.wsp, $._length_or_keyword_item))),
@@ -822,7 +846,7 @@ export default grammar({
 
 		_length_or_keyword_item: $ => choice($.length_or_percentage, $.keyword_value),
 
-		// ─── offset attribute (number or percentage, no units) ──────
+		// offset attribute (number or percentage, no units)
 
 		offset_attribute: $ =>
 			seq(
@@ -835,7 +859,7 @@ export default grammar({
 
 		offset_attribute_value: $ => quoted($.number_or_percentage),
 
-		// ─── number attribute (pure numeric, no units) ──────────────
+		// number attribute (pure numeric, no units)
 
 		number_attribute: $ =>
 			seq(
@@ -846,17 +870,21 @@ export default grammar({
 
 		number_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.number),
 
-		// A bare single `<number>`. The spec's number *lists* (`kernelMatrix`,
-		// feColorMatrix `values`, `tableValues`) now carry their list shape
-		// through the catalog (`<number>+`) and route to `number_list_attribute`,
-		// so this bucket holds only genuine scalar attributes (`bias`, `divisor`,
-		// `seed`, …) and needs no separated tail.
+		/**
+		 * A bare single `<number>`. The spec's number *lists* (`kernelMatrix`,
+		 * feColorMatrix `values`, `tableValues`) now carry their list shape
+		 * through the catalog (`<number>+`) and route to `number_list_attribute`,
+		 * so this bucket holds only genuine scalar attributes (`bias`, `divisor`,
+		 * `seed`, …) and needs no separated tail.
+		 */
 		number_attribute_value: $ => quoted($.number),
 
-		// ── number-optional-number attribute (one or two numbers) ──
-		// SVG <number-optional-number>: a single number, optionally
-		// followed by whitespace and a second number (e.g. stdDeviation,
-		// baseFrequency, kernelUnitLength, order, radius).
+		/**
+		 * number-optional-number attribute (one or two numbers)
+		 * SVG <number-optional-number>: a single number, optionally
+		 * followed by whitespace and a second number (e.g. stdDeviation,
+		 * baseFrequency, kernelUnitLength, order, radius).
+		 */
 
 		number_optional_number_attribute: $ =>
 			seq(
@@ -871,7 +899,7 @@ export default grammar({
 
 		number_optional_number: $ => seq($.number, optional(seq($.wsp, $.number))),
 
-		// ─── length-list attribute (dx, dy, stroke-dasharray) ───────
+		// length-list attribute (dx, dy, stroke-dasharray)
 
 		length_list_attribute: $ =>
 			seq(
@@ -890,7 +918,7 @@ export default grammar({
 				repeat(seq($.comma_wsp, $.length_or_percentage)),
 			),
 
-		// ─── rotate attribute ────────────────────────────────────────
+		// rotate attribute
 
 		rotate_attribute: $ =>
 			seq(
@@ -901,12 +929,14 @@ export default grammar({
 
 		rotate_attribute_name: _ => 'rotate',
 
-		// `rotate` is scoped: text/tspan accept number lists, animateMotion accepts
-		// one numeric angle or `auto`/`auto-reverse`. The grammar is not
-		// element-aware, so parse the valid union under one dedicated node.
+		/**
+		 * `rotate` is scoped: text/tspan accept number lists, animateMotion accepts
+		 * one numeric angle or `auto`/`auto-reverse`. The grammar is not
+		 * element-aware, so parse the valid union under one dedicated node.
+		 */
 		rotate_attribute_value: $ => quoted(choice($.number_list, 'auto', 'auto-reverse')),
 
-		// ─── stroke-dasharray attribute (none or length list) ───────
+		// stroke-dasharray attribute (none or length list)
 
 		stroke_dasharray_attribute: $ =>
 			seq(
@@ -919,7 +949,7 @@ export default grammar({
 
 		stroke_dasharray_attribute_value: $ => quoted(choice('none', 'inherit', $.length_list)),
 
-		// ─── keyword-valued presentation attributes ─────────────────
+		// keyword-valued presentation attributes
 
 		keyword_attribute: $ =>
 			seq(
@@ -930,15 +960,17 @@ export default grammar({
 
 		keyword_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.keyword),
 
-		// Most keyword attributes carry a single enum value, but CSS `||`
-		// combinators (e.g. `paint-order="stroke fill markers"`) accept several
-		// whitespace-separated keywords in any order. Allow a one-or-more
-		// keyword list so both shapes parse; a single keyword is the list of one.
+		/**
+		 * Most keyword attributes carry a single enum value, but CSS `||`
+		 * combinators (e.g. `paint-order="stroke fill markers"`) accept several
+		 * whitespace-separated keywords in any order. Allow a one-or-more
+		 * keyword list so both shapes parse; a single keyword is the list of one.
+		 */
 		keyword_attribute_value: $ => quoted(choice($.number, seq($.keyword_value, repeat(seq($.wsp, $.keyword_value))))),
 
 		keyword_value: _ => token(/[A-Za-z_][A-Za-z0-9_-]*/),
 
-		// ─── CSS-text presentation attributes ───────────────────────
+		// CSS-text presentation attributes
 
 		css_text_attribute: $ =>
 			seq(
@@ -958,7 +990,7 @@ export default grammar({
 		css_attribute_text_double: _ => token(/[^"]+/),
 		css_attribute_text_single: _ => token(/[^']+/),
 
-		// ─── number-list attribute (bare numbers, no units) ─────────
+		// number-list attribute (bare numbers, no units)
 
 		number_list_attribute: $ =>
 			seq(
@@ -969,11 +1001,13 @@ export default grammar({
 
 		number_list_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.number_list),
 
-		// A number list separates with whitespace/commas in the filter context
-		// (`kernelMatrix`, feColorMatrix `values`, `tableValues`) but with `;`
-		// when the same `values` attribute drives SMIL animation
-		// (`values="0;10;20"`). Motion coordinate-pair lists are scoped to
-		// `animateMotion` so generic number-list attrs cannot accept coordinates.
+		/**
+		 * A number list separates with whitespace/commas in the filter context
+		 * (`kernelMatrix`, feColorMatrix `values`, `tableValues`) but with `;`
+		 * when the same `values` attribute drives SMIL animation
+		 * (`values="0;10;20"`). Motion coordinate-pair lists are scoped to
+		 * `animateMotion` so generic number-list attrs cannot accept coordinates.
+		 */
 		number_list_attribute_value: $ =>
 			quoted(choice(
 				$.number_list,
@@ -986,7 +1020,7 @@ export default grammar({
 				repeat(seq($.comma_wsp, $.number)),
 			),
 
-		// ─── duration attribute (time values) ───────────────────────
+		// duration attribute (time values)
 
 		duration_attribute: $ =>
 			seq(
@@ -1001,7 +1035,7 @@ export default grammar({
 
 		time_value: $ => seq($.number, optional($.time_unit)),
 
-		// ─── repeatCount attribute ──────────────────────────────────
+		// repeatCount attribute
 
 		repeat_count_attribute: $ =>
 			seq(
@@ -1014,7 +1048,7 @@ export default grammar({
 
 		repeat_count_attribute_value: $ => quoted(choice($.number, 'indefinite')),
 
-		// ─── keyTimes attribute (semicolon-separated numbers) ───────
+		// keyTimes attribute (semicolon-separated numbers)
 
 		key_times_attribute: $ =>
 			seq(
@@ -1041,7 +1075,7 @@ export default grammar({
 				optional(seq(optional($.wsp), SEMI, optional($.wsp))),
 			),
 
-		// ─── keySplines attribute (semicolon-separated 4-tuples) ────
+		// keySplines attribute (semicolon-separated 4-tuples)
 
 		key_splines_attribute: $ =>
 			seq(
@@ -1062,7 +1096,7 @@ export default grammar({
 
 		key_spline_value: $ => seq($.number, $.comma_wsp, $.number, $.comma_wsp, $.number, $.comma_wsp, $.number),
 
-		// ─── enable-background attribute ────────────────────────────
+		// enable-background attribute
 
 		enable_background_attribute: $ =>
 			seq(
@@ -1081,7 +1115,7 @@ export default grammar({
 				optional(seq($.wsp, $.number, $.wsp, $.number, $.wsp, $.number, $.wsp, $.number)),
 			),
 
-		// ─── href attribute ─────────────────────────────────────────
+		// href attribute
 
 		href_attribute: $ =>
 			seq(
@@ -1096,7 +1130,7 @@ export default grammar({
 
 		href_reference: $ => choice($.data_uri, $.iri_reference),
 
-		// ─── id attribute ───────────────────────────────────────────
+		// id attribute
 
 		id_attribute: $ =>
 			seq(
@@ -1111,7 +1145,7 @@ export default grammar({
 
 		id_token: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF])*/),
 
-		// ─── class attribute ────────────────────────────────────────
+		// class attribute
 
 		class_attribute: $ =>
 			seq(
@@ -1128,7 +1162,7 @@ export default grammar({
 
 		class_name: _ => token(/[A-Za-z_][A-Za-z0-9_-]*/),
 
-		// ─── event attribute (JS injection) ─────────────────────────
+		// event attribute (JS injection)
 
 		event_attribute: $ =>
 			seq(
@@ -1139,8 +1173,10 @@ export default grammar({
 
 		event_attribute_name: _ => token(prec(1, /on[A-Za-z][A-Za-z0-9_-]*/)),
 
-		// Manual quoting (not `quoted()`) — each quote type needs a distinct
-		// inner token (script_text_double/single) for injection targeting.
+		/**
+		 * Manual quoting (not `quoted()`) — each quote type needs a distinct
+		 * inner token (script_text_double/single) for injection targeting.
+		 */
 		event_attribute_value: $ =>
 			choice(
 				seq(DQUOTE, optional(field('content', $.script_text_double)), DQUOTE),
@@ -1150,7 +1186,7 @@ export default grammar({
 		script_text_double: _ => token(/[^"]+/),
 		script_text_single: _ => token(/[^']+/),
 
-		// ─── Generic attribute ──────────────────────────────────────
+		// Generic attribute
 
 		generic_attribute: $ =>
 			seq(
@@ -1178,7 +1214,7 @@ export default grammar({
 		attribute_text_double: _ => token(/[^"&<]+/),
 		attribute_text_single: _ => token(/[^'&<]+/),
 
-		// ─── Shared value types ─────────────────────────────────────
+		// Shared value types
 
 		_eq: $ => seq(optional($._s), EQ, optional($._s)),
 
@@ -1202,9 +1238,11 @@ export default grammar({
 
 		data_uri_parameter_name: _ => token(/[A-Za-z0-9!#$&^_.+-]+/),
 		data_uri_parameter_value: _ => token(/[^;,"'&<]+/),
-		// Consume the trailing comma so `;base64=...` and `;base64foo`
-		// remain normal parameters instead of losing their `;base64` prefix
-		// to a higher-precedence encoding token.
+		/**
+		 * Consume the trailing comma so `;base64=...` and `;base64foo`
+		 * remain normal parameters instead of losing their `;base64` prefix
+		 * to a higher-precedence encoding token.
+		 */
 		data_uri_encoding: _ => token(/;[Bb][Aa][Ss][Ee]64,/),
 		data_uri_payload: _ => token(/[^"'&<]+/),
 
