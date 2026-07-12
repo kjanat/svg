@@ -11,7 +11,6 @@ authors        = ["Kaj Kowalski <info@kajkowalski.nl>"]
 repository     = "https://github.com/kjanat/svg"
 languages      = ["languages/svg", "languages/svg-paint", "languages/svg-path", "languages/svg-transform"]
 
-# TODO: https://github.com/kjanat/svg
 [grammars]
 svg           = { repository = "https://github.com/kjanat/svg", rev = "4e2433528bbc426f4a66c87fdbbb996f88d770da", path = "grammars/tree-sitter-svg" }
 svg_path      = { repository = "https://github.com/kjanat/svg", rev = "4e2433528bbc426f4a66c87fdbbb996f88d770da", path = "grammars/tree-sitter-svg-path" }
