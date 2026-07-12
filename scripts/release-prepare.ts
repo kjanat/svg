@@ -37,30 +37,16 @@ if (cargoTomlParsed.workspace?.package?.version == null) {
 	exit(1);
 }
 
-const cargoToml = cargoTomlSource
-	.replace(
-		/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
-		`$1${version}$3`,
-	)
-	// Internal workspace deps carry crates.io version requirements that must
-	// track the workspace version, or `cargo publish --workspace` breaks the
-	// release after the first bump.
-	.replace(
-		/(= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = ")([^"]+)(")/g,
-		`$1${version}$3`,
-	);
+// The internal workspace dep requirements are bumped by the shared carrier
+// list below — they must track the workspace version or every published
+// crate pins the previous release.
+const cargoToml = cargoTomlSource.replace(
+	/(\[workspace\.package\][\s\S]*?version\s*=\s*")(.*?)("\n)/,
+	`$1${version}$3`,
+);
 
 if (cargoToml === cargoTomlSource) {
 	error('failed to update workspace.package.version in Cargo.toml');
-	exit(1);
-}
-
-const internalDeps = Array.from(
-	cargoToml.matchAll(/= \{ package = "(?:svg-|tree-sitter-svg)[\w-]*", version = "([^"]+)"/g),
-);
-const bumpedDepCount = internalDeps.filter(([, depVersion]) => depVersion === version).length;
-if (internalDeps.length !== bumpedDepCount) {
-	error(`only ${bumpedDepCount}/${internalDeps.length} internal dep version requirements were bumped to ${version}`);
 	exit(1);
 }
 
@@ -85,6 +71,21 @@ for (const carrier of carriers) {
 	const file = Bun.file(path);
 	if (!(await file.exists())) continue;
 	const source = await file.text();
+	if (carrier.all) {
+		let count = 0;
+		const updated = source.replace(carrier.pattern, (full: string, matched: string) => {
+			count += 1;
+			const versionStart = full.lastIndexOf(matched);
+			return full.slice(0, versionStart) + version + full.slice(versionStart + matched.length);
+		});
+		if (count === 0) {
+			error(`version pattern not found in ${carrier.file}`);
+			exit(1);
+		}
+		await Bun.write(path, updated);
+		log(`bumped: ${carrier.file} (${count} occurrences)`);
+		continue;
+	}
 	const match = source.match(carrier.pattern);
 	if (!match || match.index == null) {
 		error(`version pattern not found in ${carrier.file}`);

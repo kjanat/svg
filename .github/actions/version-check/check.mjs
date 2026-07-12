@@ -19,6 +19,19 @@ for (const carrier of carriers) {
 	} catch {
 		continue;
 	}
+	if (carrier.all) {
+		const matches = [...source.matchAll(carrier.pattern)];
+		if (matches.length === 0) {
+			mismatches.push(`${carrier.file}: version pattern not found`);
+			continue;
+		}
+		for (const match of matches) {
+			if (match[1] !== version) {
+				mismatches.push(`${carrier.file}: ${match[0]} (workspace is ${version})`);
+			}
+		}
+		continue;
+	}
 	const match = source.match(carrier.pattern);
 	if (!match) {
 		mismatches.push(`${carrier.file}: version pattern not found`);

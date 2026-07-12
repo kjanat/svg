@@ -29,7 +29,7 @@ toml                 = "1"
 tower-lsp-server     = "0.23"
 tracing              = "0.1"
 tracing-appender     = "0.2"
-tree-sitter          = "0.26.10"
+tree-sitter          = "0.26.11"
 tree-sitter-css      = "0.25"
 tree-sitter-language = "0.1"
 ureq                 = "3"
@@ -41,17 +41,17 @@ serde              = { version = "1", features = ["derive"] }
 tokio              = { version = "1", features = ["fs", "io-std", "macros", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 
-svg-color      = { package = "svg-color", path = "crates/svg-color", version = "0.1.0" }
-svg-data       = { package = "svg-data", path = "crates/svg-data", version = "0.1.0" }
-svg-format     = { package = "svg-format", path = "crates/svg-format", version = "0.1.0" }
-svg-lint       = { package = "svg-lint", path = "crates/svg-lint", version = "0.1.0" }
-svg-references = { package = "svg-references", path = "crates/svg-references", version = "0.1.0" }
-svg-tree       = { package = "svg-tree", path = "crates/svg-tree", version = "0.1.0" }
+svg-color      = { package = "svg-color", path = "crates/svg-color", version = "0.1.2" }
+svg-data       = { package = "svg-data", path = "crates/svg-data", version = "0.1.2" }
+svg-format     = { package = "svg-format", path = "crates/svg-format", version = "0.1.2" }
+svg-lint       = { package = "svg-lint", path = "crates/svg-lint", version = "0.1.2" }
+svg-references = { package = "svg-references", path = "crates/svg-references", version = "0.1.2" }
+svg-tree       = { package = "svg-tree", path = "crates/svg-tree", version = "0.1.2" }
 
-tree-sitter-svg           = { package = "tree-sitter-svg", path = "grammars/tree-sitter-svg", version = "0.1.0" }
-tree-sitter-svg-paint     = { package = "tree-sitter-svg-paint", path = "grammars/tree-sitter-svg-paint", version = "0.1.0" }
-tree-sitter-svg-path      = { package = "tree-sitter-svg-path", path = "grammars/tree-sitter-svg-path", version = "0.1.0" }
-tree-sitter-svg-transform = { package = "tree-sitter-svg-transform", path = "grammars/tree-sitter-svg-transform", version = "0.1.0" }
+tree-sitter-svg           = { package = "tree-sitter-svg", path = "grammars/tree-sitter-svg", version = "0.1.2" }
+tree-sitter-svg-paint     = { package = "tree-sitter-svg-paint", path = "grammars/tree-sitter-svg-paint", version = "0.1.2" }
+tree-sitter-svg-path      = { package = "tree-sitter-svg-path", path = "grammars/tree-sitter-svg-path", version = "0.1.2" }
+tree-sitter-svg-transform = { package = "tree-sitter-svg-transform", path = "grammars/tree-sitter-svg-transform", version = "0.1.2" }
 
 [workspace.lints.clippy]
 expect_used                        = "deny"

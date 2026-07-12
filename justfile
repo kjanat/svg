@@ -167,6 +167,7 @@ release-config-check:
     actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml
     shellcheck -x -o all --shell=bash .github/actions/*/run.sh
     node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
+    ! grep -riEl 'not (yet )?published|not on (crates\.io|npm)( yet)?|coming soon' crates/*/README.md grammars/*/README.md distribution/npm/facade/*/README.md README.md
 
 # preview the per-target build matrix release.yml will run
 [group('release')]

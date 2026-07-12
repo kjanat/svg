@@ -242,6 +242,44 @@ async function cleanDist(): Promise<void> {
 }
 
 /**
+ * The crate whose README documents this facade's tool (features, rules,
+ * configuration). The facade's published README is composed from the npm
+ * template head plus that crate README's sections, so the npm pages carry
+ * the full documentation without a hand-maintained copy that can drift.
+ */
+function crateDirFor(facade: Facade): string {
+	return join(repoDir, 'crates', facade.bin);
+}
+
+/**
+ * npm README = template head (install/alias specifics) + the crate README
+ * from its first `##` section onward, minus the "Part of" footer that only
+ * makes sense on GitHub-relative pages.
+ */
+async function composeFacadeReadme(facade: Facade): Promise<string> {
+	const templateDir = join(npmDir, 'facade', facade.template ?? facade.name);
+	const head = await readFile(join(templateDir, 'README.md'), 'utf8');
+
+	const crateReadme = await readFile(join(crateDirFor(facade), 'README.md'), 'utf8');
+	const firstSection = crateReadme.indexOf('\n## ');
+	if (firstSection === -1) {
+		throw new Error(`crate README for ${facade.bin} has no sections to compose into the npm README`);
+	}
+	let body = crateReadme.slice(firstSection + 1);
+	// The template head already covers installation; the crate's own Install
+	// section (and the GitHub-only "Part of" footer) would duplicate it.
+	for (const section of ['## Install\n', '## Part of [svg-language-server]']) {
+		const start = body.indexOf(section);
+		if (start === -1) continue;
+		const next = body.indexOf('\n## ', start + section.length);
+		body = next === -1 ? body.slice(0, start) : body.slice(0, start) + body.slice(next + 1);
+	}
+	body = `${body.trimEnd()}\n`;
+
+	return `${head.trimEnd()}\n\n---\n\n${body}`;
+}
+
+/**
  * Build one facade package from its checked-in template plus the shared
  * launcher lib, once per publish name (a scoped twin is byte-identical apart
  * from `package.json.name`). The bin shim is generated so the template dir
@@ -256,6 +294,7 @@ async function buildFacade(
 ): Promise<void> {
 	const templateDir = join(npmDir, 'facade', facade.template ?? facade.name);
 	const template = JSON.parse(await readFile(join(templateDir, 'package.json'), 'utf8')) as Record<string, unknown>;
+	const readme = await composeFacadeReadme(facade);
 
 	for (const packageName of publishNames(facade)) {
 		const dest = join(distDir, dirName(packageName));
@@ -275,7 +314,7 @@ async function buildFacade(
 		};
 
 		await writeJson(join(dest, 'package.json'), packageJson);
-		await cp(join(templateDir, 'README.md'), join(dest, 'README.md'));
+		await writeFile(join(dest, 'README.md'), readme);
 		await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
 
 		for (const file of FACADE_LIB_FILES) {
@@ -309,6 +348,7 @@ async function buildShim(
 ): Promise<void> {
 	const templateDir = join(npmDir, 'facade', facade.template ?? facade.name);
 	const template = JSON.parse(await readFile(join(templateDir, 'package.json'), 'utf8')) as Record<string, unknown>;
+	const readme = await composeFacadeReadme(facade);
 
 	const dest = join(distDir, dirName(shimName));
 	await mkdir(join(dest, 'bin'), { recursive: true });
@@ -329,7 +369,7 @@ async function buildShim(
 	};
 
 	await writeJson(join(dest, 'package.json'), packageJson);
-	await cp(join(templateDir, 'README.md'), join(dest, 'README.md'));
+	await writeFile(join(dest, 'README.md'), readme);
 	await cp(join(repoDir, 'LICENSE'), join(dest, 'LICENSE'));
 
 	await writeFile(
