@@ -36,25 +36,16 @@ function tagNameFor(packageName: string): string {
 }
 
 interface TargetsJson {
-	scope: string;
-	facades: { name: string; shim?: string; alsoPublishAs?: string[]; pkg: string }[];
 	bundle?: { name: string };
-	grammars?: string[];
-	targets: { pkg: string }[];
 }
 
+// One tag per unique base package name, tool-level only: the publishable
+// crates cover every npm facade/shim/grammar that shares their name, and the
+// bundle is the single npm-only artifact. Platform sub-packages and scoped
+// twins are deliberately excluded — they are per-arch implementation detail
+// and byte-identical aliases respectively.
 function npmNames(targets: TargetsJson): string[] {
-	const names: string[] = [];
-	for (const facade of targets.facades) {
-		names.push(facade.name, ...(facade.alsoPublishAs ?? []));
-		if (facade.shim) names.push(facade.shim);
-		for (const target of targets.targets) {
-			names.push(`${targets.scope}/${facade.pkg}-${target.pkg}`);
-		}
-	}
-	if (targets.bundle) names.push(targets.bundle.name);
-	names.push(...(targets.grammars ?? []));
-	return names;
+	return targets.bundle ? [targets.bundle.name] : [];
 }
 
 async function targetsAt(ref: string): Promise<TargetsJson | null> {
@@ -86,8 +77,7 @@ const crates = metadata.packages
 for (const crate of crates) candidates.add(crate);
 
 async function onNpm(name: string): Promise<boolean> {
-	const encoded = name.replace('/', '%2F');
-	const res = await fetch(`https://registry.npmjs.org/${encoded}/${version}`);
+	const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`);
 	return res.ok;
 }
 
