@@ -922,8 +922,7 @@ fn ignore_range_with_insert_blank_lines_is_stable() {
     );
 }
 
-// ── Edge-case ignore directive tests ────────────────────────────
-
+// Edge-case ignore directive tests
 #[test]
 fn two_consecutive_ignore_next_skip_two_siblings() {
     let input = "<svg>\n<!-- svg-format-ignore -->\n<rect y=\"2\" x=\"1\"/>\n<!-- \
@@ -1091,8 +1090,7 @@ fn ignore_range_first_content_child_not_lost() {
     );
 }
 
-// ── Text-content element whitespace sensitivity ──────────────
-
+// Text-content element whitespace sensitivity
 #[test]
 fn text_element_entity_refs_stay_inline() {
     let input =
@@ -1197,8 +1195,7 @@ fn output_is_pure_lf_on_ignore_file() {
     assert_eq!(out, "<!-- svg-format-ignore-file -->\n<svg><rect/></svg>\n");
 }
 
-// --- group-based wrap regressions (v0.4.0) --------------------------------
-
+// group-based wrap regressions (v0.4.0)
 #[test]
 fn group_wrap_rect_splits_geometry_from_presentation() {
     // `<rect>` with Geometry + Presentation attrs wraps with each

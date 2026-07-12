@@ -100,7 +100,7 @@ main {
 	gap: 20px;
 }
 
-/* ── typography ──────────────────────── */
+/* typography */
 h1,
 h2,
 h3 {
@@ -138,7 +138,7 @@ a:hover {
 	margin-bottom: 10px;
 }
 
-/* ── hero ────────────────────────────── */
+/* hero */
 .hero {
 	padding: 36px 36px 32px;
 	border: 1px solid var(--border);
@@ -193,7 +193,7 @@ a:hover {
 	}
 }
 
-/* ── stats ───────────────────────────── */
+/* stats */
 .stats {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
@@ -237,7 +237,7 @@ a:hover {
 	color: var(--text-muted);
 }
 
-/* ── sections ────────────────────────── */
+/* sections */
 section {
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
@@ -263,7 +263,7 @@ section {
 	font-size: 0.85rem;
 }
 
-/* ── table search input ──────────────── */
+/* table search input */
 .table-search {
 	display: inline-flex;
 	align-items: center;
@@ -297,7 +297,7 @@ section {
 	white-space: nowrap;
 }
 
-/* ── tables ──────────────────────────── */
+/* tables */
 .table-scroll {
 	overflow-x: auto;
 	overflow-y: auto;
@@ -479,20 +479,20 @@ tbody tr.table-empty td {
 	color: var(--badge-limited-fg);
 }
 
-/* ── code ────────────────────────────── */
+/* code */
 code {
 	font-family: var(--font-mono);
 	font-size: 0.86em;
 	color: var(--code);
 }
 
-/* ── muted ───────────────────────────── */
+/* muted */
 .muted {
 	color: var(--text-muted);
 	font-size: 0.9rem;
 }
 
-/* ── version inputs ──────────────────── */
+/* version inputs */
 .ver-wrap {
 	position: relative;
 	display: inline-block;
@@ -551,7 +551,7 @@ code {
 	color: var(--accent);
 }
 
-/* ── pills ───────────────────────────── */
+/* pills */
 .pill {
 	display: inline-block;
 	padding: 4px 12px;
@@ -568,7 +568,7 @@ code {
 	opacity: 1;
 }
 
-/* ── baseline badges ─────────────────── */
+/* baseline badges */
 .badge {
 	display: inline-flex;
 	align-items: center;
@@ -601,7 +601,7 @@ code {
 	color: var(--badge-limited-fg);
 }
 
-/* ── browser chips ───────────────────── */
+/* browser chips */
 .browser-chips {
 	display: flex;
 	flex-wrap: nowrap;
@@ -775,7 +775,7 @@ code {
 	margin-left: 0.1em;
 }
 
-/* ── error page ──────────────────────── */
+/* error page */
 .error-page {
 	min-height: 100vh;
 	display: grid;
@@ -796,7 +796,7 @@ code {
 	font-size: 2rem;
 }
 
-/* ── responsive ──────────────────────── */
+/* responsive */
 @media (max-width: 600px) {
 	main {
 		padding: 28px 14px 56px;

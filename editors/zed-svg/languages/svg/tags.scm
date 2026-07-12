@@ -1,4 +1,4 @@
-; ─── ID definitions with docstrings ──────────────────────────────
+; ID definitions with docstrings
 ; Comments adjacent to id-bearing elements serve as documentation.
 ; These patterns must precede the simple id_attribute fallback
 ; because tree-sitter tags uses the first matching pattern.
@@ -111,14 +111,14 @@
   (#select-adjacent! @doc @definition.id)
 )
 
-; ─── ID definitions (fallback, no docstring) ─────────────────────
+; ID definitions (fallback, no docstring)
 ; Matches id-bearing elements without an adjacent comment.
 
 (id_attribute
   value: (id_attribute_value
     (id_token) @name)) @definition.id
 
-; ─── ID references (href) ───────────────────────────────────────
+; ID references (href)
 ; <use href="#foo"/>, <textPath href="#path1">, <a href="#section">
 
 ((href_attribute
@@ -129,7 +129,7 @@
 
 ; Paint url() id references live in the injected svg_paint grammar (tags.scm)
 
-; ─── ID references (functional IRI) ─────────────────────────────
+; ID references (functional IRI)
 ; clip-path="url(#clip)", mask="url(#mask)", filter="url(#blur)"
 
 ((functional_iri_attribute
