@@ -456,7 +456,7 @@ mod tests {
             .find(|e| e.name == "desc")
             .ok_or("no desc")?;
         assert_eq!(desc.content_model, Some(ContentModelKind::Any));
-        assert!(desc.allowed_elements.is_empty());
+        assert_eq!(desc.allowed_elements, [] as [String; 0]);
         Ok(())
     }
 
@@ -467,7 +467,7 @@ mod tests {
         // category must NOT leak into globals.
         assert_eq!(defs.global_attributes.len(), 2);
         assert_eq!(defs.global_attributes[0].name, "id");
-        assert!(defs.global_attributes[0].elements.is_empty());
+        assert_eq!(defs.global_attributes[0].elements, [] as [String; 0]);
         assert_eq!(defs.global_attributes[1].name, "href");
         assert_eq!(defs.global_attributes[1].elements, ["a", "use"]);
 
@@ -481,10 +481,9 @@ mod tests {
         assert_eq!(defs.attribute_categories.len(), 2);
         assert_eq!(defs.attribute_categories[0].attributes.len(), 1);
         assert_eq!(defs.attribute_categories[0].attributes[0].name, "cid");
-        assert!(
-            defs.attribute_categories[0].attributes[0]
-                .elements
-                .is_empty()
+        assert_eq!(
+            defs.attribute_categories[0].attributes[0].elements,
+            [] as [String; 0]
         );
         assert_eq!(
             defs.attribute_categories[0].attributes[0].animatable,

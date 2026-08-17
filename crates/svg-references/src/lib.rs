@@ -893,6 +893,6 @@ mod tests {
     #[test]
     fn collect_class_definitions_handles_empty_stylesheet() {
         let defs = collect_class_definitions_from_stylesheet("", 0, 0);
-        assert!(defs.is_empty());
+        assert_eq!(defs, [] as [NamedSpan; 0]);
     }
 }
