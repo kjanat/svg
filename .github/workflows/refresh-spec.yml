@@ -31,7 +31,7 @@ jobs:
 
           $runSentinel = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --json > report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
-          $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { break } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
+          $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runSentinel
           $code = $LASTEXITCODE
@@ -50,7 +50,7 @@ jobs:
 
           $runCompat = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --compat-drift --json > compat-report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
-          $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { break } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
+          $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runCompat
           $code = $LASTEXITCODE
