@@ -206,7 +206,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
 
           $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") 2>$null }
-          $continueOnFailure = { param($code, $message); switch ($code) { 0 { break } default { $message } } }
+          $continueOnFailure = { param($code, $message); switch ($code) { 0 { break } default { $message; $global:LASTEXITCODE = 0 } } }
 
           &$createLabel
           &$continueOnFailure $LASTEXITCODE "Label already exists or could not be created; continuing."
