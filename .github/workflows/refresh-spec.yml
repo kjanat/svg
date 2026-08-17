@@ -113,6 +113,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property published, tracked, head_commit, compat
+          $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
           $refreshEditions = { bun scripts/refresh-editions.ts }
           $refreshSvgwg = { param($h); bun scripts/refresh-svgwg.ts $h --activate }
           $generateSchemas = { just generate-schemas }
@@ -121,18 +122,22 @@ jobs:
           if ($check.published -ne "0" -or $check.compat -ne "0") {
             "Re-vendoring W3C edition + compat metadata..."
             &$refreshEditions
+            &$assertOk "refresh-editions"
           }
 
           if ($check.tracked -ne "0") {
             "Re-vendoring svgwg sources at {0} (activating pin)..." -f $check.head_commit
             &$refreshSvgwg $check.head_commit
+            &$assertOk "refresh-svgwg"
           }
 
           "Rebaking derived JSON schemas..."
           &$generateSchemas
+          &$assertOk "generate-schemas"
 
           "Normalising regenerated/vendored files to repo style..."
           &$formatData
+          &$assertOk "dprint fmt"
 
       - name: Gate refresh on repro + provenance tests
         if: needs.check.outputs.any == '1'
@@ -140,6 +145,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $testSvgData = { param($package); cargo test --package $package }
           &$testSvgData "svg-data"
+          if ($LASTEXITCODE -ne 0) { "::error::cargo test -p svg-data failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
 
       - name: Build auto-refresh pull request body
         id: pr
