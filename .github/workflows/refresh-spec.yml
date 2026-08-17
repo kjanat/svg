@@ -243,9 +243,13 @@ jobs:
           $existing = ((&$listIssue "open") -join "`n").Trim()
           &$exit $LASTEXITCODE
 
-          $existing ?
-            ("Updating existing issue #{0}" -f $existing; &$commentIssue $existing $body) :
-            ("Opening new tracking issue"; &$createIssue $title $body)
+          if ($existing) {
+            "Updating existing issue #{0}" -f $existing
+            &$commentIssue $existing $body
+          } else {
+            "Opening new tracking issue"
+            &$createIssue $title $body
+          }
 
           &$exit $LASTEXITCODE
 
