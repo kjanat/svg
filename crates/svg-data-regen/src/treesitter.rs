@@ -1597,7 +1597,7 @@ mod tests {
             document.attribute_buckets.number_optional_number,
             ["stdDeviation"]
         );
-        assert!(document.attribute_buckets.number.is_empty());
+        assert_eq!(document.attribute_buckets.number, [] as [String; 0]);
     }
 
     #[test]
@@ -1620,7 +1620,7 @@ mod tests {
         };
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.keyword, ["mode"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     #[test]
@@ -1672,7 +1672,7 @@ mod tests {
             document.attribute_buckets.css_text,
             ["begin", "end", "max", "min"]
         );
-        assert!(document.attribute_buckets.keyword.is_empty());
+        assert_eq!(document.attribute_buckets.keyword, [] as [String; 0]);
     }
 
     #[test]
@@ -1703,7 +1703,7 @@ mod tests {
         };
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.number, ["numOctaves"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     #[test]
@@ -1720,7 +1720,7 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.css_text, ["x_prose"]);
-        assert!(document.attribute_buckets.keyword.is_empty());
+        assert_eq!(document.attribute_buckets.keyword, [] as [String; 0]);
     }
 
     #[test]
@@ -1735,7 +1735,7 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.keyword, ["crossorigin"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     #[test]
@@ -1750,8 +1750,8 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.css_text, ["operator"]);
-        assert!(document.attribute_buckets.keyword.is_empty());
-        assert!(document.attribute_buckets.length.is_empty());
+        assert_eq!(document.attribute_buckets.keyword, [] as [String; 0]);
+        assert_eq!(document.attribute_buckets.length, [] as [String; 0]);
     }
 
     #[test]
@@ -1766,7 +1766,7 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.length_list, ["dx"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     #[test]
@@ -1781,7 +1781,7 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.length_list, ["dx"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     #[test]
@@ -1798,7 +1798,7 @@ mod tests {
         let inputs = GrammarProjectionInputs::for_tests();
         let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
         assert_eq!(document.attribute_buckets.color, ["fill"]);
-        assert!(document.attribute_buckets.css_text.is_empty());
+        assert_eq!(document.attribute_buckets.css_text, [] as [String; 0]);
     }
 
     fn attribute(name: &str, values: CatalogAttributeValues) -> CatalogAttribute {

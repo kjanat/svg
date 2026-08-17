@@ -2920,7 +2920,7 @@ mod tests {
                 values: vec!["evenodd".to_owned(), "nonzero".to_owned()],
             },
         );
-        assert!(element_values.is_empty());
+        assert_eq!(element_values, [] as [CatalogAttributeElementValues; 0]);
     }
 
     #[test]
