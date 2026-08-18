@@ -12858,6 +12858,11 @@
       "standard_track": true,
       "animation": "additive",
       "presentation_attribute": "font-stretch",
+      "baseline": {
+        "kind": "widely",
+        "since": 2020,
+        "qualifier": null
+      },
       "browser_support": {
         "chrome": {
           "supported": true,
@@ -37971,7 +37976,9 @@
       "animation": "additive",
       "presentation_attribute": "transform-origin",
       "baseline": {
-        "kind": "limited"
+        "kind": "widely",
+        "since": 2024,
+        "qualifier": null
       },
       "browser_support": {
         "chrome": {
@@ -37990,12 +37997,7 @@
         },
         "safari": {
           "supported": true,
-          "partial_implementation": true,
-          "notes": [
-            "Does not work with `transform` SVG presentation attribute. Only works with `transform` CSS property. See [bug 201854](https://webkit.org/b/201854)."
-          ],
-          "version_added": "≤13.1",
-          "version_qualifier": "before"
+          "version_added": "15.4"
         }
       },
       "values": {
