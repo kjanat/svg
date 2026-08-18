@@ -68,7 +68,6 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $readJson = { param($p); Get-Content -Raw $p | ConvertFrom-Json }
-          $readRaw = { param($p); if (Test-Path $p) { (Get-Content -Raw $p).Trim() } else { "" } }
           $count = { param($v); if ($null -eq $v) { return 0 }; if ($v -is [array]) { return $v.Count }; return 1 }
           $setOutput = {
             param([System.Collections.IDictionary]$kv)
@@ -95,7 +94,6 @@ jobs:
           $publishedErrors = &$count $report.published_errors
           $any = [int](($published -ne 0) -or ($tracked -ne 0) -or ($compat -ne 0))
 
-          $fence = '```'
           $lines = [System.Collections.Generic.List[string]]::new()
           $add = { param($l); $lines.Add([string]$l) }
 
@@ -145,26 +143,6 @@ jobs:
             foreach ($e in $report.published_errors) {
               &$add ('- `{0}`: {1}' -f $e.series, $e.error)
             }
-          }
-
-          &$add ''
-          &$add '<details><summary>Raw sentinel report</summary>'
-          &$add ''
-          &$add ($fence + 'json')
-          &$add (&$readRaw "report.json")
-          &$add $fence
-          &$add ''
-          &$add '</details>'
-
-          if ($compatReport) {
-            &$add ''
-            &$add '<details><summary>Raw compat-drift report</summary>'
-            &$add ''
-            &$add ($fence + 'json')
-            &$add (&$readRaw "compat-report.json")
-            &$add $fence
-            &$add ''
-            &$add '</details>'
           }
 
           $digest = $lines -join "`n"
