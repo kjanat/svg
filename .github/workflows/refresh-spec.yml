@@ -19,6 +19,8 @@ jobs:
       any: ${{ steps.drift.outputs.any }}
       digest: ${{ steps.drift.outputs.digest }}
       compat_table: ${{ steps.drift.outputs.compat_table }}
+      errors: ${{ steps.drift.outputs.errors }}
+      error_series: ${{ steps.drift.outputs.error_series }}
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
@@ -33,7 +35,10 @@ jobs:
 
           $runSentinel = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --json > report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
-          $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
+          # 2 is "a tracked series could not be checked". Accepted here so the
+          # digest still gets built and published; the run is failed at the end
+          # of the mutate job instead, once that detail is on the record.
+          $acceptExit = { param($code, $name); switch ($code -in 0, 1, 2) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runSentinel
           $code = $LASTEXITCODE
@@ -198,13 +203,15 @@ jobs:
           }
 
           &$setOutput ([ordered]@{
-            published    = $published
-            tracked      = $tracked
-            head_commit  = $headCommit
-            compat       = $compat
-            any          = $any
-            digest       = $digest
-            compat_table = $compatTable
+            published     = $published
+            tracked       = $tracked
+            head_commit   = $headCommit
+            compat        = $compat
+            any           = $any
+            digest        = $digest
+            compat_table  = $compatTable
+            errors        = $publishedErrors
+            error_series  = (@($report.published_errors | ForEach-Object { $_.series }) -join ", ")
           })
 
           $heading = if ($any -eq 1) { "## Upstream drift detected" } else { "## No drift - baked catalog matches upstream" }
@@ -416,6 +423,17 @@ jobs:
 
           gh issue comment $env:ISSUE_NUMBER --body $body
           if ($LASTEXITCODE -ne 0) { "::error::gh issue comment failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+
+      - name: Fail when a tracked series could not be checked
+        if: needs.check.outputs.errors != '0'
+        env:
+          ERROR_COUNT: ${{ needs.check.outputs.errors }}
+          ERROR_SERIES: ${{ needs.check.outputs.error_series }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          "::error title=Unchecked spec series::{0} tracked series could not be checked ({1}). The sentinel reports no drift for them because it never reached them, not because they are current. See the run summary." -f $env:ERROR_COUNT, $env:ERROR_SERIES
+          exit 1
 
       - name: Close tracking issue when fresh
         if: needs.check.outputs.sentinel_exit == '0' && needs.check.outputs.compat_exit == '0' && needs.check.outputs.any == '0'
