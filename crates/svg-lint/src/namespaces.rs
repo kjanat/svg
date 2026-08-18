@@ -174,6 +174,69 @@ fn non_empty_namespace(namespace_uri: &str) -> Option<&str> {
     (!namespace_uri.is_empty()).then_some(namespace_uri)
 }
 
+/// Whether the element owning `name_node` (a tag `name` node) resolves to the
+/// SVG namespace, walking the ancestor chain to honour prefix bindings and
+/// default-namespace overrides declared anywhere above it.
+#[must_use]
+pub fn resolves_to_svg_namespace(source: &[u8], name_node: Node) -> bool {
+    let Some(tag) = name_node
+        .parent()
+        .filter(|parent| matches!(parent.kind(), "start_tag" | "self_closing_tag" | "end_tag"))
+    else {
+        return false;
+    };
+
+    let mut chain = vec![tag];
+    let mut current = tag;
+    while let Some(parent) = current.parent() {
+        let mut cursor = parent.walk();
+        if let Some(open) = parent
+            .children(&mut cursor)
+            .find(|child| matches!(child.kind(), "start_tag" | "self_closing_tag"))
+            && open.id() != current.id()
+        {
+            chain.push(open);
+        }
+        current = parent;
+    }
+    chain.reverse();
+
+    let mut scope = NamespaceScope::default();
+    for (index, link) in chain.iter().enumerate() {
+        scope = scope_for_tag(source, *link, &scope);
+
+        if index == 0
+            && scope.default_namespace().is_none()
+            && !declares_default_namespace(source, *link)
+        {
+            let roots_svg = link
+                .child_by_field_name("name")
+                .and_then(|name| name.utf8_text(source).ok())
+                .is_some_and(|raw| {
+                    let (prefix, local) = split_qualified_name(raw);
+                    prefix.is_none() && local == "svg"
+                });
+            if roots_svg {
+                scope.set_default_namespace(Some(SVG_NAMESPACE_URI));
+            }
+        }
+    }
+
+    let Ok(raw_name) = name_node.utf8_text(source) else {
+        return false;
+    };
+    let (prefix, local_name) = split_qualified_name(raw_name);
+    if prefix.is_none()
+        && local_name == "svg"
+        && scope.default_namespace().is_none()
+        && !declares_default_namespace(source, tag)
+    {
+        return true;
+    }
+
+    expand_element_name(raw_name, &scope).namespace_uri == Some(SVG_NAMESPACE_URI)
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;

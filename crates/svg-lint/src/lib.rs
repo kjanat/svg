@@ -17,6 +17,7 @@ mod rules;
 pub mod types;
 mod version;
 
+pub use namespaces::resolves_to_svg_namespace;
 use tree_sitter::Parser;
 pub use types::{
     CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic,

@@ -556,3 +556,30 @@ fn completions_follow_document_version_attribute() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn foreign_namespace_element_offers_no_svg_children() -> TestResult {
+    let mut server = TestServer::start()?;
+
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml"></div></foreignObject></svg>"#;
+    server.open("file:///foreign-completion.svg", src)?;
+
+    let column = u32::try_from(src.find("></div>").ok_or("div close")?)? + 1;
+    let response = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///foreign-completion.svg" },
+            "position": { "line": 0, "character": column }
+        }),
+    )?;
+
+    let items = response["result"]["items"].as_array().map_or(0, Vec::len);
+    assert_eq!(
+        items, 0,
+        "SVG children must not be offered inside a foreign-namespace element: {:?}",
+        response["result"]
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}

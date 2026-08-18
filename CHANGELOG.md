@@ -24,6 +24,13 @@ When bumping the workspace version after a catalog refresh:
 - `@kjanat/dreamcli` `next` (`4.0.0-rc.2`) for the npm distribution scripts and
   the `svg-compat` Deno worker
 
+### Fixed
+
+- Hover and completion resolve element names by namespace instead of raw tag
+  text, so a foreign-namespace `title`, `style`, `script` or `a` (typically
+  XHTML inside `foreignObject`) is no longer documented or completed as the
+  same-named SVG element
+
 ## [0.2.0] - 2026-08-18
 
 ### Added
