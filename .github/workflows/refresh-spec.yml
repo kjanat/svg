@@ -3,7 +3,7 @@ name: Spec refresh
 on: { schedule: [cron: "0 6 * * 1"], workflow_dispatch: {} }
 permissions: { contents: read }
 concurrency: { group: svgwg-drift, cancel-in-progress: false }
-env: { ISSUE_LABEL: svgwg-drift }
+env: { ISSUE_LABEL: svgwg-drift, ISSUE_TITLE: "spec-data is stale - upstream sources have moved" }
 defaults: { run: { shell: pwsh } }
 jobs:
   check:
@@ -17,6 +17,7 @@ jobs:
       head_commit: ${{ steps.drift.outputs.head_commit }}
       compat: ${{ steps.drift.outputs.compat }}
       any: ${{ steps.drift.outputs.any }}
+      digest: ${{ steps.drift.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
@@ -67,8 +68,22 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $readJson = { param($p); Get-Content -Raw $p | ConvertFrom-Json }
+          $readRaw = { param($p); if (Test-Path $p) { (Get-Content -Raw $p).Trim() } else { "" } }
           $count = { param($v); if ($null -eq $v) { return 0 }; if ($v -is [array]) { return $v.Count }; return 1 }
-          $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
+          $setOutput = {
+            param([System.Collections.IDictionary]$kv)
+
+            foreach ($key in $kv.Keys) {
+              $value = [string]$kv[$key]
+
+              if ($value.Contains("`n")) {
+                $delimiter = [guid]::NewGuid().ToString("N")
+                "$key<<$delimiter`n$value`n$delimiter" >> $env:GITHUB_OUTPUT
+              } else {
+                "{0}={1}" -f $key, $value >> $env:GITHUB_OUTPUT
+              }
+            }
+          }
 
           $report = &$readJson "report.json"
           $compatReport = if (Test-Path compat-report.json) { &$readJson "compat-report.json" } else { $null }
@@ -77,7 +92,82 @@ jobs:
           $tracked = &$count $report.rolling.tracked_input_drift
           $headCommit = [string]$report.rolling.head_commit
           $compat = &$count $compatReport.drift
+          $publishedErrors = &$count $report.published_errors
           $any = [int](($published -ne 0) -or ($tracked -ne 0) -or ($compat -ne 0))
+
+          $fence = '```'
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $add = { param($l); $lines.Add([string]$l) }
+
+          &$add @"
+          | Source | Drifted entries |
+          | --- | --- |
+          | W3C published editions | ``$published`` |
+          | Compat packages | ``$compat`` |
+          | Tracked svgwg inputs | ``$tracked`` |
+
+          Resolved svgwg HEAD: w3c/svgwg@$headCommit
+          "@
+
+          if ($compat -ne 0) {
+            &$add ''
+            &$add '**Compat packages behind npm `latest`**'
+            &$add ''
+            &$add '| Package | Baked | Latest |'
+            &$add '| --- | --- | --- |'
+            foreach ($d in $compatReport.drift) {
+              &$add ('| `{0}` | `{1}` | `{2}` |' -f $d.name, $d.baked, $d.latest)
+            }
+          }
+
+          if ($published -ne 0) {
+            &$add ''
+            &$add '**W3C published editions that moved**'
+            &$add ''
+            foreach ($d in $report.published_drift) {
+              &$add ('- `{0}`' -f ($d | ConvertTo-Json -Compress -Depth 10))
+            }
+          }
+
+          if ($tracked -ne 0) {
+            &$add ''
+            &$add '**Tracked svgwg inputs that moved**'
+            &$add ''
+            foreach ($d in $report.rolling.tracked_input_drift) {
+              &$add ('- `{0}`' -f ($d | ConvertTo-Json -Compress -Depth 10))
+            }
+          }
+
+          if ($publishedErrors -ne 0) {
+            &$add ''
+            &$add ('**Warning: {0} published series could not be checked**' -f $publishedErrors)
+            &$add ''
+            foreach ($e in $report.published_errors) {
+              &$add ('- `{0}`: {1}' -f $e.series, $e.error)
+            }
+          }
+
+          &$add ''
+          &$add '<details><summary>Raw sentinel report</summary>'
+          &$add ''
+          &$add ($fence + 'json')
+          &$add (&$readRaw "report.json")
+          &$add $fence
+          &$add ''
+          &$add '</details>'
+
+          if ($compatReport) {
+            &$add ''
+            &$add '<details><summary>Raw compat-drift report</summary>'
+            &$add ''
+            &$add ($fence + 'json')
+            &$add (&$readRaw "compat-report.json")
+            &$add $fence
+            &$add ''
+            &$add '</details>'
+          }
+
+          $digest = $lines -join "`n"
 
           &$setOutput ([ordered]@{
             published   = $published
@@ -85,7 +175,11 @@ jobs:
             head_commit = $headCommit
             compat      = $compat
             any         = $any
+            digest      = $digest
           })
+
+          $heading = if ($any -eq 1) { "## Upstream drift detected" } else { "## No drift - baked catalog matches upstream" }
+          (($heading, "", $digest) -join "`n") >> $env:GITHUB_STEP_SUMMARY
 
   mutate:
     needs: check
@@ -102,41 +196,26 @@ jobs:
         with: { persist-credentials: false }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: oven-sh/setup-bun@v2
-        if: needs.check.outputs.any == '1'
-      - uses: taiki-e/install-action@v2
-        with: { tool: "dprint,just,tombi" }
+      - uses: kjanat/install-dprint@v2
         if: needs.check.outputs.any == '1'
 
-      - name: Re-vendor drifted sources + rebake
+      - name: Regenerate spec catalog
         if: needs.check.outputs.any == '1'
         run: |
           $ErrorActionPreference = "Stop"
-          $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property published, tracked, head_commit, compat
+          $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property head_commit
           $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
-          $refreshEditions = { bun scripts/refresh-editions.ts }
-          $refreshSvgwg = { param($h); bun scripts/refresh-svgwg.ts $h --activate }
-          $generateSchemas = { just generate-schemas }
-          $formatData = { dprint fmt "crates/svg-data/data/**" "crates/svg-data/build.rs" }
 
-          if ($check.published -ne "0" -or $check.compat -ne "0") {
-            "Re-vendoring W3C edition + compat metadata..."
-            &$refreshEditions
-            &$assertOk "refresh-editions"
-          }
+          # svg-data-regen fetches svgwg at the given ref, resolves BCD/
+          # web-features to whatever's currently npm `latest`, and writes the
+          # full derived catalog (including schemas) - one call covers
+          # published, compat, and tracked drift alike; see issue #22.
+          "Regenerating spec catalog from svgwg@{0}..." -f $check.head_commit
+          cargo run --quiet --package svg-data-regen -- $check.head_commit
+          &$assertOk "svg-data-regen"
 
-          if ($check.tracked -ne "0") {
-            "Re-vendoring svgwg sources at {0} (activating pin)..." -f $check.head_commit
-            &$refreshSvgwg $check.head_commit
-            &$assertOk "refresh-svgwg"
-          }
-
-          "Rebaking derived JSON schemas..."
-          &$generateSchemas
-          &$assertOk "generate-schemas"
-
-          "Normalising regenerated/vendored files to repo style..."
-          &$formatData
+          "Normalising regenerated catalog files to repo style..."
+          dprint fmt "crates/svg-data/data/**"
           &$assertOk "dprint fmt"
 
       - name: Gate refresh on repro + provenance tests
@@ -150,10 +229,12 @@ jobs:
       - name: Build auto-refresh pull request body
         id: pr
         if: needs.check.outputs.any == '1'
+        env:
+          DRIFT_DIGEST: ${{ needs.check.outputs.digest }}
+          HEAD_COMMIT: ${{ needs.check.outputs.head_commit }}
         run: |
           $ErrorActionPreference = "Stop"
 
-          $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property published, tracked, head_commit, compat
           $setOutput = {
             param([System.Collections.IDictionary]$kv)
 
@@ -170,20 +251,13 @@ jobs:
           }
 
           $body = @"
-          Automated re-vendor from the weekly **svgwg-drift** sentinel.
+          Automated spec catalog regeneration from the weekly **svgwg-drift** sentinel.
 
-          Drift detected:
-          - W3C published editions / compat versions: ``$($check.published)`` published, ``$($check.compat)`` compat
-          - Tracked svgwg inputs moved: ``$($check.tracked)`` (new HEAD ``$($check.head_commit)``)
+          $($env:DRIFT_DIGEST)
 
-          The refresh scripts re-vendored the affected sources with fresh
-          provenance, ``just generate-schemas`` rebaked derived data, and
-          ``cargo test -p svg-data`` (repro + provenance gates) passed in the
-          generating job. Review the catalog diff before merging.
+          ---
 
-          > Opened with a PAT, so ``pull_request`` CI (ci.yml) runs on this PR;
-          > the sentinel job also ran the repro + provenance gate before
-          > creating it.
+          ``svg-data-regen`` re-fetched svgwg at w3c/svgwg@$($env:HEAD_COMMIT), BCD, and web-features, and rewrote the derived catalog with fresh provenance. ``cargo test -p svg-data`` (repro + provenance gates) passed in the generating job. Review the catalog diff before merging.
           "@
 
           &$setOutput ([ordered]@{ body = $body })
@@ -206,6 +280,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { "::error::gh label create failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
 
       - name: Open auto-refresh pull request
+        id: cpr
         if: needs.check.outputs.any == '1'
         uses: peter-evans/create-pull-request@v8
         with:
@@ -218,70 +293,84 @@ jobs:
           branch: spec-data/auto-refresh
           delete-branch: true
           labels: "${{ env.ISSUE_LABEL }}"
-          commit-message: "chore(spec-data): auto-refresh vendored sources from upstream"
-          title: "spec-data: auto-refresh vendored SVG spec sources"
+          commit-message: "chore(spec-data): regenerate catalog from upstream"
+          title: "spec-data: regenerate catalog from upstream"
           body: ${{ steps.pr.outputs.body }}
 
       - name: Open or update tracking issue
         if: needs.check.outputs.any == '1'
+        env:
+          DRIFT_DIGEST: ${{ needs.check.outputs.digest }}
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          PR_OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
         run: |
           $ErrorActionPreference = "Stop"
 
-          $check  = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON  | Select-Object -Property published, tracked, head_commit, compat
           $github = ConvertFrom-Json $env:GITHUB_CONTEXT_JSON | Select-Object -Property server_url, repository, run_id
-
-          $title  = "spec-data is stale - upstream sources have moved"
           $runUrl = "{0}/{1}/actions/runs/{2}" -f $github.server_url, $github.repository, $github.run_id
+
+          $prLine = if ($env:PR_URL) {
+            'The regenerated catalog was {0} as {1}.' -f $env:PR_OPERATION, $env:PR_URL
+          } else {
+            'Regeneration produced no catalog changes, so no pull request was opened.'
+          }
 
           $body = @"
           The ``svgwg-drift`` sentinel detected drift between the baked spec catalog and upstream.
 
-          Drift summary:
-          - W3C published editions: ``$($check.published)``
-          - Compat package drift: ``$($check.compat)``
-          - Tracked svgwg inputs: ``$($check.tracked)``
-          - Resolved svgwg HEAD: ``$($check.head_commit)``
+          $($env:DRIFT_DIGEST)
 
-          The workflow attempted the auto-refresh path when drift was path-relevant.
-          Full JSON reports are in the read-only check job logs: $runUrl
+          ---
+
+          $prLine
+
+          Run: $runUrl
           "@
 
-          $listIssue = { param($s, $l = $env:ISSUE_LABEL); & gh issue list --state $s --label $l --json number --jq ".[0].number // empty" }
-          $commentIssue = { param($n, $b); gh issue comment $n --body $b }
-          $createIssue = { param($t, $b, $l = $env:ISSUE_LABEL); gh issue create --title $t --body $b --label $l }
-          $exit = { param($code); switch ($code) { 0 { break } default { exit $_ } } }
+          $listIssues = {
+            param($state)
 
-          $existing = ((&$listIssue "open") -join "`n").Trim()
-          &$exit $LASTEXITCODE
+            $raw = (& gh issue list --state $state --label $env:ISSUE_LABEL --limit 100 --json number,title) -join "`n"
+            if ($LASTEXITCODE -ne 0) { "::error::gh issue list failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+            if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
 
-          if ($existing) {
-            "Updating existing issue #{0}" -f $existing
-            &$commentIssue $existing $body
-          } else {
-            "Opening new tracking issue"
-            &$createIssue $title $body
+            @($raw | ConvertFrom-Json | Where-Object { $_.title -eq $env:ISSUE_TITLE } | ForEach-Object { $_.number })
           }
 
-          &$exit $LASTEXITCODE
+          $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
+
+          $existing = @(&$listIssues "open")
+
+          if ($existing.Count -gt 0) {
+            "Updating existing tracking issue #{0}" -f $existing[0]
+            gh issue comment $existing[0] --body $body
+            &$assertOk "gh issue comment"
+          } else {
+            "Opening new tracking issue"
+            gh issue create --title $env:ISSUE_TITLE --body $body --label $env:ISSUE_LABEL
+            &$assertOk "gh issue create"
+          }
 
       - name: Close tracking issue when fresh
         if: needs.check.outputs.sentinel_exit == '0' && needs.check.outputs.compat_exit == '0' && needs.check.outputs.any == '0'
         run: |
           $ErrorActionPreference = "Stop"
 
-          $listIssues = { param($s, $l = $env:ISSUE_LABEL); & gh issue list --state $s --label $l --json number --jq ".[].number" }
-          $closeIssue = { param($n, $c); gh issue close $n --comment $c }
-          $exit = { param($code); switch ($code) { 0 { break } default { exit $code } } }
+          $listIssues = {
+            param($state)
 
-          $numbers = &$listIssues "open"
-          &$exit $LASTEXITCODE
+            $raw = (& gh issue list --state $state --label $env:ISSUE_LABEL --limit 100 --json number,title) -join "`n"
+            if ($LASTEXITCODE -ne 0) { "::error::gh issue list failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+            if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
 
-          foreach ($number in $numbers) {
-            if ([string]::IsNullOrWhiteSpace($number)) { continue }
+            @($raw | ConvertFrom-Json | Where-Object { $_.title -eq $env:ISSUE_TITLE } | ForEach-Object { $_.number })
+          }
 
-            $comment = "Resolved: ``svgwg-drift`` now reports the baked data up to date."
+          $comment = "Resolved: ``svgwg-drift`` now reports the baked data up to date."
+
+          foreach ($number in @(&$listIssues "open")) {
             "Spec data is fresh again - closing #{0}" -f $number
 
-            &$closeIssue $number $comment
-            &$exit $LASTEXITCODE
+            gh issue close $number --comment $comment
+            if ($LASTEXITCODE -ne 0) { "::error::gh issue close failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
           }
