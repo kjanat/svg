@@ -20,10 +20,10 @@ directives, and reports byte-accurate diagnostics for the LSP.
 - Prefer `lint_tree` in callers that already own a parsed tree.
 - The rule pipeline pre-collects suppressions and defined ids before walking
   elements.
-- Foreign-namespace metadata elements (XHTML
-  `{http://www.w3.org/1999/xhtml}link`, `meta`) resolve by namespace and are
-  skipped from SVG catalog checks; they are deliberately absent from the
-  `svg-data` catalog. A bare `link` stays in the SVG namespace and is flagged
+- Foreign-namespace metadata elements (`{http://www.w3.org/1999/xhtml}link`,
+  `{http://www.w3.org/1999/xhtml}meta`) resolve by namespace and are skipped
+  from SVG catalog checks; they are deliberately absent from the `svg-data`
+  catalog. A bare `link` or `meta` stays in the SVG namespace and is flagged
   unknown.
 - Foreign-namespace content under `foreignObject` is exempt from normal SVG
   child checks.

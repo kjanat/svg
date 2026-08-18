@@ -358,13 +358,64 @@ mod tests {
     }
 
     #[test]
-    fn xhtml_metadata_inside_metadata_host_is_not_flagged() {
+    fn prefixed_xhtml_meta_skips_svg_linting() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 xmlns:html="http://www.w3.org/1999/xhtml">
+                <html:meta name="author" content="kjanat"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags.is_empty(),
+            "`{{http://www.w3.org/1999/xhtml}}meta` bound by prefix must not be linted as SVG: \
+             {diags:?}"
+        );
+    }
+
+    #[test]
+    fn default_namespace_xhtml_meta_skips_svg_linting() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <meta xmlns="http://www.w3.org/1999/xhtml" name="author" content="kjanat"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags.is_empty(),
+            "`{{http://www.w3.org/1999/xhtml}}meta` bound on the same tag must not be linted as \
+             SVG: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn bare_meta_without_namespace_override_is_flagged_unknown() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <meta name="author" content="kjanat"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.code == DiagnosticCode::UnknownElement),
+            "a bare `meta` stays in the SVG namespace and is not SVG metadata: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn metadata_host_exempts_every_descendant_from_svg_checks() {
         let src = br#"
             <svg xmlns="http://www.w3.org/2000/svg"
                  xmlns:html="http://www.w3.org/1999/xhtml">
                 <metadata>
                     <html:link href="style.css" rel="stylesheet"/>
                     <meta xmlns="http://www.w3.org/1999/xhtml" name="author" content="kjanat"/>
+                    <not-an-svg-element/>
                 </metadata>
             </svg>
         "#;
@@ -372,7 +423,7 @@ mod tests {
 
         assert!(
             diags.is_empty(),
-            "foreign metadata inside a `metadata` host must not be linted as SVG: {diags:?}"
+            "a `metadata` host exempts descendants whatever their namespace: {diags:?}"
         );
     }
 
