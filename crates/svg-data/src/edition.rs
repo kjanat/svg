@@ -253,7 +253,6 @@ pub const fn unseen_versions(series: Series, live: &VersionsEnvelope) -> Vec<&Pu
 mod tests {
     use super::{Series, VersionsEnvelope};
 
-    /// `SVG10` 404s; W3C serves SVG 1.0 as plain `SVG`.
     #[test]
     fn shortnames_match_the_w3c_path_segments() {
         assert_eq!(Series::Svg10.shortname(), "SVG");
@@ -261,7 +260,6 @@ mod tests {
         assert_eq!(Series::Svg2.shortname(), "SVG2");
     }
 
-    /// Trimmed from a real response: the collection is keyed `version-history`.
     #[test]
     fn parses_the_version_history_key() {
         let body = r#"{

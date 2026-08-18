@@ -35,9 +35,6 @@ jobs:
 
           $runSentinel = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --json > report.json }
           $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
-          # 2 is "a tracked series could not be checked". Accepted here so the
-          # digest still gets built and published; the run is failed at the end
-          # of the mutate job instead, once that detail is on the record.
           $acceptExit = { param($code, $name); switch ($code -in 0, 1, 2) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runSentinel
