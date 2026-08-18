@@ -59,7 +59,7 @@ if [[ -n "${gh_failed}" ]]; then
 fi
 
 if [[ "${#missing[@]}" -gt 0 ]]; then
-	echo "error: build+upload for ${TARGET} reported success but these assets are not on release ${RELEASE_TAG}:" >&2
+	echo "error: build-and-upload for ${TARGET} reported success but these assets are not on release ${RELEASE_TAG}:" >&2
 	printf '  - %s\n' "${missing[@]}" >&2
 	echo "the build step produced no artifact — inspect its log for a silent no-op." >&2
 	exit 1

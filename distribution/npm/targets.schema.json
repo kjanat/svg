@@ -94,7 +94,7 @@
 			],
 			"properties": {
 				"build": {
-					"description": "- \"cargo\" for native compilation on a matching runner; \n- \"cross\" for cross-compilation via the \"cross\" crate (typically Linux → { Linux, *BSD }); \n- \"cargo-cross-toolchain\" for stable cross-compilation via taiki-e/setup-cross-toolchain-action (Linux → tier-2/3 targets with prebuilt std); \n- \"cargo-build-std\" for tier-3 cross-compilation via setup-cross-toolchain-action + nightly + -Z build-std; \n- \"vm\" for builds that run inside a target-OS VM and bypass the standard upload-assets matrix.",
+					"description": "- \"cargo\" for native compilation on a matching runner; \n- \"cross\" for cross-compilation via the \"cross\" crate (typically Linux → { Linux, *BSD }); \n- \"cargo-cross-toolchain\" for stable cross-compilation via taiki-e/setup-cross-toolchain-action (Linux → tier-2/3 targets with prebuilt std); \n- \"cargo-build-std\" for tier-3 cross-compilation via setup-cross-toolchain-action + nightly + -Z build-std; \n- \"vm\" for builds that run inside a target-OS VM and bypass the standard build-and-upload matrix.",
 					"type": "string",
 					"enum": [
 						"cargo",

@@ -2,10 +2,10 @@
 #
 #   verify ────────────────── cargo clippy + cargo test
 #     ├─ create-release ───── draft GH release + notes
-#     │    └─ upload-assets ─ per-target build matrix (needs: matrix);
-#     │                       actions/package-asset|verify-asset
+#     │    └─ build-and-upload ─ per-target build matrix (needs: matrix);
+#     │                          actions/package-asset|verify-asset
 #     └─ matrix ───────────── actions/release-matrix from distribution/npm/targets.json
-#   build-dist (needs: upload-assets)
+#   build-dist (needs: build-and-upload)
 #     └─ actions/download-archives → build-packages.ts → smoke;
 #        artifact `dist` (tarred: keeps exec bits)
 #   publish-release (needs: build-dist) ── draft → published
@@ -74,8 +74,8 @@ jobs:
       - id: gen
         uses: ./.github/actions/release-matrix
 
-  upload-assets:
-    name: build+upload ${{ matrix.target }}
+  build-and-upload:
+    name: ${{ matrix.target }}
     needs: [matrix, create-release]
     runs-on: ${{ matrix.runner }}
     # Tier-3 build-std legs compile core+std from source.
@@ -149,7 +149,7 @@ jobs:
 
   build-dist:
     name: build dist
-    needs: upload-assets
+    needs: build-and-upload
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions: { contents: write }
