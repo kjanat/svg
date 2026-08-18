@@ -8,7 +8,7 @@ concurrency:
 
 jobs:
   version-check:
-    name: version carriers
+    name: versions
     permissions: { contents: read }
     uses: ./.github/workflows/version-check.yml
 
