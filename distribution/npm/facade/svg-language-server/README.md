@@ -23,6 +23,13 @@ you the same bins. Or grab the whole toolkit at once with
 
 The package resolves a prebuilt native binary for your platform via
 `optionalDependencies` — no postinstall step, no install-time network access.
+
+On Linux, the binary is picked by the host's libc: musl hosts get the musl
+build, glibc hosts get the glibc build. `npm`, `pnpm` and `yarn` honour the
+`libc` field and install only the right one; `bun` and `deno` install both, so
+detection settles it at launch. Set `SVG_LIBC=musl` or `SVG_LIBC=glibc` to
+override if detection is ever wrong.
+
 The server speaks LSP over stdio; point your editor's LSP client at the
 `svg-language-server` executable.
 

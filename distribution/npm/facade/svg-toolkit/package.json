@@ -16,10 +16,10 @@
 		"./package.json": "./package.json"
 	},
 	"bin": {
+		"svg-format": "bin/svg-format.mjs",
 		"svg-language-server": "bin/svg-language-server.mjs",
-		"svg-ls": "bin/svg-language-server.mjs",
 		"svg-lint": "bin/svg-lint.mjs",
-		"svg-format": "bin/svg-format.mjs"
+		"svg-ls": "bin/svg-language-server.mjs"
 	},
 	"files": [
 		"bin/",

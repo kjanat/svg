@@ -13,6 +13,7 @@
 	"type": "module",
 	"imports": {
 		"#launch": "./lib/launch.mjs",
+		"#libc": "./lib/libc.mjs",
 		"#pkg": "./package.json",
 		"#resolve": "./lib/resolve.mjs"
 	},
