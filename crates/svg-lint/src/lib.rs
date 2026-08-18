@@ -325,6 +325,58 @@ mod tests {
     }
 
     #[test]
+    fn prefixed_xhtml_metadata_element_skips_svg_linting() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 xmlns:html="http://www.w3.org/1999/xhtml">
+                <html:link href="style.css" rel="stylesheet" type="text/css"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags.is_empty(),
+            "XHTML metadata elements bound by prefix must not be linted as SVG: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn bare_link_without_namespace_override_is_flagged_unknown() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg">
+                <link href="style.css" rel="stylesheet"/>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.code == DiagnosticCode::UnknownElement),
+            "a bare `link` stays in the SVG namespace and is not SVG metadata: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn xhtml_metadata_inside_metadata_host_is_not_flagged() {
+        let src = br#"
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 xmlns:html="http://www.w3.org/1999/xhtml">
+                <metadata>
+                    <html:link href="style.css" rel="stylesheet"/>
+                    <meta xmlns="http://www.w3.org/1999/xhtml" name="author" content="kjanat"/>
+                </metadata>
+            </svg>
+        "#;
+        let diags = lint(src);
+
+        assert!(
+            diags.is_empty(),
+            "foreign metadata inside a `metadata` host must not be linted as SVG: {diags:?}"
+        );
+    }
+
+    #[test]
     fn namespace_reset_stops_svg_linting() {
         let src = br#"<svg xmlns="http://www.w3.org/2000/svg"><g xmlns=""><rect><banana/></rect></g></svg>"#;
         let diags = lint(src);

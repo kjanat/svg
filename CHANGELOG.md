@@ -21,6 +21,10 @@ When bumping the workspace version after a catalog refresh:
 
 ### Changed
 
+- Pin the namespace resolution of XHTML metadata elements inside SVG with
+  regression coverage: `{http://www.w3.org/1999/xhtml}link` and `meta` are
+  foreign content whether bound by prefix or by a default-namespace override,
+  while a bare `link` remains an unknown SVG element
 - `@kjanat/dreamcli` `next` (`4.0.0-rc.2`) for the npm distribution scripts and
   the `svg-compat` Deno worker
 
