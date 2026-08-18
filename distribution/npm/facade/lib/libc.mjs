@@ -1,12 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import process from 'node:process';
 
-/**
- * Paired libc suffixes on `<scope>/<tool>-<target>` platform packages, longest
- * first so `gnueabihf` is never read as `gnu`. The pair is looked up from the
- * package name rather than synthesised from a literal, because armv7 pairs as
- * `gnueabihf`/`musleabihf` while everything else pairs as `gnu`/`musl`.
- */
+/** Paired libc suffixes, longest first so `gnueabihf` is not read as `gnu`. */
 const LIBC_SUFFIX_PAIRS = [
 	{ glibc: 'gnueabihf', musl: 'musleabihf' },
 	{ glibc: 'gnu', musl: 'musl' },
@@ -41,36 +36,20 @@ const LOADER_DIRS = ['/lib', '/usr/lib', '/lib64'];
 /** Environment variable that overrides libc detection. */
 export const LIBC_ENV = 'SVG_LIBC';
 
-/**
- * `existsSync` that cannot throw. A locked-down root (or a path that is not
- * traversable) raises rather than returning false, and a probe must never be
- * the thing that breaks the launcher.
- *
- * @param {string} path
- * @returns {boolean}
- */
-export function exists(path) {
+/** A probe must never be what breaks the launcher: an unreadable root raises rather than returning false. */
+const probe = (fallback, read) => {
 	try {
-		return existsSync(path);
+		return read();
 	} catch {
-		return false;
+		return fallback;
 	}
-}
+};
 
-/**
- * `readdirSync` that cannot throw, yielding an empty listing for any directory
- * that is missing or unreadable.
- *
- * @param {string} dir
- * @returns {string[]}
- */
-export function listDir(dir) {
-	try {
-		return readdirSync(dir);
-	} catch {
-		return [];
-	}
-}
+/** @type {(path: string) => boolean} */
+export const exists = (path) => probe(false, () => existsSync(path));
+
+/** @type {(dir: string) => string[]} */
+export const listDir = (dir) => probe([], () => readdirSync(dir));
 
 /**
  * Split a platform package name into its libc half.
@@ -132,10 +111,8 @@ function hasGlibcMarkers(arch, fileExists, dirEntries) {
 }
 
 /**
- * Identify the host libc from layered signals, most authoritative first. Each
- * layer is positive proof of one libc rather than an inference from another
- * layer's absence, and musl is probed before glibc because a musl host may
- * carry a glibc compatibility shim and match both.
+ * Identify the host libc, most authoritative signal first. musl is probed
+ * before glibc: a musl host with a glibc shim matches both.
  *
  * @param {object} [options] Injection points; the defaults read the real host.
  * @param {string} [options.platform]
@@ -161,8 +138,7 @@ export function detectLibc(options = {}) {
 	const override = env[LIBC_ENV]?.trim().toLowerCase();
 	if (override === 'musl' || override === 'glibc') return override;
 
-	// Node populates glibcVersionRuntime only when it linked against glibc,
-	// which settles the question without touching the filesystem.
+	// Only set when Node itself linked against glibc.
 	let header;
 	try {
 		header = report()?.header;
@@ -177,20 +153,15 @@ export function detectLibc(options = {}) {
 }
 
 /**
- * Order the declared platform packages so the one matching the host libc is
- * tried first, and remove the ones that cannot run at all.
- *
- * A glibc build on a musl host is not a fallback — its ELF interpreter is
- * absent, so it is dropped rather than spawned for an unexplained `ENOENT`.
- * The reverse is not true: the musl builds are static, so on a glibc host they
- * stay as a fallback behind the glibc build.
+ * Order the matching build first and drop what cannot run. A glibc build on a
+ * musl host has no ELF interpreter, so it is dropped rather than spawned for an
+ * unexplained `ENOENT`; musl builds are static, so on glibc they stay a fallback.
  *
  * @param {string[]} subPackages Declared optional dependencies, in manifest order.
  * @param {'glibc' | 'musl' | null} libc
  * @returns {{ candidates: string[], dropped: string[], undecided: boolean }}
- *   `dropped` lists packages excluded as unrunnable. `undecided` is set when
- *   both variants of some target are declared but no signal identified the
- *   host, meaning manifest order alone would decide.
+ *   `undecided` means both variants are declared but the host is unidentified,
+ *   so manifest order alone would decide.
  */
 export function planCandidates(subPackages, libc) {
 	if (libc === null) {

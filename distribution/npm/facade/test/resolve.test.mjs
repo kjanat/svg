@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import process from 'node:process';
 import { after, test } from 'node:test';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
-const libDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'lib');
+const libDir = join(import.meta.dirname, '..', 'lib');
 const SCOPE = '@svg-toolkit';
 const TOOL = 'language-server';
 const BIN = 'svg-language-server';
@@ -19,11 +19,10 @@ after(() => {
 });
 
 /**
- * Build a throwaway install tree: a facade package carrying the real lib/
- * sources, plus the given platform packages under node_modules.
+ * Throwaway install tree: a facade package with the real lib/, plus platform packages.
  *
  * @param {string[]} installed Target suffixes to materialise, e.g. `linux-x64-gnu`.
- * @param {string[]} [declared] Suffixes listed in optionalDependencies; defaults to `installed`.
+ * @param {string[]} [declared] Suffixes in optionalDependencies; defaults to `installed`.
  */
 function makeFixture(installed, declared = installed) {
 	const root = mkdtempSync(join(tmpdir(), 'svg-facade-'));
@@ -77,8 +76,7 @@ function makeFixture(installed, declared = installed) {
 }
 
 /**
- * Import a fixture's own copy of resolve.mjs and resolve the binary under the
- * given libc, capturing anything written to the console.
+ * Resolve through a fixture's own resolve.mjs, capturing console output.
  *
  * @param {string} root
  * @param {'musl' | 'glibc' | undefined} libc
@@ -147,10 +145,7 @@ test('musl host honours the armv7 pair suffixes', async () => {
 	assert.ok(path?.includes(`${TOOL}-linux-armv7-musleabihf`), `expected the musl armv7 package, got ${path}`);
 });
 
-// The reproduction the issue is really about: a tree carrying both variants,
-// on a real host, with nothing overriding detection. CI runs this file twice —
-// once in an Alpine container (EXPECT_LIBC=musl) and once on the stock glibc
-// runner — so the musl path is exercised on an actual musl host.
+// The reproduction: both variants installed, real host, nothing overriding detection.
 test("a both-variants tree resolves to this host's libc with no override", { skip: hostLibcSkip() }, async () => {
 	const expected = process.env.EXPECT_LIBC;
 	const root = makeFixture(['linux-x64-gnu', 'linux-x64-musl']);

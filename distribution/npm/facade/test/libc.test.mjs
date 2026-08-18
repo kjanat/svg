@@ -1,6 +1,7 @@
+import { classifyLibc, detectLibc, LIBC_ENV, planCandidates, siblingName } from '#libc';
 import assert from 'node:assert/strict';
+import process from 'node:process';
 import { test } from 'node:test';
-import { classifyLibc, detectLibc, LIBC_ENV, planCandidates, siblingName } from '../lib/libc.mjs';
 
 const SCOPE = '@svg-toolkit/language-server';
 
@@ -158,10 +159,7 @@ test('an unidentifiable host reports null rather than guessing', () => {
 	assert.equal(detect({}), null);
 });
 
-// Run against the real host with no injection at all, so the marker lists are
-// checked against actual filesystems rather than the ones this file imagines.
-// CI sets EXPECT_LIBC per job: `musl` in an Alpine container, `glibc` on the
-// stock runner. Locally it is skipped.
+// No injection: checks the marker lists against a real filesystem. CI sets EXPECT_LIBC per job.
 test('detects the libc of the host it is running on', { skip: hostLibcSkip() }, () => {
 	const env = { ...process.env };
 	// The override would make this assert on itself.
