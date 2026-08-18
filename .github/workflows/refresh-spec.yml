@@ -211,11 +211,14 @@ jobs:
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
 
-          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") 2>$null }
-          $continueOnFailure = { param($code, $message); switch ($code) { 0 { break } default { $message; $global:LASTEXITCODE = 0 } } }
+          # --force makes this idempotent (updates description/color if the
+          # label already exists instead of erroring), so any remaining
+          # nonzero exit is a real failure - auth, permission, API - worth
+          # surfacing rather than swallowing.
+          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") --force }
 
           &$createLabel
-          &$continueOnFailure $LASTEXITCODE "Label already exists or could not be created; continuing."
+          if ($LASTEXITCODE -ne 0) { "::error::gh label create failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
 
       - name: Open or update tracking issue
         if: needs.check.outputs.any == '1'
