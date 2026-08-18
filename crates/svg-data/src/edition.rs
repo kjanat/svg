@@ -33,7 +33,7 @@ impl Series {
     #[must_use]
     pub const fn shortname(self) -> &'static str {
         match self {
-            Self::Svg10 => "SVG10",
+            Self::Svg10 => "SVG",
             Self::Svg11 => "SVG11",
             Self::Svg2 => "SVG2",
         }
@@ -189,7 +189,7 @@ impl std::fmt::Display for VersionsParseError {
 impl std::error::Error for VersionsParseError {}
 
 impl VersionsEnvelope {
-    /// Parse a W3C versions response (`_embedded.versions[].uri`).
+    /// Parse a W3C versions response (`_embedded.version-history[].uri`).
     ///
     /// # Errors
     /// Returns [`VersionsParseError`] when the body is not valid JSON.
@@ -198,7 +198,7 @@ impl VersionsEnvelope {
     ///
     /// ```rust
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let body = r#"{"_embedded":{"versions":[{"uri":"https://www.w3.org/TR/SVG2/"}]}}"#;
+    /// let body = r#"{"_embedded":{"version-history":[{"uri":"https://www.w3.org/TR/SVG2/"}]}}"#;
     /// let parsed = svg_data::edition::VersionsEnvelope::parse(svg_data::edition::Series::Svg2, body)?;
     /// assert_eq!(parsed.versions[0].uri, "https://www.w3.org/TR/SVG2/");
     /// # Ok(())
@@ -208,7 +208,7 @@ impl VersionsEnvelope {
         let value: serde_json::Value =
             serde_json::from_str(json).map_err(|error| VersionsParseError(error.to_string()))?;
         let versions = value
-            .pointer("/_embedded/versions")
+            .pointer("/_embedded/version-history")
             .and_then(serde_json::Value::as_array)
             .map(|array| {
                 array
@@ -247,4 +247,58 @@ impl VersionsEnvelope {
 pub const fn unseen_versions(series: Series, live: &VersionsEnvelope) -> Vec<&PublishedVersion> {
     let _ = (series, live);
     Vec::new()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Series, VersionsEnvelope};
+
+    #[test]
+    fn shortnames_match_the_w3c_path_segments() {
+        assert_eq!(Series::Svg10.shortname(), "SVG");
+        assert_eq!(Series::Svg11.shortname(), "SVG11");
+        assert_eq!(Series::Svg2.shortname(), "SVG2");
+    }
+
+    #[test]
+    fn parses_the_version_history_key() {
+        let body = r#"{
+            "_embedded": {
+                "version-history": [
+                    { "uri": "https://www.w3.org/TR/2018/CR-SVG2-20180807/", "status": "Candidate Recommendation Snapshot" },
+                    { "uri": "https://www.w3.org/TR/2016/CR-SVG2-20160915/", "status": "Candidate Recommendation" }
+                ]
+            }
+        }"#;
+
+        let Ok(parsed) = VersionsEnvelope::parse(Series::Svg2, body) else {
+            panic!("body should parse");
+        };
+
+        assert_eq!(parsed.series, Series::Svg2);
+        assert_eq!(
+            parsed
+                .versions
+                .iter()
+                .map(|v| v.uri.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "https://www.w3.org/TR/2018/CR-SVG2-20180807/",
+                "https://www.w3.org/TR/2016/CR-SVG2-20160915/"
+            ],
+        );
+    }
+
+    #[test]
+    fn a_missing_collection_parses_to_no_versions() {
+        let Ok(parsed) = VersionsEnvelope::parse(Series::Svg2, r#"{"_embedded":{}}"#) else {
+            panic!("body should parse");
+        };
+        assert_eq!(parsed.versions, []);
+    }
+
+    #[test]
+    fn invalid_json_is_an_error() {
+        assert!(VersionsEnvelope::parse(Series::Svg2, "{").is_err());
+    }
 }

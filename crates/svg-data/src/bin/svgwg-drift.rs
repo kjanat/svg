@@ -48,6 +48,14 @@ fn run() -> Fallible<ExitCode> {
 
     let report = spec_report()?;
     print_report(json_output, &report);
+
+    if report["published_errors"]
+        .as_array()
+        .is_some_and(|items| !items.is_empty())
+    {
+        return Ok(ExitCode::from(UNCHECKED_SERIES_EXIT));
+    }
+
     let published_drift = report["published_drift"]
         .as_array()
         .is_some_and(|items| !items.is_empty());
@@ -68,6 +76,8 @@ fn print_report(json_output: bool, report: &Value) {
         );
     }
 }
+
+const UNCHECKED_SERIES_EXIT: u8 = 2;
 
 fn exit_for_drift(drift: bool) -> ExitCode {
     if drift {

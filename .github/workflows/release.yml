@@ -22,7 +22,7 @@ env: { CARGO_TERM_COLOR: always }
 
 jobs:
   version-check:
-    name: version carriers
+    name: versions
     permissions: { contents: read }
     uses: ./.github/workflows/version-check.yml
 
