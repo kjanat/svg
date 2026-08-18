@@ -69,7 +69,6 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $readJson = { param($p); Get-Content -Raw $p | ConvertFrom-Json }
-          $readRaw = { param($p); if (Test-Path $p) { (Get-Content -Raw $p).Trim() } else { "" } }
           $count = { param($v); if ($null -eq $v) { return 0 }; if ($v -is [array]) { return $v.Count }; return 1 }
           $setOutput = {
             param([System.Collections.IDictionary]$kv)
@@ -152,7 +151,7 @@ jobs:
           &$add '<details><summary>Raw sentinel report</summary>'
           &$add ''
           &$add ($fence + 'json')
-          &$add (&$readRaw "report.json")
+          &$add ($report | ConvertTo-Json -Depth 20)
           &$add $fence
           &$add ''
           &$add '</details>'
@@ -162,7 +161,7 @@ jobs:
             &$add '<details><summary>Raw compat-drift report</summary>'
             &$add ''
             &$add ($fence + 'json')
-            &$add (&$readRaw "compat-report.json")
+            &$add ($compatReport | ConvertTo-Json -Depth 20)
             &$add $fence
             &$add ''
             &$add '</details>'
