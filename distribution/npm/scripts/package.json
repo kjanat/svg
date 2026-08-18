@@ -5,7 +5,7 @@
 	"description": "npm packaging tooling for the svg release pipeline",
 	"type": "module",
 	"dependencies": {
-		"@kjanat/dreamcli": "3.0.1",
+		"@kjanat/dreamcli": "4.0.0-rc.2",
 		"ansispeck": "^0.4.1",
 		"tar": "^7.5.22"
 	}

@@ -16,7 +16,7 @@
       "name": "@kjanat/svg-distribution-scripts",
       "version": "0.0.0",
       "dependencies": {
-        "@kjanat/dreamcli": "3.0.1",
+        "@kjanat/dreamcli": "4.0.0-rc.2",
         "ansispeck": "^0.4.1",
         "tar": "^7.5.22",
       },
@@ -195,7 +195,7 @@
 
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
 
-    "@kjanat/dreamcli": ["@kjanat/dreamcli@3.0.1", "", { "dependencies": { "ansispeck": "^0.4.1" } }, "sha512-FY5uBPI7EQouhyUEpQdMEVew4jGEcshBZSSH6a8G47Bie+uBk1flLj8l2sJrVDOyd9lG1i1BaYyV0jmgdENp3A=="],
+    "@kjanat/dreamcli": ["@kjanat/dreamcli@4.0.0-rc.2", "", { "dependencies": { "ansispeck": "^0.4.1" } }, "sha512-wPxReC1v/+mo7TpDN3Wa3Fc6eUBCPvK25/oU7w5rXksRBfeNhp4+4Ilvjj78geEt+wpLHOpaLDI6c2ricPmGJg=="],
 
     "@kjanat/svg-distribution-scripts": ["@kjanat/svg-distribution-scripts@workspace:distribution/npm/scripts"],
 
