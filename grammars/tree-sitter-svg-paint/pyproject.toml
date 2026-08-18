@@ -1,6 +1,6 @@
 [project]
 name            = "tree-sitter-svg-paint"
-version         = "0.1.2"
+version         = "0.2.0"
 description     = "SVG paint and color grammar for Tree-sitter"
 readme          = "README.md"
 requires-python = ">=3.13"

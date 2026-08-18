@@ -5,7 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## Release checklist
+
+When bumping the workspace version after a catalog refresh:
+
+- [ ] `bun run codegen` in `grammars/tree-sitter-svg` so `grammar.json` matches
+      `catalog.tree-sitter.json` (Tree-sitter SVG CI fails otherwise)
+
 ## [Unreleased]
+
+## [0.2.0] - 2026-08-18
+
+### Added
+
+- Linux npm facades now pick the platform package by host libc (glibc vs musl)
+  instead of manifest order. Override with `SVG_LIBC=gnu` or `SVG_LIBC=musl`. On
+  a musl host with only the gnu sibling installed, the launcher names the
+  missing musl package instead of failing with a bare `ENOENT`
+- Weekly spec-refresh now regenerates the catalog through `svg-data-regen` (the
+  previous vendored-script path had been deleted), posts a drift digest on the
+  tracking issue and auto-refresh PR, and closes that issue when the PR merges
+- Theme-aware editor hover screenshots (light and dark) in the docs
+
+### Changed
+
+- Regenerated the baked catalog from svgwg `5362fb5` (`@mdn/browser-compat-data`
+  8.0.11, `web-features` 3.35.0, `@webref/css` 8.7.1)
+- `font-stretch` is now Baseline widely (since 2020)
+- `transform-origin` is now Baseline widely (since 2024); Safari support is 15.4
+  and no longer marked partial
+- npm facades and the distribution scripts depend on `ansispeck` 0.4.1
+- Distribution scripts use `@kjanat/dreamcli` 3.0.1
+
+### Fixed
+
+- npm launcher no longer always prefers the gnu binary when both libc variants
+  are present, which broke Alpine/musl installs with `ENOENT`
+- SVG 1.0 W3C shortname is `SVG`, not `SVG10` (the old path 404'd, so one of the
+  three tracked series was never actually checked)
+- W3C versions parser reads `_embedded.version-history` (it was looking at
+  `_embedded.versions`, so every series parsed as empty even on a 200)
+- Drift sentinel now fails when a tracked series cannot be checked, instead of
+  reporting success with a third of the series silently skipped
+- spec-refresh: PowerShell exit-code passthrough no longer swallows "drift
+  found" (exit 1) or label-already-exists, so the mutate job actually runs; the
+  tracking-issue step uses valid PowerShell instead of an invalid ternary; regen
+  fails on real command errors instead of continuing after deleted scripts;
+  lookup matches the tracking issue by exact title so it no longer hijacks #22;
+  drift JSON in the digest is formatted; the compat-package bump table lands in
+  the auto-refresh commit body
+- Sync `grammars/tree-sitter-svg/grammar.json` to the regenerated catalog
+  (`@webref/css` 8.7.1, svgwg `5362fb5`) so Tree-sitter SVG CI stays green after
+  a catalog refresh
 
 ## [0.1.2] - 2026-07-12
 
@@ -140,3 +191,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - SVG 1.1 value grammars: `pointer-events` no longer lists the invalid `auto`
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
+
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kjanat/svg/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/kjanat/svg/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/kjanat/svg/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/kjanat/svg/releases/tag/v0.1.0

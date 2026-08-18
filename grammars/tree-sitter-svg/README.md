@@ -231,7 +231,7 @@ func main() {
 Add to `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/kjanat/svg", from: "0.1.2")
+.package(url: "https://github.com/kjanat/svg", from: "0.2.0")
 ```
 
 ### C/C++
@@ -264,7 +264,7 @@ Via Maven:
 <dependency>
   <groupId>io.github.tree-sitter</groupId>
   <artifactId>jtreesitter-svg</artifactId>
-  <version>0.1.2</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 

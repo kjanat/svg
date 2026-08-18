@@ -32,7 +32,7 @@
 		"LICENSE"
 	],
 	"dependencies": {
-		"ansispeck": "^0.1.2"
+		"ansispeck": "^0.4.1"
 	},
 	"optionalDependencies": {}
 }

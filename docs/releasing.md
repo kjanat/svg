@@ -3,12 +3,14 @@
 ## Routine release flow
 
 1. Ensure `bun` is installed locally.
-2. Run `just release-local <version>`.
-3. Review the generated commit and local tag.
-4. Push the branch and tag:
+2. After a catalog refresh, run `bun run codegen` in `grammars/tree-sitter-svg`
+   so `grammar.json` matches `catalog.tree-sitter.json`.
+3. Run `just release-local <version>`.
+4. Review the generated commit and local tag.
+5. Push the branch and tag:
    - `git push origin <branch>`
    - `git push origin v<version>`
-5. GitHub Actions (`release.yml`) verifies (clippy + tests), drafts the GitHub
+6. GitHub Actions (`release.yml`) verifies (clippy + tests), drafts the GitHub
    Release, builds every target in `distribution/npm/targets.json`, uploads
    `svg-<tag>-<target>.tar.gz` archives with `.sha256` checksums, builds the npm
    package trees, publishes the release, then hands off to `npm-release.yml` to

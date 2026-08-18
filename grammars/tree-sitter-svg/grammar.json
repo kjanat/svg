@@ -3,14 +3,14 @@
 	"sources": {
 		"webref_css": {
 			"name": "@webref/css",
-			"version": "8.7.0",
-			"url": "https://unpkg.com/@webref/css@8.7.0/css.json"
+			"version": "8.7.1",
+			"url": "https://unpkg.com/@webref/css@8.7.1/css.json"
 		},
 		"css_unit_pages": [
 			"https://drafts.csswg.org/css-values-4/"
 		],
 		"svg_clock_value_syntax": "https://svgwg.org/specs/animations/",
-		"paths_html": "https://raw.githubusercontent.com/w3c/svgwg/a82ced3d696ea03c350d6bfcc04d85d7e7ec54be/master/paths.html"
+		"paths_html": "https://raw.githubusercontent.com/w3c/svgwg/5362fb542c56aef72fe35238a85f9cbc6b35c9fc/master/paths.html"
 	},
 	"attribute_buckets": {
 		"keyword": [
