@@ -649,6 +649,9 @@ fn completion_from_context(
 
         if kind.ends_with("_attribute_value") || kind == "quoted_attribute_value" {
             if let Some(attr_wrapper) = attribute_wrapper_ancestor(cursor)
+                && attr_wrapper
+                    .parent()
+                    .is_some_and(|tag| tag_resolves_to_svg(tag, source))
                 && let Some(attr_name) = first_attribute_name_text(attr_wrapper, source)
             {
                 let items = value_completions(&attr_name, source, tree, cursor, profile);

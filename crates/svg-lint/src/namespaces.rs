@@ -225,20 +225,74 @@ pub fn resolves_to_svg_namespace(source: &[u8], name_node: Node) -> bool {
     let Ok(raw_name) = name_node.utf8_text(source) else {
         return false;
     };
-    let (prefix, local_name) = split_qualified_name(raw_name);
-    if prefix.is_none()
-        && local_name == "svg"
-        && scope.default_namespace().is_none()
-        && !declares_default_namespace(source, tag)
-    {
-        return true;
-    }
 
     expand_element_name(raw_name, &scope).namespace_uri == Some(SVG_NAMESPACE_URI)
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn unbound_svg_root_resolves_itself_and_its_children_as_svg() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><rect/></svg>";
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![("svg".to_owned(), true), ("rect".to_owned(), true)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_foreign_default_namespace_wins_over_the_svg_name() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg xmlns="http://www.w3.org/1999/xhtml"><svg/></svg>"#;
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![("svg".to_owned(), false), ("svg".to_owned(), false)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_prefixed_foreign_element_is_not_svg() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg xmlns:html="http://www.w3.org/1999/xhtml"><html:title/></svg>"#;
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![("svg".to_owned(), true), ("html:title".to_owned(), false)]
+        );
+        Ok(())
+    }
+
+    fn tag_names(node: Node<'_>, source: &[u8]) -> Vec<(String, bool)> {
+        let mut found = Vec::new();
+        collect_tag_names(node, source, &mut found);
+        found
+    }
+
+    fn collect_tag_names(node: Node<'_>, source: &[u8], out: &mut Vec<(String, bool)>) {
+        if node.kind() == "name"
+            && node
+                .parent()
+                .is_some_and(|parent| matches!(parent.kind(), "start_tag" | "self_closing_tag"))
+            && let Ok(text) = node.utf8_text(source)
+        {
+            out.push((text.to_owned(), resolves_to_svg_namespace(source, node)));
+        }
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            collect_tag_names(child, source, out);
+        }
+    }
+
     use std::error::Error;
 
     use tree_sitter::{Node, Parser, Tree};

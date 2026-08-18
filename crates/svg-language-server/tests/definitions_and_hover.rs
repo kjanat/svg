@@ -676,9 +676,16 @@ fn foreign_namespace_element_has_no_svg_hover() -> TestResult {
     )?;
 
     assert!(
-        response["result"].is_null(),
-        "an XHTML title must not be documented as the SVG title element: {:?}",
-        response["result"]
+        response.get("error").is_none(),
+        "the server must answer, not error: {:?}",
+        response["error"]
+    );
+    let result = response
+        .get("result")
+        .ok_or("hover response must carry a result field")?;
+    assert!(
+        result.is_null(),
+        "an XHTML title must not be documented as the SVG title element: {result:?}"
     );
 
     server.shutdown_and_exit()?;
@@ -702,9 +709,14 @@ fn svg_namespace_element_still_hovers() -> TestResult {
     )?;
 
     assert!(
-        !response["result"].is_null(),
-        "an SVG title must still be documented"
+        response.get("error").is_none(),
+        "the server must answer, not error: {:?}",
+        response["error"]
     );
+    let result = response
+        .get("result")
+        .ok_or("hover response must carry a result field")?;
+    assert!(!result.is_null(), "an SVG title must still be documented");
 
     server.shutdown_and_exit()?;
     Ok(())
