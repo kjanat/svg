@@ -102,41 +102,27 @@ jobs:
         with: { persist-credentials: false }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: oven-sh/setup-bun@v2
-        if: needs.check.outputs.any == '1'
       - uses: taiki-e/install-action@v2
-        with: { tool: "dprint,just,tombi" }
+        with: { tool: dprint }
         if: needs.check.outputs.any == '1'
 
-      - name: Re-vendor drifted sources + rebake
+      - name: Regenerate spec catalog
         if: needs.check.outputs.any == '1'
         run: |
           $ErrorActionPreference = "Stop"
-          $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property published, tracked, head_commit, compat
+          $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property head_commit
           $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
-          $refreshEditions = { bun scripts/refresh-editions.ts }
-          $refreshSvgwg = { param($h); bun scripts/refresh-svgwg.ts $h --activate }
-          $generateSchemas = { just generate-schemas }
-          $formatData = { dprint fmt "crates/svg-data/data/**" "crates/svg-data/build.rs" }
 
-          if ($check.published -ne "0" -or $check.compat -ne "0") {
-            "Re-vendoring W3C edition + compat metadata..."
-            &$refreshEditions
-            &$assertOk "refresh-editions"
-          }
+          # svg-data-regen fetches svgwg at the given ref, resolves BCD/
+          # web-features to whatever's currently npm `latest`, and writes the
+          # full derived catalog (including schemas) - one call covers
+          # published, compat, and tracked drift alike; see issue #22.
+          "Regenerating spec catalog from svgwg@{0}..." -f $check.head_commit
+          cargo run --quiet --package svg-data-regen -- $check.head_commit
+          &$assertOk "svg-data-regen"
 
-          if ($check.tracked -ne "0") {
-            "Re-vendoring svgwg sources at {0} (activating pin)..." -f $check.head_commit
-            &$refreshSvgwg $check.head_commit
-            &$assertOk "refresh-svgwg"
-          }
-
-          "Rebaking derived JSON schemas..."
-          &$generateSchemas
-          &$assertOk "generate-schemas"
-
-          "Normalising regenerated/vendored files to repo style..."
-          &$formatData
+          "Normalising regenerated catalog files to repo style..."
+          dprint fmt "crates/svg-data/data/**"
           &$assertOk "dprint fmt"
 
       - name: Gate refresh on repro + provenance tests
@@ -170,16 +156,17 @@ jobs:
           }
 
           $body = @"
-          Automated re-vendor from the weekly **svgwg-drift** sentinel.
+          Automated spec catalog regeneration from the weekly **svgwg-drift** sentinel.
 
           Drift detected:
           - W3C published editions / compat versions: ``$($check.published)`` published, ``$($check.compat)`` compat
           - Tracked svgwg inputs moved: ``$($check.tracked)`` (new HEAD ``$($check.head_commit)``)
 
-          The refresh scripts re-vendored the affected sources with fresh
-          provenance, ``just generate-schemas`` rebaked derived data, and
-          ``cargo test -p svg-data`` (repro + provenance gates) passed in the
-          generating job. Review the catalog diff before merging.
+          ``svg-data-regen`` re-fetched svgwg at the resolved HEAD, BCD, and
+          web-features, and rewrote the derived catalog with fresh
+          provenance. ``cargo test -p svg-data`` (repro + provenance gates)
+          passed in the generating job. Review the catalog diff before
+          merging.
 
           > Opened with a PAT, so ``pull_request`` CI (ci.yml) runs on this PR;
           > the sentinel job also ran the repro + provenance gate before
@@ -218,8 +205,8 @@ jobs:
           branch: spec-data/auto-refresh
           delete-branch: true
           labels: "${{ env.ISSUE_LABEL }}"
-          commit-message: "chore(spec-data): auto-refresh vendored sources from upstream"
-          title: "spec-data: auto-refresh vendored SVG spec sources"
+          commit-message: "chore(spec-data): regenerate catalog from upstream"
+          title: "spec-data: regenerate catalog from upstream"
           body: ${{ steps.pr.outputs.body }}
 
       - name: Open or update tracking issue
@@ -242,7 +229,7 @@ jobs:
           - Tracked svgwg inputs: ``$($check.tracked)``
           - Resolved svgwg HEAD: ``$($check.head_commit)``
 
-          The workflow attempted the auto-refresh path when drift was path-relevant.
+          The workflow attempted to regenerate the catalog and open a PR.
           Full JSON reports are in the read-only check job logs: $runUrl
           "@
 
