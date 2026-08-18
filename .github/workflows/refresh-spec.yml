@@ -187,11 +187,11 @@ jobs:
               param($cells)
               $parts = @()
               for ($i = 0; $i -lt $cells.Count; $i++) { $parts += $cells[$i].PadRight($widths[$i]) }
-              "| " + ($parts -join " | ") + " |"
+              ($parts -join " | ").TrimEnd()
             }
 
             $tableLines = @(&$renderRow $headers)
-            $tableLines += "| " + (($widths | ForEach-Object { "-" * $_ }) -join " | ") + " |"
+            $tableLines += ($widths | ForEach-Object { "-" * $_ }) -join " | "
             foreach ($row in $rows) { $tableLines += &$renderRow $row }
 
             $compatTable = $tableLines -join "`n"
