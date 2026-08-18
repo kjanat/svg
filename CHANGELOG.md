@@ -14,6 +14,11 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Added
+
+- Generate `import_map.json` with `importmapify` from resolved `bun.lock`
+  versions on `prepare` so the Deno worker cannot lag the lockfile
+
 ### Changed
 
 - `@kjanat/dreamcli` `next` (`4.0.0-rc.2`) for the npm distribution scripts and

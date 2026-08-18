@@ -5,6 +5,14 @@
 	"description": "Bun workspace for the tree-sitter SVG grammar and its injected sub-grammars",
 	"license": "MIT OR Apache-2.0",
 	"author": "Kaj Kowalski <info@kajkowalski.nl> (https://github.com/kjanat)",
+	"imports": {
+		"#cli": "./workers/svg-compat/src/cli.ts",
+		"#component/*": "./workers/svg-compat/src/components/*",
+		"#lib": "./workers/svg-compat/src/lib/mod.ts",
+		"#lib/*": "./workers/svg-compat/src/lib/*",
+		"#server": "./workers/svg-compat/src/main.ts",
+		"#src/*": "./workers/svg-compat/src/*"
+	},
 	"workspaces": [
 		"grammars/*",
 		"scripts",
@@ -15,15 +23,20 @@
 		"fmt:update": "dprint config update -yr",
 		"postinstall": "bun run --filter '*' postinstall",
 		"lint": "bun run --filter '*' lint",
-		"prepare": "bun run --filter '*' prepare",
+		"prepare": "bun run --filter '*' prepare && importmapify",
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "catalog:",
+		"@mdn/browser-compat-data": "catalog:deno",
 		"@types/deno": "catalog:",
 		"@types/node": "catalog:",
+		"importmapify": "catalog:deno",
+		"preact": "catalog:deno",
+		"preact-render-to-string": "catalog:deno",
 		"runner-run": "catalog:",
-		"tree-sitter": "catalog:"
+		"tree-sitter": "catalog:",
+		"web-features": "catalog:deno"
 	},
 	"packageManager": "bun@1.3.14",
 	"volta": {
@@ -33,8 +46,8 @@
 	"catalog": {
 		"@biomejs/biome": "^2.5.9",
 		"@types/bun": "^1.3",
-		"@types/node": "^26.2.0",
 		"@types/deno": "^2.7.0",
+		"@types/node": "^26.2.0",
 		"dprint": "^0.55.2",
 		"node-addon-api": "^8.9.2",
 		"node-gyp": "^13.0.1",
@@ -44,5 +57,14 @@
 		"tree-sitter": "^0.25.0",
 		"tree-sitter-cli": "^0.26.12",
 		"typescript": "^7"
+	},
+	"catalogs": {
+		"deno": {
+			"@mdn/browser-compat-data": "^8.0.11",
+			"importmapify": "^1.7.0",
+			"preact": "^10.23.1",
+			"preact-render-to-string": "^6",
+			"web-features": "^3.23.0"
+		}
 	}
 }
