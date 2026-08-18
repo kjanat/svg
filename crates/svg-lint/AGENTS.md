@@ -14,6 +14,7 @@ directives, and reports byte-accurate diagnostics for the LSP.
 | Suppression handling         | `src/rules/suppressions.rs` | File, next-line, and unused suppression parsing |
 | Diagnostic model             | `src/types.rs`              | Codes, severity, payload                        |
 | Suppression regression tests | `src/lib.rs`                | Semantic regression suite                       |
+| Namespace resolution         | `src/namespaces.rs`         | Scope folding; `resolves_to_svg_namespace`      |
 
 ## CONVENTIONS
 
@@ -22,6 +23,9 @@ directives, and reports byte-accurate diagnostics for the LSP.
   elements.
 - Foreign-namespace content under `foreignObject` is exempt from normal SVG
   child checks.
+- `resolves_to_svg_namespace` is the shared answer to "is this element SVG?" —
+  the language server gates hover and completion on it, so keep it in step with
+  the scope folding in `src/rules/mod.rs`.
 - Messages and codes are user-facing contract; LSP and integration tests depend
   on them.
 

@@ -2,10 +2,24 @@
 
 mod support;
 
-use serde_json::json;
+use serde_json::{Value, json};
 use support::TestServer;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn offered_item_count(result: &Value) -> Result<usize, Box<dyn std::error::Error>> {
+    if result.is_null() {
+        return Ok(0);
+    }
+    if let Some(items) = result.as_array() {
+        return Ok(items.len());
+    }
+    Ok(result
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or("a non-null completion result must be an item array or carry an `items` array")?
+        .len())
+}
 
 #[test]
 fn style_and_comment_completion_respect_context() -> TestResult {
@@ -561,10 +575,10 @@ fn completions_follow_document_version_attribute() -> TestResult {
 fn foreign_namespace_element_offers_no_svg_children() -> TestResult {
     let mut server = TestServer::start()?;
 
-    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml"></div></foreignObject></svg>"#;
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><a xmlns="http://www.w3.org/1999/xhtml"></a></foreignObject></svg>"#;
     server.open("file:///foreign-completion.svg", src)?;
 
-    let column = u32::try_from(src.find("></div>").ok_or("div close")?)? + 1;
+    let column = u32::try_from(src.find("></a>").ok_or("link close")?)? + 1;
     let response = server.request(
         "textDocument/completion",
         &json!({
@@ -581,7 +595,7 @@ fn foreign_namespace_element_offers_no_svg_children() -> TestResult {
     let result = response
         .get("result")
         .ok_or("completion response must carry a result field")?;
-    let offered = result["items"].as_array().map_or(0, Vec::len);
+    let offered = offered_item_count(result)?;
     assert_eq!(
         offered, 0,
         "SVG children must not be offered inside a foreign-namespace element: {result:?}"
@@ -592,10 +606,44 @@ fn foreign_namespace_element_offers_no_svg_children() -> TestResult {
 }
 
 #[test]
+fn unprefixed_foreign_object_children_offer_no_svg_completions() -> TestResult {
+    let mut server = TestServer::start()?;
+
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><a display=""></a></foreignObject></svg>"#;
+    server.open("file:///foreign-host.svg", src)?;
+
+    let column = u32::try_from(src.find(r#"display="""#).ok_or("display attr")?)? + 9;
+    let response = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///foreign-host.svg" },
+            "position": { "line": 0, "character": column }
+        }),
+    )?;
+
+    assert!(
+        response.get("error").is_none(),
+        "the server must answer, not error: {:?}",
+        response["error"]
+    );
+    let result = response
+        .get("result")
+        .ok_or("completion response must carry a result field")?;
+    assert_eq!(
+        offered_item_count(result)?,
+        0,
+        "a foreign-content host must not lend the SVG namespace to its children: {result:?}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
 fn foreign_namespace_element_offers_no_svg_attribute_values() -> TestResult {
     let mut server = TestServer::start()?;
 
-    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml" display=""></div></foreignObject></svg>"#;
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><a xmlns="http://www.w3.org/1999/xhtml" display=""></a></foreignObject></svg>"#;
     server.open("file:///foreign-values.svg", src)?;
 
     let column = u32::try_from(src.find(r#"display="""#).ok_or("display attr")?)? + 9;
@@ -612,11 +660,13 @@ fn foreign_namespace_element_offers_no_svg_attribute_values() -> TestResult {
         "the server must answer, not error: {:?}",
         response["error"]
     );
-    let items = response["result"]["items"].as_array().map_or(0, Vec::len);
+    let result = response
+        .get("result")
+        .ok_or("completion response must carry a result field")?;
+    let items = offered_item_count(result)?;
     assert_eq!(
         items, 0,
-        "SVG attribute values must not be offered on a foreign element: {:?}",
-        response["result"]
+        "SVG attribute values must not be offered on a foreign element: {result:?}"
     );
 
     server.shutdown_and_exit()?;

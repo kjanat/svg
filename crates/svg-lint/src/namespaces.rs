@@ -28,6 +28,7 @@ impl<'a> NamespaceScope<'a> {
             .find_map(|(known_prefix, namespace_uri)| {
                 (*known_prefix == prefix).then_some(*namespace_uri)
             })
+            .filter(|namespace_uri| !namespace_uri.is_empty())
     }
 }
 
@@ -67,9 +68,7 @@ pub fn scope_for_tag<'a>(
         let Some(prefix) = attr_name.strip_prefix("xmlns:") else {
             continue;
         };
-        if let Some(namespace_uri) = non_empty_namespace(namespace_uri) {
-            scope.prefixes.push((prefix, namespace_uri));
-        }
+        scope.prefixes.push((prefix, namespace_uri));
     }
     scope
 }
@@ -202,6 +201,7 @@ pub fn resolves_to_svg_namespace(source: &[u8], name_node: Node) -> bool {
     chain.reverse();
 
     let mut scope = NamespaceScope::default();
+    let last = chain.len() - 1;
     for (index, link) in chain.iter().enumerate() {
         scope = scope_for_tag(source, *link, &scope);
 
@@ -218,6 +218,19 @@ pub fn resolves_to_svg_namespace(source: &[u8], name_node: Node) -> bool {
                 });
             if roots_svg {
                 scope.set_default_namespace(Some(SVG_NAMESPACE_URI));
+            }
+        }
+
+        if index < last
+            && let Some(raw) = link
+                .child_by_field_name("name")
+                .and_then(|name| name.utf8_text(source).ok())
+        {
+            let host = expand_element_name(raw, &scope);
+            if host.namespace_uri == Some(SVG_NAMESPACE_URI)
+                && svg_data::allows_foreign_children(host.local_name)
+            {
+                scope.set_default_namespace(None);
             }
         }
     }
@@ -267,6 +280,60 @@ mod tests {
         assert_eq!(
             names,
             vec![("svg".to_owned(), true), ("html:title".to_owned(), false)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn foreign_content_children_do_not_resolve_to_svg() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><foreignObject><div/></foreignObject></svg>";
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![
+                ("svg".to_owned(), true),
+                ("foreignObject".to_owned(), true),
+                ("div".to_owned(), false)
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn svg_redeclared_inside_foreign_content_resolves_again() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg><foreignObject><svg xmlns="http://www.w3.org/2000/svg"><rect/></svg></foreignObject></svg>"#;
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![
+                ("svg".to_owned(), true),
+                ("foreignObject".to_owned(), true),
+                ("svg".to_owned(), true),
+                ("rect".to_owned(), true)
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_empty_prefix_declaration_undeclares_the_inherited_binding() -> Result<(), Box<dyn Error>>
+    {
+        let source =
+            r#"<svg xmlns:p="http://www.w3.org/2000/svg"><g xmlns:p=""><p:rect/></g></svg>"#;
+        let tree = parse_svg(source)?;
+        let names = tag_names(tree.root_node(), source.as_bytes());
+
+        assert_eq!(
+            names,
+            vec![
+                ("svg".to_owned(), true),
+                ("g".to_owned(), true),
+                ("p:rect".to_owned(), false)
+            ]
         );
         Ok(())
     }

@@ -693,6 +693,39 @@ fn foreign_namespace_element_has_no_svg_hover() -> TestResult {
 }
 
 #[test]
+fn unprefixed_foreign_object_child_has_no_svg_hover() -> TestResult {
+    let mut server = TestServer::start()?;
+
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><title>x</title></foreignObject></svg>"#;
+    server.open("file:///foreign-host-hover.svg", src)?;
+
+    let column = u32::try_from(src.find("<title").ok_or("title tag")?)? + 1;
+    let response = server.request(
+        "textDocument/hover",
+        &json!({
+            "textDocument": { "uri": "file:///foreign-host-hover.svg" },
+            "position": { "line": 0, "character": column }
+        }),
+    )?;
+
+    assert!(
+        response.get("error").is_none(),
+        "the server must answer, not error: {:?}",
+        response["error"]
+    );
+    let result = response
+        .get("result")
+        .ok_or("hover response must carry a result field")?;
+    assert!(
+        result.is_null(),
+        "a foreign-content host must not lend the SVG namespace to its children: {result:?}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
 fn svg_namespace_element_still_hovers() -> TestResult {
     let mut server = TestServer::start()?;
 

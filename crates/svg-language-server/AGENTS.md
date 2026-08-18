@@ -29,6 +29,10 @@ and fanout into lint/format/color/references/data/tree crates.
   fetch fails.
 - `src/main.rs` is a thin wrapper; substantive behavior belongs in `src/lib.rs`
   and feature modules.
+- Hover and completion answer only for elements that
+  `svg_lint::resolves_to_svg_namespace` places in the SVG namespace, so foreign
+  content (prefixed names, a foreign `xmlns`, anything under `foreignObject`) is
+  left to its own tooling.
 
 ## CLIENT SETTINGS (initialization options / `didChangeConfiguration`)
 
