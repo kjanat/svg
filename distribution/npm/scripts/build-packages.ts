@@ -35,7 +35,7 @@ const distDir = join(npmDir, 'dist');
 
 const ARCHIVE_PREFIX = 'svg';
 const META_PACKAGE = 'svg-language-server';
-const FACADE_LIB_FILES = ['resolve.mjs', 'launch.mjs'] as const;
+const FACADE_LIB_FILES = ['resolve.mjs', 'launch.mjs', 'libc.mjs'] as const;
 
 interface CargoManifest {
 	name: string;

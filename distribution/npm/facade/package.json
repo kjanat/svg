@@ -1,0 +1,12 @@
+{
+	"name": "@svg-toolkit/facade-sources",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Shared launcher sources for the published facades. Not published; exists so the tests resolve the same subpath imports the facades declare.",
+	"type": "module",
+	"imports": {
+		"#launch": "./lib/launch.mjs",
+		"#libc": "./lib/libc.mjs",
+		"#resolve": "./lib/resolve.mjs"
+	}
+}

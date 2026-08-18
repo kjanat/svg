@@ -1,5 +1,5 @@
+import { detectLibc, exists, LIBC_ENV, planCandidates, siblingName } from '#libc';
 import { bold, cyan, link, red, yellow } from 'ansispeck';
-import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { arch, platform } from 'node:process';
@@ -15,6 +15,41 @@ const issues = bugs.url;
 const subPackages = Object.keys(optionalDependencies || {});
 
 /**
+ * Report that only glibc builds are installed on a musl host, and refuse.
+ *
+ * @param {string[]} dropped Platform packages excluded as unrunnable here.
+ * @returns {never}
+ */
+function failMuslMismatch(dropped) {
+	const wanted = dropped.map((name) => siblingName(name)).filter((name) => name !== null);
+	const indent = '  ';
+
+	console.error(
+		`${red(pkgName)}: this host uses ${bold('musl')} libc, but only ${
+			yellow('glibc')
+		} builds are installed. A glibc binary cannot run here — its ELF interpreter does not exist.
+
+Installed but unusable:
+${indent}- ${dropped.join(`\n${indent}- `)}
+
+Expected instead:
+${indent}- ${wanted.join(`\n${indent}- `)}
+
+${bold('bun')} and ${bold('deno')} install every optional dependency regardless of the ${cyan('libc')} field,
+so both variants land in ${cyan('node_modules')}; copying a ${cyan('node_modules')} between hosts does the same.
+
+Workarounds:
+${indent}- reinstall with ${cyan('npm')}, ${cyan('pnpm')} or ${cyan('yarn')}, which honour ${cyan('libc')}
+${indent}- install the musl package explicitly: ${cyan(`npm install ${wanted[0] ?? ''}`)}
+${indent}- override detection if it is wrong: ${cyan(`${LIBC_ENV}=glibc`)}
+${indent}- file an issue if your platform should be supported: ${link(issues, issues)}
+`,
+	);
+
+	throw new Error('Installed platform packages target glibc, but this host uses musl libc.');
+}
+
+/**
  * Locate the prebuilt executable matching the current platform and architecture.
  *
  * Searches optional-dependency sub-packages for a matching `bin/<exe>` and returns its filesystem path.
@@ -27,7 +62,19 @@ const subPackages = Object.keys(optionalDependencies || {});
 export function resolveBinary(name) {
 	const exe = platform === 'win32' ? `${name}.exe` : name;
 	const errors = [];
-	for (const subPkg of subPackages) {
+
+	const libc = detectLibc();
+	const { candidates, dropped, undecided } = planCandidates(subPackages, libc);
+
+	if (undecided) {
+		console.warn(
+			`${yellow(pkgName)}: both glibc and musl builds are installed but the host libc could not be identified; falling back to manifest order. Set ${
+				cyan(`${LIBC_ENV}=musl`)
+			} or ${cyan(`${LIBC_ENV}=glibc`)} to choose explicitly.`,
+		);
+	}
+
+	for (const subPkg of candidates) {
 		let pkgJsonPath;
 		try {
 			pkgJsonPath = require.resolve(`${subPkg}/package.json`);
@@ -40,12 +87,18 @@ export function resolveBinary(name) {
 		// Could mismatch if a user manually deletes the bin, or a partial
 		// install half-succeeded. Prefer a clear error here over an opaque
 		// `ENOENT` from `spawnSync` later in `launch.mjs`.
-		if (!existsSync(binPath)) {
+		if (!exists(binPath)) {
 			errors.push(`${subPkg}: package present but bin missing at ${binPath}`);
 			continue;
 		}
 		return binPath;
 	}
+
+	// Every runnable candidate was excluded because it targets glibc, so the
+	// install is not merely incomplete — it is the wrong libc. Say that,
+	// instead of letting `spawnSync` report a bare `ENOENT` for a missing ELF
+	// interpreter.
+	if (libc === 'musl' && dropped.length > 0) failMuslMismatch(dropped);
 
 	const detail = errors.length > 0
 		? '\n\nDetails of attempted resolutions:\n  - ' + errors.join('\n  - ')
