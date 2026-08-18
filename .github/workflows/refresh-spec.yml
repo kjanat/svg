@@ -113,6 +113,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property published, tracked, head_commit, compat
+          $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
           $refreshEditions = { bun scripts/refresh-editions.ts }
           $refreshSvgwg = { param($h); bun scripts/refresh-svgwg.ts $h --activate }
           $generateSchemas = { just generate-schemas }
@@ -121,18 +122,22 @@ jobs:
           if ($check.published -ne "0" -or $check.compat -ne "0") {
             "Re-vendoring W3C edition + compat metadata..."
             &$refreshEditions
+            &$assertOk "refresh-editions"
           }
 
           if ($check.tracked -ne "0") {
             "Re-vendoring svgwg sources at {0} (activating pin)..." -f $check.head_commit
             &$refreshSvgwg $check.head_commit
+            &$assertOk "refresh-svgwg"
           }
 
           "Rebaking derived JSON schemas..."
           &$generateSchemas
+          &$assertOk "generate-schemas"
 
           "Normalising regenerated/vendored files to repo style..."
           &$formatData
+          &$assertOk "dprint fmt"
 
       - name: Gate refresh on repro + provenance tests
         if: needs.check.outputs.any == '1'
@@ -140,6 +145,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $testSvgData = { param($package); cargo test --package $package }
           &$testSvgData "svg-data"
+          if ($LASTEXITCODE -ne 0) { "::error::cargo test -p svg-data failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
 
       - name: Build auto-refresh pull request body
         id: pr
@@ -182,6 +188,23 @@ jobs:
 
           &$setOutput ([ordered]@{ body = $body })
 
+      - name: Ensure label exists
+        if: needs.check.outputs.any == '1'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          # --force makes this idempotent (updates description/color if the
+          # label already exists instead of erroring), so any remaining
+          # nonzero exit is a real failure - auth, permission, API - worth
+          # surfacing rather than swallowing. Must run before "Open
+          # auto-refresh pull request": that step's `labels:` input 404s if
+          # the label doesn't exist in the repo yet.
+          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") --force }
+
+          &$createLabel
+          if ($LASTEXITCODE -ne 0) { "::error::gh label create failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+
       - name: Open auto-refresh pull request
         if: needs.check.outputs.any == '1'
         uses: peter-evans/create-pull-request@v8
@@ -198,18 +221,6 @@ jobs:
           commit-message: "chore(spec-data): auto-refresh vendored sources from upstream"
           title: "spec-data: auto-refresh vendored SVG spec sources"
           body: ${{ steps.pr.outputs.body }}
-
-      - name: Ensure label exists
-        if: needs.check.outputs.any == '1'
-        run: |
-          $ErrorActionPreference = "Stop"
-          $PSNativeCommandUseErrorActionPreference = $false
-
-          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") 2>$null }
-          $continueOnFailure = { param($code, $message); switch ($code) { 0 { break } default { $message } } }
-
-          &$createLabel
-          &$continueOnFailure $LASTEXITCODE "Label already exists or could not be created; continuing."
 
       - name: Open or update tracking issue
         if: needs.check.outputs.any == '1'
