@@ -188,6 +188,23 @@ jobs:
 
           &$setOutput ([ordered]@{ body = $body })
 
+      - name: Ensure label exists
+        if: needs.check.outputs.any == '1'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          # --force makes this idempotent (updates description/color if the
+          # label already exists instead of erroring), so any remaining
+          # nonzero exit is a real failure - auth, permission, API - worth
+          # surfacing rather than swallowing. Must run before "Open
+          # auto-refresh pull request": that step's `labels:` input 404s if
+          # the label doesn't exist in the repo yet.
+          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") --force }
+
+          &$createLabel
+          if ($LASTEXITCODE -ne 0) { "::error::gh label create failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+
       - name: Open auto-refresh pull request
         if: needs.check.outputs.any == '1'
         uses: peter-evans/create-pull-request@v8
@@ -204,21 +221,6 @@ jobs:
           commit-message: "chore(spec-data): auto-refresh vendored sources from upstream"
           title: "spec-data: auto-refresh vendored SVG spec sources"
           body: ${{ steps.pr.outputs.body }}
-
-      - name: Ensure label exists
-        if: needs.check.outputs.any == '1'
-        run: |
-          $ErrorActionPreference = "Stop"
-          $PSNativeCommandUseErrorActionPreference = $false
-
-          # --force makes this idempotent (updates description/color if the
-          # label already exists instead of erroring), so any remaining
-          # nonzero exit is a real failure - auth, permission, API - worth
-          # surfacing rather than swallowing.
-          $createLabel = { param($l = $env:ISSUE_LABEL, $d = "Baked SVG spec data has drifted from upstream", $c = "FBCA04") gh label create $l --description $d --color $c.TrimStart("#") --force }
-
-          &$createLabel
-          if ($LASTEXITCODE -ne 0) { "::error::gh label create failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
 
       - name: Open or update tracking issue
         if: needs.check.outputs.any == '1'
