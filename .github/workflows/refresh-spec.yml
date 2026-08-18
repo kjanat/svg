@@ -102,8 +102,7 @@ jobs:
         with: { persist-credentials: false }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with: { tool: dprint }
+      - uses: kjanat/install-dprint@v2
         if: needs.check.outputs.any == '1'
 
       - name: Regenerate spec catalog
