@@ -615,6 +615,19 @@ fn restrict_element_items_to_native(
     items.retain(|item| !native.is_unsupported(ConstraintKind::Element, item.label.as_str()));
 }
 
+fn tag_resolves_to_svg(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    let tag = if matches!(node.kind(), "start_tag" | "self_closing_tag" | "end_tag") {
+        Some(node)
+    } else {
+        let mut cursor = node.walk();
+        node.children(&mut cursor)
+            .find(|child| matches!(child.kind(), "start_tag" | "self_closing_tag"))
+    };
+
+    tag.and_then(|tag| tag.child_by_field_name("name"))
+        .is_some_and(|name| svg_lint::resolves_to_svg_namespace(source, name))
+}
+
 fn completion_from_context(
     source: &[u8],
     tree: &tree_sitter::Tree,
@@ -636,6 +649,9 @@ fn completion_from_context(
 
         if kind.ends_with("_attribute_value") || kind == "quoted_attribute_value" {
             if let Some(attr_wrapper) = attribute_wrapper_ancestor(cursor)
+                && attr_wrapper
+                    .parent()
+                    .is_some_and(|tag| tag_resolves_to_svg(tag, source))
                 && let Some(attr_name) = first_attribute_name_text(attr_wrapper, source)
             {
                 let items = value_completions(&attr_name, source, tree, cursor, profile);
@@ -647,6 +663,9 @@ fn completion_from_context(
         }
 
         if kind == "start_tag" || kind == "self_closing_tag" {
+            if !tag_resolves_to_svg(cursor, source) {
+                return None;
+            }
             let elem_name = tag_element_name(cursor, source).unwrap_or("");
             let existing = existing_attribute_names(cursor, source);
             let mut items = attribute_completion_items(elem_name, &existing, profile);
@@ -660,6 +679,9 @@ fn completion_from_context(
         }
 
         if kind == "element" || kind == "svg_root_element" {
+            if !tag_resolves_to_svg(cursor, source) {
+                return None;
+            }
             let elem_name = enclosing_element_name(cursor, source).unwrap_or("");
             svg_data::element(elem_name)?;
             let mut items = child_element_completion_items(elem_name, profile);
@@ -739,7 +761,7 @@ fn build_hover_context(
     let node_text = node.utf8_text(source).unwrap_or("").to_owned();
 
     let element_markdown =
-        build_element_hover_markdown(node, &node_text, profile, runtime_compat, native);
+        build_element_hover_markdown(node, &node_text, source, profile, runtime_compat, native);
     let attribute_markdown = build_attribute_hover_markdown(
         node,
         &kind,
@@ -815,11 +837,12 @@ fn build_hover_context(
 fn build_element_hover_markdown(
     node: tree_sitter::Node<'_>,
     node_text: &str,
+    source: &[u8],
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
     native: Option<&'static svg_data::profile::SvgNative>,
 ) -> Option<String> {
-    if node.kind() != "name" {
+    if node.kind() != "name" || !svg_lint::resolves_to_svg_namespace(source, node) {
         return None;
     }
 
