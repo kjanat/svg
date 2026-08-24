@@ -52,6 +52,23 @@
   (UTF-16 code units, 0-based lines) requires explicit `byte_col_to_utf16()` /
   `utf16_to_byte_col()` helpers
 
+## Toolchain
+
+- Floating `channel = "nightly"` in `rust-toolchain.toml` broke CI: nightly
+  rustc built 2026-08-21 (`nightly-2026-08-22` via `rustup toolchain install`)
+  introduced a clippy ICE — "unexpected rigid alias in layout_of after
+  normalization" inside `clippy::large_futures`'s `layout_of` query — that
+  panics specifically on `svg-language-server`'s async LSP handlers (opaque
+  RPITIT/async-fn types from `tower-lsp-server`/`tokio`). Bisected with
+  `rustup toolchain install nightly-YYYY-MM-DD` +
+  `cargo +nightly-YYYY-MM-DD
+  clippy -p svg-language-server --lib`:
+  `nightly-2026-08-21` (rustc built 2026-08-20) is clean, `nightly-2026-08-22`
+  (rustc built 2026-08-21) ICEs. Reproduces identically on unmodified `master`,
+  so it's a toolchain regression, not a code bug. Pinned `rust-toolchain.toml`
+  to `nightly-2026-08-21` until upstream fixes it; re-bisect forward
+  periodically to find a fixed nightly and un-pin.
+
 ## svg-data Catalog
 
 - `<style>` and `<script>` are "never-rendered" elements not in any traditional
