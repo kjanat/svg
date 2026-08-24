@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "commit": "5362fb542c56aef72fe35238a85f9cbc6b35c9fc",
+  "commit": "95fe0c0fc4da0ef96c7f4ea31a901fb25d51e4ec",
   "core": {
     "href": "catalog.core.json"
   },
