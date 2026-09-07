@@ -1,6 +1,7 @@
 // @ts-nocheck Deno
 import { serveDir } from '@std/http';
 import { contentType as mediaTypeFromExtension } from '@std/media-types';
+import { fileURLToPath } from 'node:url';
 
 function readDeploymentId(): string | undefined {
 	try {
@@ -228,7 +229,7 @@ export function negotiateFormat(request: Request, url: URL): NegotiatedFormat {
 
 export async function serveStaticRoute(request: Request, urlRoot = 'static'): Promise<Response> {
 	const response = await serveDir(request, {
-		fsRoot: new URL('../static', import.meta.url).pathname,
+		fsRoot: fileURLToPath(new URL('../static', import.meta.url)),
 		urlRoot,
 	});
 	applyCommonSecurityHeaders(response.headers);

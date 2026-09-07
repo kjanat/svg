@@ -14,7 +14,7 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-09-07
+## [0.2.1] - 2026-09-08
 
 ### Added
 
@@ -43,6 +43,8 @@ When bumping the workspace version after a catalog refresh:
   same-named SVG element
 - Correct the Baseline icons' aspect ratio and document their third-party
   license and attribution
+- Serve compatibility explorer static assets correctly on Windows by converting
+  file URLs to native filesystem paths
 
 ## [0.2.0] - 2026-08-18
 

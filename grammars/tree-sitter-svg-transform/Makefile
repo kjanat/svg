@@ -1,6 +1,6 @@
 LANGUAGE_NAME := tree-sitter-svg-transform
 HOMEPAGE_URL := https://github.com/kjanat/svg
-VERSION := 0.2.0
+VERSION := 0.2.1
 
 # repository
 SRC_DIR := src

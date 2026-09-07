@@ -45,11 +45,14 @@ fn read_message(reader: &mut BufReader<impl std::io::Read>) -> TestResult<Value>
 }
 
 fn server_binary() -> TestResult<&'static PathBuf> {
-    static BINARY: OnceLock<PathBuf> = OnceLock::new();
-    if let Some(path) = BINARY.get() {
-        return Ok(path);
-    }
+    static BINARY: OnceLock<Result<PathBuf, String>> = OnceLock::new();
+    BINARY
+        .get_or_init(|| build_server_binary().map_err(|error| error.to_string()))
+        .as_ref()
+        .map_err(|error| error.clone().into())
+}
 
+fn build_server_binary() -> TestResult<PathBuf> {
     let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
@@ -85,10 +88,7 @@ fn server_binary() -> TestResult<&'static PathBuf> {
         .ok_or("cargo build did not report an executable artifact")?;
     assert!(binary.exists(), "binary not found at {}", binary.display());
 
-    // If another thread raced us, `set` returns Err but the value is
-    // still present via `get`, so both paths are fine.
-    let _ = BINARY.set(binary);
-    BINARY.get().ok_or_else(|| "OnceLock was not set".into())
+    Ok(binary)
 }
 
 pub struct TestServer {
