@@ -42,19 +42,19 @@ Deno.test('parseBaselineDate preserves raw on completely unparseable input', () 
 	assertEquals(got?.qualifier, undefined);
 });
 
-Deno.test('parseBaselineDate maps unknown prefix to approximately', () => {
+Deno.test('parseBaselineDate preserves unknown prefixes without assigning a meaning', () => {
 	_resetLoggedWarnings();
 	const got = parseBaselineDate('%2024-01-01', 'test.fixture');
 	assertExists(got);
 	assertEquals(got?.raw, '%2024-01-01');
-	assertEquals(got?.date, '2024-01-01');
-	assertEquals(got?.qualifier, 'approximately');
+	assertEquals(got?.date, undefined);
+	assertEquals(got?.qualifier, undefined);
 });
 
-Deno.test('parseBaselineDate returns undefined for empty/undefined input only', () => {
+Deno.test('parseBaselineDate retains empty strings and omits absent dates', () => {
 	_resetLoggedWarnings();
 	assertEquals(parseBaselineDate(undefined, 'test.fixture'), undefined);
-	assertEquals(parseBaselineDate('', 'test.fixture'), undefined);
+	assertEquals(parseBaselineDate('', 'test.fixture'), { raw: '' });
 });
 
 Deno.test('parseBaseline preserves raw on unparseable date but baseline tier is known', () => {
@@ -71,15 +71,15 @@ Deno.test('parseBaseline preserves raw on unparseable date but baseline tier is 
 	assertEquals(got?.status, 'widely');
 	assertEquals(got?.high_date?.raw, 'garbage');
 	assertEquals(got?.high_date?.date, undefined);
-	// since is undefined because no extractable date; tier still emitted.
-	assertEquals(got?.since, undefined);
+	assertEquals(Object.hasOwn(got, 'since'), false);
 });
 
 Deno.test('parseBaseline never discards on unknown baseline value', () => {
 	_resetLoggedWarnings();
 	const got = parseBaseline({ baseline: 'experimental' }, 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.status, 'limited');
+	assertEquals(got?.status, undefined);
+	assertEquals(got?.status_diagnostic, 'unrecognized');
 	assertEquals(got?.raw_status, '"experimental"');
 });
 
@@ -97,8 +97,8 @@ Deno.test('parseBaseline maps known prefix end-to-end on real-world feGaussianBl
 	);
 	assertExists(got);
 	assertEquals(got?.status, 'widely');
-	assertEquals(got?.since, 2021);
-	assertEquals(got?.since_qualifier, 'before');
+	assertEquals(got?.high_date?.date, '2021-04-02');
+	assertEquals(got?.high_date?.qualifier, 'before');
 	assertEquals(got?.high_date?.raw, '≤2021-04-02');
 	assertEquals(got?.high_date?.date, '2021-04-02');
 	assertEquals(got?.high_date?.qualifier, 'before');

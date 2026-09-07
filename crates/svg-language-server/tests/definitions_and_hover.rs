@@ -434,6 +434,10 @@ fn hover_baseprofile_verdict_is_forbid_in_svg2_profile() -> TestResult {
         value.contains("deprecated"),
         "Status line must include `deprecated` reason: {value}"
     );
+    assert!(value.contains("WebDX discourages"));
+    assert!(value.contains("Feature scope:"));
+    assert!(value.contains("Supporting reference:"));
+    assert!(!value.contains("![Baseline icon]"));
     // The old contradictory lines must NOT appear.
     assert!(
         !value.contains("**Stable in"),
@@ -451,8 +455,7 @@ fn hover_baseprofile_verdict_is_forbid_in_svg2_profile() -> TestResult {
 #[test]
 fn hover_renders_baseline_qualifier_for_fegaussianblur() -> TestResult {
     // Regression guard for the `≤` qualifier propagation pipeline:
-    // BCD → web-features (`baseline_high_date: "≤2021-04-02"`) → worker
-    // `/data.json` → svg-data build script → static catalog →
+    // web-features → regeneration → catalog JSON → build script → static catalog →
     // svg-language-server hover markdown. If any layer drops the
     // qualifier the hover will render `since 2021` instead of `since ≤2021`.
     let mut server = TestServer::start()?;
@@ -475,9 +478,11 @@ fn hover_renders_baseline_qualifier_for_fegaussianblur() -> TestResult {
         .as_str()
         .ok_or("feGaussianBlur hover markdown")?;
     assert!(
-        hover_value.contains("Baseline since ≤"),
+        hover_value.contains("Widely Available since ≤2021"),
         "hover should surface the ≤ qualifier on feGaussianBlur: {hover_resp}"
     );
+    assert!(hover_value.contains("Newly Available date: ≤2018-10-02"));
+    assert!(hover_value.contains("Widely Available date: ≤2021-04-02"));
 
     server.shutdown_and_exit()?;
     Ok(())

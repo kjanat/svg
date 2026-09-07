@@ -15,8 +15,12 @@ use std::{
 };
 
 use serde::Deserialize;
+#[allow(dead_code)]
+#[path = "src/compat_model.rs"]
+mod compat_model;
+use compat_model::{Baseline as BaselineStatus, BaselineQualifier, Discouraged};
 
-const CATALOG_SCHEMA_VERSION: u16 = 1;
+const CATALOG_SCHEMA_VERSION: u16 = 2;
 
 /// The committed root manifest, mirroring `svg-data-regen`'s output shape.
 #[derive(Deserialize)]
@@ -105,6 +109,8 @@ struct Element {
     #[serde(default)]
     baseline: Option<BaselineStatus>,
     #[serde(default)]
+    discouraged: Vec<Discouraged>,
+    #[serde(default)]
     browser_support: Option<BrowserSupport>,
     content_model: ContentModel,
     attrs: Vec<String>,
@@ -141,6 +147,8 @@ struct Attribute {
     presentation: Option<String>,
     #[serde(default)]
     baseline: Option<BaselineStatus>,
+    #[serde(default)]
+    discouraged: Vec<Discouraged>,
     #[serde(default)]
     browser_support: Option<BrowserSupport>,
     #[serde(default)]
@@ -285,31 +293,9 @@ struct CompatFacts {
     #[serde(default)]
     baseline: Option<BaselineStatus>,
     #[serde(default)]
+    discouraged: Vec<Discouraged>,
+    #[serde(default)]
     browser_support: Option<BrowserSupport>,
-}
-
-/// Web-platform baseline status of a feature.
-#[derive(Clone, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum BaselineStatus {
-    Widely {
-        since: u16,
-        qualifier: Option<BaselineQualifier>,
-    },
-    Newly {
-        since: u16,
-        qualifier: Option<BaselineQualifier>,
-    },
-    Limited,
-}
-
-/// Inexactness qualifier on a baseline / version date.
-#[derive(Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum BaselineQualifier {
-    Before,
-    After,
-    Approximately,
 }
 
 /// Per-browser support across the four tracked engines.
@@ -887,6 +873,7 @@ fn emit_element(out: &mut String, element: &Element) {
         .as_ref()
         .map_or_else(|| "None".to_owned(), |url| format!("Some({url:?})"));
     let baseline = emit_baseline(element.baseline.as_ref());
+    let discouraged = emit_discouraged(&element.discouraged);
     let browser_support = emit_browser_support(element.browser_support.as_ref());
     let content_model = match &element.content_model {
         ContentModel::ChildrenSet { elements } => {
@@ -903,8 +890,8 @@ fn emit_element(out: &mut String, element: &Element) {
         out,
         "    crate::types::ElementDef {{ name: {:?}, description: {description:?}, mdn_url: \
          {mdn_url:?}, spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, \
-         baseline: {baseline}, browser_support: {browser_support}, content_model: \
-         {content_model}, attrs: &[{}], global_attrs: {} }},",
+         baseline: {baseline}, discouraged: {discouraged}, browser_support: {browser_support}, \
+         content_model: {content_model}, attrs: &[{}], global_attrs: {} }},",
         element.name,
         element.deprecated,
         element.experimental,
@@ -931,9 +918,11 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
         experimental: attribute.experimental,
         standard_track: attribute.standard_track,
         baseline: attribute.baseline.clone(),
+        discouraged: attribute.discouraged.clone(),
         browser_support: attribute.browser_support.clone(),
     };
     let baseline = emit_baseline(base_facts.baseline.as_ref());
+    let discouraged = emit_discouraged(&base_facts.discouraged);
     let browser_support = emit_browser_support(base_facts.browser_support.as_ref());
     let element_compat = emit_attribute_element_compat(&attribute.element_compat);
     let element_values = emit_attribute_element_values(&attribute.element_values);
@@ -945,9 +934,9 @@ fn emit_attribute(out: &mut String, attribute: &Attribute) {
         "    crate::types::AttributeDef {{ name: {:?}, description: {description:?}, mdn_url: \
          {mdn_url:?}, spec_url: {spec_url}, deprecated: {}, experimental: {}, standard_track: {}, \
          animation: {}, presentation_attribute: {presentation_attribute}, baseline: {baseline}, \
-         browser_support: {browser_support}, element_compat: {element_compat}, element_values: \
-         {element_values}, values: {values}, value_overrides: {value_overrides}, applicability: \
-         {applicability} }},",
+         discouraged: {discouraged}, browser_support: {browser_support}, element_compat: \
+         {element_compat}, element_values: {element_values}, values: {values}, value_overrides: \
+         {value_overrides}, applicability: {applicability} }},",
         attribute.name,
         attribute.deprecated,
         attribute.experimental,
@@ -1010,11 +999,12 @@ fn emit_attribute_element_compat(overrides: &[AttributeElementCompat]) -> String
 fn emit_compat_facts(facts: &CompatFacts) -> String {
     format!(
         "crate::types::CompatFacts {{ deprecated: {}, experimental: {}, standard_track: {}, \
-         baseline: {}, browser_support: {} }}",
+         baseline: {}, discouraged: {}, browser_support: {} }}",
         facts.deprecated,
         facts.experimental,
         emit_option_bool(facts.standard_track),
         emit_baseline(facts.baseline.as_ref()),
+        emit_discouraged(&facts.discouraged),
         emit_browser_support(facts.browser_support.as_ref()),
     )
 }
@@ -1037,18 +1027,57 @@ fn emit_compat_subfeature(out: &mut String, subfeature: &CompatSubfeature) {
 
 /// Render a baseline literal.
 fn emit_baseline(baseline: Option<&BaselineStatus>) -> String {
-    match baseline {
-        Some(BaselineStatus::Widely { since, qualifier }) => format!(
-            "Some(crate::types::BaselineStatus::Widely {{ since: {since}, qualifier: {} }})",
-            emit_baseline_qualifier(qualifier.as_ref())
-        ),
-        Some(BaselineStatus::Newly { since, qualifier }) => format!(
-            "Some(crate::types::BaselineStatus::Newly {{ since: {since}, qualifier: {} }})",
-            emit_baseline_qualifier(qualifier.as_ref())
-        ),
-        Some(BaselineStatus::Limited) => "Some(crate::types::BaselineStatus::Limited)".to_owned(),
-        None => "None".to_owned(),
-    }
+    let Some(baseline) = baseline else {
+        return "None".to_owned();
+    };
+    let status = baseline.status.map_or_else(
+        || "None".to_owned(),
+        |tier| format!("Some(crate::types::BaselineTier::{tier:?})"),
+    );
+    let diagnostic = baseline.status_diagnostic.map_or_else(
+        || "None".to_owned(),
+        |diagnostic| format!("Some(crate::compat_model::BaselineDiagnostic::{diagnostic:?})"),
+    );
+    format!(
+        "Some(crate::types::BaselineStatus {{ status: {status}, raw_status: {:?}, \
+         status_diagnostic: {diagnostic}, low_date: {}, high_date: {} }})",
+        baseline.raw_status,
+        emit_baseline_date(baseline.low_date.as_ref()),
+        emit_baseline_date(baseline.high_date.as_ref())
+    )
+}
+
+fn emit_baseline_date(date: Option<&compat_model::BaselineDate>) -> String {
+    date.map_or_else(
+        || "None".to_owned(),
+        |date| {
+            format!(
+                "Some(crate::types::BaselineDate {{ raw: {:?}, date: {:?}, qualifier: {} }})",
+                date.raw,
+                date.date,
+                emit_baseline_qualifier(date.qualifier.as_ref())
+            )
+        },
+    )
+}
+
+fn emit_discouraged(advice: &[Discouraged]) -> String {
+    let entries = join_map(advice, |item| {
+        format!(
+            "crate::types::Discouraged {{ feature_id: {:?}, compat_key: {:?}, scope: \
+             crate::compat_model::DiscouragementScope::Feature, feature_name: {:?}, reason: {:?}, \
+             reason_html: {:?}, according_to: &[{}], alternatives: &[{}], removal_date: {:?} }}",
+            item.feature_id,
+            item.compat_key,
+            item.feature_name,
+            item.reason,
+            item.reason_html,
+            quote_list(&item.according_to),
+            quote_list(&item.alternatives),
+            item.removal_date
+        )
+    });
+    format!("&[{entries}]")
 }
 
 /// Render a baseline/version qualifier literal.

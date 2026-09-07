@@ -9,7 +9,6 @@
  *
  * @module
  */
-// @ts-nocheck Deno
 
 import { getCompat, getRecordProperty, makeCompatEntry } from '#lib/parse.ts';
 import type { AttributeEntry, Baseline, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput, SvgCompatSnapshot } from '#lib/types.ts';
@@ -51,7 +50,13 @@ function canonicalAttributeName(name: string): string {
 function baselineRank(baseline: Baseline): number {
 	if (baseline.status === 'limited') return 0;
 	if (baseline.status === 'newly') return 1;
-	return 2;
+	return baseline.status === 'widely' ? 2 : 3;
+}
+
+function baselineMilestone(baseline: Baseline): string {
+	if (baseline.status === 'widely') return baseline.high_date?.date ?? '';
+	if (baseline.status === 'newly') return baseline.low_date?.date ?? '';
+	return '';
 }
 
 function parseVersionParts(version: string): number[] | undefined {
@@ -171,12 +176,18 @@ function mergeAttributeEntry(
 		if (
 			incomingRank < existingRank
 			|| (incomingRank === existingRank
-				&& (compat.baseline.since ?? 0) > (existing.baseline.since ?? 0))
+				&& baselineMilestone(compat.baseline) > baselineMilestone(existing.baseline))
 		) {
 			existing.baseline = compat.baseline;
 		}
 	}
 
+	for (const advice of compat.discouraged ?? []) {
+		existing.discouraged ??= [];
+		if (!existing.discouraged.some(item => item.feature_id === advice.feature_id && item.compat_key === advice.compat_key)) {
+			existing.discouraged.push(advice);
+		}
+	}
 	if (compat.browser_support) {
 		existing.browser_support = mergeBrowserSupport(
 			existing.browser_support,
@@ -286,6 +297,7 @@ export function buildOutput(
 	generatedAt: string,
 ): SvgCompatOutput {
 	return {
+		schema_version: 2,
 		generated_at: generatedAt,
 		sources: snapshot.sources,
 		elements: snapshot.elements,

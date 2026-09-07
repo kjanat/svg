@@ -14,6 +14,24 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** compatibility schema v2 and the Rust Baseline model preserve
+  optional full Newly/Widely Available dates, raw values, and unknown statuses.
+  Consumers must migrate from year-only enum variants and `since` fields; see
+  [the migration guide](docs/compat-metadata-v2.md).
+- Preserve feature-scoped WebDX discouragement separately from Baseline, BCD
+  flags, and SVG lifecycle; show its reason, references, and alternatives in
+  hover, the compatibility dashboard, and CLI output.
+
+### Fixed
+
+- Keep missing or unrecognized Baseline status neutral instead of Limited;
+  retain recognized tiers even when their dates are missing or malformed.
+- Label Newly Available and Widely Available milestones explicitly in hover and
+  dashboard details, preserving known date qualifiers without guessing the
+  meaning of unknown prefixes.
+
 ## [0.2.1] - 2026-09-08
 
 ### Added

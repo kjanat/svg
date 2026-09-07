@@ -27,7 +27,7 @@ export function ElementsTable({ rows }: Props) {
 								<code>{entry.name}</code>
 							</th>
 							<td>
-								<BaselineBadge baseline={entry.baseline} />
+								<BaselineBadge baseline={entry.baseline} discouraged={entry.discouraged} />
 							</td>
 							<td>
 								<BrowserSupport support={entry.browser_support} baselineStatus={entry.baseline?.status} />

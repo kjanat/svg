@@ -124,6 +124,7 @@ Deno.test('browser gets HTML explorer', async () => {
 
 Deno.test('renderHtml includes baseline badge classes', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -147,14 +148,14 @@ Deno.test('renderHtml includes baseline badge classes', () => {
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'widely', since: 2015 },
+				baseline: { status: 'widely', high_date: { raw: '2015-01-01', date: '2015-01-01' } },
 			},
 			dialog: {
 				deprecated: false,
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'newly', since: 2024 },
+				baseline: { status: 'newly', low_date: { raw: '2024-01-01', date: '2024-01-01' } },
 			},
 		},
 		attributes: {
@@ -176,6 +177,7 @@ Deno.test('renderHtml includes baseline badge classes', () => {
 
 Deno.test('renderHtml docs links include MDN and W3C spec links', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -242,6 +244,7 @@ Deno.test('path attribute includes fallback docs links', async () => {
 
 Deno.test('renderHtml keeps active source selection in Open JSON endpoint link', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -278,6 +281,7 @@ Deno.test('renderHtml keeps active source selection in Open JSON endpoint link',
 
 Deno.test('renderHtml uses masked browser status glyphs', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -318,6 +322,7 @@ Deno.test('renderHtml uses masked browser status glyphs', () => {
 
 Deno.test('renderHtml uses blue check tone for newly baseline', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -341,7 +346,7 @@ Deno.test('renderHtml uses blue check tone for newly baseline', () => {
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'newly', since: 2024 },
+				baseline: { status: 'newly', low_date: { raw: '2024-01-01', date: '2024-01-01' } },
 				browser_support: {
 					chrome: { raw_value_added: '127', version_added: '127' },
 				},
@@ -363,8 +368,8 @@ Deno.test('baseline parser preserves ≤ qualifier on real feGaussianBlur entry'
 	const blur = json.elements.feGaussianBlur;
 	assertExists(blur.baseline);
 	assertEquals(blur.baseline?.status, 'widely');
-	assertEquals(blur.baseline?.since, 2021);
-	assertEquals(blur.baseline?.since_qualifier, 'before');
+	assertEquals(blur.baseline?.low_date?.date, '2018-10-02');
+	assertEquals(blur.baseline?.high_date?.qualifier, 'before');
 	assertExists(blur.baseline?.high_date);
 	assertEquals(blur.baseline?.high_date?.raw, '≤2021-04-02');
 	assertEquals(blur.baseline?.high_date?.date, '2021-04-02');
@@ -443,10 +448,10 @@ Deno.test('BaselineBadge title surfaces raw upstream dates', async () => {
 	);
 	const body = await res.text();
 	// Look for a baseline badge title that contains a raw date string.
-	const titleMatch = body.match(/<span class="badge badge-widely" title="[^"]*Widely since[^"]*"/);
+	const titleMatch = body.match(/<span class="badge badge-widely" title="[^"]*Widely Available since[^"]*"/);
 	assert(
 		titleMatch !== null,
-		`expected BaselineBadge title with "Widely since …" text on at least one widely badge`,
+		`expected BaselineBadge title with "Widely Available since …" text on at least one widely badge`,
 	);
 });
 

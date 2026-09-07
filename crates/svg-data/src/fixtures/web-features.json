@@ -1,0 +1,294 @@
+{
+  "cases": [
+    {
+      "name": "absent",
+      "input": {},
+      "expected": null
+    },
+    {
+      "name": "missing-with-dates",
+      "input": {
+        "baseline_low_date": "2020-01-15",
+        "baseline_high_date": "2022-07-15"
+      },
+      "expected": {
+        "status_diagnostic": "missing",
+        "low_date": {
+          "raw": "2020-01-15",
+          "date": "2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15",
+          "date": "2022-07-15"
+        }
+      }
+    },
+    {
+      "name": "null",
+      "input": {
+        "baseline": null
+      },
+      "expected": {
+        "raw_status": "null",
+        "status_diagnostic": "unrecognized"
+      }
+    },
+    {
+      "name": "true",
+      "input": {
+        "baseline": true
+      },
+      "expected": {
+        "raw_status": "true",
+        "status_diagnostic": "unrecognized"
+      }
+    },
+    {
+      "name": "unexpected-string",
+      "input": {
+        "baseline": "limited"
+      },
+      "expected": {
+        "raw_status": "\"limited\"",
+        "status_diagnostic": "unrecognized"
+      }
+    },
+    {
+      "name": "date-as-status",
+      "input": {
+        "baseline": "2020-01-15"
+      },
+      "expected": {
+        "raw_status": "\"2020-01-15\"",
+        "status_diagnostic": "unrecognized"
+      }
+    },
+    {
+      "name": "ordinary-limited",
+      "input": {
+        "baseline": false
+      },
+      "expected": {
+        "status": "limited",
+        "raw_status": "false"
+      }
+    },
+    {
+      "name": "newly-undated",
+      "input": {
+        "baseline": "low"
+      },
+      "expected": {
+        "status": "newly",
+        "raw_status": "\"low\""
+      }
+    },
+    {
+      "name": "widely-undated",
+      "input": {
+        "baseline": "high"
+      },
+      "expected": {
+        "status": "widely",
+        "raw_status": "\"high\""
+      }
+    },
+    {
+      "name": "malformed-dates",
+      "input": {
+        "baseline": "high",
+        "baseline_low_date": "garbage",
+        "baseline_high_date": "2021-02-29"
+      },
+      "expected": {
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "garbage"
+        },
+        "high_date": {
+          "raw": "2021-02-29"
+        }
+      }
+    },
+    {
+      "name": "both-milestones",
+      "input": {
+        "baseline": "high",
+        "baseline_low_date": "2020-01-15",
+        "baseline_high_date": "2022-07-15"
+      },
+      "expected": {
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "2020-01-15",
+          "date": "2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15",
+          "date": "2022-07-15"
+        }
+      }
+    },
+    {
+      "name": "newly-with-both-dates",
+      "input": {
+        "baseline": "low",
+        "baseline_low_date": "2020-01-15",
+        "baseline_high_date": "2022-07-15"
+      },
+      "expected": {
+        "status": "newly",
+        "raw_status": "\"low\"",
+        "low_date": {
+          "raw": "2020-01-15",
+          "date": "2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15",
+          "date": "2022-07-15"
+        }
+      }
+    },
+    {
+      "name": "qualified",
+      "input": {
+        "baseline": "high",
+        "baseline_low_date": "≤2020-01-15",
+        "baseline_high_date": "≈2022-07-15"
+      },
+      "expected": {
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "≤2020-01-15",
+          "date": "2020-01-15",
+          "qualifier": "before"
+        },
+        "high_date": {
+          "raw": "≈2022-07-15",
+          "date": "2022-07-15",
+          "qualifier": "approximately"
+        }
+      }
+    },
+    {
+      "name": "unknown-qualifier",
+      "input": {
+        "baseline": "low",
+        "baseline_low_date": "%2020-01-15",
+        "baseline_high_date": "2022-07-15extra"
+      },
+      "expected": {
+        "status": "newly",
+        "raw_status": "\"low\"",
+        "low_date": {
+          "raw": "%2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15extra"
+        }
+      }
+    },
+    {
+      "name": "invalid-date-types",
+      "input": {
+        "baseline": "low",
+        "baseline_low_date": null,
+        "baseline_high_date": true
+      },
+      "expected": {
+        "status": "newly",
+        "raw_status": "\"low\"",
+        "low_date": {
+          "raw": "null"
+        },
+        "high_date": {
+          "raw": "true"
+        }
+      }
+    },
+    {
+      "name": "empty-date",
+      "input": {
+        "baseline": "high",
+        "baseline_high_date": ""
+      },
+      "expected": {
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "high_date": {
+          "raw": ""
+        }
+      }
+    }
+  ],
+  "features": {
+    "svg": {
+      "kind": "feature",
+      "name": "SVG",
+      "compat_features": [
+        "svg.elements.rect",
+        "svg.elements.rect.width",
+        "svg.elements.rect.opacity",
+        "svg.elements.rect.height"
+      ],
+      "status": {
+        "baseline": "high",
+        "baseline_low_date": "2020-01-15",
+        "baseline_high_date": "2022-07-15",
+        "by_compat_key": {
+          "svg.elements.rect.width": {
+            "baseline": "low"
+          },
+          "svg.elements.rect.opacity": {},
+          "svg.elements.rect.height": {
+            "baseline": null
+          }
+        }
+      }
+    },
+    "legacy-svg": {
+      "kind": "feature",
+      "name": "Legacy SVG",
+      "compat_features": [
+        "svg.elements.legacy"
+      ],
+      "status": {
+        "baseline": false
+      },
+      "discouraged": {
+        "reason": "Use a modern SVG feature.",
+        "reason_html": "Use a <em>modern</em> SVG feature.",
+        "according_to": [
+          "https://example.com/retirement"
+        ],
+        "alternatives": [
+          "svg"
+        ],
+        "removal_date": "2027-01-01"
+      }
+    },
+    "ordinary-limited": {
+      "kind": "feature",
+      "name": "An ordinary limited feature",
+      "compat_features": [
+        "svg.elements.limited"
+      ],
+      "status": {
+        "baseline": false
+      }
+    },
+    "bcd-deprecated": {
+      "kind": "feature",
+      "name": "BCD deprecated example",
+      "compat_features": [
+        "svg.elements.deprecated"
+      ],
+      "status": {
+        "baseline": "high"
+      }
+    }
+  }
+}

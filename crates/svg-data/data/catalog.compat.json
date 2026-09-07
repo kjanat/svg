@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "browser_compat_data": {
     "name": "@mdn/browser-compat-data",
     "version": "8.0.13",
@@ -20,7 +20,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -39,7 +40,24 @@
           "supported": true,
           "version_added": "3.1"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.a.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.feImage.xlink_href",
@@ -49,7 +67,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -71,7 +90,24 @@
           "supported": true,
           "version_added": "6"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.feImage.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.filter.xlink_href",
@@ -82,7 +118,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -101,7 +138,24 @@
           "supported": true,
           "version_added": "6"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.filter.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.image.xlink_href",
@@ -111,7 +165,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -130,7 +185,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.image.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.linearGradient.xlink_href",
@@ -140,7 +212,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -159,7 +232,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.linearGradient.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.mpath.xlink_href",
@@ -169,7 +259,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -188,7 +279,24 @@
           "supported": true,
           "version_added": "6"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.mpath.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.pattern.xlink_href",
@@ -198,7 +306,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -217,7 +326,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.pattern.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.radialGradient.xlink_href",
@@ -227,7 +353,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -246,7 +373,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.radialGradient.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.script.xlink_href",
@@ -256,7 +400,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -275,7 +420,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.script.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.textPath.xlink_href",
@@ -285,7 +447,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -304,7 +467,24 @@
           "supported": true,
           "version_added": "3.1"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.textPath.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     },
     {
       "compat_key": "svg.elements.title.tooltip_display",
@@ -313,9 +493,16 @@
       "name": "tooltip_display",
       "standard_track": false,
       "baseline": {
-        "kind": "widely",
-        "since": 2022,
-        "qualifier": null
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "2020-01-15",
+          "date": "2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15",
+          "date": "2022-07-15"
+        }
       },
       "browser_support": {
         "chrome": {
@@ -343,7 +530,8 @@
       "name": "data_uri",
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -373,9 +561,16 @@
       "name": "external_uri",
       "standard_track": true,
       "baseline": {
-        "kind": "widely",
-        "since": 2018,
-        "qualifier": null
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "2015-11-12",
+          "date": "2015-11-12"
+        },
+        "high_date": {
+          "raw": "2018-05-12",
+          "date": "2018-05-12"
+        }
       },
       "browser_support": {
         "chrome": {
@@ -428,7 +623,8 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
-        "kind": "limited"
+        "status": "limited",
+        "raw_status": "false"
       },
       "browser_support": {
         "chrome": {
@@ -447,7 +643,24 @@
           "supported": true,
           "version_added": "3"
         }
-      }
+      },
+      "discouraged": [
+        {
+          "feature_id": "svg-discouraged",
+          "compat_key": "svg.elements.use.xlink_href",
+          "scope": "feature",
+          "feature_name": "SVG 1.1",
+          "reason": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "reason_html": "SVG 2 omittted some parts of SVG 1.1 to \"improv[e] the usability and precision of the language.\"",
+          "according_to": [
+            "https://w3c.github.io/svgwg/svg2-draft/changes.html#substantial"
+          ],
+          "alternatives": [
+            "svg",
+            "font-face"
+          ]
+        }
+      ]
     }
   ]
 }

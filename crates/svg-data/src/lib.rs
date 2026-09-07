@@ -6,6 +6,7 @@
 //! of that data for the SVG language server and linter: element/attribute
 //! lookups, content models, compatibility verdicts, and spec permalinks.
 
+pub mod compat_model;
 pub mod compat_parse;
 pub mod edition;
 pub mod inventory;
@@ -17,13 +18,13 @@ pub mod types;
 
 pub use types::{
     Animation, AttributeApplicability, AttributeDef, AttributeElementCompat,
-    AttributeElementValues, AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag,
-    BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge, CatalogGraphEdgeKind,
-    CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature, CompatSubfeatureKind,
-    CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind, CssGrammarGraph,
-    CssGrammarNode, CssGrammarNodeKind, ElementCategory, ElementDef, FeatureLifecycle,
-    ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata,
-    SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
+    AttributeElementValues, AttributeValues, BaselineDate, BaselineQualifier, BaselineStatus,
+    BaselineTier, BrowserFlag, BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge,
+    CatalogGraphEdgeKind, CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature,
+    CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind,
+    CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, Discouraged, ElementCategory, ElementDef,
+    FeatureLifecycle, ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle,
+    SnapshotMetadata, SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{
@@ -378,6 +379,7 @@ pub fn compat_verdict_for_element(
         experimental: element.experimental,
         standard_track: element.standard_track,
         baseline: element.baseline,
+        discouraged: element.discouraged,
         browser_support: element.browser_support,
     })
 }
@@ -536,12 +538,16 @@ fn compat_verdict_from_facts(facts: &CompatFacts) -> Option<CompatVerdict> {
     if facts.standard_track == Some(false) {
         reasons.push(VerdictReason::BcdNonStandard);
     }
-    match facts.baseline {
-        Some(BaselineStatus::Limited) => reasons.push(VerdictReason::BaselineLimited),
-        Some(BaselineStatus::Newly { since, qualifier }) => {
-            reasons.push(VerdictReason::BaselineNewly { since, qualifier });
+    match facts.baseline.and_then(|baseline| baseline.status) {
+        Some(BaselineTier::Limited) => reasons.push(VerdictReason::BaselineLimited),
+        Some(BaselineTier::Newly) => {
+            let date = facts.baseline.and_then(|baseline| baseline.low_date);
+            reasons.push(VerdictReason::BaselineNewly {
+                since: date.and_then(|date| date.year()),
+                qualifier: date.and_then(|date| date.qualifier),
+            });
         }
-        Some(BaselineStatus::Widely { .. }) | None => {}
+        Some(BaselineTier::Widely) | None => {}
     }
     if let Some(support) = facts.browser_support.as_ref() {
         collect_browser_reasons(&mut reasons, "chrome", support.chrome);
@@ -1112,7 +1118,11 @@ mod catalog_tests {
             standard_track: Some(false),
             animation: Animation::NotAnimatable,
             presentation_attribute: None,
-            baseline: Some(BaselineStatus::Limited),
+            baseline: Some(BaselineStatus {
+                status: Some(BaselineTier::Limited),
+                ..BaselineStatus::EMPTY
+            }),
+            discouraged: &[],
             browser_support: Some(BrowserSupport {
                 chrome: Some(BrowserVersion {
                     partial_implementation: true,
@@ -1163,10 +1173,11 @@ mod catalog_tests {
             standard_track: Some(true),
             animation: Animation::NotAnimatable,
             presentation_attribute: None,
-            baseline: Some(BaselineStatus::Widely {
-                since: 2020,
-                qualifier: None,
+            baseline: Some(BaselineStatus {
+                status: Some(BaselineTier::Widely),
+                ..BaselineStatus::EMPTY
             }),
+            discouraged: &[],
             browser_support: None,
             element_compat: &[],
             element_values: &[],
@@ -1188,8 +1199,8 @@ mod catalog_tests {
         assert_eq!(fetchpriority.standard_track, Some(false));
         assert!(fetchpriority.experimental);
         assert!(matches!(
-            fetchpriority.baseline,
-            Some(BaselineStatus::Limited)
+            fetchpriority.baseline.and_then(|baseline| baseline.status),
+            Some(BaselineTier::Limited)
         ));
         assert!(matches!(
             fetchpriority.applicability,

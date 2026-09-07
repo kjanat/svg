@@ -240,7 +240,7 @@
       }
     }
   },
-  "title": "svg-data tree-sitter catalog v1",
+  "title": "svg-data tree-sitter catalog v2",
   "description": "Tree-sitter-facing projection of parser facts from the canonical catalog.",
   "type": "object",
   "required": [
@@ -255,7 +255,7 @@
       "description": "Attribute-name buckets consumed by `grammars/tree-sitter-svg`."
     },
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "sources": {
       "$ref": "#/$defs/CatalogTreeSitterSources",

@@ -148,7 +148,7 @@
       ]
     }
   },
-  "title": "svg-data graph catalog v1",
+  "title": "svg-data graph catalog v2",
   "description": "Derived graph document.",
   "type": "object",
   "required": [
@@ -172,7 +172,7 @@
       }
     },
     "schema_version": {
-      "const": 1
+      "const": 2
     }
   }
 }

@@ -34,7 +34,7 @@ export function AttributesTable({ rows }: Props) {
 							</th>
 							<td class='scope-cell'>{formatScope(entry.elements)}</td>
 							<td>
-								<BaselineBadge baseline={entry.baseline} />
+								<BaselineBadge baseline={entry.baseline} discouraged={entry.discouraged} />
 							</td>
 							<td>
 								<BrowserSupport support={entry.browser_support} baselineStatus={entry.baseline?.status} />

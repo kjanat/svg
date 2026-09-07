@@ -523,51 +523,14 @@ impl AttributeApplicability {
     }
 }
 
-/// Inexactness qualifier on a baseline / version date.
-///
-/// # Examples
-///
-/// ```rust
-/// let qualifier = svg_data::BaselineQualifier::Approximately;
-/// assert_eq!(qualifier, svg_data::BaselineQualifier::Approximately);
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BaselineQualifier {
-    /// The date is an "on or before" upper bound.
-    Before,
-    /// The date is an "on or after" lower bound.
-    After,
-    /// The date is approximate.
-    Approximately,
-}
-
-/// Web-platform baseline status of a feature (the *browser-compat* axis).
-///
-/// # Examples
-///
-/// ```rust
-/// let status = svg_data::BaselineStatus::Widely { since: 2020, qualifier: None };
-/// assert!(matches!(status, svg_data::BaselineStatus::Widely { .. }));
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BaselineStatus {
-    /// Widely available across engines (since `since`).
-    Widely {
-        /// Year it reached widely-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<BaselineQualifier>,
-    },
-    /// Newly available (since `since`), not yet widely available.
-    Newly {
-        /// Year it reached newly-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<BaselineQualifier>,
-    },
-    /// Limited availability.
-    Limited,
-}
+/// Recognized Baseline tiers and date qualifiers.
+pub use crate::compat_model::{BaselineQualifier, BaselineTier};
+/// Generated Baseline facts, including raw input and both optional milestones.
+pub type BaselineStatus = crate::compat_model::Baseline<&'static str>;
+/// A retained full Baseline date in the generated catalog.
+pub type BaselineDate = crate::compat_model::BaselineDate<&'static str>;
+/// Feature-scoped `WebDX` discouragement in the generated catalog.
+pub type Discouraged = crate::compat_model::Discouraged<&'static str, &'static [&'static str]>;
 
 /// A runtime flag a browser gates a feature behind.
 ///
@@ -636,7 +599,7 @@ impl BrowserVersion {
     };
 }
 
-/// Per-browser support across the four tracked engines.
+/// Per-browser support for the four displayed desktop browser products.
 ///
 /// # Examples
 ///
@@ -679,6 +642,8 @@ pub struct CompatFacts {
     pub standard_track: Option<bool>,
     /// Web-platform baseline status, when known.
     pub baseline: Option<BaselineStatus>,
+    /// Feature-scoped `WebDX` advice, separate from BCD flags.
+    pub discouraged: &'static [Discouraged],
     /// Per-browser support data, when known.
     pub browser_support: Option<BrowserSupport>,
 }
@@ -690,6 +655,7 @@ impl CompatFacts {
         experimental: false,
         standard_track: None,
         baseline: None,
+        discouraged: &[],
         browser_support: None,
     };
 }
@@ -805,7 +771,7 @@ pub enum VerdictReason {
     /// Baseline is newly available.
     BaselineNewly {
         /// Year of newly-available baseline.
-        since: u16,
+        since: Option<u16>,
         /// Date-inexactness qualifier.
         qualifier: Option<BaselineQualifier>,
     },
@@ -901,6 +867,8 @@ pub struct ElementDef {
     pub standard_track: Option<bool>,
     /// Web-platform baseline status, when known.
     pub baseline: Option<BaselineStatus>,
+    /// Feature-scoped `WebDX` advice, separate from BCD flags.
+    pub discouraged: &'static [Discouraged],
     /// Per-browser support data, when known.
     pub browser_support: Option<BrowserSupport>,
     /// Structural child-content model.
@@ -941,6 +909,8 @@ pub struct AttributeDef {
     pub presentation_attribute: Option<&'static str>,
     /// Web-platform baseline status, when known.
     pub baseline: Option<BaselineStatus>,
+    /// Feature-scoped `WebDX` advice, separate from BCD flags.
+    pub discouraged: &'static [Discouraged],
     /// Per-browser support data, when known.
     pub browser_support: Option<BrowserSupport>,
     /// Element-scoped compat facts for this attribute.
@@ -1009,6 +979,7 @@ impl AttributeDef {
             experimental: self.experimental,
             standard_track: self.standard_track,
             baseline: self.baseline,
+            discouraged: self.discouraged,
             browser_support: self.browser_support,
         }
     }

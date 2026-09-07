@@ -9,7 +9,6 @@
  *
  * @module
  */
-// @ts-nocheck Deno
 
 import type { SvgCompatSources } from '#src/sources.ts';
 
@@ -40,43 +39,34 @@ export interface BaselineDate {
 	 *
 	 * - `"before"`        — `≤` / `<` / `<=`
 	 * - `"after"`         — `≥` / `>` / `>=`
-	 * - `"approximately"` — `~`, OR any unknown prefix that we
-	 *   recognised as "non-empty but not in our known set". Unknown
-	 *   prefixes also trigger a one-time warning so future schema
-	 *   changes can't slip through unnoticed.
+	 * - `"approximately"` — `~` / `≈`. Unknown prefixes retain only raw input.
 	 */
 	qualifier?: 'before' | 'after' | 'approximately';
 }
 
-/** Web-platform baseline status resolved from the `web-features` dataset. */
+/** Imported Baseline facts. Unknown and missing statuses have no recognized tier. */
 export interface Baseline {
-	/** Baseline tier: widely available, newly available, or limited support. */
-	status: 'widely' | 'newly' | 'limited';
-	/**
-	 * Set when the upstream `baseline` value was something other
-	 * than `false` / `"high"` / `"low"`. The original value is
-	 * preserved here verbatim so it is never lost; `status` falls
-	 * back to `"limited"` (safest visual default) and a `warnOnce`
-	 * is fired so an operator can investigate.
-	 */
+	status?: 'widely' | 'newly' | 'limited';
+	/** Original upstream baseline field encoded as JSON, preserving invalid types. */
 	raw_status?: string;
-	/**
-	 * Year derived from `high_date.date` when status is `"widely"`,
-	 * from `low_date.date` when `"newly"`. Convenience field for the
-	 * baseline badge; downstream consumers can recompute it from the
-	 * date sub-objects if they need finer precision.
-	 */
-	since?: number;
-	/**
-	 * Mirror of the qualifier on whichever date `since` was derived
-	 * from, so the badge can render `≤2021` without reaching into
-	 * the date sub-object.
-	 */
-	since_qualifier?: BaselineDate['qualifier'];
-	/** When the feature first reached baseline (low tier). */
+	status_diagnostic?: 'missing' | 'unrecognized';
+	/** Optional Newly Available milestone, including raw malformed input. */
 	low_date?: BaselineDate;
-	/** When the feature reached baseline high tier. */
+	/** Optional Widely Available milestone, including raw malformed input. */
 	high_date?: BaselineDate;
+}
+
+/** Whole-feature WebDX advice, separately scoped from Baseline and BCD flags. */
+export interface Discouraged {
+	feature_id: string;
+	compat_key: string;
+	scope: 'feature';
+	feature_name?: string;
+	reason: string;
+	reason_html?: string;
+	according_to: string[];
+	alternatives: string[];
+	removal_date?: string;
 }
 
 /**
@@ -215,6 +205,8 @@ export interface CompatEntry {
 	spec_url: string[];
 	/** Baseline status from web-features. */
 	baseline?: Baseline;
+	/** WebDX explanations retain their feature identity across attribute aggregation. */
+	discouraged?: Discouraged[];
 	/** Minimum browser versions from BCD. */
 	browser_support?: BrowserSupport;
 }
@@ -227,6 +219,8 @@ export interface AttributeEntry extends CompatEntry {
 
 /** Top-level JSON response shape served at `/data.json`. */
 export interface SvgCompatOutput {
+	/** Version of this output contract, independent of upstream package versions. */
+	schema_version: 2;
 	/** ISO timestamp of when this output was generated. */
 	generated_at: string;
 	/** Upstream package versions used to build this response. */

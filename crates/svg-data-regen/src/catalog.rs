@@ -255,6 +255,9 @@ pub struct CatalogElement {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -296,6 +299,9 @@ pub struct CatalogAttribute {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -711,39 +717,12 @@ pub enum CatalogCompatSubfeatureKind {
     LegacyXlinkAlias,
 }
 
-/// Web-platform baseline status of a feature.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CatalogBaselineStatus {
-    /// Widely available across engines.
-    Widely {
-        /// Year it reached widely-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<CatalogBaselineQualifier>,
-    },
-    /// Newly available, not yet widely available.
-    Newly {
-        /// Year it reached newly-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<CatalogBaselineQualifier>,
-    },
-    /// Limited availability.
-    Limited,
-}
-
-/// Inexactness qualifier on a baseline / version date.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CatalogBaselineQualifier {
-    /// The date is an "on or before" upper bound.
-    Before,
-    /// The date is an "on or after" lower bound.
-    After,
-    /// The date is approximate.
-    Approximately,
-}
+/// Full Baseline facts shared with runtime parsing.
+pub type CatalogBaselineStatus = crate::compat_model::Baseline;
+/// Known date/version qualifiers.
+pub use crate::compat_model::BaselineQualifier as CatalogBaselineQualifier;
+/// `WebDX` feature-scoped advice.
+pub type CatalogDiscouraged = crate::compat_model::Discouraged;
 
 /// Per-browser support across the four tracked engines.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -833,6 +812,9 @@ pub struct CatalogCompatFacts {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -1500,7 +1482,10 @@ fn build_element(
         deprecated: compat.is_some_and(|facts| facts.deprecated),
         experimental: compat.is_some_and(|facts| facts.experimental),
         standard_track: compat.and_then(|facts| facts.standard_track),
-        baseline: compat.and_then(|facts| facts.baseline),
+        baseline: compat.and_then(|facts| facts.baseline.clone()),
+        discouraged: compat
+            .map(|facts| facts.discouraged.clone())
+            .unwrap_or_default(),
         browser_support: compat.and_then(|facts| facts.browser_support.clone()),
         content_model,
         attrs,
@@ -1715,6 +1700,7 @@ fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat:
             animation: CatalogAnimation::NotAnimatable,
             presentation_attribute: None,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
             element_compat: Vec::new(),
             element_values: Vec::new(),
@@ -2177,6 +2163,7 @@ impl AttributeAccumulator {
             animation,
             presentation_attribute: self.presentation_attribute,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
             element_compat: Vec::new(),
             element_values,
@@ -2207,7 +2194,8 @@ impl CatalogAttribute {
         self.deprecated = facts.deprecated;
         self.experimental = facts.experimental;
         self.standard_track = facts.standard_track;
-        self.baseline = facts.baseline;
+        self.baseline.clone_from(&facts.baseline);
+        self.discouraged.clone_from(&facts.discouraged);
         self.browser_support.clone_from(&facts.browser_support);
     }
 

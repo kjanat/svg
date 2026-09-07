@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use svg_data::BaselineStatus;
+use svg_data::compat_model::{Baseline as BaselineStatus, Discouraged, merge_baseline};
 
 /// Runtime support state for a single browser.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,6 +27,7 @@ pub struct CompatOverride {
     pub experimental: bool,
     pub standard_track: Option<bool>,
     pub baseline: Option<BaselineStatus>,
+    pub discouraged: Vec<Discouraged>,
     pub browser_support: Option<RuntimeBrowserSupport>,
 }
 
@@ -289,6 +290,7 @@ fn compat_override(
             .pointer("/status/standard_track")
             .and_then(serde_json::Value::as_bool),
         baseline: svg_data::compat_parse::resolve_baseline(compat, wf_features, compat_key),
+        discouraged: svg_data::compat_model::resolve_discouraged(wf_features, compat_key),
         browser_support,
     }
 }
@@ -339,7 +341,12 @@ fn merge_compat_override(
                 existing.experimental = true;
             }
             merge_standard_track(&mut existing.standard_track, new_override.standard_track);
-            merge_baseline(&mut existing.baseline, new_override.baseline);
+            merge_baseline(&mut existing.baseline, new_override.baseline.clone());
+            for advice in &new_override.discouraged {
+                if !existing.discouraged.contains(advice) {
+                    existing.discouraged.push(advice.clone());
+                }
+            }
             if let Some(new_browser_support) = &new_override.browser_support {
                 merge_runtime_browser_support(&mut existing.browser_support, new_browser_support);
             }
@@ -350,24 +357,6 @@ fn merge_compat_override(
 const fn merge_standard_track(existing: &mut Option<bool>, new: Option<bool>) {
     if matches!(new, Some(false)) || existing.is_none() {
         *existing = new;
-    }
-}
-
-const fn merge_baseline(existing: &mut Option<BaselineStatus>, new: Option<BaselineStatus>) {
-    let Some(current) = *existing else {
-        *existing = new;
-        return;
-    };
-    let Some(new) = new else {
-        return;
-    };
-
-    let current_rank = baseline_rank(current);
-    let new_rank = baseline_rank(new);
-    if new_rank < current_rank
-        || (new_rank == current_rank && baseline_since(new) > baseline_since(current))
-    {
-        *existing = Some(new);
     }
 }
 
@@ -448,29 +437,14 @@ fn parse_browser_version(version: &str) -> Option<(bool, Vec<u32>)> {
     Some((upper_bound, parts))
 }
 
-const fn baseline_rank(baseline: BaselineStatus) -> u8 {
-    match baseline {
-        BaselineStatus::Limited => 0,
-        BaselineStatus::Newly { .. } => 1,
-        BaselineStatus::Widely { .. } => 2,
-    }
-}
-
-const fn baseline_since(baseline: BaselineStatus) -> u16 {
-    match baseline {
-        BaselineStatus::Widely { since, .. } | BaselineStatus::Newly { since, .. } => since,
-        BaselineStatus::Limited => 0,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
     use super::{
-        BaselineStatus, CompatOverride, RuntimeBrowserSupport, RuntimeBrowserVersion,
-        RuntimeCompat, apply_global_attribute_overrides, collect_element_attribute_overrides,
-        merge_baseline, merge_runtime_browser_support,
+        CompatOverride, RuntimeBrowserSupport, RuntimeBrowserVersion, RuntimeCompat,
+        apply_global_attribute_overrides, collect_element_attribute_overrides, merge_baseline,
+        merge_runtime_browser_support,
     };
 
     fn known(version: &str) -> RuntimeBrowserVersion {
@@ -483,6 +457,7 @@ mod tests {
             experimental,
             standard_track: None,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
         }
     }
@@ -503,6 +478,7 @@ mod tests {
                         experimental: true,
                         standard_track: Some(false),
                         baseline: None,
+                        discouraged: Vec::new(),
                         browser_support: None,
                     },
                 ),
@@ -537,34 +513,39 @@ mod tests {
     }
 
     #[test]
-    fn merge_baseline_prefers_worse_rank() {
-        let mut existing = Some(BaselineStatus::Widely {
-            since: 2020,
-            qualifier: None,
-        });
-        merge_baseline(&mut existing, Some(BaselineStatus::Limited));
-        assert_eq!(existing, Some(BaselineStatus::Limited));
-    }
-
-    #[test]
-    fn merge_baseline_tightens_equal_rank_year() {
-        let mut existing = Some(BaselineStatus::Newly {
-            since: 2024,
-            qualifier: None,
-        });
+    fn merge_baseline_keeps_known_tier_and_later_full_milestone() {
+        use svg_data::compat_model::parse_baseline;
+        let mut existing = parse_baseline(
+            &serde_json::json!({"baseline":"low", "baseline_low_date":"2025-01-01"}),
+        );
         merge_baseline(
             &mut existing,
-            Some(BaselineStatus::Newly {
-                since: 2025,
-                qualifier: None,
-            }),
+            parse_baseline(&serde_json::json!({"baseline":true})),
         );
         assert_eq!(
-            existing,
-            Some(BaselineStatus::Newly {
-                since: 2025,
-                qualifier: None
-            })
+            existing.as_ref().and_then(|b| b.status),
+            Some(svg_data::BaselineTier::Newly)
+        );
+        merge_baseline(
+            &mut existing,
+            parse_baseline(
+                &serde_json::json!({"baseline":"low", "baseline_low_date":"2025-06-01"}),
+            ),
+        );
+        assert_eq!(
+            existing
+                .as_ref()
+                .and_then(|b| b.low_date.as_ref())
+                .and_then(|d| d.date.as_deref()),
+            Some("2025-06-01")
+        );
+        merge_baseline(
+            &mut existing,
+            parse_baseline(&serde_json::json!({"baseline":false})),
+        );
+        assert_eq!(
+            existing.as_ref().and_then(|b| b.status),
+            Some(svg_data::BaselineTier::Limited)
         );
     }
 

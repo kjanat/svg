@@ -1,8 +1,8 @@
 use std::{fmt::Write as _, sync::LazyLock};
 
 use svg_data::{
-    BaselineQualifier, BaselineStatus, BrowserSupport, BrowserVersion, ProfileLookup,
-    SpecLifecycle, SpecSnapshotId,
+    BaselineQualifier, BaselineTier, BrowserSupport, BrowserVersion, ProfileLookup, SpecLifecycle,
+    SpecSnapshotId,
 };
 use tower_lsp_server::ls_types::Uri;
 use url::Url;
@@ -425,8 +425,16 @@ pub fn format_element_hover_with_profile(
     native: Option<&svg_data::profile::SvgNative>,
 ) -> String {
     let baseline = rt
-        .and_then(|r| r.baseline.as_ref())
-        .or(el.baseline.as_ref());
+        .and_then(|r| {
+            r.baseline
+                .as_ref()
+                .map(svg_data::compat_model::Baseline::as_ref)
+        })
+        .or_else(|| {
+            el.baseline
+                .as_ref()
+                .map(svg_data::compat_model::Baseline::as_ref)
+        });
     // The catalog-derived verdict is the single source of truth for
     // headline + status.
     let verdict = svg_data::compat_verdict_for_element(el, profile);
@@ -447,8 +455,13 @@ pub fn format_element_hover_with_profile(
         builder.status(status);
     }
 
-    if let Some(baseline) = baseline {
-        builder.baseline(format_baseline(*baseline));
+    if let Some(advice) = rt
+        .and_then(|r| format_discouraged(&r.discouraged))
+        .or_else(|| format_discouraged(el.discouraged))
+    {
+        builder.baseline(advice);
+    } else if let Some(baseline) = baseline {
+        builder.baseline(format_baseline(baseline));
     }
 
     if let Some(line) = format_browser_support_line(
@@ -540,7 +553,18 @@ fn format_attribute_hover_with_verdict(
     verdict: Option<&svg_data::CompatVerdict>,
 ) -> String {
     let facts = attr.compat_facts_for_element(element_name);
-    let baseline = rt.and_then(|r| r.baseline).or(facts.baseline);
+    let baseline = rt
+        .and_then(|r| {
+            r.baseline
+                .as_ref()
+                .map(svg_data::compat_model::Baseline::as_ref)
+        })
+        .or_else(|| {
+            facts
+                .baseline
+                .as_ref()
+                .map(svg_data::compat_model::Baseline::as_ref)
+        });
 
     let mut builder = CompatMarkdownBuilder::new();
 
@@ -564,7 +588,12 @@ fn format_attribute_hover_with_verdict(
 
     builder.value_constraints(value_constraints_lines(attr.values_for_profile(profile)));
 
-    if let Some(baseline) = baseline {
+    if let Some(advice) = rt
+        .and_then(|r| format_discouraged(&r.discouraged))
+        .or_else(|| format_discouraged(facts.discouraged))
+    {
+        builder.baseline(advice);
+    } else if let Some(baseline) = baseline {
         builder.baseline(format_baseline(baseline));
     }
 
@@ -863,29 +892,126 @@ const fn format_baseline_qualifier(qualifier: Option<BaselineQualifier>) -> &'st
     }
 }
 
-fn format_baseline(baseline: BaselineStatus) -> String {
-    match baseline {
-        BaselineStatus::Widely { since, qualifier } => {
-            let icon = &*BASELINE_HIGH;
-            let q = format_baseline_qualifier(qualifier);
-            format!(
-                "![Baseline icon]({icon}) _Widely available in major browsers (Baseline since \
-                 {q}{since})_"
-            )
-        }
-        BaselineStatus::Newly { since, qualifier } => {
-            let icon = &*BASELINE_LOW;
-            let q = format_baseline_qualifier(qualifier);
-            format!(
-                "![Baseline icon]({icon}) _Newly available in major browsers (Baseline since \
-                 {q}{since})_"
-            )
-        }
-        BaselineStatus::Limited => {
-            let icon = &*BASELINE_LIMITED;
-            format!("![Baseline icon]({icon}) _Limited availability in major browsers_")
+fn format_baseline(baseline: svg_data::compat_model::Baseline<&str>) -> String {
+    let since = baseline
+        .milestone()
+        .and_then(|date| {
+            date.year()
+                .map(|year| format!(" since {}{year}", format_baseline_qualifier(date.qualifier)))
+        })
+        .unwrap_or_default();
+    let mut line = match baseline.status {
+        Some(BaselineTier::Widely) => format!(
+            "![Baseline icon]({}) _Widely Available{since}_",
+            *BASELINE_HIGH
+        ),
+        Some(BaselineTier::Newly) => format!(
+            "![Baseline icon]({}) _Newly Available{since}_",
+            *BASELINE_LOW
+        ),
+        Some(BaselineTier::Limited) => format!(
+            "![Baseline icon]({}) _Limited availability_",
+            *BASELINE_LIMITED
+        ),
+        None => "_Baseline status unknown_".to_owned(),
+    };
+    if baseline.status.is_none() {
+        if let Some(raw) = baseline.raw_status {
+            let _ = write!(
+                line,
+                " (unrecognized upstream status: {})",
+                escape_metadata(raw)
+            );
+        } else {
+            line.push_str(" (upstream status missing)");
         }
     }
+    for (label, date) in [
+        ("Newly Available", baseline.low_date),
+        ("Widely Available", baseline.high_date),
+    ] {
+        if let Some(date) = date {
+            let text = date.date.map_or_else(
+                || format!("date not recognized (raw: {})", escape_metadata(date.raw)),
+                |parsed| format!("{}{parsed}", format_baseline_qualifier(date.qualifier)),
+            );
+            let _ = write!(line, "\n\n{label} date: {text}");
+        }
+    }
+    line
+}
+
+fn format_discouraged<S: AsRef<str>, L: AsRef<[S]>>(
+    advice: &[svg_data::compat_model::Discouraged<S, L>],
+) -> Option<String> {
+    if advice.is_empty() {
+        return None;
+    }
+    Some(
+        advice
+            .iter()
+            .map(|item| {
+                let name = item
+                    .feature_name
+                    .as_ref()
+                    .map_or_else(|| item.feature_id.as_ref(), AsRef::as_ref);
+                let mut text = format!(
+                    "**WebDX discourages {}**\n\n{}\n\nFeature scope: {} ({}).",
+                    escape_metadata(name),
+                    escape_metadata(item.reason.as_ref()),
+                    escape_metadata(item.feature_id.as_ref()),
+                    escape_metadata(item.compat_key.as_ref())
+                );
+                if !item.alternatives.as_ref().is_empty() {
+                    let _ = write!(
+                        text,
+                        "\n\nAlternatives: {}",
+                        item.alternatives
+                            .as_ref()
+                            .iter()
+                            .map(|id| escape_metadata(id.as_ref()))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                }
+                for reference in item.according_to.as_ref() {
+                    let url = reference.as_ref();
+                    let reference = if (url.starts_with("https://") || url.starts_with("http://"))
+                        && !url
+                            .chars()
+                            .any(|c| c.is_whitespace() || matches!(c, '<' | '>'))
+                    {
+                        format!("<{url}>")
+                    } else {
+                        escape_metadata(url)
+                    };
+                    let _ = write!(text, "\n\nSupporting reference: {reference}");
+                }
+                if let Some(date) = &item.removal_date {
+                    let _ = write!(
+                        text,
+                        "\n\nUpstream removal date: {}",
+                        escape_metadata(date.as_ref())
+                    );
+                }
+                text
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+    )
+}
+
+/// Upstream prose is text, never trusted Markdown or HTML.
+fn escape_metadata(text: &str) -> String {
+    text.chars()
+        .flat_map(|c| {
+            if c.is_ascii_punctuation() {
+                vec!['\\', c]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
 }
 
 /// Sub-bullet lines describing per-browser caveats the `format_browser_support_line`
@@ -1073,7 +1199,10 @@ fn format_verdict_reason(reason: svg_data::VerdictReason) -> String {
         svg_data::VerdictReason::BaselineLimited => "limited baseline".to_string(),
         svg_data::VerdictReason::BaselineNewly { since, qualifier } => {
             let glyph = format_baseline_qualifier(qualifier);
-            format!("newly available since {glyph}{since}")
+            since.map_or_else(
+                || "newly available".to_owned(),
+                |year| format!("newly available since {glyph}{year}"),
+            )
         }
         svg_data::VerdictReason::PartialImplementationIn(browser) => {
             format!("partial in {browser}")
@@ -1234,6 +1363,96 @@ fn runtime_browser_override<'a>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fixture_milestones_and_unknown_status_survive_runtime_hover()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../svg-data/src/fixtures/web-features.json"
+        ))?;
+        let element = svg_data::element("rect").ok_or("rect in catalog")?;
+        for case in fixture["cases"].as_array().ok_or("fixture cases")? {
+            let baseline = svg_data::compat_model::parse_baseline(&case["input"]);
+            let Some(baseline) = baseline else {
+                continue;
+            };
+            let baseline = serde_json::from_value(serde_json::to_value(baseline)?)?;
+            let runtime = super::CompatOverride {
+                deprecated: false,
+                experimental: false,
+                standard_track: None,
+                baseline: Some(baseline),
+                discouraged: Vec::new(),
+                browser_support: None,
+            };
+            let hover = super::format_element_hover_with_profile(
+                element,
+                svg_data::SpecSnapshotId::LATEST,
+                None,
+                Some(&runtime),
+                None,
+            );
+            let baseline = runtime.baseline.as_ref().ok_or("runtime baseline")?;
+            if baseline.status.is_none() {
+                assert!(
+                    hover.contains("Baseline status unknown"),
+                    "{}",
+                    case["name"]
+                );
+                assert!(!hover.contains("![Baseline icon]"), "{}", case["name"]);
+                assert!(!hover.contains("Limited availability"), "{}", case["name"]);
+            }
+            if case["name"] == "both-milestones" {
+                assert!(hover.contains("Widely Available since 2022"));
+                assert!(hover.contains("Newly Available date: 2020-01-15"));
+                assert!(hover.contains("Widely Available date: 2022-07-15"));
+                assert!(!hover.contains("Widely Available since 2020"));
+            }
+            if case["name"] == "newly-undated" {
+                assert!(hover.contains("_Newly Available_"));
+            }
+            if case["name"] == "malformed-dates" {
+                assert!(hover.contains("_Widely Available_"));
+                assert!(hover.contains("date not recognized"));
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn runtime_discouragement_surfaces_scope_references_and_alternatives()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../svg-data/src/fixtures/web-features.json"
+        ))?;
+        let features = Some(&fixture["features"]);
+        let runtime = super::CompatOverride {
+            deprecated: false,
+            experimental: false,
+            standard_track: None,
+            baseline: svg_data::compat_model::resolve_baseline(features, "svg.elements.legacy"),
+            discouraged: svg_data::compat_model::resolve_discouraged(
+                features,
+                "svg.elements.legacy",
+            ),
+            browser_support: None,
+        };
+        let element = svg_data::element("rect").ok_or("rect in catalog")?;
+        let hover = super::format_element_hover_with_profile(
+            element,
+            svg_data::SpecSnapshotId::LATEST,
+            None,
+            Some(&runtime),
+            None,
+        );
+        assert!(hover.contains("WebDX discourages Legacy SVG"));
+        assert!(hover.contains("Use a modern SVG feature"));
+        assert!(hover.contains("Feature scope:"));
+        assert!(hover.contains("https://example.com/retirement"));
+        assert!(hover.contains("Alternatives: svg"));
+        assert!(!hover.contains("![Baseline icon]"));
+        assert!(!hover.contains("deprecated"));
+        Ok(())
+    }
     use svg_data::ProfileLookup;
 
     use super::*;
@@ -1372,6 +1591,7 @@ mod tests {
             experimental,
             standard_track: None,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
         }
     }

@@ -1136,6 +1136,7 @@ dependencies = [
 name = "svg-data"
 version = "0.2.1"
 dependencies = [
+ "schemars",
  "serde",
  "serde_json",
  "ureq",

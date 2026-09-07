@@ -29,7 +29,7 @@ use crate::{
     catalog::{
         CatalogBaselineStatus, CatalogBrowserFlag, CatalogBrowserSupport, CatalogBrowserVersion,
         CatalogCompatFacts, CatalogCompatProvenance, CatalogCompatSubfeature,
-        CatalogCompatSubfeatureKind,
+        CatalogCompatSubfeatureKind, CatalogPackageSource,
     },
     fetch,
     npm::package_source,
@@ -85,6 +85,14 @@ impl CompatAttribute {
 pub fn fetch_compat_catalog() -> Fallible<CompatCatalog> {
     let bcd_source = package_source(BCD_PACKAGE, "data.json")?;
     let web_features_source = package_source(WEB_FEATURES_PACKAGE, "data.json")?;
+    fetch_compat_catalog_from_sources(bcd_source, web_features_source)
+}
+
+/// Reparse exact recorded packages, without upgrading metadata during a schema migration.
+pub fn fetch_compat_catalog_from_sources(
+    bcd_source: CatalogPackageSource,
+    web_features_source: CatalogPackageSource,
+) -> Fallible<CompatCatalog> {
     let bcd_json: Value =
         serde_json::from_str(&fetch::url_text(&bcd_source.url, "application/json")?)?;
     let web_features_json: Value = serde_json::from_str(&fetch::url_text(
@@ -217,6 +225,7 @@ fn facts_from_compat(
             .pointer("/status/standard_track")
             .and_then(Value::as_bool),
         baseline: resolve_baseline(web_features, compat_key),
+        discouraged: crate::compat_model::resolve_discouraged(web_features, compat_key),
         browser_support: browser_support_from_compat(compat),
     }
 }
@@ -380,45 +389,7 @@ fn resolve_baseline(
     web_features: Option<&Value>,
     compat_key: &str,
 ) -> Option<CatalogBaselineStatus> {
-    let feature = web_feature_for_compat_key(web_features?, compat_key)?;
-    let status = feature
-        .get("status")?
-        .get("by_compat_key")
-        .and_then(Value::as_object)
-        .and_then(|by_key| by_key.get(compat_key))
-        .or_else(|| feature.get("status"))?;
-    baseline_status_from_web_features(status)
-}
-
-fn web_feature_for_compat_key<'a>(web_features: &'a Value, compat_key: &str) -> Option<&'a Value> {
-    web_features.as_object()?.values().find(|feature| {
-        feature
-            .get("compat_features")
-            .and_then(Value::as_array)
-            .is_some_and(|keys| keys.iter().any(|key| key.as_str() == Some(compat_key)))
-    })
-}
-
-fn baseline_status_from_web_features(status: &Value) -> Option<CatalogBaselineStatus> {
-    match status.get("baseline")? {
-        Value::String(value) if value == "high" => {
-            let date = status.get("baseline_high_date")?.as_str()?;
-            year_from_date(date).map(|since| CatalogBaselineStatus::Widely {
-                since,
-                qualifier: parse_version_qualifier(date),
-            })
-        }
-        Value::String(value) if value == "low" => {
-            let date = status.get("baseline_low_date")?.as_str()?;
-            year_from_date(date).map(|since| CatalogBaselineStatus::Newly {
-                since,
-                qualifier: parse_version_qualifier(date),
-            })
-        }
-        Value::String(value) if value == "limited" => Some(CatalogBaselineStatus::Limited),
-        Value::Bool(false) => Some(CatalogBaselineStatus::Limited),
-        _ => None,
-    }
+    crate::compat_model::resolve_baseline(web_features, compat_key)
 }
 
 fn merge_element_compat_attribute(
@@ -477,30 +448,14 @@ fn merge_compat_facts(existing: &mut CatalogCompatFacts, new: CatalogCompatFacts
     }
     existing.deprecated |= new.deprecated;
     existing.experimental |= new.experimental;
-    merge_baseline(&mut existing.baseline, new.baseline);
+    crate::compat_model::merge_baseline(&mut existing.baseline, new.baseline);
+    for advice in new.discouraged {
+        if !existing.discouraged.contains(&advice) {
+            existing.discouraged.push(advice);
+        }
+    }
     if let Some(new_support) = new.browser_support {
         merge_browser_support(&mut existing.browser_support, new_support);
-    }
-}
-
-const fn merge_baseline(
-    existing: &mut Option<CatalogBaselineStatus>,
-    new: Option<CatalogBaselineStatus>,
-) {
-    let Some(current) = *existing else {
-        *existing = new;
-        return;
-    };
-    let Some(new) = new else {
-        return;
-    };
-
-    let current_rank = baseline_rank(current);
-    let new_rank = baseline_rank(new);
-    if new_rank < current_rank
-        || (new_rank == current_rank && baseline_since(new) > baseline_since(current))
-    {
-        *existing = Some(new);
     }
 }
 
@@ -607,33 +562,6 @@ fn parse_browser_version(version: &str) -> Option<(bool, Vec<u32>)> {
         .collect::<Result<Vec<u32>, _>>()
         .ok()?;
     Some((upper_bound, parts))
-}
-
-const fn baseline_rank(baseline: CatalogBaselineStatus) -> u8 {
-    match baseline {
-        CatalogBaselineStatus::Limited => 0,
-        CatalogBaselineStatus::Newly { .. } => 1,
-        CatalogBaselineStatus::Widely { .. } => 2,
-    }
-}
-
-const fn baseline_since(baseline: CatalogBaselineStatus) -> u16 {
-    match baseline {
-        CatalogBaselineStatus::Widely { since, .. }
-        | CatalogBaselineStatus::Newly { since, .. } => since,
-        CatalogBaselineStatus::Limited => 0,
-    }
-}
-
-fn year_from_date(date: &str) -> Option<u16> {
-    let date = date
-        .strip_prefix('\u{2264}')
-        .or_else(|| date.strip_prefix('\u{2265}'))
-        .or_else(|| date.strip_prefix("<="))
-        .or_else(|| date.strip_prefix(">="))
-        .or_else(|| date.strip_prefix('~'))
-        .unwrap_or(date);
-    date.get(..4)?.parse().ok()
 }
 
 fn bcd_attribute_name(name: &str) -> Option<String> {
@@ -743,10 +671,9 @@ mod tests {
 
         assert_eq!(
             resolve_baseline(Some(&web_features), "svg.elements.rect.width"),
-            Some(CatalogBaselineStatus::Newly {
-                since: 2025,
-                qualifier: None
-            })
+            crate::compat_model::parse_baseline(
+                &serde_json::json!({"baseline":"low","baseline_low_date":"2025-01-01"})
+            )
         );
     }
 
@@ -770,10 +697,9 @@ mod tests {
 
         assert_eq!(
             resolve_baseline(Some(&web_features), "svg.elements.feGaussianBlur"),
-            Some(CatalogBaselineStatus::Widely {
-                since: 2021,
-                qualifier: Some(crate::catalog::CatalogBaselineQualifier::Before)
-            })
+            crate::compat_model::parse_baseline(
+                &serde_json::json!({"baseline":"high","baseline_high_date":"≤2021-04-02"})
+            )
         );
     }
 

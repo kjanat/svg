@@ -256,9 +256,10 @@ function browserTokens(entry: CompatEntry): string[] {
 
 function baselineTokens(entry: CompatEntry): string[] {
 	const baseline = entry.baseline;
-	if (!baseline) return [];
-	const tokens: string[] = [baseline.status];
-	if (baseline.since !== undefined) tokens.push(String(baseline.since));
+	if (!baseline) return (entry.discouraged ?? []).flatMap(item => ['discouraged', item.feature_id, item.reason, ...item.alternatives]);
+	const tokens: string[] = [baseline.status ?? 'unknown'];
+	for (const date of [baseline.low_date, baseline.high_date]) if (date?.date) tokens.push(date.date.slice(0, 4));
+	for (const advice of entry.discouraged ?? []) tokens.push('discouraged', advice.feature_id, advice.reason, ...advice.alternatives);
 	return tokens;
 }
 
