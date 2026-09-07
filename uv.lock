@@ -131,7 +131,7 @@ wheels = [
 
 [[package]]
 name = "tree-sitter-svg"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "grammars/tree-sitter-svg" }
 
 [package.optional-dependencies]
@@ -191,7 +191,7 @@ ts = [{ name = "tree-sitter", specifier = "~=0.25" }]
 
 [[package]]
 name = "tree-sitter-svg-paint"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "grammars/tree-sitter-svg-paint" }
 
 [package.optional-dependencies]
@@ -251,7 +251,7 @@ ts = [{ name = "tree-sitter", specifier = "~=0.25" }]
 
 [[package]]
 name = "tree-sitter-svg-path"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "grammars/tree-sitter-svg-path" }
 
 [package.optional-dependencies]
@@ -311,7 +311,7 @@ ts = [{ name = "tree-sitter", specifier = "~=0.25" }]
 
 [[package]]
 name = "tree-sitter-svg-transform"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "grammars/tree-sitter-svg-transform" }
 
 [package.optional-dependencies]

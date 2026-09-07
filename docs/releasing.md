@@ -2,7 +2,7 @@
 
 ## Routine release flow
 
-1. Ensure `bun` is installed locally.
+1. Ensure `bun` and `uv` are installed locally.
 2. After a catalog refresh, run `bun run codegen` in `grammars/tree-sitter-svg`
    so `grammar.json` matches `catalog.tree-sitter.json`.
 3. Run `just release-local <version>`.
@@ -66,8 +66,9 @@ it must be a scope the publishing npm account owns.
 ## Notes
 
 - `just release-local <version>` updates the workspace version in `Cargo.toml`,
-  runs local checks, creates the release commit, and creates the local
-  `v<version>` tag. It depends on `bun` for the helper script.
+  refreshes `Cargo.lock`, `bun.lock`, and `uv.lock`, runs local checks, creates
+  the release commit, and creates the local `v<version>` tag. It depends on
+  `bun` for the helper script and `uv` for the Python workspace lockfile.
 - `just release-config-check` validates `distribution/npm/targets.json`
   invariants and syntax-checks the workflow scripts; `just release-preview`
   prints the build matrix.
