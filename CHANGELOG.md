@@ -14,6 +14,8 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-07
+
 ### Added
 
 - Generate `import_map.json` with `importmapify` from resolved `bun.lock`
@@ -21,6 +23,10 @@ When bumping the workspace version after a catalog refresh:
 
 ### Changed
 
+- Refresh the bundled catalog to `@mdn/browser-compat-data` 8.0.13,
+  `web-features` 3.36.0, `@webref/css` 8.7.3, and svgwg `c403ca4`; synchronize
+  the generated grammar metadata with the refreshed catalog
+- Pin the Rust nightly toolchain to 2026-08-21 to avoid a clippy compiler crash
 - Pin the namespace resolution of XHTML metadata elements inside SVG with
   regression coverage: `{http://www.w3.org/1999/xhtml}link` and
   `{http://www.w3.org/1999/xhtml}meta` are foreign content whether bound by
@@ -35,6 +41,8 @@ When bumping the workspace version after a catalog refresh:
   text, so a foreign-namespace `title`, `style`, `script` or `a` (typically
   XHTML inside `foreignObject`) is no longer documented or completed as the
   same-named SVG element
+- Correct the Baseline icons' aspect ratio and document their third-party
+  license and attribution
 
 ## [0.2.0] - 2026-08-18
 
@@ -214,7 +222,8 @@ When bumping the workspace version after a catalog refresh:
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
 
-[Unreleased]: https://github.com/kjanat/svg/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/kjanat/svg/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/kjanat/svg/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/kjanat/svg/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/kjanat/svg/compare/v0.1.0...v0.1.1
