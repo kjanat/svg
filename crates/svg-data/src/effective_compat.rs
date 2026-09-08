@@ -1,6 +1,6 @@
 //! Effective records use owned strings so refreshed data and baked data follow the same path.
 use crate::compat_model::{Baseline, BaselineDate, Discouraged};
-use crate::{BaselineQualifier, BaselineTier, CompatVerdict, VerdictReason, VerdictRecommendation};
+use crate::{BaselineTier, CompatVerdict, VerdictReason, VerdictRecommendation};
 
 /// All compatibility dimensions for one element or attribute context.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -15,57 +15,11 @@ pub struct Facts {
     pub baseline: Option<Baseline>,
     /// Feature-scoped `WebDX` advice.
     pub discouraged: Vec<Discouraged>,
-    /// Complete BCD browser details.
+    /// All BCD browser products and support statements.
     pub browser_support: Option<BrowserSupport>,
 }
-/// Owned `BrowserFlag` facts from the selected source.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct BrowserFlag {
-    /// Upstream flag category, when available.
-    pub kind: Option<String>,
-    /// Required flag value, when available.
-    pub value_to_set: Option<String>,
-    /// Flag/preference name.
-    pub name: String,
-}
+use crate::browser_compat::{BrowserFlag, BrowserSupport, BrowserVersion};
 
-/// Owned `BrowserVersion` facts from the selected source.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct BrowserVersion {
-    /// Explicit support flag, when the data states one (`false` = unsupported).
-    pub supported: Option<bool>,
-    /// Whether support is partial.
-    pub partial_implementation: bool,
-    /// Upstream notes.
-    pub notes: Vec<String>,
-    /// Vendor prefix required, when any.
-    pub prefix: Option<String>,
-    /// Alternative name the browser ships under, when any.
-    pub alternative_name: Option<String>,
-    /// Runtime flags gating the feature.
-    pub flags: Vec<BrowserFlag>,
-    /// First version (`"15"`, `"≤37"`), when known.
-    pub version_added: Option<String>,
-    /// Qualifier on the added version's date inexactness.
-    pub version_qualifier: Option<BaselineQualifier>,
-    /// Version support was removed in, when any.
-    pub version_removed: Option<String>,
-    /// Qualifier on the removed version's date inexactness.
-    pub version_removed_qualifier: Option<BaselineQualifier>,
-}
-
-/// Owned `BrowserSupport` facts from the selected source.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct BrowserSupport {
-    /// Chrome support.
-    pub chrome: Option<BrowserVersion>,
-    /// Edge support.
-    pub edge: Option<BrowserVersion>,
-    /// Firefox support.
-    pub firefox: Option<BrowserVersion>,
-    /// Safari support.
-    pub safari: Option<BrowserVersion>,
-}
 impl From<crate::CompatFacts> for Facts {
     fn from(f: crate::CompatFacts) -> Self {
         Self {
@@ -73,6 +27,12 @@ impl From<crate::CompatFacts> for Facts {
             experimental: f.experimental,
             standard_track: f.standard_track,
             baseline: f.baseline.map(|b| Baseline {
+                support: b.support.map(|entries| {
+                    entries
+                        .iter()
+                        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                        .collect()
+                }),
                 status: b.status,
                 raw_status: b.raw_status.map(str::to_owned),
                 status_diagnostic: b.status_diagnostic,
@@ -94,7 +54,17 @@ impl From<crate::CompatFacts> for Facts {
                     removal_date: d.removal_date.map(str::to_owned),
                 })
                 .collect(),
-            browser_support: f.browser_support.map(Into::into),
+            browser_support: f.browser_support.map(|support| {
+                support
+                    .iter()
+                    .map(|(id, versions)| {
+                        (
+                            (*id).to_owned(),
+                            versions.iter().copied().map(Into::into).collect(),
+                        )
+                    })
+                    .collect()
+            }),
         }
     }
 }
@@ -105,22 +75,20 @@ fn owned_date(d: crate::BaselineDate) -> BaselineDate {
         qualifier: d.qualifier,
     }
 }
-impl From<crate::BrowserSupport> for BrowserSupport {
-    fn from(s: crate::BrowserSupport) -> Self {
-        Self {
-            chrome: s.chrome.map(Into::into),
-            edge: s.edge.map(Into::into),
-            firefox: s.firefox.map(Into::into),
-            safari: s.safari.map(Into::into),
-        }
-    }
-}
 impl From<crate::BrowserVersion> for BrowserVersion {
     fn from(v: crate::BrowserVersion) -> Self {
         Self {
-            supported: v.supported,
+            version_added: v.version_added.map(|v| match v {
+                crate::browser_compat::VersionAdded::Version(s) => {
+                    crate::browser_compat::VersionAdded::Version(s.to_owned())
+                }
+                crate::browser_compat::VersionAdded::Unsupported(v) => {
+                    crate::browser_compat::VersionAdded::Unsupported(v)
+                }
+            }),
             partial_implementation: v.partial_implementation,
             notes: v.notes.iter().map(|s| (*s).to_owned()).collect(),
+            impl_url: v.impl_url.iter().map(|s| (*s).to_owned()).collect(),
             prefix: v.prefix.map(str::to_owned),
             alternative_name: v.alternative_name.map(str::to_owned),
             flags: v
@@ -128,14 +96,12 @@ impl From<crate::BrowserVersion> for BrowserVersion {
                 .iter()
                 .map(|f| BrowserFlag {
                     name: f.name.to_owned(),
-                    kind: None,
-                    value_to_set: None,
+                    kind: f.kind,
+                    value_to_set: f.value_to_set.map(str::to_owned),
                 })
                 .collect(),
-            version_added: v.version_added.map(str::to_owned),
-            version_qualifier: v.version_qualifier,
             version_removed: v.version_removed.map(str::to_owned),
-            version_removed_qualifier: v.version_removed_qualifier,
+            version_last: v.version_last.map(str::to_owned),
         }
     }
 }
@@ -143,6 +109,15 @@ impl From<crate::BrowserVersion> for BrowserVersion {
 /// Derive every compatibility warning from one selected record.
 #[must_use]
 pub fn verdict(facts: &Facts) -> Option<CompatVerdict> {
+    verdict_for_browsers(facts, ["chrome", "edge", "firefox", "safari"])
+}
+
+/// Derive a presentation verdict for explicitly selected browser products.
+#[must_use]
+pub fn verdict_for_browsers<'a>(
+    facts: &Facts,
+    browsers: impl IntoIterator<Item = &'a str>,
+) -> Option<CompatVerdict> {
     let mut reasons = Vec::new();
     if facts.deprecated {
         reasons.push(VerdictReason::BcdDeprecated);
@@ -168,10 +143,15 @@ pub fn verdict(facts: &Facts) -> Option<CompatVerdict> {
         Some(BaselineTier::Widely) | None => {}
     }
     if let Some(support) = facts.browser_support.as_ref() {
-        collect_browser_reasons(&mut reasons, "chrome", support.chrome.as_ref());
-        collect_browser_reasons(&mut reasons, "edge", support.edge.as_ref());
-        collect_browser_reasons(&mut reasons, "firefox", support.firefox.as_ref());
-        collect_browser_reasons(&mut reasons, "safari", support.safari.as_ref());
+        for browser in browsers {
+            collect_browser_reasons(
+                &mut reasons,
+                browser,
+                support
+                    .get(browser)
+                    .and_then(|v| crate::browser_compat::select_statement(v)),
+            );
+        }
     }
     if reasons.is_empty() {
         return None;
@@ -186,32 +166,31 @@ pub fn verdict(facts: &Facts) -> Option<CompatVerdict> {
 
 fn collect_browser_reasons(
     reasons: &mut Vec<VerdictReason>,
-    browser: &'static str,
+    browser: &str,
     version: Option<&BrowserVersion>,
 ) {
     let Some(version) = version else {
         return;
     };
-    if version.supported == Some(false) {
-        reasons.push(VerdictReason::UnsupportedIn(browser));
+    if version.supported() == Some(false) {
+        reasons.push(VerdictReason::UnsupportedIn(browser.to_owned()));
     }
     if version.partial_implementation {
-        reasons.push(VerdictReason::PartialImplementationIn(browser));
+        reasons.push(VerdictReason::PartialImplementationIn(browser.to_owned()));
     }
     if let Some(prefix) = &version.prefix {
         reasons.push(VerdictReason::PrefixRequiredIn {
-            browser,
+            browser: browser.to_owned(),
             prefix: prefix.clone(),
         });
     }
     if !version.flags.is_empty() {
-        reasons.push(VerdictReason::BehindFlagIn(browser));
+        reasons.push(VerdictReason::BehindFlagIn(browser.to_owned()));
     }
     if let Some(version_removed) = &version.version_removed {
         reasons.push(VerdictReason::RemovedIn {
-            browser,
+            browser: browser.to_owned(),
             version: version_removed.clone(),
-            qualifier: version.version_removed_qualifier,
         });
     }
 }
@@ -242,5 +221,44 @@ const fn headline_for_recommendation(recommendation: VerdictRecommendation) -> &
         VerdictRecommendation::Caution => "use with care",
         VerdictRecommendation::Avoid => "avoid in new work",
         VerdictRecommendation::Forbid => "do not use",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn embedded_and_refreshed_statements_have_the_same_information()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::browser_compat::{FlagKind, VersionAdded};
+        let baked = crate::BrowserVersion {
+            version_added: Some(VersionAdded::Version("≤20")),
+            version_removed: Some("70"),
+            version_last: Some("69"),
+            prefix: Some("-webkit-"),
+            alternative_name: Some("oldFeature"),
+            partial_implementation: true,
+            notes: &["First caveat", "A <code>second</code> caveat"],
+            impl_url: &[
+                "https://example.com/implementation/1",
+                "https://example.com/implementation/2",
+            ],
+            flags: &[
+                crate::BrowserFlag {
+                    kind: FlagKind::Preference,
+                    name: "feature.enabled",
+                    value_to_set: Some("true"),
+                },
+                crate::BrowserFlag {
+                    kind: FlagKind::RuntimeFlag,
+                    name: "enable-feature",
+                    value_to_set: None,
+                },
+            ],
+        };
+        let raw = serde_json::from_str(include_str!("fixtures/browser-support.json"))?;
+        let support = crate::browser_compat::extract_browser_support(&raw).ok_or("support")?;
+        assert_eq!(BrowserVersion::from(baked), support["chrome"][0]);
+        Ok(())
     }
 }

@@ -1,0 +1,32 @@
+{
+  "support": {
+    "chrome": [
+      {
+        "version_added": "≤20",
+        "version_removed": "70",
+        "version_last": "69",
+        "prefix": "-webkit-",
+        "alternative_name": "oldFeature",
+        "flags": [
+          { "type": "preference", "name": "feature.enabled", "value_to_set": "true" },
+          { "type": "runtime_flag", "name": "enable-feature" }
+        ],
+        "impl_url": ["https://example.com/implementation/1", "https://example.com/implementation/2"],
+        "partial_implementation": true,
+        "notes": ["First caveat", "A <code>second</code> caveat"]
+      },
+      { "version_added": "80" }
+    ],
+    "safari_ios": { "version_added": "18.4", "impl_url": "https://example.com/ios", "notes": "Mobile caveat" },
+    "chrome_android": { "version_added": "80" },
+    "future_device": { "version_added": false },
+    "firefox": { "version_added": "preview" }
+  },
+  "status": {
+    "baseline": "high",
+    "support": { "chrome": "99", "safari_ios": "19" },
+    "by_compat_key": {
+      "svg.elements.rect": { "baseline": "low", "support": { "chrome": "80", "safari_ios": "18.4" } }
+    }
+  }
+}

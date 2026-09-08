@@ -321,7 +321,7 @@ Deno.test('renderHtml uses masked browser status glyphs', () => {
 				standard_track: true,
 				spec_url: [],
 				browser_support: {
-					chrome: { raw_value_added: '1', version_added: '1' },
+					chrome: [{ version_added: '1', flags: [], notes: [], impl_url: [], partial_implementation: false }],
 				},
 			},
 		},
@@ -363,7 +363,7 @@ Deno.test('renderHtml uses blue check tone for newly baseline', () => {
 				spec_url: [],
 				baseline: { status: 'newly', low_date: { raw: '2024-01-01', date: '2024-01-01' } },
 				browser_support: {
-					chrome: { raw_value_added: '127', version_added: '127' },
+					chrome: [{ version_added: '127', flags: [], notes: [], impl_url: [], partial_implementation: false }],
 				},
 			},
 		},
@@ -404,14 +404,13 @@ Deno.test('browser support preserves explicit false + ≤ qualifier on glyph-ori
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['glyph-orientation-horizontal'];
 	assertExists(attr.aggregate.browser_support);
-	assertEquals(attr.aggregate.browser_support?.chrome?.raw_value_added, false);
-	assertEquals(attr.aggregate.browser_support?.chrome?.supported, false);
-	assertEquals(attr.aggregate.browser_support?.firefox?.supported, false);
-	assertEquals(attr.aggregate.browser_support?.edge?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.[0]?.version_added, false);
 	assertExists(attr.aggregate.browser_support?.safari);
-	assertEquals(attr.aggregate.browser_support?.safari?.raw_value_added, '≤13.1');
-	assertEquals(attr.aggregate.browser_support?.safari?.version_added, '13.1');
-	assertEquals(attr.aggregate.browser_support?.safari?.version_qualifier, 'before');
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '≤13.1');
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '≤13.1');
 });
 
 Deno.test('browser support preserves font-width (Safari-only attribute)', async () => {
@@ -420,10 +419,10 @@ Deno.test('browser support preserves font-width (Safari-only attribute)', async 
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['font-width'];
 	assertExists(attr.aggregate.browser_support);
-	assertEquals(attr.aggregate.browser_support?.chrome?.supported, false);
-	assertEquals(attr.aggregate.browser_support?.firefox?.supported, false);
-	assertEquals(attr.aggregate.browser_support?.edge?.supported, false);
-	assertEquals(attr.aggregate.browser_support?.safari?.version_added, '18.4');
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '18.4');
 });
 
 Deno.test('dashboard surfaces new stat tiles for preserved signals', async () => {

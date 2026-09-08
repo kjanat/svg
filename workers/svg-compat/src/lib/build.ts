@@ -10,7 +10,7 @@
  * @module
  */
 
-import { getCompat, getRecordProperty, makeCompatEntry } from '#lib/parse.ts';
+import { getCompat, getRecordProperty, makeCompatEntry, selectBrowserStatement } from '#lib/parse.ts';
 import type { AttributeEntry, Baseline, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput, SvgCompatSnapshot } from '#lib/types.ts';
 import type { JsonRecord, LoadedSourceData } from '#src/sources.ts';
 import { isRecord, UpstreamSourceError } from '#src/sources.ts';
@@ -60,7 +60,9 @@ function baselineMilestone(baseline: Baseline): string {
 }
 
 function parseVersionParts(version: string): number[] | undefined {
-	const parts = version.split('.').map(Number);
+	const literal = version.match(/^(?:≤|≥|<=|>=|<|>|~|≈)?(\d+(?:\.\d+)*)$/)?.[1];
+	if (literal === undefined) return undefined;
+	const parts = literal.split('.').map(Number);
 	if (parts.some(Number.isNaN)) return undefined;
 	return parts;
 }
@@ -87,18 +89,16 @@ function compareVersionStrings(left: string, right: string): number {
  * Rank for cross-element merging. Higher = more restrictive = wins.
  * Rationale: an attribute shared across elements surfaces the
  * tightest support envelope. `false` (explicitly unsupported here)
- * trumps any concrete version; a concrete version trumps `true` /
- * `null` (which carry no version data).
+ * trumps any concrete version; a concrete version trumps unknown support.
  *
  * Two BrowserVersions with concrete string versions fall through to
  * a numeric compare on `version_added`.
  */
 function browserVersionRank(version: BrowserVersion): number {
-	const raw = version.raw_value_added;
+	const raw = version.version_added;
 	if (raw === false) return 4;
 	if (typeof raw === 'string') return 3;
-	if (raw === true) return 2;
-	if (raw === null) return 1;
+	if (raw === undefined) return 1;
 	return 0;
 }
 
@@ -114,10 +114,8 @@ function mergeBrowserVersion(
 	if (incomingRank < existingRank) return existing;
 	// Same rank. For concrete versions, compare numerically.
 	if (
-		typeof existing.raw_value_added === 'string'
-		&& typeof incoming.raw_value_added === 'string'
-		&& existing.version_added !== undefined
-		&& incoming.version_added !== undefined
+		typeof existing.version_added === 'string'
+		&& typeof incoming.version_added === 'string'
 	) {
 		return compareVersionStrings(incoming.version_added, existing.version_added) > 0
 			? incoming
@@ -126,17 +124,16 @@ function mergeBrowserVersion(
 	return existing;
 }
 
-function mergeBrowserSupport(
-	existing: BrowserSupport | undefined,
-	incoming: BrowserSupport,
-): BrowserSupport {
-	if (!existing) return { ...incoming };
-	return {
-		chrome: mergeBrowserVersion(existing.chrome, incoming.chrome),
-		edge: mergeBrowserVersion(existing.edge, incoming.edge),
-		firefox: mergeBrowserVersion(existing.firefox, incoming.firefox),
-		safari: mergeBrowserVersion(existing.safari, incoming.safari),
-	};
+function mergeBrowserSupport(existing: BrowserSupport | undefined, incoming: BrowserSupport): BrowserSupport {
+	const result = { ...existing };
+	for (const [id, history] of Object.entries(incoming)) {
+		// An aggregate is a summary. Keep the complete history of the more restrictive context;
+		// every context's own history remains available in attribute.contexts.
+		const previous = selectBrowserStatement(result[id]);
+		const next = selectBrowserStatement(history);
+		if (!result[id] || mergeBrowserVersion(previous, next) === next) result[id] = history;
+	}
+	return result;
 }
 
 /**

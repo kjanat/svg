@@ -53,7 +53,10 @@ pub enum BaselineDiagnostic {
 
 /// Baseline facts. A missing recognized status is never Limited availability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct Baseline<S = String> {
+pub struct Baseline<S = String, Support = std::collections::BTreeMap<S, S>> {
+    /// Web Features browser versions for this selected status, independent of BCD support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub support: Option<Support>,
     /// Recognized tier, independently of whether either date can be parsed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<BaselineTier>,
@@ -71,9 +74,10 @@ pub struct Baseline<S = String> {
     pub high_date: Option<BaselineDate<S>>,
 }
 
-impl<S> Baseline<S> {
+impl<S, Support> Baseline<S, Support> {
     /// No upstream facts or inferred tier.
     pub const EMPTY: Self = Self {
+        support: None,
         status: None,
         raw_status: None,
         status_diagnostic: None,
@@ -100,11 +104,12 @@ impl<S: AsRef<str>> BaselineDate<S> {
     }
 }
 
-impl<S: AsRef<str>> Baseline<S> {
+impl<S: AsRef<str>, Support> Baseline<S, Support> {
     /// Borrow either generated static facts or owned runtime facts uniformly.
     #[must_use]
-    pub fn as_ref(&self) -> Baseline<&str> {
+    pub fn as_ref(&self) -> Baseline<&str, &Support> {
         Baseline {
+            support: self.support.as_ref(),
             status: self.status,
             raw_status: self.raw_status.as_ref().map(AsRef::as_ref),
             status_diagnostic: self.status_diagnostic,
@@ -239,7 +244,10 @@ pub fn parse_baseline(status: &Value) -> Option<Baseline> {
     };
     let low_date = date("baseline_low_date");
     let high_date = date("baseline_high_date");
-    if raw.is_none() && low_date.is_none() && high_date.is_none() {
+    let support = status
+        .get("support")
+        .and_then(|s| serde_json::from_value(s.clone()).ok());
+    if raw.is_none() && low_date.is_none() && high_date.is_none() && support.is_none() {
         return None;
     }
     let tier = match raw {
@@ -249,6 +257,7 @@ pub fn parse_baseline(status: &Value) -> Option<Baseline> {
         _ => None,
     };
     Some(Baseline {
+        support,
         status: tier,
         raw_status: raw.map(Value::to_string),
         status_diagnostic: if tier.is_some() {

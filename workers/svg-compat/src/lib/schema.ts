@@ -78,6 +78,7 @@ export const SVG_COMPAT_SCHEMA = {
 				status_diagnostic: { enum: ['missing', 'unrecognized'] },
 				/* Original upstream baseline field encoded as JSON. */
 				raw_status: { type: 'string' },
+				support: { type: 'object', additionalProperties: { type: 'string' } },
 				low_date: { $ref: '#/$defs/baselineDate' },
 				high_date: { $ref: '#/$defs/baselineDate' },
 			},
@@ -112,54 +113,29 @@ export const SVG_COMPAT_SCHEMA = {
 		},
 		browserSupport: {
 			type: 'object',
-			additionalProperties: false,
-			properties: {
-				chrome: { $ref: '#/$defs/browserVersion' },
-				edge: { $ref: '#/$defs/browserVersion' },
-				firefox: { $ref: '#/$defs/browserVersion' },
-				safari: { $ref: '#/$defs/browserVersion' },
-			},
+			additionalProperties: { type: 'array', items: { $ref: '#/$defs/browserVersion' } },
 		},
 		browserVersion: {
 			type: 'object',
-			required: ['raw_value_added'],
 			additionalProperties: false,
+			required: ['flags', 'notes', 'impl_url', 'partial_implementation'],
 			properties: {
-				/* Literal upstream `version_added` value — always present. */
-				raw_value_added: {
-					anyOf: [
-						{ type: 'string' },
-						{ type: 'boolean' },
-						{ type: 'null' },
-					],
-				},
-				version_added: { type: 'string' },
-				version_qualifier: { enum: ['before', 'after', 'approximately'] },
-				supported: { type: 'boolean' },
+				version_added: { anyOf: [{ type: 'string' }, { const: false }] },
 				version_removed: { type: 'string' },
-				version_removed_qualifier: { enum: ['before', 'after', 'approximately'] },
+				version_last: { type: 'string' },
 				partial_implementation: { type: 'boolean' },
 				prefix: { type: 'string' },
 				alternative_name: { type: 'string' },
-				flags: {
-					type: 'array',
-					items: { $ref: '#/$defs/browserFlag' },
-				},
-				notes: {
-					type: 'array',
-					items: { type: 'string' },
-				},
+				flags: { type: 'array', items: { $ref: '#/$defs/browserFlag' } },
+				notes: { type: 'array', items: { type: 'string' } },
+				impl_url: { type: 'array', items: { type: 'string' } },
 			},
 		},
 		browserFlag: {
 			type: 'object',
 			required: ['type', 'name'],
 			additionalProperties: false,
-			properties: {
-				type: { type: 'string' },
-				name: { type: 'string' },
-				value_to_set: { type: 'string' },
-			},
+			properties: { type: { enum: ['preference', 'runtime_flag'] }, name: { type: 'string' }, value_to_set: { type: 'string' } },
 		},
 		compatEntry: COMPAT_ENTRY_SCHEMA,
 		attributeEntry: {

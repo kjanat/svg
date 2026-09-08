@@ -55,6 +55,16 @@
               "type": "null"
             }
           ]
+        },
+        "support": {
+          "description": "Web Features browser versions for this selected status, independent of BCD support.",
+          "type": [
+            "null",
+            "object"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -144,146 +154,98 @@
         }
       ]
     },
-    "CatalogBrowserFlag": {
-      "description": "A runtime flag a browser gates a feature behind.",
+    "BrowserFlag": {
+      "description": "A complete BCD flag declaration.",
       "type": "object",
       "required": [
-        "name"
+        "name",
+        "type"
       ],
       "properties": {
         "name": {
-          "description": "Flag/preference name.",
+          "description": "Flag or preference name.",
           "type": "string"
-        }
-      }
-    },
-    "CatalogBrowserSupport": {
-      "description": "Per-browser support across the four tracked engines.",
-      "type": "object",
-      "properties": {
-        "chrome": {
-          "description": "Chrome support.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CatalogBrowserVersion"
-            },
-            {
-              "type": "null"
-            }
-          ]
         },
-        "edge": {
-          "description": "Edge support.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CatalogBrowserVersion"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "type": {
+          "$ref": "#/$defs/FlagKind",
+          "description": "Required upstream category."
         },
-        "firefox": {
-          "description": "Firefox support.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CatalogBrowserVersion"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "safari": {
-          "description": "Safari support.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CatalogBrowserVersion"
-            },
-            {
-              "type": "null"
-            }
+        "value_to_set": {
+          "description": "Required setting value, if supplied.",
+          "type": [
+            "null",
+            "string"
           ]
         }
       }
     },
-    "CatalogBrowserVersion": {
-      "description": "Baked support detail for one browser.",
+    "BrowserVersion": {
+      "description": "One complete support statement. Collections normalize upstream singleton/array forms.",
       "type": "object",
       "properties": {
         "alternative_name": {
-          "description": "Alternative name the browser ships under, when any.",
+          "description": "Name used by this implementation.",
           "type": [
             "null",
             "string"
           ]
         },
         "flags": {
-          "description": "Runtime flags gating the feature.",
+          "description": "All flag declarations.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/CatalogBrowserFlag"
+            "$ref": "#/$defs/BrowserFlag"
+          }
+        },
+        "impl_url": {
+          "description": "Implementation tracking links.",
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         },
         "notes": {
-          "description": "Upstream notes.",
+          "description": "Original upstream notes, with HTML retained as data.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "partial_implementation": {
-          "description": "Whether support is partial.",
+          "description": "Whether mandatory behavior is missing.",
+          "default": false,
           "type": "boolean"
         },
         "prefix": {
-          "description": "Vendor prefix required, when any.",
+          "description": "Required prefix.",
           "type": [
             "null",
             "string"
-          ]
-        },
-        "supported": {
-          "description": "Explicit support flag, when the data states one (`false` = unsupported).",
-          "type": [
-            "boolean",
-            "null"
           ]
         },
         "version_added": {
-          "description": "First version (`\"15\"`, `\"<=37\"`), when known.",
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "version_qualifier": {
-          "description": "Qualifier on the added version's date inexactness.",
+          "description": "Upstream version union. Absent/null/invalid input remains unknown.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BaselineQualifier"
+              "$ref": "#/$defs/VersionAdded"
             },
             {
               "type": "null"
             }
+          ]
+        },
+        "version_last": {
+          "description": "Last version with support.",
+          "type": [
+            "null",
+            "string"
           ]
         },
         "version_removed": {
-          "description": "Version support was removed in, when any.",
+          "description": "First version without support, retaining its qualifier.",
           "type": [
             "null",
             "string"
-          ]
-        },
-        "version_removed_qualifier": {
-          "description": "Qualifier on the removed version's date inexactness.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BaselineQualifier"
-            },
-            {
-              "type": "null"
-            }
           ]
         }
       }
@@ -311,14 +273,16 @@
         },
         "browser_support": {
           "description": "Per-browser support data, when known.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CatalogBrowserSupport"
-            },
-            {
-              "type": "null"
+          "type": [
+            "null",
+            "object"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/BrowserVersion"
             }
-          ]
+          }
         },
         "compat_key": {
           "description": "Full BCD compat key, e.g. `svg.elements.use.data_uri`.",
@@ -477,6 +441,38 @@
           "description": "Advice applies to the named Web Features feature.",
           "type": "string",
           "const": "feature"
+        }
+      ]
+    },
+    "FlagKind": {
+      "description": "BCD's two flag categories.",
+      "oneOf": [
+        {
+          "description": "A browser preference.",
+          "type": "string",
+          "const": "preference"
+        },
+        {
+          "description": "A command-line/runtime flag.",
+          "type": "string",
+          "const": "runtime_flag"
+        }
+      ]
+    },
+    "Unsupported": {
+      "type": "boolean",
+      "const": false
+    },
+    "VersionAdded": {
+      "description": "BCD's `string | false` version value, including qualified versions and `preview`.",
+      "anyOf": [
+        {
+          "description": "Original version string.",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Unsupported",
+          "description": "Explicitly unsupported."
         }
       ]
     }

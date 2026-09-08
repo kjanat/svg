@@ -244,7 +244,7 @@ fn bcd_outcome(record: &Value) -> Outcome {
                     .map_or_else(|| std::slice::from_ref(v), Vec::as_slice);
                 statements.iter().any(|s| {
                     s.get("version_added")
-                        .is_none_or(|v| !v.is_boolean() && !v.is_string())
+                        .is_none_or(|v| v != false && !v.is_string())
                 })
             })
     });
@@ -285,7 +285,7 @@ fn resolve(
         facts.standard_track = record
             .and_then(|r| r.pointer("/status/standard_track"))
             .and_then(Value::as_bool);
-        facts.browser_support = record.and_then(svg_data::compat_parse::extract_browser_support);
+        facts.browser_support = record.and_then(svg_data::browser_compat::extract_browser_support);
         record.map_or(Outcome::Absent, bcd_outcome)
     } else if bcd.disabled {
         Outcome::Disabled
@@ -468,7 +468,7 @@ mod tests {
     fn context_bcd() -> Value {
         json!({"svg":{"elements":{
             "rect":{"width":{"__compat":{"mdn_url":"https://developer.mozilla.org/docs/Web/SVG/Attribute/width","status":{"deprecated":true},"support":{"chrome":{"version_added":false}}}}},
-            "svg":{"width":{"__compat":{"mdn_url":"https://developer.mozilla.org/docs/Web/SVG/Attribute/width","status":{"deprecated":false},"support":{"chrome":{"version_added":"120","notes":"fresh note","flags":[{"name":"new-flag"}],"version_removed":"130"}}}}}
+            "svg":{"width":{"__compat":{"mdn_url":"https://developer.mozilla.org/docs/Web/SVG/Attribute/width","status":{"deprecated":false},"support":{"chrome":{"version_added":"120","notes":"fresh note","flags":[{"type":"runtime_flag","name":"new-flag"}],"version_removed":"130"}}}}}
         },"global_attributes":{"width":{"__compat":{"status":{"experimental":true},"support":{"chrome":{"version_added":true}}}}}}})
     }
     fn context_wf() -> Value {
@@ -482,11 +482,14 @@ mod tests {
         Ok(crate::hover::format_attribute_hover_with_profile_name(
             svg_data::attribute("width").ok_or("width")?,
             "width",
-            Some(element),
-            svg_data::SpecSnapshotId::LATEST,
-            None,
-            Some(record),
-            None,
+            crate::hover::AttributeHoverContext {
+                element_name: Some(element),
+                profile: svg_data::SpecSnapshotId::LATEST,
+                profile_lifecycle: None,
+                rt: Some(record),
+                native: None,
+                settings: &crate::hover_settings::HoverSettings::default(),
+            },
         ))
     }
     #[test]
@@ -628,7 +631,8 @@ mod tests {
             .facts
             .browser_support
             .as_ref()
-            .and_then(|s| s.chrome.as_ref())
+            .and_then(|s| s.get("chrome"))
+            .and_then(|v| svg_data::browser_compat::select_statement(v))
             .ok_or("chrome")?;
         assert_eq!(browser.notes, ["fresh note"]);
         assert_eq!(browser.version_removed.as_deref(), Some("130"));
@@ -636,7 +640,7 @@ mod tests {
         assert!(
             verdict
                 .reasons
-                .contains(&svg_data::VerdictReason::BehindFlagIn("chrome"))
+                .contains(&svg_data::VerdictReason::BehindFlagIn("chrome".to_owned()))
         );
         assert!(verdict.reasons.iter().any(
             |r| matches!(r,svg_data::VerdictReason::RemovedIn {version,..} if version=="130")
@@ -684,6 +688,7 @@ mod tests {
                 None,
                 Some(&record),
                 None,
+                &crate::hover_settings::HoverSettings::default(),
             );
             assert_eq!(hover.contains("limited baseline"), limited);
             assert_eq!(hover.contains("Widely Available"), !limited);
@@ -748,9 +753,10 @@ mod tests {
                 .facts
                 .browser_support
                 .as_ref()
-                .and_then(|s| s.chrome.as_ref())
+                .and_then(|s| s.get("chrome"))
+                .and_then(|v| svg_data::browser_compat::select_statement(v))
                 .ok_or("chrome")?
-                .supported,
+                .supported(),
             None
         );
         Ok(())
@@ -780,23 +786,25 @@ mod tests {
     }
     #[test]
     fn browser_refresh_removes_old_notes_flags_prefixes_and_removal_reasons() -> TestResult {
-        use svg_data::effective_compat::{BrowserFlag, BrowserSupport, BrowserVersion};
+        use svg_data::browser_compat::{BrowserFlag, BrowserSupport, BrowserVersion};
         let old = Facts {
-            browser_support: Some(BrowserSupport {
-                chrome: Some(BrowserVersion {
-                    supported: Some(true),
-                    version_added: Some("40".to_owned()),
+            browser_support: Some(BrowserSupport::from([(
+                "chrome".to_owned(),
+                vec![BrowserVersion {
+                    version_added: Some(svg_data::browser_compat::VersionAdded::Version(
+                        "40".to_owned(),
+                    )),
                     version_removed: Some("60".to_owned()),
                     prefix: Some("-old-".to_owned()),
                     notes: vec!["obsolete note".to_owned()],
                     flags: vec![BrowserFlag {
                         name: "old-flag".to_owned(),
-                        ..Default::default()
+                        kind: svg_data::browser_compat::FlagKind::Preference,
+                        value_to_set: None,
                     }],
                     ..Default::default()
-                }),
-                ..Default::default()
-            }),
+                }],
+            )])),
             ..Default::default()
         };
         let bcd = source(

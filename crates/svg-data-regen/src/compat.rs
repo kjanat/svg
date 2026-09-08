@@ -17,23 +17,18 @@
 //! [bcd]: https://unpkg.com/@mdn/browser-compat-data/data.json
 //! [webfeatures]: https://unpkg.com/web-features/data.json
 
-use std::{
-    collections::{BTreeMap, btree_map::Entry},
-    sync::LazyLock,
-};
+use std::collections::{BTreeMap, btree_map::Entry};
 
-use regex::{Captures, Regex};
 use serde_json::Value;
 
 use crate::{
     catalog::{
-        CatalogBaselineStatus, CatalogBrowserFlag, CatalogBrowserSupport, CatalogBrowserVersion,
-        CatalogCompatFacts, CatalogCompatProvenance, CatalogCompatSubfeature,
-        CatalogCompatSubfeatureKind, CatalogPackageSource,
+        CatalogBaselineStatus, CatalogBrowserSupport, CatalogCompatFacts, CatalogCompatProvenance,
+        CatalogCompatSubfeature, CatalogCompatSubfeatureKind, CatalogPackageSource,
     },
     fetch,
     npm::package_source,
-    util::{boxed, compile_regex, decode_html_entities, normalize_ws},
+    util::boxed,
 };
 
 const BCD_PACKAGE: &str = "@mdn/browser-compat-data";
@@ -231,158 +226,7 @@ fn facts_from_compat(
 }
 
 fn browser_support_from_compat(compat: &Value) -> Option<CatalogBrowserSupport> {
-    let support = compat.get("support")?.as_object()?;
-    let support = CatalogBrowserSupport {
-        chrome: support.get("chrome").and_then(browser_version_from_support),
-        edge: support.get("edge").and_then(browser_version_from_support),
-        firefox: support
-            .get("firefox")
-            .and_then(browser_version_from_support),
-        safari: support.get("safari").and_then(browser_version_from_support),
-    };
-    (!support.is_empty()).then_some(support)
-}
-
-fn browser_version_from_support(value: &Value) -> Option<CatalogBrowserVersion> {
-    if let Some(items) = value.as_array() {
-        let mut unsupported = None;
-        for item in items {
-            let Some(version) = browser_version_from_support_statement(item) else {
-                continue;
-            };
-            if version.supported == Some(false) {
-                unsupported.get_or_insert(version);
-            } else {
-                return Some(version);
-            }
-        }
-        return unsupported;
-    }
-    browser_version_from_support_statement(value)
-}
-
-fn browser_version_from_support_statement(value: &Value) -> Option<CatalogBrowserVersion> {
-    let version_added_value = value.get("version_added");
-    let supported = match version_added_value {
-        Some(Value::Bool(value)) => Some(*value),
-        Some(Value::String(_) | Value::Null) => Some(true),
-        _ => None,
-    };
-    let version_added = version_added_value
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let version_qualifier = version_added_value
-        .and_then(Value::as_str)
-        .and_then(parse_version_qualifier);
-    let version_removed = value
-        .get("version_removed")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let version_removed_qualifier = value
-        .get("version_removed")
-        .and_then(Value::as_str)
-        .and_then(parse_version_qualifier);
-    let partial_implementation = value
-        .get("partial_implementation")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let prefix = value
-        .get("prefix")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let alternative_name = value
-        .get("alternative_name")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let flags = browser_flags_from_value(value.get("flags"));
-    let notes = strings_from_value(value.get("notes"));
-
-    if supported.is_none()
-        && version_removed.is_none()
-        && !partial_implementation
-        && prefix.is_none()
-        && alternative_name.is_none()
-        && flags.is_empty()
-        && notes.is_empty()
-    {
-        return None;
-    }
-
-    Some(CatalogBrowserVersion {
-        supported,
-        partial_implementation,
-        notes,
-        prefix,
-        alternative_name,
-        flags,
-        version_added,
-        version_qualifier,
-        version_removed,
-        version_removed_qualifier,
-    })
-}
-
-fn parse_version_qualifier(version: &str) -> Option<crate::catalog::CatalogBaselineQualifier> {
-    if version.starts_with('\u{2264}') || version.starts_with("<=") {
-        Some(crate::catalog::CatalogBaselineQualifier::Before)
-    } else if version.starts_with('\u{2265}') || version.starts_with(">=") {
-        Some(crate::catalog::CatalogBaselineQualifier::After)
-    } else if version.starts_with('~') {
-        Some(crate::catalog::CatalogBaselineQualifier::Approximately)
-    } else {
-        None
-    }
-}
-
-fn browser_flags_from_value(value: Option<&Value>) -> Vec<CatalogBrowserFlag> {
-    let Some(flags) = value.and_then(Value::as_array) else {
-        return Vec::new();
-    };
-    let mut names: Vec<String> = flags
-        .iter()
-        .filter_map(|flag| flag.get("name").and_then(Value::as_str))
-        .map(str::to_owned)
-        .collect();
-    names.sort();
-    names.dedup();
-    names
-        .into_iter()
-        .map(|name| CatalogBrowserFlag { name })
-        .collect()
-}
-
-fn strings_from_value(value: Option<&Value>) -> Vec<String> {
-    match value {
-        Some(Value::String(value)) => vec![normalize_support_note(value)],
-        Some(Value::Array(values)) => values
-            .iter()
-            .filter_map(Value::as_str)
-            .map(normalize_support_note)
-            .collect(),
-        _ => Vec::new(),
-    }
-}
-
-static CODE_TAG_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex("(?is)<code>(.*?)</code>"));
-static ANCHOR_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
-    compile_regex("(?is)<a\\s+[^>]*href=(?:\"([^\"]*)\"|'([^']*)')[^>]*>(.*?)</a>")
-});
-static HTML_TAG_RE: LazyLock<Regex> = LazyLock::new(|| compile_regex("(?is)<[^>]+>"));
-
-fn normalize_support_note(note: &str) -> String {
-    let note = CODE_TAG_RE.replace_all(note, |captures: &Captures<'_>| {
-        format!("`{}`", captures.get(1).map_or("", |m| m.as_str()))
-    });
-    let note = ANCHOR_TAG_RE.replace_all(&note, |captures: &Captures<'_>| {
-        let href = captures
-            .get(1)
-            .or_else(|| captures.get(2))
-            .map_or("", |m| m.as_str());
-        let label = captures.get(3).map_or("", |m| m.as_str());
-        format!("[{label}]({href})")
-    });
-    let note = HTML_TAG_RE.replace_all(&note, "");
-    normalize_ws(decode_html_entities(&note).as_ref())
+    crate::browser_compat::extract_browser_support(compat)
 }
 
 fn resolve_baseline(
@@ -459,109 +303,19 @@ fn merge_compat_facts(existing: &mut CatalogCompatFacts, new: CatalogCompatFacts
     }
 }
 
-fn merge_browser_support(existing: &mut Option<CatalogBrowserSupport>, new: CatalogBrowserSupport) {
-    let Some(existing) = existing.as_mut() else {
-        *existing = Some(new);
-        return;
-    };
-    merge_browser_version(&mut existing.chrome, new.chrome);
-    merge_browser_version(&mut existing.edge, new.edge);
-    merge_browser_version(&mut existing.firefox, new.firefox);
-    merge_browser_version(&mut existing.safari, new.safari);
-}
-
-fn merge_browser_version(
-    existing: &mut Option<CatalogBrowserVersion>,
-    new: Option<CatalogBrowserVersion>,
+fn merge_browser_support(
+    existing: &mut Option<CatalogBrowserSupport>,
+    incoming: CatalogBrowserSupport,
 ) {
-    let Some(new) = new else {
-        return;
-    };
-    let Some(existing) = existing.as_mut() else {
-        *existing = Some(new);
-        return;
-    };
-    if new.supported == Some(false) {
-        *existing = new;
-        return;
-    }
-    if existing.supported == Some(false) {
-        return;
-    }
-    existing.partial_implementation |= new.partial_implementation;
-    append_missing_strings(&mut existing.notes, new.notes);
-    if existing.prefix.is_none() {
-        existing.prefix = new.prefix;
-    }
-    if existing.alternative_name.is_none() {
-        existing.alternative_name = new.alternative_name;
-    }
-    append_missing_flags(&mut existing.flags, new.flags);
-    merge_later_version(&mut existing.version_added, new.version_added);
-    merge_later_version(&mut existing.version_removed, new.version_removed);
-}
-
-fn append_missing_strings(existing: &mut Vec<String>, new: Vec<String>) {
-    for value in new {
-        if !existing.contains(&value) {
-            existing.push(value);
+    let existing = existing.get_or_insert_default();
+    for (browser, statements) in incoming {
+        let current = existing.entry(browser).or_default();
+        for statement in statements {
+            if !current.contains(&statement) {
+                current.push(statement);
+            }
         }
     }
-}
-
-fn append_missing_flags(existing: &mut Vec<CatalogBrowserFlag>, new: Vec<CatalogBrowserFlag>) {
-    for flag in new {
-        if !existing.iter().any(|existing| existing.name == flag.name) {
-            existing.push(flag);
-        }
-    }
-}
-
-fn merge_later_version(existing: &mut Option<String>, new: Option<String>) {
-    let Some(new) = new else {
-        return;
-    };
-    let Some(current) = existing.as_ref() else {
-        *existing = Some(new);
-        return;
-    };
-    if compare_browser_versions(&new, current).is_gt() {
-        *existing = Some(new);
-    }
-}
-
-fn compare_browser_versions(left: &str, right: &str) -> std::cmp::Ordering {
-    let Some((left_upper_bound, left_parts)) = parse_browser_version(left) else {
-        return std::cmp::Ordering::Equal;
-    };
-    let Some((right_upper_bound, right_parts)) = parse_browser_version(right) else {
-        return std::cmp::Ordering::Equal;
-    };
-
-    let max_len = left_parts.len().max(right_parts.len());
-    for idx in 0..max_len {
-        let left_part = left_parts.get(idx).copied().unwrap_or(0);
-        let right_part = right_parts.get(idx).copied().unwrap_or(0);
-        match left_part.cmp(&right_part) {
-            std::cmp::Ordering::Equal => {}
-            non_eq => return non_eq,
-        }
-    }
-
-    (!left_upper_bound).cmp(&!right_upper_bound)
-}
-
-fn parse_browser_version(version: &str) -> Option<(bool, Vec<u32>)> {
-    let (upper_bound, version) = version
-        .strip_prefix('\u{2264}')
-        .or_else(|| version.strip_prefix("<="))
-        .map_or((false, version), |version| (true, version));
-    let parts = version
-        .split('.')
-        .map(str::parse)
-        .collect::<Result<Vec<u32>, _>>()
-        .ok()?;
-    Some((upper_bound, parts))
 }
 
 fn bcd_attribute_name(name: &str) -> Option<String> {
@@ -603,53 +357,6 @@ fn canonical_attribute_name(name: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parses_support_statement_objective_fields() {
-        let support = serde_json::json!({
-            "version_added": "120",
-            "partial_implementation": true,
-            "prefix": "-webkit-",
-            "flags": [{ "name": "ExampleFlag" }],
-            "notes": ["one", "two"]
-        });
-
-        let Some(version) = browser_version_from_support_statement(&support) else {
-            panic!("support should parse");
-        };
-
-        assert_eq!(version.supported, Some(true));
-        assert_eq!(version.version_added.as_deref(), Some("120"));
-        assert!(version.partial_implementation);
-        assert_eq!(version.prefix.as_deref(), Some("-webkit-"));
-        assert_eq!(version.flags[0].name, "ExampleFlag");
-        assert_eq!(version.notes, ["one", "two"]);
-    }
-
-    #[test]
-    fn support_notes_are_normalized_from_html_to_markdown() {
-        let note = r#"This property is exposed but has no effect if the <code>browser.send_pings</code> preference is not set to <code>true</code>. See <a href="https://bugzil.la/951104">bug 951104</a>."#;
-
-        assert_eq!(
-            normalize_support_note(note),
-            "This property is exposed but has no effect if the `browser.send_pings` preference is not set to `true`. See [bug 951104](https://bugzil.la/951104)."
-        );
-    }
-
-    #[test]
-    fn support_arrays_prefer_supported_entries_over_false_entries() {
-        let support = serde_json::json!([
-            { "version_added": false },
-            { "version_added": "80" }
-        ]);
-
-        let Some(version) = browser_version_from_support(&support) else {
-            panic!("support should parse");
-        };
-
-        assert_eq!(version.supported, Some(true));
-        assert_eq!(version.version_added.as_deref(), Some("80"));
-    }
 
     #[test]
     fn resolves_baseline_by_compat_key_override() {

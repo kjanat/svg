@@ -45,7 +45,6 @@ export type {
 	SvgCompatOutput,
 	SvgCompatSnapshot,
 	SvgCompatSources,
-	VersionQualifier,
 } from '#lib';
 export { buildOutput, buildSnapshot, SVG_COMPAT_SCHEMA } from '#lib';
 

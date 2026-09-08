@@ -8,7 +8,15 @@
  */
 // @ts-nocheck Deno
 
-import { _resetLoggedWarnings, parseBaseline, parseBaselineDate, parseBrowserVersion } from '#lib/parse.ts';
+import { buildSnapshot } from '#lib/build.ts';
+import {
+	_resetLoggedWarnings,
+	extractBrowserSupport,
+	parseBaseline,
+	parseBaselineDate,
+	parseBrowserVersion,
+	selectBrowserStatement,
+} from '#lib/parse.ts';
 import type { BaselineDate } from '#lib/types.ts';
 import { assertEquals, assertExists } from '@std/assert';
 
@@ -130,44 +138,34 @@ Deno.test('parseBrowserVersion preserves concrete version string', () => {
 	_resetLoggedWarnings();
 	const got = parseBrowserVersion({ version_added: '50' }, 'chrome', 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.raw_value_added, '50');
 	assertEquals(got?.version_added, '50');
-	assertEquals(got?.version_qualifier, undefined);
-	assertEquals(got?.supported, undefined);
 });
 
 Deno.test('parseBrowserVersion extracts ≤ qualifier on version strings', () => {
 	_resetLoggedWarnings();
 	const got = parseBrowserVersion({ version_added: '≤50' }, 'chrome', 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.raw_value_added, '≤50');
-	assertEquals(got?.version_added, '50');
-	assertEquals(got?.version_qualifier, 'before');
+	assertEquals(got?.version_added, '≤50');
 });
 
 Deno.test('parseBrowserVersion preserves explicit false (the glyph-orientation-horizontal case)', () => {
 	_resetLoggedWarnings();
 	const got = parseBrowserVersion({ version_added: false }, 'chrome', 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.raw_value_added, false);
-	assertEquals(got?.supported, false);
-	assertEquals(got?.version_added, undefined);
+	assertEquals(got?.version_added, false);
 });
 
-Deno.test('parseBrowserVersion preserves true (supported, version unknown)', () => {
+Deno.test('parseBrowserVersion keeps invalid true neutral', () => {
 	_resetLoggedWarnings();
 	const got = parseBrowserVersion({ version_added: true }, 'chrome', 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.raw_value_added, true);
-	assertEquals(got?.supported, true);
+	assertEquals(got?.version_added, undefined);
 });
 
 Deno.test('parseBrowserVersion preserves null', () => {
 	_resetLoggedWarnings();
 	const got = parseBrowserVersion({ version_added: null }, 'chrome', 'test.fixture');
 	assertExists(got);
-	assertEquals(got?.raw_value_added, null);
-	assertEquals(got?.supported, undefined);
 	assertEquals(got?.version_added, undefined);
 });
 
@@ -180,8 +178,7 @@ Deno.test('parseBrowserVersion surfaces version_removed with qualifier', () => {
 	);
 	assertExists(got);
 	assertEquals(got?.version_added, '22');
-	assertEquals(got?.version_removed, '120');
-	assertEquals(got?.version_removed_qualifier, 'before');
+	assertEquals(got?.version_removed, '≤120');
 });
 
 Deno.test('parseBrowserVersion preserves partial_implementation, prefix, alternative_name', () => {
@@ -244,23 +241,68 @@ Deno.test('parseBrowserVersion validates flag shapes and drops malformed entries
 	});
 });
 
-Deno.test('parseBrowserVersion picks first statement from array form', () => {
-	_resetLoggedWarnings();
-	// BCD convention: array elements are most-recent first.
-	const got = parseBrowserVersion(
-		[
-			{ version_added: '80' },
-			{ version_added: '50', prefix: '-webkit-' },
-		],
-		'chrome',
-		'test.fixture',
-	);
-	assertExists(got);
-	assertEquals(got?.version_added, '80');
-	assertEquals(got?.prefix, undefined);
+Deno.test('browser histories retain old statements while selection chooses unrestricted support', () => {
+	const support = extractBrowserSupport({
+		support: {
+			chrome: [
+				{
+					version_added: '20',
+					version_removed: '70',
+					version_last: '69',
+					prefix: '-webkit-',
+					impl_url: ['https://example.com/1', 'https://example.com/2'],
+				},
+				{ version_added: '80' },
+			],
+			safari_ios: { version_added: '18.4' },
+			future_device: { version_added: false },
+		},
+	}, 'test.fixture');
+	assertEquals(support?.chrome.length, 2);
+	assertEquals(support?.chrome[0].version_last, '69');
+	assertEquals(support?.chrome[0].impl_url, ['https://example.com/1', 'https://example.com/2']);
+	assertEquals(selectBrowserStatement(support?.chrome)?.version_added, '80');
+	assertEquals(support?.safari_ios[0].version_added, '18.4');
+	assertEquals(support?.future_device[0].version_added, false);
 });
 
 Deno.test('parseBrowserVersion returns undefined only for truly absent data', () => {
 	_resetLoggedWarnings();
 	assertEquals(parseBrowserVersion(undefined, 'chrome', 'test.fixture'), undefined);
+});
+
+Deno.test('shared fixture preserves full browser facts and independently selected Web Features support', () => {
+	const fixture = JSON.parse(Deno.readTextFileSync(new URL('../../../../crates/svg-data/src/fixtures/browser-support.json', import.meta.url)));
+	const support = extractBrowserSupport(fixture, 'svg.elements.rect');
+	assertEquals(Object.keys(support ?? {}).length, 5);
+	assertEquals(support?.chrome.length, 2);
+	const original = support?.chrome[0];
+	assertEquals(original?.version_added, '≤20');
+	assertEquals(original?.version_last, '69');
+	assertEquals(original?.flags, fixture.support.chrome[0].flags);
+	assertEquals(original?.impl_url, fixture.support.chrome[0].impl_url);
+	assertEquals(original?.notes, fixture.support.chrome[0].notes);
+	assertEquals(selectBrowserStatement(support?.chrome)?.version_added, '80');
+	const baseline = parseBaseline(fixture.status.by_compat_key['svg.elements.rect'], 'svg.elements.rect');
+	assertEquals(baseline?.support, { chrome: '80', safari_ios: '18.4' });
+});
+
+Deno.test('attribute summaries compare qualified versions without losing exact histories', () => {
+	const context = (version: string) => ({
+		__compat: { support: { chrome: [{ version_added: '10', version_removed: '20' }, { version_added: version }] } },
+	});
+	const snapshot = buildSnapshot({
+		sources: {},
+		featureMap: {},
+		svgRoot: {
+			elements: {
+				rect: { width: context('≤50') },
+				svg: { width: context('60') },
+			},
+		},
+	});
+	const attribute = snapshot.attributes.width;
+	assertEquals(attribute.contexts['svg.elements.rect.width'].browser_support?.chrome[1].version_added, '≤50');
+	assertEquals(attribute.contexts['svg.elements.svg.width'].browser_support?.chrome.length, 2);
+	assertEquals(selectBrowserStatement(attribute.aggregate.browser_support?.chrome)?.version_added, '60');
 });

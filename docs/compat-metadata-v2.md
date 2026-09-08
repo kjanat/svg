@@ -132,7 +132,8 @@ displayed as unknown, separately from an explicit unsupported value.
 
 The Rust `effective_compat::Facts` model owns refreshed strings; generated
 catalog records convert into it for the shared verdict calculation.
-`VerdictReason` owns prefix and removal-version strings and is no longer `Copy`.
+`VerdictReason` owns browser IDs, prefixes and removal-version strings and is no
+longer `Copy`. Removal strings include their original qualifiers.
 `LintOverrides` and `VerdictOverrides` have `attribute_contexts` maps keyed by
 `(element, attribute)`, taking precedence over their common-attribute maps.
 `compat_sources()` exposes the bundled package identities.
@@ -140,6 +141,45 @@ catalog records convert into it for the shared verdict calculation.
 The worker builds from two successfully loaded packages. It does not manufacture
 a mixed-source output after a failed upstream load; the runtime fallback policy
 above belongs to the language server.
+
+## Browser support and presentation
+
+`browser_support` is now a map from every upstream product ID to an array of
+complete support statements. Desktop, mobile, embedded, retired and runtime
+products all survive extraction, as do future IDs. The array retains original
+statement order. Picking a current implementation happens during presentation.
+
+Statements retain BCD's `version_added` string-or-false union,
+`version_removed`, `version_last`, `prefix`, `alternative_name`,
+`partial_implementation`, all `notes`, all `impl_url` links, and flags with
+their required `type`, `name`, and optional `value_to_set`. Version strings
+retain their original qualifiers. Singleton notes and implementation links
+normalize to arrays without changing their contents. Missing or invalid added
+versions remain unknown. There are no duplicate `supported`, `raw_value_added`,
+or stored version-qualifier fields. Flag types are the upstream `preference` and
+`runtime_flag` categories.
+
+Rust generation and runtime refresh share `browser_compat.rs`. Static catalog
+facts use the same generic statement and flag definitions with borrowed strings
+and slices; refreshed facts use owned strings and collections. The worker uses
+BCD's published TypeScript field and flag types. Its schema describes the same
+normalized statement shape. Original HTML in notes stays in storage; the LSP
+extracts readable text and escapes Markdown during rendering.
+
+`baseline.support` retains Web Features' browser-version map independently of
+BCD. An exact `by_compat_key` override controls this map too, including an empty
+map. It never inherits missing products from the feature-wide summary.
+
+Worker attribute aggregates retain the history of the more restrictive observed
+context for each browser; `contexts` retain every context's own full history. An
+aggregate is still a project-derived summary, not an upstream statement.
+
+The hover defaults remain four desktop products and compact current support.
+Users can select products, sections, individual browser details and full history
+through
+[`svg.hover`](../crates/svg-language-server/README.md#hover-presentation). Hover
+preferences do not filter stored facts or change diagnostic policy. Template
+rendering is deferred.
 
 ## Regeneration and verification
 
@@ -150,7 +190,7 @@ cover the same fixtures, and a protocol test checks both dated milestones
 through the generated static catalog.
 
 To refresh compatibility metadata from the versions already recorded in
-`catalog.compat.json`, preserving specification-derived fields and BCD facts:
+`catalog.compat.json`, preserving specification-derived fields and package pins:
 
 ```sh
 cargo run -p svg-data-regen -- --refresh-compat

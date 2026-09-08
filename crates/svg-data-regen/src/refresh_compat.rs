@@ -1,5 +1,5 @@
 //! Migrate compatibility facts using the catalog's recorded package versions.
-//! Specification-derived fields and BCD facts remain unchanged.
+//! Specification-derived fields and source package versions remain unchanged.
 
 use std::path::Path;
 
@@ -122,6 +122,11 @@ fn replace_facts(value: &mut Value, facts: Option<&CatalogCompatFacts>) -> Falli
     let object = value
         .as_object_mut()
         .ok_or("catalog fact must be an object")?;
+    if let Some(support) = facts.and_then(|facts| facts.browser_support.as_ref()) {
+        object.insert("browser_support".to_owned(), serde_json::to_value(support)?);
+    } else {
+        object.shift_remove("browser_support");
+    }
     if let Some(baseline) = facts.and_then(|facts| facts.baseline.as_ref()) {
         object.insert("baseline".to_owned(), serde_json::to_value(baseline)?);
     } else {

@@ -850,11 +850,14 @@ pub fn reconcile_compat_items(
             let documentation = crate::hover::format_attribute_hover_with_profile_name(
                 value,
                 &item.label,
-                Some(owner),
-                profile,
-                crate::hover::profile_lifecycle_hover_line(profile, &lookup),
-                rt,
-                None,
+                crate::hover::AttributeHoverContext {
+                    element_name: Some(owner),
+                    profile,
+                    profile_lifecycle: crate::hover::profile_lifecycle_hover_line(profile, &lookup),
+                    rt,
+                    native: None,
+                    settings: &crate::hover_settings::HoverSettings::default(),
+                },
             );
             (facts, lifecycle, value.description, documentation)
         } else {
@@ -877,6 +880,7 @@ pub fn reconcile_compat_items(
                 crate::hover::profile_lifecycle_hover_line(profile, &lookup),
                 rt,
                 None,
+                &crate::hover_settings::HoverSettings::default(),
             );
             (facts, lifecycle, value.description, documentation)
         };

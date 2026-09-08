@@ -917,11 +917,11 @@ fn emit_verdict_hints(
 
     for reason in &verdict.reasons {
         match reason {
-            VerdictReason::PartialImplementationIn(browser) => partial.push(*browser),
+            VerdictReason::PartialImplementationIn(browser) => partial.push(browser.as_str()),
             VerdictReason::PrefixRequiredIn { browser, prefix: p } => {
                 prefix.push(format!("{browser} (`{p}`)"));
             }
-            VerdictReason::BehindFlagIn(browser) => flagged.push(*browser),
+            VerdictReason::BehindFlagIn(browser) => flagged.push(browser.as_str()),
             _ => {}
         }
     }

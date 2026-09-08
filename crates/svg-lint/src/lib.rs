@@ -914,7 +914,7 @@ mod tests {
         let verdict = svg_data::CompatVerdict {
             recommendation: svg_data::VerdictRecommendation::Caution,
             headline_template: "behind a flag",
-            reasons: vec![svg_data::VerdictReason::BehindFlagIn("chrome")],
+            reasons: vec![svg_data::VerdictReason::BehindFlagIn("chrome".to_owned())],
         };
 
         let mut attributes = std::collections::HashMap::new();

@@ -526,102 +526,37 @@ impl AttributeApplicability {
 /// Recognized Baseline tiers and date qualifiers.
 pub use crate::compat_model::{BaselineQualifier, BaselineTier};
 /// Generated Baseline facts, including raw input and both optional milestones.
-pub type BaselineStatus = crate::compat_model::Baseline<&'static str>;
+pub type BaselineStatus =
+    crate::compat_model::Baseline<&'static str, &'static [(&'static str, &'static str)]>;
 /// A retained full Baseline date in the generated catalog.
 pub type BaselineDate = crate::compat_model::BaselineDate<&'static str>;
 /// Feature-scoped `WebDX` discouragement in the generated catalog.
 pub type Discouraged = crate::compat_model::Discouraged<&'static str, &'static [&'static str]>;
 
-/// A runtime flag a browser gates a feature behind.
-///
-/// # Examples
-///
-/// ```rust
-/// let flag = svg_data::BrowserFlag { name: "layout.css.example.enabled" };
-/// assert_eq!(flag.name, "layout.css.example.enabled");
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BrowserFlag {
-    /// Flag/preference name.
-    pub name: &'static str,
-}
-
-/// Baked support detail for one browser (the *browser-compat* axis).
-///
-/// # Examples
-///
-/// ```rust
-/// let version = svg_data::BrowserVersion {
-///     version_added: Some("1"),
-///     ..svg_data::BrowserVersion::EMPTY
-/// };
-/// assert_eq!(version.version_added, Some("1"));
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BrowserVersion {
-    /// Explicit support flag, when the data states one (`false` = unsupported).
-    pub supported: Option<bool>,
-    /// Whether support is partial.
-    pub partial_implementation: bool,
-    /// Upstream notes.
-    pub notes: &'static [&'static str],
-    /// Vendor prefix required, when any.
-    pub prefix: Option<&'static str>,
-    /// Alternative name the browser ships under, when any.
-    pub alternative_name: Option<&'static str>,
-    /// Runtime flags gating the feature.
-    pub flags: &'static [BrowserFlag],
-    /// First version (`"15"`, `"≤37"`), when known.
-    pub version_added: Option<&'static str>,
-    /// Qualifier on the added version's date inexactness.
-    pub version_qualifier: Option<BaselineQualifier>,
-    /// Version support was removed in, when any.
-    pub version_removed: Option<&'static str>,
-    /// Qualifier on the removed version's date inexactness.
-    pub version_removed_qualifier: Option<BaselineQualifier>,
-}
+/// A complete embedded BCD flag declaration.
+pub type BrowserFlag = crate::browser_compat::BrowserFlag<&'static str>;
+/// A complete embedded BCD support statement.
+pub type BrowserVersion = crate::browser_compat::BrowserVersion<
+    &'static str,
+    &'static [&'static str],
+    &'static [BrowserFlag],
+>;
+/// Every embedded browser product and its original support history.
+pub type BrowserSupport = &'static [(&'static str, &'static [BrowserVersion])];
 
 impl BrowserVersion {
-    /// An empty support record: support state unknown, no version, no caveats.
-    /// A base for spreading (`..BrowserVersion::EMPTY`) when only a field or two
-    /// is known.
+    /// Unknown support with no supplied details.
     pub const EMPTY: Self = Self {
-        supported: None,
-        partial_implementation: false,
-        notes: &[],
+        version_added: None,
+        version_removed: None,
+        version_last: None,
         prefix: None,
         alternative_name: None,
         flags: &[],
-        version_added: None,
-        version_qualifier: None,
-        version_removed: None,
-        version_removed_qualifier: None,
+        impl_url: &[],
+        partial_implementation: false,
+        notes: &[],
     };
-}
-
-/// Per-browser support for the four displayed desktop browser products.
-///
-/// # Examples
-///
-/// ```rust
-/// let support = svg_data::BrowserSupport {
-///     chrome: Some(svg_data::BrowserVersion::EMPTY),
-///     edge: None,
-///     firefox: None,
-///     safari: None,
-/// };
-/// assert!(support.chrome.is_some());
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BrowserSupport {
-    /// Chrome support.
-    pub chrome: Option<BrowserVersion>,
-    /// Edge support.
-    pub edge: Option<BrowserVersion>,
-    /// Firefox support.
-    pub firefox: Option<BrowserVersion>,
-    /// Safari support.
-    pub safari: Option<BrowserVersion>,
 }
 
 /// Objective browser-compat facts for one catalog feature.
@@ -776,26 +711,24 @@ pub enum VerdictReason {
         qualifier: Option<BaselineQualifier>,
     },
     /// A browser ships a partial implementation.
-    PartialImplementationIn(&'static str),
+    PartialImplementationIn(String),
     /// A browser needs a vendor prefix.
     PrefixRequiredIn {
         /// Browser identifier.
-        browser: &'static str,
+        browser: String,
         /// Required prefix literal.
         prefix: String,
     },
     /// A browser gates the feature behind a flag.
-    BehindFlagIn(&'static str),
+    BehindFlagIn(String),
     /// A browser reports no support.
-    UnsupportedIn(&'static str),
+    UnsupportedIn(String),
     /// A browser removed support at a version.
     RemovedIn {
         /// Browser identifier.
-        browser: &'static str,
+        browser: String,
         /// Version support was removed in.
         version: String,
-        /// Qualifier on the removal version's date inexactness.
-        qualifier: Option<BaselineQualifier>,
     },
 }
 

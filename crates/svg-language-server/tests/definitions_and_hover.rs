@@ -759,3 +759,69 @@ fn svg_namespace_element_still_hovers() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn hover_browser_selection_and_sections_update_without_restarting() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(&json!({"svg": {
+        "runtime_compat": false,
+        "hover": {"browsers": ["safari_ios", "chrome_android", "safari_ios"], "sections": ["browsers"]}
+    }}))?;
+    let source = r#"<svg><rect width="10" /></svg>"#;
+    let uri = "file:///hover-settings.svg";
+    server.open(uri, source)?;
+    let element_pos = u32::try_from(source.find("rect").ok_or("rect")?)?;
+    let attribute_pos = u32::try_from(source.find("width").ok_or("width")?)?;
+    let request =
+        |column| json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}});
+    for column in [element_pos, attribute_pos] {
+        let response = server.request("textDocument/hover", &request(column))?;
+        let text = response["result"]["contents"]["value"]
+            .as_str()
+            .ok_or("hover")?;
+        assert!(text.contains("Safari on iOS"), "{text}");
+        assert!(text.contains("Chrome for Android"), "{text}");
+        assert_eq!(text.matches("Safari on iOS").count(), 1, "{text}");
+        assert!(
+            text.find("Safari on iOS") < text.find("Chrome for Android"),
+            "{text}"
+        );
+        for hidden in [
+            "Edge",
+            "Firefox",
+            "Baseline",
+            "MDN Reference",
+            "Status:",
+            "Value:",
+        ] {
+            assert!(!text.contains(hidden), "{hidden}: {text}");
+        }
+    }
+    server
+        .change_configuration(&json!({"svg":{"runtime_compat":false,"hover":{"browsers":42}}}))?;
+    let invalid_response = server.request("textDocument/hover", &request(element_pos))?;
+    let previous = invalid_response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("retained hover")?;
+    assert!(previous.contains("Safari on iOS"), "{previous}");
+    assert!(!previous.contains("MDN Reference"), "{previous}");
+    server.change_configuration(&json!({"svg":{"runtime_compat":false,"hover":{"browsers":[],"sections":["description","links"]}}}))?;
+    let response = server.request("textDocument/hover", &request(element_pos))?;
+    let text = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("changed hover")?;
+    assert!(text.contains("MDN Reference"), "{text}");
+    assert!(!text.contains("Safari on iOS"), "{text}");
+    assert!(!text.contains("Chrome"), "{text}");
+    // Removing svg.hover resets defaults, rather than keeping an old filter.
+    server.change_configuration(&json!({"svg":{"runtime_compat":false}}))?;
+    let response = server.request("textDocument/hover", &request(element_pos))?;
+    let text = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("default hover")?;
+    for browser in ["Chrome", "Edge", "Firefox", "Safari"] {
+        assert!(text.contains(browser), "{browser}: {text}");
+    }
+    assert!(!text.contains("Safari on iOS"), "{text}");
+    server.shutdown_and_exit()?;
+    Ok(())
+}

@@ -28,6 +28,9 @@
 //! [publish]: https://raw.githubusercontent.com/w3c/svgwg/master/publish.xml
 
 mod aria;
+#[path = "../../svg-data/src/browser_compat.rs"]
+#[allow(dead_code)]
+mod browser_compat;
 mod catalog;
 mod chapter;
 mod compat;

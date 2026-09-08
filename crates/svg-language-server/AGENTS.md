@@ -46,6 +46,11 @@ All read under the top-level `svg` key.
 | `svg.runtime_compat`    | bool   | `true`  | Opt-out gate for the unpkg BCD + web-features fetch. `false` keeps the session fully offline/private. |
 | `svg.svgwg_drift_check` | bool   | `false` | Opt-in W3C/svgwg staleness probe (contacts `api.w3.org` + `api.github.com`).                          |
 
+- `svg.hover` configures browser products, sections, detail fields and support
+  history. It applies at initialization and on configuration updates. See
+  `README.md#hover-presentation`; store all upstream support regardless of the
+  display filter. `src/hover_settings.rs` owns these presentation preferences.
+
 - `svg.runtime_compat=false` skips the `fetch_runtime_compat` spawn in
   `initialize`; hover and lint then use baked compat data only.
 - `svg.edition` precedence: an `svg.edition` block wins over `svg.profile`.

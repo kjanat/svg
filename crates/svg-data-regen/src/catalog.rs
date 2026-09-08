@@ -719,80 +719,11 @@ pub enum CatalogCompatSubfeatureKind {
 
 /// Full Baseline facts shared with runtime parsing.
 pub type CatalogBaselineStatus = crate::compat_model::Baseline;
-/// Known date/version qualifiers.
-pub use crate::compat_model::BaselineQualifier as CatalogBaselineQualifier;
 /// `WebDX` feature-scoped advice.
 pub type CatalogDiscouraged = crate::compat_model::Discouraged;
 
-/// Per-browser support across the four tracked engines.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserSupport {
-    /// Chrome support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chrome: Option<CatalogBrowserVersion>,
-    /// Edge support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edge: Option<CatalogBrowserVersion>,
-    /// Firefox support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firefox: Option<CatalogBrowserVersion>,
-    /// Safari support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub safari: Option<CatalogBrowserVersion>,
-}
-
-/// Baked support detail for one browser.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserVersion {
-    /// Explicit support flag, when the data states one (`false` = unsupported).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub supported: Option<bool>,
-    /// Whether support is partial.
-    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
-    pub partial_implementation: bool,
-    /// Upstream notes.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub notes: Vec<String>,
-    /// Vendor prefix required, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub prefix: Option<String>,
-    /// Alternative name the browser ships under, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alternative_name: Option<String>,
-    /// Runtime flags gating the feature.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub flags: Vec<CatalogBrowserFlag>,
-    /// First version (`"15"`, `"<=37"`), when known.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_added: Option<String>,
-    /// Qualifier on the added version's date inexactness.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_qualifier: Option<CatalogBaselineQualifier>,
-    /// Version support was removed in, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_removed: Option<String>,
-    /// Qualifier on the removed version's date inexactness.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_removed_qualifier: Option<CatalogBaselineQualifier>,
-}
-
-impl CatalogBrowserSupport {
-    /// Whether all tracked browser entries are absent.
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.chrome.is_none()
-            && self.edge.is_none()
-            && self.firefox.is_none()
-            && self.safari.is_none()
-    }
-}
-
-/// A runtime flag a browser gates a feature behind.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserFlag {
-    /// Flag/preference name.
-    pub name: String,
-}
+/// All browser products and complete support histories.
+pub type CatalogBrowserSupport = crate::browser_compat::BrowserSupport;
 
 /// Objective browser-compat facts for one catalog entry.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]

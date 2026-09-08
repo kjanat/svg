@@ -6,8 +6,8 @@
 //! of that data for the SVG language server and linter: element/attribute
 //! lookups, content models, compatibility verdicts, and spec permalinks.
 
+pub mod browser_compat;
 pub mod compat_model;
-pub mod compat_parse;
 /// Package name, version and URL for the compatibility facts bundled in this build.
 #[must_use]
 pub const fn compat_sources() -> &'static [(&'static str, &'static str, &'static str)] {
@@ -1038,18 +1038,22 @@ mod catalog_tests {
                 ..BaselineStatus::EMPTY
             }),
             discouraged: &[],
-            browser_support: Some(BrowserSupport {
-                chrome: Some(BrowserVersion {
-                    partial_implementation: true,
-                    ..BrowserVersion::EMPTY
-                }),
-                edge: None,
-                firefox: None,
-                safari: Some(BrowserVersion {
-                    prefix: Some("-webkit-"),
-                    ..BrowserVersion::EMPTY
-                }),
-            }),
+            browser_support: Some(&[
+                (
+                    "chrome",
+                    &[BrowserVersion {
+                        partial_implementation: true,
+                        ..BrowserVersion::EMPTY
+                    }],
+                ),
+                (
+                    "safari",
+                    &[BrowserVersion {
+                        prefix: Some("-webkit-"),
+                        ..BrowserVersion::EMPTY
+                    }],
+                ),
+            ]),
             element_compat: &[],
             element_values: &[],
             values: AttributeValues::FreeText,
@@ -1068,10 +1072,10 @@ mod catalog_tests {
         assert!(
             verdict
                 .reasons
-                .contains(&VerdictReason::PartialImplementationIn("chrome"))
+                .contains(&VerdictReason::PartialImplementationIn("chrome".to_owned()))
         );
         assert!(verdict.reasons.contains(&VerdictReason::PrefixRequiredIn {
-            browser: "safari",
+            browser: "safari".to_owned(),
             prefix: "-webkit-".to_owned()
         }));
     }
@@ -1162,7 +1166,7 @@ mod catalog_tests {
         assert!(
             text_path_verdict
                 .reasons
-                .contains(&VerdictReason::UnsupportedIn("chrome"))
+                .contains(&VerdictReason::UnsupportedIn("chrome".to_owned()))
         );
     }
 
@@ -1182,15 +1186,15 @@ mod catalog_tests {
         assert!(
             verdict
                 .reasons
-                .contains(&VerdictReason::UnsupportedIn("safari"))
+                .contains(&VerdictReason::UnsupportedIn("safari".to_owned()))
         );
         assert!(verdict.reasons.iter().any(|reason| matches!(
             reason,
             VerdictReason::RemovedIn {
-                browser: "chrome",
+                browser,
                 version,
                 ..
-            } if version == "120"
+            } if browser == "chrome" && version == "120"
         )));
 
         let Some(xlink_href) = compat_subfeature("svg.elements.use.xlink_href") else {

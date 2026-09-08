@@ -15,6 +15,9 @@ use std::{
 };
 
 use serde::Deserialize;
+#[path = "src/browser_compat.rs"]
+#[allow(dead_code)]
+mod browser_compat;
 #[allow(dead_code)]
 #[path = "src/compat_model.rs"]
 mod compat_model;
@@ -309,49 +312,7 @@ struct CompatFacts {
     browser_support: Option<BrowserSupport>,
 }
 
-/// Per-browser support across the four tracked engines.
-#[derive(Clone, Deserialize)]
-struct BrowserSupport {
-    #[serde(default)]
-    chrome: Option<BrowserVersion>,
-    #[serde(default)]
-    edge: Option<BrowserVersion>,
-    #[serde(default)]
-    firefox: Option<BrowserVersion>,
-    #[serde(default)]
-    safari: Option<BrowserVersion>,
-}
-
-/// Baked support detail for one browser.
-#[derive(Clone, Deserialize)]
-struct BrowserVersion {
-    #[serde(default)]
-    supported: Option<bool>,
-    #[serde(default)]
-    partial_implementation: bool,
-    #[serde(default)]
-    notes: Vec<String>,
-    #[serde(default)]
-    prefix: Option<String>,
-    #[serde(default)]
-    alternative_name: Option<String>,
-    #[serde(default)]
-    flags: Vec<BrowserFlag>,
-    #[serde(default)]
-    version_added: Option<String>,
-    #[serde(default)]
-    version_qualifier: Option<BaselineQualifier>,
-    #[serde(default)]
-    version_removed: Option<String>,
-    #[serde(default)]
-    version_removed_qualifier: Option<BaselineQualifier>,
-}
-
-/// Runtime flag a browser gates a feature behind.
-#[derive(Clone, Deserialize)]
-struct BrowserFlag {
-    name: String,
-}
+use browser_compat::{BrowserFlag, BrowserSupport, BrowserVersion, VersionAdded};
 
 /// The attribute value-space shapes the catalog encodes.
 #[derive(Clone, Deserialize)]
@@ -1053,6 +1014,18 @@ fn emit_baseline(baseline: Option<&BaselineStatus>) -> String {
     let Some(baseline) = baseline else {
         return "None".to_owned();
     };
+    let support = baseline.support.as_ref().map_or_else(
+        || "None".to_owned(),
+        |s| {
+            format!(
+                "Some(&[{}])",
+                s.iter()
+                    .map(|(k, v)| format!("({k:?}, {v:?})"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+    );
     let status = baseline.status.map_or_else(
         || "None".to_owned(),
         |tier| format!("Some(crate::types::BaselineTier::{tier:?})"),
@@ -1062,8 +1035,8 @@ fn emit_baseline(baseline: Option<&BaselineStatus>) -> String {
         |diagnostic| format!("Some(crate::compat_model::BaselineDiagnostic::{diagnostic:?})"),
     );
     format!(
-        "Some(crate::types::BaselineStatus {{ status: {status}, raw_status: {:?}, \
-         status_diagnostic: {diagnostic}, low_date: {}, high_date: {} }})",
+        "Some(crate::types::BaselineStatus {{ support: {support}, status: {status}, raw_status: \
+         {:?}, status_diagnostic: {diagnostic}, low_date: {}, high_date: {} }})",
         baseline.raw_status,
         emit_baseline_date(baseline.low_date.as_ref()),
         emit_baseline_date(baseline.high_date.as_ref())
@@ -1117,45 +1090,52 @@ fn emit_baseline_qualifier(qualifier: Option<&BaselineQualifier>) -> String {
     }
 }
 
-/// Render per-browser support as a Rust literal.
+/// Render all browser histories as borrowed static data.
 fn emit_browser_support(support: Option<&BrowserSupport>) -> String {
-    let Some(support) = support else {
-        return "None".to_owned();
-    };
-    format!(
-        "Some(crate::types::BrowserSupport {{ chrome: {}, edge: {}, firefox: {}, safari: {} }})",
-        emit_browser_version(support.chrome.as_ref()),
-        emit_browser_version(support.edge.as_ref()),
-        emit_browser_version(support.firefox.as_ref()),
-        emit_browser_version(support.safari.as_ref()),
+    support.map_or_else(
+        || "None".to_owned(),
+        |support| {
+            let entries = support
+                .iter()
+                .map(|(id, versions)| {
+                    let versions = join_map(versions, emit_browser_version);
+                    format!("({id:?}, &[{versions}])")
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("Some(&[{entries}])")
+        },
     )
 }
 
-/// Render one browser support record as a Rust literal.
-fn emit_browser_version(version: Option<&BrowserVersion>) -> String {
-    let Some(version) = version else {
-        return "None".to_owned();
+fn emit_browser_version(v: &BrowserVersion) -> String {
+    let added = match &v.version_added {
+        Some(VersionAdded::Version(s)) => format!("Some(crate::browser_compat::VersionAdded::Version({s:?}))"),
+        Some(VersionAdded::Unsupported(_)) => "Some(crate::browser_compat::VersionAdded::Unsupported(crate::browser_compat::Unsupported))".to_owned(),
+        None => "None".to_owned(),
     };
     format!(
-        "Some(crate::types::BrowserVersion {{ supported: {}, partial_implementation: {}, notes: \
-         &[{}], prefix: {}, alternative_name: {}, flags: &[{}], version_added: {}, \
-         version_qualifier: {}, version_removed: {}, version_removed_qualifier: {} }})",
-        emit_option_bool(version.supported),
-        version.partial_implementation,
-        quote_list(&version.notes),
-        emit_option_str(version.prefix.as_deref()),
-        emit_option_str(version.alternative_name.as_deref()),
-        emit_browser_flags(&version.flags),
-        emit_option_str(version.version_added.as_deref()),
-        emit_baseline_qualifier(version.version_qualifier.as_ref()),
-        emit_option_str(version.version_removed.as_deref()),
-        emit_baseline_qualifier(version.version_removed_qualifier.as_ref()),
+        "crate::types::BrowserVersion {{ version_added: {added}, version_removed: {:?}, \
+         version_last: {:?}, partial_implementation: {}, prefix: {:?}, alternative_name: {:?}, \
+         flags: &[{}], notes: &[{}], impl_url: &[{}] }}",
+        v.version_removed,
+        v.version_last,
+        v.partial_implementation,
+        v.prefix,
+        v.alternative_name,
+        emit_browser_flags(&v.flags),
+        quote_list(&v.notes),
+        quote_list(&v.impl_url)
     )
 }
 
 fn emit_browser_flags(flags: &[BrowserFlag]) -> String {
-    join_map(flags, |flag| {
-        format!("crate::types::BrowserFlag {{ name: {:?} }}", flag.name)
+    join_map(flags, |f| {
+        format!(
+            "crate::types::BrowserFlag {{ name: {:?}, kind: \
+             crate::browser_compat::FlagKind::{:?}, value_to_set: {:?} }}",
+            f.name, f.kind, f.value_to_set
+        )
     })
 }
 

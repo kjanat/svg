@@ -14,7 +14,19 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Added
+
+- Configure hover browser products, sections, individual support details and
+  optional implementation history through `svg.hover`, at initialization or
+  without restarting through configuration updates.
+
 ### Changed
+
+- **Breaking:** browser support maps retain every upstream product and all
+  support statements. Preserve BCD version unions, last-supported versions,
+  implementation links and complete flag declarations in generated and refreshed
+  facts. Retain Web Features' independent browser-version support map. Hover
+  defaults stay compact while storage retains the complete histories.
 
 - **Breaking:** compatibility schema v2 and the Rust Baseline model preserve
   optional full Newly/Widely Available dates, raw values, and unknown statuses.

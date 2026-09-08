@@ -20,26 +20,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "12",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3.1",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "12"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3.1"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "12",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": "9",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "9",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3.1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -67,29 +186,149 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "5",
+          "chrome_android": "18",
+          "edge": "12",
+          "firefox": "4",
+          "firefox_android": "4",
+          "safari": "6",
+          "safari_ios": "6"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "5"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "12"
-        },
-        "firefox": {
-          "supported": true,
-          "notes": [
-            "Document fragments (including references to fragments in the current document) are not supported (see [bug 455986](https://bugzil.la/455986))."
-          ],
-          "version_added": "4"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "6"
-        }
+        "chrome": [
+          {
+            "version_added": "5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "12",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": [
+              "Document fragments (including references to fragments in the current document) are not supported (see <a href=\"https://bugzil.la/455986\">bug 455986</a>)."
+            ]
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": [
+              "Document fragments (including references to fragments in the current document) are not supported (see <a href=\"https://bugzil.la/455986\">bug 455986</a>)."
+            ]
+          }
+        ],
+        "ie": [
+          {
+            "version_added": "≤11",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "9",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -118,26 +357,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "5",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "3",
+          "firefox_android": "4",
+          "safari": "6",
+          "safari_ios": "6"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "5"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "3"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "6"
-        }
+        "chrome": [
+          {
+            "version_added": "5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -165,26 +523,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -212,26 +689,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -259,26 +855,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "19",
+          "chrome_android": "25",
+          "edge": "79",
+          "firefox": "4",
+          "firefox_android": "4",
+          "safari": "6",
+          "safari_ios": "6"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "19"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "4"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "6"
-        }
+        "chrome": [
+          {
+            "version_added": "19",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "25",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "6",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -306,26 +1021,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "12",
+          "firefox": "3",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "3"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "12"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "3"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "12",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": "≤11",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -353,26 +1187,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -400,26 +1353,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -447,26 +1519,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "12",
+          "firefox": "2",
+          "firefox_android": "4",
+          "safari": "3.1",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "12"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "2"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3.1"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "12",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": "≤11",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3.1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
@@ -493,6 +1684,15 @@
       "name": "tooltip_display",
       "standard_track": false,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "4",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "3"
+        },
         "status": "widely",
         "raw_status": "\"high\"",
         "low_date": {
@@ -505,22 +1705,132 @@
         }
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "79"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "4"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       }
     },
     {
@@ -530,28 +1840,151 @@
       "name": "data_uri",
       "standard_track": true,
       "baseline": {
+        "support": {
+          "edge": "≤18"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "22",
-          "version_removed": "120"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "≤18",
-          "version_qualifier": "before"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "4",
-          "version_removed": "122"
-        },
-        "safari": {
-          "supported": false
-        }
+        "chrome": [
+          {
+            "version_added": "22",
+            "version_removed": "120",
+            "version_last": "119",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "25",
+            "version_removed": "120",
+            "version_last": "119",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "≤18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "4",
+            "version_removed": "122",
+            "version_last": "121",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "version_removed": "122",
+            "version_last": "121",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "version_removed": "31.2",
+            "version_last": "22.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "11.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "11.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.5",
+            "version_removed": "25.0",
+            "version_last": "24.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       }
     },
     {
@@ -561,6 +1994,15 @@
       "name": "external_uri",
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "22",
+          "chrome_android": "25",
+          "edge": "13",
+          "firefox": "4",
+          "firefox_android": "4",
+          "safari": "7",
+          "safari_ios": "7"
+        },
         "status": "widely",
         "raw_status": "\"high\"",
         "low_date": {
@@ -573,22 +2015,132 @@
         }
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "22"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "13"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "4"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "7"
-        }
+        "chrome": [
+          {
+            "version_added": "22",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "25",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "13",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "11.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "11.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "7",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "7",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "7",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       }
     },
     {
@@ -599,20 +2151,132 @@
       "experimental": true,
       "standard_track": true,
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "137"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "137"
-        },
-        "firefox": {
-          "supported": false
-        },
-        "safari": {
-          "supported": false
-        }
+        "chrome": [
+          {
+            "version_added": "137",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "137",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "137",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "40.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "121",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "90",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "137",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       }
     },
     {
@@ -623,26 +2287,145 @@
       "deprecated": true,
       "standard_track": true,
       "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "12",
+          "firefox": "1.5",
+          "firefox_android": "4",
+          "safari": "3",
+          "safari_ios": "2"
+        },
         "status": "limited",
         "raw_status": "false"
       },
       "browser_support": {
-        "chrome": {
-          "supported": true,
-          "version_added": "1"
-        },
-        "edge": {
-          "supported": true,
-          "version_added": "12"
-        },
-        "firefox": {
-          "supported": true,
-          "version_added": "1.5"
-        },
-        "safari": {
-          "supported": true,
-          "version_added": "3"
-        }
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "12",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "1.5",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": "≤11",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
       },
       "discouraged": [
         {
