@@ -10,6 +10,7 @@
 import { render } from 'preact-render-to-string';
 
 import { AttributesTable } from '#component/AttributesTable.tsx';
+import { CompatibilityGuide } from '#component/CompatibilityGuide.tsx';
 import { ElementsTable } from '#component/ElementsTable.tsx';
 import { ErrorPage } from '#component/ErrorPage.tsx';
 import { Hero } from '#component/Hero.tsx';
@@ -56,10 +57,11 @@ export function renderHtml(
 		<Layout dev={dev} boot={boot} mainStyle={buildChipColumnStyle(model.browserMaxChars)}>
 			<Hero model={model} />
 			<UpstreamSources sources={model.sources} />
+			<CompatibilityGuide />
 			<TableSection
 				id='elements'
 				title='Elements'
-				description='All elements with baseline and browser floor.'
+				description='Element Baseline status and desktop browser details.'
 				total={model.elements.length}
 				placeholder='Filter elements…'
 			>

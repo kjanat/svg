@@ -78,6 +78,8 @@ export function renderDataSummary(out: Out, data: SvgCompatOutput): void {
 	out.log('');
 
 	out.log('elements (baseline buckets)');
+	out.log('Baseline from web-features: newly = core-browser availability; widely = longer-established availability.');
+	out.log('limited = non-Baseline (including discouraged features); unknown = missing or unrecognized status.');
 	out.table([countBuckets(data.elements)]);
 	out.log('');
 
@@ -104,6 +106,7 @@ export function renderDataSummary(out: Out, data: SvgCompatOutput): void {
 		})));
 	}
 	out.log('(pass --json or pipe stdout for the full structured dump)');
+	out.log('Guide: https://github.com/kjanat/svg/blob/master/docs/baseline.md');
 }
 
 interface SchemaShape {

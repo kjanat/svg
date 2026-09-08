@@ -1,2 +1,4 @@
 Cargo.lock linguist-generated
 .zed/*.json linguist-language=JSON-With-Comments
+crates/svg-language-server/assets/baseline-*.svg -text linguist-vendored
+workers/svg-compat/static/badges/baseline-*.svg -text linguist-generated

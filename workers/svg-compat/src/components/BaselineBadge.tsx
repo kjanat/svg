@@ -5,11 +5,6 @@ interface Props {
 	discouraged?: Discouraged[];
 }
 
-const BADGE_SRC = {
-	widely: '/badges/baseline-widely.svg',
-	newly: '/badges/baseline-newly.svg',
-	limited: '/badges/baseline-limited.svg',
-} as const;
 const QUALIFIER_GLYPH = { before: '≤', after: '≥', approximately: '~' };
 
 function milestone(label: string, date: BaselineDate | undefined): string | undefined {
@@ -61,7 +56,10 @@ export function BaselineBadge({ baseline, discouraged }: Props) {
 	const label = variant === 'widely' ? 'Widely Available' : variant === 'newly' ? 'Newly Available' : 'Limited availability';
 	return (
 		<span class={`badge badge-${variant}`} title={baselineTitle(baseline)}>
-			<img class='badge-icon' src={BADGE_SRC[variant]} alt='' width='18' height='10' />
+			<picture class='badge-icon'>
+				<source media='(prefers-color-scheme: dark)' srcSet={`/badges/baseline-${variant}-icon-dark.svg`} />
+				<img src={`/badges/baseline-${variant}-icon.svg`} alt='' width='18' height='10' />
+			</picture>
 			{label}
 			{year ? ` since ${glyph}${year}` : ''}
 		</span>

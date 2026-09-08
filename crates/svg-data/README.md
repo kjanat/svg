@@ -52,6 +52,16 @@ cargo run -p svg-data --features drift-cli --bin svgwg-drift -- --json
 cargo run -p svg-data --features drift-cli --bin svgwg-drift -- --compat-drift
 ```
 
+## Compatibility facts
+
+Baseline status and optional Newly/Widely milestone dates are imported from Web
+Features; browser details come from MDN BCD. Missing or unrecognized status is
+unknown, never Limited. The generated catalog records its source package
+versions and is a snapshot, not a live calculation of Baseline eligibility. SVG
+validity and svg's Caution/Avoid recommendations are separate layers. See the
+[user guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md) for
+status meanings, context, browser scope, refresh behavior, and limitations.
+
 ## Part of [svg-language-server]
 
 [svg-language-server]: https://github.com/kjanat/svg

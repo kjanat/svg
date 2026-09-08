@@ -22,7 +22,7 @@ export function AttributesTable({ rows }: Props) {
 						<th scope='col'>Name</th>
 						<th scope='col' data-col-min-width='260'>Elements</th>
 						<th scope='col'>Baseline</th>
-						<th scope='col'>Support</th>
+						<th scope='col'>Desktop support</th>
 						<th scope='col'>Docs</th>
 					</tr>
 				</thead>

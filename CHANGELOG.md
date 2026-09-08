@@ -16,11 +16,20 @@ When bumping the workspace version after a catalog refresh:
 
 ### Added
 
+- Explain Baseline meanings, optional milestones, source versions, browser
+  scope, contextual summaries, and offline/stale behavior in user documentation,
+  the compatibility dashboard, and CLI help.
+
 - Configure hover browser products, sections, individual support details and
   optional implementation history through `svg.hover`, at initialization or
   without restarting through configuration updates.
 
 ### Changed
+
+- Replace hand-maintained Baseline icons with pinned official light/dark assets,
+  generated identical dashboard copies, and hash checks. Size and select artwork
+  in display containers without modifying the logos. Label desktop browser
+  details and svg's project-derived status assessment explicitly.
 
 - **Breaking:** browser support maps retain every upstream product and all
   support statements. Preserve BCD version unions, last-supported versions,

@@ -72,4 +72,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
       - name: Typecheck Deno scripts
-        run: deno check scripts/release-prepare.ts
+        run: deno check scripts/release-prepare.ts scripts/baseline-icons.ts
+      - name: Verify canonical Baseline icons and generated copies
+        run: deno run --allow-read scripts/baseline-icons.ts --check
+      - name: Test compatibility dashboard and CLI
+        run: deno task --config workers/svg-compat/deno.jsonc test

@@ -69,7 +69,7 @@ function chipTitle(label: string, version: BrowserVersion | undefined): string {
 
 export function BrowserSupport({ support, baselineStatus }: Props) {
 	return (
-		<ul class='browser-chips' aria-label='Minimum browser versions'>
+		<ul class='browser-chips' aria-label='Desktop browser support from MDN BCD'>
 			{BROWSERS.map(({ key, label, src }) => {
 				const version = selectBrowserStatement(support?.[key]);
 				const stateClass = chipStateClass(version);

@@ -217,7 +217,7 @@ enum HoverSection {
     Headline(String),
     /// Plain-text MDN-style description. First prose block.
     Description(String),
-    /// Consolidated `**Status:** reason · reason` line, or legacy profile-lifecycle fallback.
+    /// Consolidated svg assessment line, or profile-lifecycle fallback.
     Status(String),
     /// Attribute value constraints (`Values: ...`, `Functions: ...`, or paired `Alignments:`/`Scaling:`).
     /// Rendered as consecutive lines with NO blank between them.
@@ -850,12 +850,38 @@ fn legacy_svg_attribute_hover(
     }
 }
 
-static BASELINE_HIGH: LazyLock<String> =
-    LazyLock::new(|| svg_data_uri(include_str!("../assets/baseline-high.svg")));
-static BASELINE_LOW: LazyLock<String> =
-    LazyLock::new(|| svg_data_uri(include_str!("../assets/baseline-low.svg")));
-static BASELINE_LIMITED: LazyLock<String> =
-    LazyLock::new(|| svg_data_uri(include_str!("../assets/baseline-limited.svg")));
+static BASELINE_HIGH: LazyLock<String> = LazyLock::new(|| {
+    baseline_icon(
+        include_str!("../assets/baseline-widely-icon.svg"),
+        include_str!("../assets/baseline-widely-icon-dark.svg"),
+    )
+});
+static BASELINE_LOW: LazyLock<String> = LazyLock::new(|| {
+    baseline_icon(
+        include_str!("../assets/baseline-newly-icon.svg"),
+        include_str!("../assets/baseline-newly-icon-dark.svg"),
+    )
+});
+static BASELINE_LIMITED: LazyLock<String> = LazyLock::new(|| {
+    baseline_icon(
+        include_str!("../assets/baseline-limited-icon.svg"),
+        include_str!("../assets/baseline-limited-icon-dark.svg"),
+    )
+});
+
+/// Scale and select immutable official artwork in a separate image container.
+/// Markdown has no portable image sizing or theme-selection syntax.
+fn baseline_icon(light: &str, dark: &str) -> String {
+    svg_data_uri(&format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="18" height="10" viewBox="0 0 18 10">
+<style>.dark{{display:none}}@media(prefers-color-scheme:dark){{.light{{display:none}}.dark{{display:inline}}}}</style>
+<image class="light" width="18" height="10" href="{}"/>
+<image class="dark" width="18" height="10" href="{}"/>
+</svg>"#,
+        svg_data_uri(light),
+        svg_data_uri(dark),
+    ))
+}
 
 /// Glyph to render before a baseline year when the upstream date
 /// carried a qualifier prefix — mirrors the worker's `BaselineBadge`
@@ -1287,7 +1313,10 @@ fn format_verdict_status(verdict: &svg_data::CompatVerdict) -> Option<String> {
         return None;
     }
     let parts: Vec<String> = verdict.reasons.iter().map(format_verdict_reason).collect();
-    Some(format!("**Status:** {}", parts.join(" · ")))
+    Some(format!(
+        "**Status (svg assessment):** {}",
+        parts.join(" · ")
+    ))
 }
 
 fn format_verdict_reason(reason: &svg_data::VerdictReason) -> String {
@@ -1378,6 +1407,105 @@ fn format_browser_support_line(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn baseline_containers_embed_exact_official_assets_at_icon_size()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use base64::Engine as _;
+        use quick_xml::{Reader, events::Event};
+
+        for (tier, light, dark) in [
+            (
+                BaselineTier::Widely,
+                include_str!("../assets/baseline-widely-icon.svg"),
+                include_str!("../assets/baseline-widely-icon-dark.svg"),
+            ),
+            (
+                BaselineTier::Newly,
+                include_str!("../assets/baseline-newly-icon.svg"),
+                include_str!("../assets/baseline-newly-icon-dark.svg"),
+            ),
+            (
+                BaselineTier::Limited,
+                include_str!("../assets/baseline-limited-icon.svg"),
+                include_str!("../assets/baseline-limited-icon-dark.svg"),
+            ),
+        ] {
+            let baseline = svg_data::BaselineStatus {
+                status: Some(tier),
+                ..svg_data::BaselineStatus::EMPTY
+            };
+            let markdown = format_baseline(&baseline);
+            let uri = markdown
+                .split("](")
+                .nth(1)
+                .ok_or("icon URL")?
+                .split(')')
+                .next()
+                .ok_or("icon URL end")?;
+            let xml = String::from_utf8(
+                base64::engine::general_purpose::STANDARD.decode(
+                    uri.strip_prefix("data:image/svg+xml;base64,")
+                        .ok_or("data URI")?,
+                )?,
+            )?;
+            let mut reader = Reader::from_str(&xml);
+            let mut embedded = Vec::new();
+            let mut root_seen = false;
+            loop {
+                match reader.read_event()? {
+                    Event::Start(tag) if tag.name().as_ref() == b"svg" => {
+                        root_seen = true;
+                        assert_eq!(
+                            tag.try_get_attribute("width")?
+                                .ok_or("width")?
+                                .value
+                                .as_ref(),
+                            b"18"
+                        );
+                        assert_eq!(
+                            tag.try_get_attribute("height")?
+                                .ok_or("height")?
+                                .value
+                                .as_ref(),
+                            b"10"
+                        );
+                        assert_eq!(
+                            tag.try_get_attribute("viewBox")?
+                                .ok_or("viewBox")?
+                                .value
+                                .as_ref(),
+                            b"0 0 18 10"
+                        );
+                    }
+                    Event::Empty(tag) if tag.name().as_ref() == b"image" => {
+                        let class = tag.try_get_attribute("class")?.ok_or("theme")?;
+                        let href = tag.try_get_attribute("href")?.ok_or("embedded asset")?;
+                        let uri = std::str::from_utf8(&href.value)?;
+                        embedded.push((
+                            String::from_utf8(class.value.to_vec())?,
+                            base64::engine::general_purpose::STANDARD.decode(
+                                uri.strip_prefix("data:image/svg+xml;base64,")
+                                    .ok_or("embedded data URI")?,
+                            )?,
+                        ));
+                    }
+                    Event::Eof => break,
+                    _ => {}
+                }
+            }
+            assert!(root_seen);
+            assert_eq!(
+                embedded,
+                vec![
+                    ("light".to_owned(), light.as_bytes().to_vec()),
+                    ("dark".to_owned(), dark.as_bytes().to_vec())
+                ]
+            );
+            assert!(xml.contains("prefers-color-scheme:dark"));
+        }
+        Ok(())
+    }
+
     #[test]
     fn fixture_milestones_and_unknown_status_survive_runtime_hover()
     -> Result<(), Box<dyn std::error::Error>> {

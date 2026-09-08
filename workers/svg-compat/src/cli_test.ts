@@ -108,6 +108,8 @@ Deno.test('dataCommand (in-process, TTY mode) renders human summary, not JSON', 
 	assertStringIncludes(stdout, 'svg-compat · generated ');
 	assertStringIncludes(stdout, 'sources');
 	assertStringIncludes(stdout, 'elements (baseline buckets)');
+	assertStringIncludes(stdout, 'limited = non-Baseline (including discouraged features)');
+	assertStringIncludes(stdout, 'unknown = missing or unrecognized status');
 	assertStringIncludes(stdout, 'attributes (derived summaries of observed contexts)');
 	assertStringIncludes(stdout, '(pass --json or pipe stdout for the full structured dump)');
 	// No JSON dump bled through — stdout should not start with '{'.

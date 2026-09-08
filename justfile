@@ -136,7 +136,22 @@ regen-test *ARGS:
 # typecheck the Deno-checked scripts
 [group('scripts')]
 typecheck:
-    deno check scripts/release-prepare.ts scripts/release-tags.ts .github/actions/version-check/check.mjs
+    deno check scripts/release-prepare.ts scripts/release-tags.ts scripts/baseline-icons.ts .github/actions/version-check/check.mjs
+
+# check original icon hashes and generated worker copies without network access
+[group('assets')]
+baseline-icons-check:
+    deno run --allow-read scripts/baseline-icons.ts --check
+
+# regenerate worker copies from the canonical vendored icons
+[group('assets')]
+baseline-icons-sync:
+    deno run --allow-read --allow-write=workers/svg-compat/static/badges scripts/baseline-icons.ts --sync
+
+# compare all vendored icons to the pinned official downloads
+[group('assets')]
+baseline-icons-upstream:
+    deno run --allow-read --allow-net=raw.githubusercontent.com scripts/baseline-icons.ts --upstream
 
 # run the svg-compat worker's Deno test suite
 [group('scripts')]
@@ -148,6 +163,7 @@ test-deno *ARGS:
 verify:
     just format-check
     just typecheck
+    just baseline-icons-check
     just release-config-check
     just lint
     just test

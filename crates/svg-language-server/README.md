@@ -125,6 +125,34 @@ catalog and runtime records. Diagnostics keep their existing four-browser
 policy, and completion documentation keeps its default presentation. Templates
 and user-supplied HTML are outside this settings contract.
 
+## Understanding compatibility
+
+Baseline is imported from Web Features. Newly Available means a feature has
+reached WebDX's core browser set; Widely Available adds upstream criteria for
+longer-established availability. Limited means non-Baseline, including
+discouraged features. Missing or unrecognized status stays unknown, without a
+badge. Both milestone dates are optional: Newly in 2020 and Widely in 2022
+describe different events. Hover details label each date separately.
+
+Browser rows use MDN BCD and default to four desktop products. The wider
+Baseline set includes mobile browsers; change `svg.hover.browsers` to inspect
+other products. The Status line identifies svg's assessment: Caution/Avoid is
+project advice, separate from upstream Baseline and specification validity.
+
+Startup refresh is enabled by default. `svg.runtime_compat: false` keeps the
+bundled snapshot. A failed source refresh retains its bundled facts and labels
+them stale; a successful source load with no facts clears that source's old
+values. The `sources` hover section identifies versions, contexts, and outcomes
+for BCD and Web Features independently. The server refreshes once per session.
+
+See the
+[compatibility guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)
+for limitations, context precedence, aggregation, and upstream references.
+Official Baseline artwork is © Google LLC, licensed under
+[CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/); Baseline and
+its logos are Google trademarks. The [asset notice](assets/BASELINE.md) records
+the unmodified source files and their hashes.
+
 ## Part of [svg-language-server]
 
 [svg-language-server]: https://github.com/kjanat/svg

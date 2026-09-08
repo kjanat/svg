@@ -568,6 +568,21 @@ code {
 	opacity: 1;
 }
 
+.compatibility-guide {
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.compatibility-guide summary {
+	cursor: pointer;
+	font-weight: 700;
+}
+.compatibility-guide p {
+	margin-top: 0.75rem;
+	max-width: 90ch;
+	line-height: 1.6;
+}
+
 /* baseline badges */
 .badge {
 	display: inline-flex;
@@ -584,9 +599,13 @@ code {
 	white-space: nowrap;
 }
 .badge-icon {
+	display: inline-flex;
 	width: 18px;
 	height: 10px;
 	flex: none;
+}
+.badge-icon img {
+	display: block;
 }
 .badge-widely {
 	background: var(--badge-widely-bg);

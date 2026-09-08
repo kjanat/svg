@@ -60,7 +60,9 @@ async function writePrettyJsonFile(
 const DEFAULTS = defaultSourceSelection();
 
 export const dataCommand = command('data')
-	.description('Emit /data.json equivalent — summary on TTY, JSON when piped.')
+	.description(
+		'Emit compatibility data: Baseline from web-features, browser details from MDN BCD. Summary on TTY, JSON when piped. Guide: https://github.com/kjanat/svg/blob/master/docs/baseline.md',
+	)
 	.flag(
 		'bcd',
 		flag.string()

@@ -484,17 +484,16 @@ Deno.test('dashboard emits chip-partial class for partial-implementation entries
 	);
 });
 
-Deno.test('attributes table renders Support column', async () => {
+Deno.test('attributes table labels desktop support explicitly', async () => {
 	const res = await server.fetch(
 		new Request('http://localhost/', { headers: { accept: 'text/html' } }),
 	);
 	const body = await res.text();
-	// Both the elements table and the attributes table must now have
-	// a Support column header — Bug A regression guard.
-	const supportHeaders = body.match(/<th[^>]*scope="col"[^>]*>Support<\/th>/g) ?? [];
+	// Both tables identify the displayed browser products as desktop support.
+	const supportHeaders = body.match(/<th[^>]*scope="col"[^>]*>Desktop support<\/th>/g) ?? [];
 	assert(
 		supportHeaders.length >= 2,
-		`expected ≥2 Support headers (elements + attributes), got ${supportHeaders.length}`,
+		`expected ≥2 Desktop support headers (elements + attributes), got ${supportHeaders.length}`,
 	);
 });
 
@@ -575,7 +574,7 @@ Deno.test('root asset routes serve static assets', async () => {
 	assertEquals(tableJs.headers.get('content-type')?.startsWith('text/javascript'), true);
 	await tableJs.arrayBuffer();
 
-	const badge = await server.fetch(new Request('http://localhost/badges/baseline-newly.svg'));
+	const badge = await server.fetch(new Request('http://localhost/badges/baseline-newly-icon.svg'));
 	assertEquals(badge.status, 200);
 	assertEquals(badge.headers.get('x-content-type-options'), 'nosniff');
 	assertEquals(badge.headers.get('content-type'), 'image/svg+xml');

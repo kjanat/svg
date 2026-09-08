@@ -1,0 +1,13 @@
+{
+	"repository": "https://github.com/web-platform-dx/web-platform-dx.github.io",
+	"revision": "fc968a06896869a3ec9a11f471507922c90ada45",
+	"directory": "src/assets/img",
+	"sha256": {
+		"baseline-widely-icon.svg": "2b6ca4b4e064f8f825de4d511b7bb1643d4397ec04b39a02df7d48c37cc7a155",
+		"baseline-widely-icon-dark.svg": "bcd890541fc225853c1d35de468033fa03df172b7db10554ce0dcdc1864d8de2",
+		"baseline-newly-icon.svg": "a62ebcb321a197f22a1b386d4fe9df5bd82dde6403b5e36f35bd2083021f0b44",
+		"baseline-newly-icon-dark.svg": "da4248ea9fd7b3e777a8ee131fa0fa4c4868587fa3caae84c806faccde124dd3",
+		"baseline-limited-icon.svg": "37c77edf00ae5420e63a1116a2a97148cf5b5bda4efb1936eef34b10557ea688",
+		"baseline-limited-icon-dark.svg": "7d0557c17824bca1047623a9e54076947e920835ae32146157da4d3cc72fa451"
+	}
+}
