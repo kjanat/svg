@@ -1,3 +1,4 @@
+import { selectBrowserStatement } from '#lib/parse.ts';
 // @ts-nocheck Deno
 import type { Baseline, BrowserSupport as BrowserSupportData, BrowserVersion } from '#server';
 import { browserVersionChipLabel } from '#src/view.ts';
@@ -26,10 +27,10 @@ const STATUS_MISSING = '/browsers/cross.svg';
 /** Classifies a browser version for visual styling of its chip. */
 function chipStateClass(version: BrowserVersion | undefined): string {
 	if (version === undefined) return 'chip-missing';
-	if (version.supported === false) return 'chip-unsupported';
+	if (version.version_added === false) return 'chip-unsupported';
 	if (version.version_removed !== undefined) return 'chip-removed';
 	if (version.partial_implementation) return 'chip-partial';
-	if (version.flags !== undefined) return 'chip-flagged';
+	if (version.flags.length) return 'chip-flagged';
 	if (version.prefix !== undefined) return 'chip-prefixed';
 	return '';
 }
@@ -41,41 +42,22 @@ function chipStateClass(version: BrowserVersion | undefined): string {
  */
 function chipTitle(label: string, version: BrowserVersion | undefined): string {
 	if (version === undefined) return `${label} — no data`;
-	if (version.supported === false) return `${label} — not supported`;
+	if (version.version_added === false) return `${label} — not supported`;
 
 	const parts: string[] = [];
-	if (version.version_added !== undefined) {
-		const glyph = version.version_qualifier === 'before'
-			? '≤'
-			: version.version_qualifier === 'after'
-			? '≥'
-			: version.version_qualifier === 'approximately'
-			? '~'
-			: '';
-		parts.push(`since ${glyph}${version.version_added}`);
-	} else if (version.raw_value_added === true) {
-		parts.push('supported (version unknown)');
-	} else if (version.raw_value_added === null) {
-		parts.push('no version data');
-	}
-
-	if (version.version_removed !== undefined) {
-		const glyph = version.version_removed_qualifier === 'before'
-			? '≤'
-			: version.version_removed_qualifier === 'after'
-			? '≥'
-			: version.version_removed_qualifier === 'approximately'
-			? '~'
-			: '';
-		parts.push(`removed in ${glyph}${version.version_removed}`);
-	}
+	if (typeof version.version_added === 'string') parts.push(`since ${version.version_added}`);
+	else parts.push('no version data');
+	if (version.version_removed !== undefined) parts.push(`removed in ${version.version_removed}`);
+	if (version.version_last !== undefined) parts.push(`last supported in ${version.version_last}`);
+	parts.push(...version.impl_url.map(url => `implementation: ${url}`));
 	if (version.partial_implementation) parts.push('partial implementation');
 	if (version.prefix !== undefined) parts.push(`prefix ${version.prefix}`);
 	if (version.alternative_name !== undefined) {
 		parts.push(`alternative name ${version.alternative_name}`);
 	}
 	if (version.flags !== undefined && version.flags.length > 0) {
-		const flagNames = version.flags.map((flag) => flag.name).join(', ');
+		const flagNames = version.flags.map((flag) => `${flag.name}${flag.value_to_set !== undefined ? `=${flag.value_to_set}` : ''} (${flag.type})`)
+			.join(', ');
 		parts.push(`behind flag${version.flags.length > 1 ? 's' : ''} ${flagNames}`);
 	}
 	if (version.notes !== undefined && version.notes.length > 0) {
@@ -89,10 +71,10 @@ export function BrowserSupport({ support, baselineStatus }: Props) {
 	return (
 		<ul class='browser-chips' aria-label='Minimum browser versions'>
 			{BROWSERS.map(({ key, label, src }) => {
-				const version = support?.[key];
+				const version = selectBrowserStatement(support?.[key]);
 				const stateClass = chipStateClass(version);
 				const classes = `chip chip-${key}${stateClass ? ` ${stateClass}` : ''}`;
-				const hasData = version !== undefined && version.supported !== false;
+				const hasData = version !== undefined && typeof version.version_added === 'string';
 				const statusClass = hasData ? 'chip-status--supported' : 'chip-status--missing';
 				const statusToneClass = hasData && baselineStatus === 'newly'
 					? ' chip-status--newly'

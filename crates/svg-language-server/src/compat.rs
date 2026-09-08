@@ -1,155 +1,184 @@
-use std::{collections::HashMap, time::Duration};
+//! Resolve runtime facts once per context, independently for each upstream source.
+use serde_json::Value;
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
+use svg_data::{
+    compat_model,
+    effective_compat::{self, Facts},
+};
 
-use svg_data::BaselineStatus;
-
-/// Runtime support state for a single browser.
+/// Outcome of one source lookup. Absence is authoritative only after a valid load.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RuntimeBrowserVersion {
-    /// The browser supports the feature, but the first version is unknown.
+pub enum Outcome {
+    Loaded,
+    Absent,
     Unknown,
-    /// The browser supports the feature starting with the given version.
-    Version(String),
+    Failed,
+    Disabled,
 }
 
-/// Runtime per-browser version data (owned strings, unlike `BrowserSupport`).
-#[derive(Clone)]
-pub struct RuntimeBrowserSupport {
-    pub chrome: Option<RuntimeBrowserVersion>,
-    pub edge: Option<RuntimeBrowserVersion>,
-    pub firefox: Option<RuntimeBrowserVersion>,
-    pub safari: Option<RuntimeBrowserVersion>,
+#[derive(Clone, Debug)]
+pub struct Provenance {
+    pub source: &'static str,
+    pub version: Option<String>,
+    pub url: String,
+    pub key: String,
+    pub outcome: Outcome,
 }
 
-/// Runtime compat override for a single element or attribute.
-#[derive(Clone)]
+/// Complete effective facts, plus the identity and outcome of each contributing source.
+#[derive(Clone, Debug)]
 pub struct CompatOverride {
-    pub deprecated: bool,
-    pub experimental: bool,
-    pub standard_track: Option<bool>,
-    pub baseline: Option<BaselineStatus>,
-    pub browser_support: Option<RuntimeBrowserSupport>,
+    pub facts: Facts,
+    pub sources: [Provenance; 2],
 }
 
-/// Runtime-fetched compat data, overlays the baked-in catalog.
+#[derive(Clone)]
+struct Source {
+    name: &'static str,
+    disabled: bool,
+    version: Option<String>,
+    url: String,
+    data: Option<Value>,
+}
+
+impl Source {
+    fn provenance(&self, key: &str, outcome: Outcome) -> Provenance {
+        let bundled = svg_data::compat_sources()
+            .iter()
+            .find(|(name, _, _)| *name == self.name)
+            .filter(|_| matches!(outcome, Outcome::Failed | Outcome::Disabled));
+        Provenance {
+            source: self.name,
+            version: bundled
+                .map(|(_, version, _)| (*version).to_owned())
+                .or_else(|| self.version.clone()),
+            url: bundled.map_or_else(|| self.url.clone(), |(_, _, url)| (*url).to_owned()),
+            key: key.to_owned(),
+            outcome,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RuntimeCompat {
     pub elements: HashMap<String, CompatOverride>,
+    /// Genuine global or common facts, never a merge of element-local facts.
     pub attributes: HashMap<String, CompatOverride>,
+    pub attribute_contexts: HashMap<(String, String), CompatOverride>,
 }
 
 impl RuntimeCompat {
-    /// Convert to lint-crate override maps for compat-aware diagnostics.
+    pub fn disabled() -> Self {
+        let source = |name| Source {
+            name,
+            disabled: true,
+            version: None,
+            url: String::new(),
+            data: None,
+        };
+        build_runtime(&source("@mdn/browser-compat-data"), &source("web-features"))
+    }
+
+    pub fn attribute(&self, name: &str, element: Option<&str>) -> Option<&CompatOverride> {
+        element
+            .and_then(|el| {
+                self.attribute_contexts
+                    .get(&(el.to_owned(), name.to_owned()))
+            })
+            .or_else(|| self.attributes.get(name))
+    }
+
     pub fn to_lint_overrides(&self) -> svg_lint::LintOverrides {
-        let convert = |map: &HashMap<String, CompatOverride>| {
-            map.iter()
-                .map(|(name, co)| {
-                    (
-                        name.clone(),
-                        svg_lint::CompatFlags {
-                            deprecated: co.deprecated,
-                            experimental: co.experimental,
-                        },
-                    )
-                })
-                .collect()
+        let flags = |r: &CompatOverride| svg_lint::CompatFlags {
+            deprecated: r.facts.deprecated,
+            experimental: r.facts.experimental,
         };
         svg_lint::LintOverrides {
-            elements: convert(&self.elements),
-            attributes: convert(&self.attributes),
+            elements: self
+                .elements
+                .iter()
+                .filter(|(_, v)| {
+                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
+                })
+                .map(|(k, v)| (k.clone(), flags(v)))
+                .collect(),
+            attributes: self
+                .attributes
+                .iter()
+                .filter(|(_, v)| {
+                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
+                })
+                .map(|(k, v)| (k.clone(), flags(v)))
+                .collect(),
+            attribute_contexts: self
+                .attribute_contexts
+                .iter()
+                .filter(|(_, v)| {
+                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
+                })
+                .map(|(k, v)| (k.clone(), flags(v)))
+                .collect(),
         }
     }
-
-    /// Build runtime verdict overrides for the status dimensions of the
-    /// advisory compat verdict.
-    ///
-    /// Runtime BCD can mark a construct deprecated, experimental, or
-    /// non-standard even when the baked objective facts (from the catalog's BCD
-    /// snapshot) do not. Entries without advisory status contribute no
-    /// override, so the catalog-derived verdict stands.
     pub fn to_verdict_overrides(&self) -> svg_lint::VerdictOverrides {
-        use svg_data::{CompatVerdict, VerdictReason, VerdictRecommendation};
-
-        let verdict = |co: &CompatOverride| {
-            let mut reasons = Vec::new();
-            if co.deprecated {
-                reasons.push(VerdictReason::BcdDeprecated);
-            }
-            if co.experimental {
-                reasons.push(VerdictReason::BcdExperimental);
-            }
-            if co.standard_track == Some(false) {
-                reasons.push(VerdictReason::BcdNonStandard);
-            }
-            if reasons.is_empty() {
-                return None;
-            }
-            let avoid = reasons.iter().any(|reason| {
-                matches!(
-                    reason,
-                    VerdictReason::BcdDeprecated | VerdictReason::BcdNonStandard
-                )
-            });
-            Some(CompatVerdict {
-                recommendation: if avoid {
-                    VerdictRecommendation::Avoid
-                } else {
-                    VerdictRecommendation::Caution
-                },
-                headline_template: if avoid {
-                    "not recommended in current compat data"
-                } else {
-                    "experimental in current compat data"
-                },
-                reasons,
+        // An explicit neutral verdict clears stale reasons. A missing map entry
+        // alone means to use the catalog.
+        let verdict = |r: &CompatOverride| {
+            effective_compat::verdict(&r.facts).unwrap_or(svg_data::CompatVerdict {
+                recommendation: svg_data::VerdictRecommendation::Safe,
+                headline_template: "safe to use",
+                reasons: Vec::new(),
             })
         };
-        let convert = |map: &HashMap<String, CompatOverride>| {
-            map.iter()
-                .filter_map(|(name, co)| verdict(co).map(|verdict| (name.clone(), verdict)))
-                .collect()
-        };
         svg_lint::VerdictOverrides {
-            elements: convert(&self.elements),
-            attributes: convert(&self.attributes),
+            elements: self
+                .elements
+                .iter()
+                .map(|(k, v)| (k.clone(), verdict(v)))
+                .collect(),
+            attributes: self
+                .attributes
+                .iter()
+                .map(|(k, v)| (k.clone(), verdict(v)))
+                .collect(),
+            attribute_contexts: self
+                .attribute_contexts
+                .iter()
+                .map(|(k, v)| (k.clone(), verdict(v)))
+                .collect(),
         }
     }
 }
 
-const BCD_URL: &str = "https://unpkg.com/@mdn/browser-compat-data@latest/data.json";
-const WEB_FEATURES_URL: &str = "https://unpkg.com/web-features@latest/data.json";
-
-/// Fetch BCD + web-features from unpkg, parse into a `RuntimeCompat` overlay.
-/// Runs synchronously (intended for `spawn_blocking`).
-pub fn fetch_runtime_compat() -> Option<RuntimeCompat> {
-    let bcd_json = fetch_json(BCD_URL)?;
-    let wf_json = fetch_json(WEB_FEATURES_URL).unwrap_or(serde_json::Value::Null);
-    let wf_features = wf_json.get("features");
-    if wf_features.is_none() {
-        tracing::warn!(
-            url = WEB_FEATURES_URL,
-            "missing /features key in web-features JSON"
-        );
-    }
-    let Some(svg_elements_value) = bcd_json.pointer("/svg/elements") else {
-        tracing::warn!(url = BCD_URL, "missing /svg/elements path in BCD JSON");
-        return None;
-    };
-    let Some(svg_elements) = svg_elements_value.as_object() else {
-        tracing::warn!(url = BCD_URL, "/svg/elements is not a JSON object");
-        return None;
-    };
-
-    let elements = collect_element_overrides(svg_elements, wf_features);
-    let mut attributes = collect_element_attribute_overrides(svg_elements, wf_features);
-    apply_global_attribute_overrides(&mut attributes, &bcd_json, wf_features);
-
-    Some(RuntimeCompat {
-        elements,
-        attributes,
-    })
+pub fn fetch_runtime_compat() -> RuntimeCompat {
+    build_runtime(
+        &fetch_source("@mdn/browser-compat-data", "/svg/elements"),
+        &fetch_source("web-features", "/features"),
+    )
 }
 
-fn fetch_json(url: &str) -> Option<serde_json::Value> {
+fn fetch_source(name: &'static str, required: &str) -> Source {
+    let package_url = format!("https://unpkg.com/{name}@latest/package.json");
+    let version = fetch_json(&package_url).and_then(|v| v["version"].as_str().map(str::to_owned));
+    let url = version.as_ref().map_or(package_url, |v| {
+        format!("https://unpkg.com/{name}@{v}/data.json")
+    });
+    let data = version
+        .as_ref()
+        .and_then(|_| fetch_json(&url))
+        .filter(|v| v.pointer(required).is_some_and(Value::is_object));
+    Source {
+        name,
+        disabled: false,
+        version,
+        url,
+        data,
+    }
+}
+fn fetch_json(url: &str) -> Option<Value> {
     let agent = ureq::Agent::new_with_config(
         ureq::config::Config::builder()
             .timeout_global(Some(Duration::from_secs(30)))
@@ -158,555 +187,652 @@ fn fetch_json(url: &str) -> Option<serde_json::Value> {
     let text = agent
         .get(url)
         .call()
-        .map_err(|err| tracing::warn!(url, error = %err, "HTTP request failed"))
+        .map_err(|err| tracing::warn!(url,error=%err,"compat fetch failed"))
         .ok()?
         .body_mut()
         .read_to_string()
-        .map_err(|err| tracing::warn!(url, error = %err, "failed to read response body"))
         .ok()?;
     serde_json::from_str(&text)
-        .map_err(|err| tracing::warn!(url, error = %err, "failed to parse JSON"))
+        .map_err(|err| tracing::warn!(url,error=%err,"invalid compat JSON"))
         .ok()
 }
 
-fn collect_element_overrides(
-    svg_elements: &serde_json::Map<String, serde_json::Value>,
-    wf_features: Option<&serde_json::Value>,
-) -> HashMap<String, CompatOverride> {
-    svg_elements
-        .iter()
-        .filter_map(|(element_name, element_data)| {
-            let compat = element_data.pointer("/__compat")?;
-            Some((
-                element_name.clone(),
-                compat_override(compat, wf_features, &format!("svg.elements.{element_name}")),
-            ))
+fn raw_attribute_name(name: &str) -> String {
+    match name {
+        "referrerpolicy" => "referrerPolicy".to_owned(),
+        "data-*" => "data_attributes".to_owned(),
+        _ => name.replace(':', "_"),
+    }
+}
+fn global_key(name: &str) -> String {
+    format!("svg.global_attributes.{}", raw_attribute_name(name))
+}
+fn attribute_key(element: &str, name: &str) -> String {
+    format!("svg.elements.{element}.{}", raw_attribute_name(name))
+}
+fn bcd_record<'a>(data: &'a Value, key: &str) -> Option<&'a Value> {
+    data.pointer(&format!("/{}/__compat", key.replace('.', "/")))
+}
+fn wf_has_key(features: Option<&Value>, key: &str) -> bool {
+    features
+        .and_then(Value::as_object)
+        .into_iter()
+        .flat_map(|f| f.values())
+        .any(|f| {
+            f.get("compat_features")
+                .and_then(Value::as_array)
+                .is_some_and(|keys| keys.iter().any(|v| v.as_str() == Some(key)))
         })
-        .collect()
 }
-
-fn collect_element_attribute_overrides(
-    svg_elements: &serde_json::Map<String, serde_json::Value>,
-    wf_features: Option<&serde_json::Value>,
-) -> HashMap<String, CompatOverride> {
-    let mut attributes = HashMap::new();
-
-    for (element_name, element_data) in svg_elements {
-        let Some(attribute_map) = element_data.as_object() else {
-            continue;
-        };
-
-        for (attribute_name, attribute_data) in attribute_map {
-            if attribute_name == "__compat" {
-                continue;
-            }
-
-            let Some(compat) = attribute_data.pointer("/__compat") else {
-                continue;
-            };
-
-            let Some(canonical_name) = bcd_attribute_name(attribute_name, compat) else {
-                continue;
-            };
-            let new_override = compat_override(
-                compat,
-                wf_features,
-                &format!("svg.elements.{element_name}.{attribute_name}"),
-            );
-            merge_compat_override(attributes.entry(canonical_name), new_override);
-        }
+fn bcd_outcome(record: &Value) -> Outcome {
+    let status = record.get("status");
+    let support = record.get("support");
+    if !record.is_object() || (status.is_none() && support.is_none()) {
+        return Outcome::Unknown;
     }
-
-    attributes
-}
-
-fn apply_global_attribute_overrides(
-    attributes: &mut HashMap<String, CompatOverride>,
-    bcd_json: &serde_json::Value,
-    wf_features: Option<&serde_json::Value>,
-) {
-    let Some(global_attributes) = bcd_json.pointer("/svg/global_attributes") else {
-        tracing::warn!(
-            url = BCD_URL,
-            "missing /svg/global_attributes path in BCD JSON"
-        );
-        return;
-    };
-    let Some(attribute_map) = global_attributes.as_object() else {
-        tracing::warn!(url = BCD_URL, "/svg/global_attributes is not a JSON object");
-        return;
-    };
-
-    for (attribute_name, attribute_data) in attribute_map {
-        let Some(compat) = attribute_data.pointer("/__compat") else {
-            continue;
-        };
-        let Some(canonical_name) = bcd_attribute_name(attribute_name, compat) else {
-            continue;
-        };
-        let new_override = compat_override(
-            compat,
-            wf_features,
-            &format!("svg.global_attributes.{attribute_name}"),
-        );
-        merge_compat_override(attributes.entry(canonical_name), new_override);
-    }
-}
-
-fn compat_override(
-    compat: &serde_json::Value,
-    wf_features: Option<&serde_json::Value>,
-    compat_key: &str,
-) -> CompatOverride {
-    let browser_support = svg_data::compat_parse::extract_browser_versions(compat).map(|bv| {
-        let map_browser_version = |version| match version {
-            Some(svg_data::compat_parse::BrowserVersion::Unknown) => {
-                Some(RuntimeBrowserVersion::Unknown)
-            }
-            Some(svg_data::compat_parse::BrowserVersion::Version(version)) => {
-                Some(RuntimeBrowserVersion::Version(version))
-            }
-            None => None,
-        };
-
-        RuntimeBrowserSupport {
-            chrome: map_browser_version(bv.chrome),
-            edge: map_browser_version(bv.edge),
-            firefox: map_browser_version(bv.firefox),
-            safari: map_browser_version(bv.safari),
-        }
+    let invalid_status = status.is_some_and(|s| {
+        !s.is_object()
+            || ["deprecated", "experimental", "standard_track"]
+                .iter()
+                .any(|key| s.get(key).is_some_and(|v| !v.is_boolean()))
     });
-    CompatOverride {
-        deprecated: compat
-            .pointer("/status/deprecated")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false),
-        experimental: compat
-            .pointer("/status/experimental")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false),
-        standard_track: compat
-            .pointer("/status/standard_track")
-            .and_then(serde_json::Value::as_bool),
-        baseline: svg_data::compat_parse::resolve_baseline(compat, wf_features, compat_key),
-        browser_support,
+    let unknown_support = support.is_some_and(|s| {
+        !s.is_object()
+            || s.as_object().into_iter().flat_map(|s| s.values()).any(|v| {
+                let statements = v
+                    .as_array()
+                    .map_or_else(|| std::slice::from_ref(v), Vec::as_slice);
+                statements.iter().any(|s| {
+                    s.get("version_added")
+                        .is_none_or(|v| v != false && !v.is_string())
+                })
+            })
+    });
+    if invalid_status || unknown_support {
+        Outcome::Unknown
+    } else {
+        Outcome::Loaded
     }
 }
 
-fn bcd_attribute_name(attribute_name: &str, compat: &serde_json::Value) -> Option<String> {
-    if !is_bcd_attribute_feature(attribute_name, compat) {
-        return None;
-    }
-    match attribute_name {
-        "data_attributes" => Some("data-*".to_owned()),
-        "xlink_actuate" => Some("xlink:actuate".to_owned()),
-        "xlink_href" => None,
-        "xlink_show" => Some("xlink:show".to_owned()),
-        "xlink_title" => Some("xlink:title".to_owned()),
-        "xml_lang" => Some("xml:lang".to_owned()),
-        "xml_space" => Some("xml:space".to_owned()),
-        "referrerPolicy" => Some("referrerpolicy".to_owned()),
-        other => Some(svg_data::xlink::canonical_svg_attribute_name(other).into_owned()),
-    }
-}
-
-fn is_bcd_attribute_feature(attribute_name: &str, compat: &serde_json::Value) -> bool {
-    compat
-        .get("mdn_url")
-        .and_then(serde_json::Value::as_str)
-        .is_some_and(|url| url.contains("/Attribute/"))
-        || matches!(
-            attribute_name,
-            "data_attributes"
-                | "xlink_actuate"
-                | "xlink_show"
-                | "xlink_title"
-                | "xml_lang"
-                | "xml_space"
-        )
-}
-
-fn merge_compat_override(
-    entry: std::collections::hash_map::Entry<'_, String, CompatOverride>,
-    new_override: CompatOverride,
-) {
-    entry
-        .and_modify(|existing| {
-            if new_override.deprecated {
-                existing.deprecated = true;
-            }
-            if new_override.experimental {
-                existing.experimental = true;
-            }
-            merge_standard_track(&mut existing.standard_track, new_override.standard_track);
-            merge_baseline(&mut existing.baseline, new_override.baseline);
-            if let Some(new_browser_support) = &new_override.browser_support {
-                merge_runtime_browser_support(&mut existing.browser_support, new_browser_support);
-            }
-        })
-        .or_insert(new_override);
-}
-
-const fn merge_standard_track(existing: &mut Option<bool>, new: Option<bool>) {
-    if matches!(new, Some(false)) || existing.is_none() {
-        *existing = new;
-    }
-}
-
-const fn merge_baseline(existing: &mut Option<BaselineStatus>, new: Option<BaselineStatus>) {
-    let Some(current) = *existing else {
-        *existing = new;
-        return;
+fn resolve(
+    baked: Facts,
+    key: &str,
+    fallback: Option<&str>,
+    bcd: &Source,
+    wf: &Source,
+) -> CompatOverride {
+    let mut facts = baked;
+    let mut bcd_key = key;
+    let bcd_outcome = if let Some(data) = &bcd.data {
+        let record = bcd_record(data, key).or_else(|| {
+            fallback.and_then(|k| {
+                let value = bcd_record(data, k);
+                if value.is_some() {
+                    bcd_key = k;
+                }
+                value
+            })
+        });
+        facts.deprecated = record
+            .and_then(|r| r.pointer("/status/deprecated"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        facts.experimental = record
+            .and_then(|r| r.pointer("/status/experimental"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        facts.standard_track = record
+            .and_then(|r| r.pointer("/status/standard_track"))
+            .and_then(Value::as_bool);
+        facts.browser_support = record.and_then(svg_data::browser_compat::extract_browser_support);
+        record.map_or(Outcome::Absent, bcd_outcome)
+    } else if bcd.disabled {
+        Outcome::Disabled
+    } else {
+        Outcome::Failed
     };
-    let Some(new) = new else {
-        return;
-    };
-
-    let current_rank = baseline_rank(current);
-    let new_rank = baseline_rank(new);
-    if new_rank < current_rank
-        || (new_rank == current_rank && baseline_since(new) > baseline_since(current))
-    {
-        *existing = Some(new);
-    }
-}
-
-fn merge_runtime_browser_support(
-    existing: &mut Option<RuntimeBrowserSupport>,
-    new: &RuntimeBrowserSupport,
-) {
-    let Some(existing) = existing.as_mut() else {
-        *existing = Some(new.clone());
-        return;
-    };
-
-    merge_runtime_browser_version(&mut existing.chrome, new.chrome.as_ref());
-    merge_runtime_browser_version(&mut existing.edge, new.edge.as_ref());
-    merge_runtime_browser_version(&mut existing.firefox, new.firefox.as_ref());
-    merge_runtime_browser_version(&mut existing.safari, new.safari.as_ref());
-}
-
-fn merge_runtime_browser_version(
-    existing: &mut Option<RuntimeBrowserVersion>,
-    new: Option<&RuntimeBrowserVersion>,
-) {
-    let Some(new) = new else {
-        *existing = None;
-        return;
-    };
-
-    let Some(current) = existing.as_ref() else {
-        *existing = Some(new.clone());
-        return;
-    };
-
-    match (current, new) {
-        (RuntimeBrowserVersion::Unknown, RuntimeBrowserVersion::Version(version)) => {
-            *existing = Some(RuntimeBrowserVersion::Version(version.clone()));
-        }
-        (RuntimeBrowserVersion::Version(current), RuntimeBrowserVersion::Version(new))
-            if compare_browser_versions(new, current).is_gt() =>
+    let mut wf_key = key;
+    let wf_outcome = if let Some(data) = &wf.data {
+        let features = data.get("features");
+        if !wf_has_key(features, key)
+            && let Some(k) = fallback.filter(|k| wf_has_key(features, k))
         {
-            *existing = Some(RuntimeBrowserVersion::Version(new.clone()));
+            wf_key = k;
         }
-        _ => {}
+        facts.baseline = compat_model::resolve_baseline(features, wf_key);
+        facts.discouraged = compat_model::resolve_discouraged(features, wf_key);
+        if !wf_has_key(features, wf_key) {
+            Outcome::Absent
+        } else if facts.baseline.as_ref().is_none_or(|b| b.status.is_none()) {
+            Outcome::Unknown
+        } else {
+            Outcome::Loaded
+        }
+    } else if wf.disabled {
+        Outcome::Disabled
+    } else {
+        Outcome::Failed
+    };
+    CompatOverride {
+        facts,
+        sources: [
+            bcd.provenance(bcd_key, bcd_outcome),
+            wf.provenance(wf_key, wf_outcome),
+        ],
+    }
+}
+fn build_runtime(bcd: &Source, wf: &Source) -> RuntimeCompat {
+    let elements = svg_data::elements()
+        .iter()
+        .map(|el| {
+            let baked = svg_data::CompatFacts {
+                deprecated: el.deprecated,
+                experimental: el.experimental,
+                standard_track: el.standard_track,
+                baseline: el.baseline,
+                discouraged: el.discouraged,
+                browser_support: el.browser_support,
+            };
+            (
+                el.name.to_owned(),
+                resolve(
+                    baked.into(),
+                    &format!("svg.elements.{}", el.name),
+                    None,
+                    bcd,
+                    wf,
+                ),
+            )
+        })
+        .collect();
+    let contexts = attribute_contexts(bcd, wf);
+    let attributes = svg_data::attributes()
+        .iter()
+        .map(|a| {
+            (
+                a.name.to_owned(),
+                resolve(a.compat_facts().into(), &global_key(a.name), None, bcd, wf),
+            )
+        })
+        .collect();
+    let attribute_contexts = contexts
+        .into_iter()
+        .filter_map(|(el, name)| {
+            let a = svg_data::attribute(&name)?;
+            let record = resolve(
+                a.compat_facts_for_element(Some(&el)).into(),
+                &attribute_key(&el, &name),
+                Some(&global_key(&name)),
+                bcd,
+                wf,
+            );
+            Some(((el, name), record))
+        })
+        .collect();
+    RuntimeCompat {
+        elements,
+        attributes,
+        attribute_contexts,
     }
 }
 
-fn compare_browser_versions(left: &str, right: &str) -> std::cmp::Ordering {
-    let Some((left_upper_bound, left_parts)) = parse_browser_version(left) else {
-        tracing::debug!(version = left, "failed to parse browser version");
-        return std::cmp::Ordering::Equal;
-    };
-    let Some((right_upper_bound, right_parts)) = parse_browser_version(right) else {
-        tracing::debug!(version = right, "failed to parse browser version");
-        return std::cmp::Ordering::Equal;
-    };
-
-    let max_len = left_parts.len().max(right_parts.len());
-    for idx in 0..max_len {
-        let left_part = left_parts.get(idx).copied().unwrap_or(0);
-        let right_part = right_parts.get(idx).copied().unwrap_or(0);
-        match left_part.cmp(&right_part) {
-            std::cmp::Ordering::Equal => {}
-            non_eq => return non_eq,
+fn attribute_contexts(bcd: &Source, wf: &Source) -> HashSet<(String, String)> {
+    let mut contexts: HashSet<(String, String)> = svg_data::attributes()
+        .iter()
+        .flat_map(|a| {
+            a.element_compat
+                .iter()
+                .map(move |c| (c.element.to_owned(), a.name.to_owned()))
+        })
+        .collect();
+    if let Some(elements) = bcd
+        .data
+        .as_ref()
+        .and_then(|d| d.pointer("/svg/elements"))
+        .and_then(Value::as_object)
+    {
+        for (element, attrs) in elements {
+            for (raw, attr) in attrs.as_object().into_iter().flatten() {
+                if let Some(name) = attr
+                    .get("__compat")
+                    .and_then(|c| bcd_attribute_name(raw, c))
+                {
+                    contexts.insert((element.clone(), name));
+                }
+            }
         }
     }
-
-    (!left_upper_bound).cmp(&!right_upper_bound)
-}
-
-fn parse_browser_version(version: &str) -> Option<(bool, Vec<u32>)> {
-    let (upper_bound, version) = version
-        .strip_prefix('≤')
-        .map_or((false, version), |version| (true, version));
-    let parts = version
-        .split('.')
-        .map(str::parse)
-        .collect::<Result<Vec<u32>, _>>()
-        .ok()?;
-    Some((upper_bound, parts))
-}
-
-const fn baseline_rank(baseline: BaselineStatus) -> u8 {
-    match baseline {
-        BaselineStatus::Limited => 0,
-        BaselineStatus::Newly { .. } => 1,
-        BaselineStatus::Widely { .. } => 2,
+    if let Some(features) = wf
+        .data
+        .as_ref()
+        .and_then(|d| d.get("features"))
+        .and_then(Value::as_object)
+    {
+        for feature in features.values() {
+            for key in feature
+                .get("compat_features")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+            {
+                let parts: Vec<_> = key.split('.').collect();
+                if let ["svg", "elements", element, raw] = parts.as_slice() {
+                    let canonical = match *raw {
+                        "referrerPolicy" => "referrerpolicy".to_owned(),
+                        "data_attributes" => "data-*".to_owned(),
+                        _ => raw.replace('_', ":"),
+                    };
+                    if svg_data::attribute(&canonical).is_some() {
+                        contexts.insert(((*element).to_owned(), canonical));
+                    }
+                }
+            }
+        }
     }
+    contexts
 }
 
-const fn baseline_since(baseline: BaselineStatus) -> u16 {
-    match baseline {
-        BaselineStatus::Widely { since, .. } | BaselineStatus::Newly { since, .. } => since,
-        BaselineStatus::Limited => 0,
-    }
+fn bcd_attribute_name(attribute_name: &str, _compat: &Value) -> Option<String> {
+    let canonical = match attribute_name {
+        "data_attributes" => "data-*".to_owned(),
+        "referrerPolicy" => "referrerpolicy".to_owned(),
+        name if name.starts_with("xlink_") || name.starts_with("xml_") => name.replace('_', ":"),
+        other => svg_data::xlink::canonical_svg_attribute_name(other).into_owned(),
+    };
+    svg_data::attribute(&canonical).map(|_| canonical)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use super::{
-        BaselineStatus, CompatOverride, RuntimeBrowserSupport, RuntimeBrowserVersion,
-        RuntimeCompat, apply_global_attribute_overrides, collect_element_attribute_overrides,
-        merge_baseline, merge_runtime_browser_support,
-    };
-
-    fn known(version: &str) -> RuntimeBrowserVersion {
-        RuntimeBrowserVersion::Version(version.to_owned())
-    }
-
-    fn override_with(deprecated: bool, experimental: bool) -> CompatOverride {
-        CompatOverride {
-            deprecated,
-            experimental,
-            standard_track: None,
-            baseline: None,
-            browser_support: None,
-        }
-    }
-
-    #[test]
-    fn verdict_overrides_reflect_runtime_deprecation_and_experimental() {
-        use svg_data::VerdictRecommendation;
-
-        let runtime = RuntimeCompat {
-            elements: HashMap::from([("marker".to_owned(), override_with(true, false))]),
-            attributes: HashMap::from([
-                ("rx".to_owned(), override_with(false, true)),
-                ("fill".to_owned(), override_with(false, false)),
-                (
-                    "fetchpriority".to_owned(),
-                    CompatOverride {
-                        deprecated: false,
-                        experimental: true,
-                        standard_track: Some(false),
-                        baseline: None,
-                        browser_support: None,
-                    },
-                ),
-            ]),
-        };
-        let overrides = runtime.to_verdict_overrides();
-
-        // Deprecated element -> Avoid verdict.
-        let Some(marker) = overrides.elements.get("marker") else {
-            panic!("marker should have a runtime verdict override");
-        };
-        assert_eq!(marker.recommendation, VerdictRecommendation::Avoid);
-
-        // Experimental attribute -> Caution verdict.
-        let Some(rx) = overrides.attributes.get("rx") else {
-            panic!("rx should have a runtime verdict override");
-        };
-        assert_eq!(rx.recommendation, VerdictRecommendation::Caution);
-
-        let Some(fetchpriority) = overrides.attributes.get("fetchpriority") else {
-            panic!("fetchpriority should have a runtime verdict override");
-        };
-        assert_eq!(fetchpriority.recommendation, VerdictRecommendation::Avoid);
-        assert!(
-            fetchpriority
-                .reasons
-                .contains(&svg_data::VerdictReason::BcdNonStandard)
-        );
-
-        // No advisory status -> no override (catalog verdict stands).
-        assert!(!overrides.attributes.contains_key("fill"));
-    }
-
-    #[test]
-    fn merge_baseline_prefers_worse_rank() {
-        let mut existing = Some(BaselineStatus::Widely {
-            since: 2020,
-            qualifier: None,
-        });
-        merge_baseline(&mut existing, Some(BaselineStatus::Limited));
-        assert_eq!(existing, Some(BaselineStatus::Limited));
-    }
-
-    #[test]
-    fn merge_baseline_tightens_equal_rank_year() {
-        let mut existing = Some(BaselineStatus::Newly {
-            since: 2024,
-            qualifier: None,
-        });
-        merge_baseline(
-            &mut existing,
-            Some(BaselineStatus::Newly {
-                since: 2025,
-                qualifier: None,
-            }),
-        );
-        assert_eq!(
-            existing,
-            Some(BaselineStatus::Newly {
-                since: 2025,
-                qualifier: None
-            })
-        );
-    }
-
-    #[test]
-    fn merge_browser_support_prefers_later_and_stricter_versions() {
-        let mut existing = Some(RuntimeBrowserSupport {
-            chrome: Some(known("120")),
-            edge: Some(known("120")),
-            firefox: Some(known("115")),
-            safari: Some(known("≤17.2")),
-        });
-        let new = RuntimeBrowserSupport {
-            chrome: Some(known("127")),
-            edge: Some(known("118")),
-            firefox: Some(known("115")),
-            safari: Some(known("17.2")),
-        };
-
-        merge_runtime_browser_support(&mut existing, &new);
-
-        assert_eq!(
-            existing
-                .as_ref()
-                .and_then(|support| support.chrome.as_ref()),
-            Some(&known("127"))
-        );
-        assert_eq!(
-            existing.as_ref().and_then(|support| support.edge.as_ref()),
-            Some(&known("120"))
-        );
-        assert_eq!(
-            existing
-                .as_ref()
-                .and_then(|support| support.safari.as_ref()),
-            Some(&known("17.2"))
-        );
-    }
-
-    #[test]
-    fn merge_browser_support_keeps_none_as_worst_case() {
-        let mut existing = Some(RuntimeBrowserSupport {
-            chrome: Some(known("120")),
-            edge: Some(known("120")),
-            firefox: Some(known("115")),
-            safari: Some(known("17.2")),
-        });
-        let new = RuntimeBrowserSupport {
-            chrome: None,
-            edge: Some(known("118")),
-            firefox: Some(known("114")),
-            safari: Some(known("17.0")),
-        };
-
-        merge_runtime_browser_support(&mut existing, &new);
-
-        assert_eq!(
-            existing
-                .as_ref()
-                .and_then(|support| support.chrome.as_ref()),
-            None
-        );
-        assert_eq!(
-            existing.as_ref().and_then(|support| support.edge.as_ref()),
-            Some(&known("120"))
-        );
-    }
-
-    #[test]
-    fn merge_browser_support_keeps_known_version_over_unknown() {
-        let mut existing = Some(RuntimeBrowserSupport {
-            chrome: Some(known("120")),
-            edge: Some(known("120")),
-            firefox: Some(known("115")),
-            safari: Some(known("17.2")),
-        });
-        let new = RuntimeBrowserSupport {
-            chrome: Some(RuntimeBrowserVersion::Unknown),
-            edge: Some(RuntimeBrowserVersion::Unknown),
-            firefox: Some(RuntimeBrowserVersion::Unknown),
-            safari: Some(RuntimeBrowserVersion::Unknown),
-        };
-
-        merge_runtime_browser_support(&mut existing, &new);
-
-        assert_eq!(
-            existing
-                .as_ref()
-                .and_then(|support| support.chrome.as_ref()),
-            Some(&known("120"))
-        );
-    }
-
+    use super::*;
+    use serde_json::json;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    fn source(name: &'static str, data: Option<Value>) -> Source {
+        Source {
+            name,
+            disabled: false,
+            version: Some("fixture-2".to_owned()),
+            url: "https://example.com/fixture-2".to_owned(),
+            data,
+        }
+    }
+    fn runtime(bcd: Option<Value>, wf: Option<Value>) -> RuntimeCompat {
+        build_runtime(
+            &source("@mdn/browser-compat-data", bcd),
+            &source("web-features", wf),
+        )
+    }
+    fn context_bcd() -> Value {
+        json!({"svg":{"elements":{
+            "rect":{"width":{"__compat":{"mdn_url":"https://developer.mozilla.org/docs/Web/SVG/Attribute/width","status":{"deprecated":true},"support":{"chrome":{"version_added":false}}}}},
+            "svg":{"width":{"__compat":{"mdn_url":"https://developer.mozilla.org/docs/Web/SVG/Attribute/width","status":{"deprecated":false},"support":{"chrome":{"version_added":"120","notes":"fresh note","flags":[{"type":"runtime_flag","name":"new-flag"}],"version_removed":"130"}}}}}
+        },"global_attributes":{"width":{"__compat":{"status":{"experimental":true},"support":{"chrome":{"version_added":true}}}}}}})
+    }
+    fn context_wf() -> Value {
+        json!({"features":{
+            "scoped":{"name":"Scoped width","compat_features":["svg.elements.rect.width"],"status":{"baseline":"high","by_compat_key":{"svg.elements.rect.width":{"baseline":false}}},"discouraged":{"reason":"Rect advice only","according_to":[],"alternatives":[]}},
+            "ordinary":{"compat_features":["svg.elements.svg.width"],"status":{"baseline":"high"}},
+            "global":{"compat_features":["svg.global_attributes.width"],"status":{"baseline":"low"}}
+        }})
+    }
+    fn hover(record: &CompatOverride, element: &str) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(crate::hover::format_attribute_hover_with_profile_name(
+            svg_data::attribute("width").ok_or("width")?,
+            "width",
+            crate::hover::AttributeHoverContext {
+                element_name: Some(element),
+                profile: svg_data::SpecSnapshotId::LATEST,
+                profile_lifecycle: None,
+                rt: Some(record),
+                native: None,
+                settings: &crate::hover_settings::HoverSettings::default(),
+            },
+        ))
+    }
     #[test]
-    fn global_attribute_overlay_merges_with_element_local() -> TestResult {
-        let bcd_json = serde_json::json!({
-            "svg": {
-                "elements": {
-                    "rect": {
-                        "__compat": {
-                            "support": { "chrome": { "version_added": "1" } },
-                            "status": { "deprecated": false, "experimental": false }
-                        },
-                        "fill": {
-                            "__compat": {
-                                "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill",
-                                "support": { "chrome": { "version_added": "10" } },
-                                "status": { "deprecated": false, "experimental": false }
-                            }
-                        }
-                    }
-                },
-                "global_attributes": {
-                    "fill": {
-                        "__compat": {
-                            "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/fill",
-                            "support": { "chrome": { "version_added": "50" } },
-                            "status": { "deprecated": false, "experimental": false }
-                        }
-                    }
-                }
-            }
-        });
-
-        let svg_elements = bcd_json
-            .pointer("/svg/elements")
-            .ok_or("missing /svg/elements")?
-            .as_object()
-            .ok_or("not an object")?;
-        let mut attributes = collect_element_attribute_overrides(svg_elements, None);
-        apply_global_attribute_overrides(&mut attributes, &bcd_json, None);
-
-        let fill = attributes.get("fill").ok_or("fill should be merged")?;
-        // Global says chrome 50, element-local says chrome 10.
-        // merge_runtime_browser_support keeps the later (stricter) version.
+    fn exact_context_controls_hover_lint_and_completion() -> TestResult {
+        let runtime = runtime(Some(context_bcd()), Some(context_wf()));
+        let rect = runtime
+            .attribute("width", Some("rect"))
+            .ok_or("rect width")?;
+        let svg = runtime.attribute("width", Some("svg")).ok_or("svg width")?;
         assert_eq!(
-            fill.browser_support
-                .as_ref()
-                .and_then(|s| s.chrome.as_ref()),
-            Some(&known("50")),
+            rect.facts.baseline.as_ref().and_then(|b| b.status),
+            Some(svg_data::BaselineTier::Limited)
         );
+        assert_eq!(
+            svg.facts.baseline.as_ref().and_then(|b| b.status),
+            Some(svg_data::BaselineTier::Widely)
+        );
+        assert_eq!(rect.sources[0].key, "svg.elements.rect.width");
+        assert_eq!(rect.facts.discouraged.len(), 1);
+        assert_eq!(
+            svg.facts.discouraged,
+            Vec::<compat_model::Discouraged>::new()
+        );
+        let rect_hover = hover(rect, "rect")?;
+        let svg_hover = hover(svg, "svg")?;
+        assert!(rect_hover.contains("Rect advice only"));
+        assert!(!svg_hover.contains("Rect advice only"));
+        assert!(svg_hover.contains("fresh note"));
+        assert!(svg_hover.contains("new-flag"));
+        assert!(svg_hover.contains("removed in chrome 130"));
+        assert!(!svg_hover.contains("limited baseline"));
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        let source = b"<svg width=\"1\"><rect width=\"1\"/></svg>";
+        let tree = parser.parse(source, None).ok_or("parse")?;
+        let flags = runtime.to_lint_overrides();
+        let verdicts = runtime.to_verdict_overrides();
+        let diagnostics = svg_lint::lint_tree_with_compat(
+            source,
+            &tree,
+            svg_lint::LintOptions::default(),
+            Some(&flags),
+            Some(&verdicts),
+        );
+        let deprecated: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.code == svg_lint::DiagnosticCode::DeprecatedAttribute)
+            .collect();
+        assert_eq!(deprecated.len(), 1, "{diagnostics:?}");
+        assert!(
+            deprecated[0].start_col > 20,
+            "only rect.width should be deprecated"
+        );
+        for (owner, expected) in [("rect", Some(true)), ("svg", None)] {
+            let mut items = vec![tower_lsp_server::ls_types::CompletionItem {
+                label: "width".to_owned(),
+                ..Default::default()
+            }];
+            crate::completion::reconcile_compat_items(
+                &mut items,
+                Some(owner),
+                svg_data::SpecSnapshotId::LATEST,
+                Some(&runtime),
+            );
+            assert_eq!(items[0].deprecated, expected);
+            let Some(tower_lsp_server::ls_types::Documentation::MarkupContent(doc)) =
+                &items[0].documentation
+            else {
+                return Err("completion documentation".into());
+            };
+            assert_eq!(doc.value.contains("Rect advice only"), owner == "rect");
+        }
+        Ok(())
+    }
+    #[test]
+    fn exact_unknown_overrides_global_but_absent_context_uses_global() -> TestResult {
+        let mut wf = context_wf();
+        wf["features"]["scoped"]["status"]["by_compat_key"]["svg.elements.rect.width"] = json!({});
+        let r = runtime(Some(context_bcd()), Some(wf));
+        let exact = r.attribute("width", Some("rect")).ok_or("exact")?;
+        assert!(
+            exact
+                .facts
+                .baseline
+                .as_ref()
+                .is_none_or(|b| b.status.is_none())
+        );
+        assert_eq!(exact.sources[1].outcome, Outcome::Unknown);
+        let fallback = r.attribute("width", Some("unlisted")).ok_or("global")?;
+        assert_eq!(
+            fallback.facts.baseline.as_ref().and_then(|b| b.status),
+            Some(svg_data::BaselineTier::Newly)
+        );
+        assert_eq!(fallback.sources[1].key, "svg.global_attributes.width");
+        assert!(fallback.facts.experimental);
+        Ok(())
+    }
+    #[test]
+    fn authoritative_absence_clears_baked_facts_and_failed_refresh_retains_them() -> TestResult {
+        let attribute = svg_data::attribute("width").ok_or("width")?;
+        let baked = Facts::from(attribute.compat_facts_for_element(Some("rect")));
+        assert!(baked.baseline.is_some());
+        let absent = runtime(
+            Some(json!({"svg":{"elements":{},"global_attributes":{}}})),
+            Some(json!({"features":{}})),
+        );
+        let record = absent.attribute("width", Some("rect")).ok_or("absent")?;
+        assert!(record.facts.baseline.is_none());
+        assert!(record.facts.browser_support.is_none());
+        assert_eq!(
+            record.facts.discouraged,
+            Vec::<compat_model::Discouraged>::new()
+        );
+        assert_eq!(record.sources[0].outcome, Outcome::Absent);
+        assert_eq!(record.sources[1].outcome, Outcome::Absent);
+        let failed = runtime(None, None);
+        let record = failed.attribute("width", Some("rect")).ok_or("failed")?;
+        assert_eq!(record.facts, baked);
+        assert_eq!(record.sources[1].outcome, Outcome::Failed);
+        assert_eq!(record.sources[1].version.as_deref(), Some("3.36.0"));
+        assert!(hover(record, "rect")?.contains("bundled facts retained (stale)"));
+        Ok(())
+    }
+    #[test]
+    fn partial_refresh_keeps_source_identity_and_complete_browser_changes() -> TestResult {
+        let r = runtime(Some(context_bcd()), None);
+        let record = r.attribute("width", Some("svg")).ok_or("width")?;
+        let baked = Facts::from(
+            svg_data::attribute("width")
+                .ok_or("width")?
+                .compat_facts_for_element(Some("svg")),
+        );
+        assert_eq!(record.facts.baseline, baked.baseline);
+        assert_eq!(record.sources[0].version.as_deref(), Some("fixture-2"));
+        assert_eq!(record.sources[1].version.as_deref(), Some("3.36.0"));
+        assert_eq!(record.sources[0].outcome, Outcome::Loaded);
+        assert_eq!(record.sources[1].outcome, Outcome::Failed);
+        let browser = record
+            .facts
+            .browser_support
+            .as_ref()
+            .and_then(|s| s.get("chrome"))
+            .and_then(|v| svg_data::browser_compat::select_statement(v))
+            .ok_or("chrome")?;
+        assert_eq!(browser.notes, ["fresh note"]);
+        assert_eq!(browser.version_removed.as_deref(), Some("130"));
+        let verdict = effective_compat::verdict(&record.facts).ok_or("verdict")?;
+        assert!(
+            verdict
+                .reasons
+                .contains(&svg_data::VerdictReason::BehindFlagIn("chrome".to_owned()))
+        );
+        assert!(verdict.reasons.iter().any(
+            |r| matches!(r,svg_data::VerdictReason::RemovedIn {version,..} if version=="130")
+        ));
+        Ok(())
+    }
+    #[test]
+    fn baseline_changes_replace_baked_reasons_in_both_directions() -> TestResult {
+        let bcd = source(
+            "@mdn/browser-compat-data",
+            Some(
+                json!({"svg":{"elements":{"rect":{"__compat":{"status":{"standard_track":false}}}}}}),
+            ),
+        );
+        for (before, after, limited) in [(false, json!("high"), false), (true, json!(false), true)]
+        {
+            let baked = Facts {
+                baseline: compat_model::parse_baseline(
+                    &json!({"baseline":if before {json!("high")}else{json!(false)}}),
+                ),
+                ..Default::default()
+            };
+            let wf = source(
+                "web-features",
+                Some(
+                    json!({"features":{"svg":{"compat_features":["svg.elements.rect"],"status":{"baseline":after}}}}),
+                ),
+            );
+            let record = resolve(baked, "svg.elements.rect", None, &bcd, &wf);
+            assert_eq!(
+                effective_compat::verdict(&record.facts).is_some_and(|v| v
+                    .reasons
+                    .contains(&svg_data::VerdictReason::BaselineLimited)),
+                limited
+            );
+            assert!(
+                effective_compat::verdict(&record.facts).is_some_and(|v| v.recommendation
+                    == svg_data::VerdictRecommendation::Avoid
+                    && v.reasons.contains(&svg_data::VerdictReason::BcdNonStandard))
+            );
+            let element = svg_data::element("rect").ok_or("rect")?;
+            let hover = crate::hover::format_element_hover_with_profile(
+                element,
+                svg_data::SpecSnapshotId::LATEST,
+                None,
+                Some(&record),
+                None,
+                &crate::hover_settings::HoverSettings::default(),
+            );
+            assert_eq!(hover.contains("limited baseline"), limited);
+            assert_eq!(hover.contains("Widely Available"), !limited);
+        }
+        Ok(())
+    }
+    #[test]
+    fn disabled_and_failed_refreshes_use_baked_common_facts_and_lint_policy() -> TestResult {
+        for runtime in [RuntimeCompat::disabled(), runtime(None, None)] {
+            let a = svg_data::attribute("id").ok_or("id")?;
+            assert_eq!(
+                runtime.attribute("id", Some("rect")).ok_or("id")?.facts,
+                Facts::from(a.compat_facts_for_element(Some("rect")))
+            );
+            let flags = runtime.to_lint_overrides();
+            assert_eq!(flags.elements.len(), 0);
+            assert_eq!(flags.attributes.len(), 0);
+            assert_eq!(flags.attribute_contexts.len(), 0);
+            let source = br#"<svg version="1.1" baseProfile="full"/>"#;
+            let mut parser = tree_sitter::Parser::new();
+            parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+            let tree = parser.parse(source, None).ok_or("parse")?;
+            let options = svg_lint::LintOptions {
+                profile: svg_data::SpecSnapshotId::Svg11Rec20110816,
+                ..Default::default()
+            };
+            let baked = svg_lint::lint_tree_with_compat(source, &tree, options, None, None);
+            let refreshed = svg_lint::lint_tree_with_compat(
+                source,
+                &tree,
+                options,
+                Some(&flags),
+                Some(&runtime.to_verdict_overrides()),
+            );
+            assert_eq!(format!("{baked:?}"), format!("{refreshed:?}"));
+        }
+        Ok(())
+    }
+    #[test]
+    fn malformed_bcd_fields_are_unknown_and_do_not_keep_old_warnings() -> TestResult {
+        let bcd = source(
+            "@mdn/browser-compat-data",
+            Some(
+                json!({"svg":{"elements":{"rect":{"__compat":{"status":{"deprecated":"maybe"},"support":{"chrome":{"version_added":null}}}}}}}),
+            ),
+        );
+        let wf = source("web-features", Some(json!({"features":{}})));
+        let record = resolve(
+            Facts {
+                deprecated: true,
+                ..Default::default()
+            },
+            "svg.elements.rect",
+            None,
+            &bcd,
+            &wf,
+        );
+        assert_eq!(record.sources[0].outcome, Outcome::Unknown);
+        assert!(!record.facts.deprecated);
+        assert_eq!(
+            record
+                .facts
+                .browser_support
+                .as_ref()
+                .and_then(|s| s.get("chrome"))
+                .and_then(|v| svg_data::browser_compat::select_statement(v))
+                .ok_or("chrome")?
+                .supported(),
+            None
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn exact_context_does_not_require_a_documentation_url() -> TestResult {
+        let r = runtime(
+            Some(
+                json!({"svg":{"elements":{"circle":{"width":{"__compat":{"status":{"deprecated":true}}}}},"global_attributes":{"width":{"__compat":{"status":{"deprecated":false}}}}}}),
+            ),
+            Some(json!({"features":{}})),
+        );
+        assert!(
+            r.attribute("width", Some("circle"))
+                .ok_or("circle width")?
+                .facts
+                .deprecated
+        );
+        assert!(
+            !r.attribute("width", Some("unlisted"))
+                .ok_or("global width")?
+                .facts
+                .deprecated
+        );
+        Ok(())
+    }
+    #[test]
+    fn browser_refresh_removes_old_notes_flags_prefixes_and_removal_reasons() -> TestResult {
+        use svg_data::browser_compat::{BrowserFlag, BrowserSupport, BrowserVersion};
+        let old = Facts {
+            browser_support: Some(BrowserSupport::from([(
+                "chrome".to_owned(),
+                vec![BrowserVersion {
+                    version_added: Some(svg_data::browser_compat::VersionAdded::Version(
+                        "40".to_owned(),
+                    )),
+                    version_removed: Some("60".to_owned()),
+                    prefix: Some("-old-".to_owned()),
+                    notes: vec!["obsolete note".to_owned()],
+                    flags: vec![BrowserFlag {
+                        name: "old-flag".to_owned(),
+                        kind: svg_data::browser_compat::FlagKind::Preference,
+                        value_to_set: None,
+                    }],
+                    ..Default::default()
+                }],
+            )])),
+            ..Default::default()
+        };
+        let bcd = source(
+            "@mdn/browser-compat-data",
+            Some(
+                json!({"svg":{"elements":{"rect":{"width":{"__compat":{"support":{"chrome":{"version_added":"130","notes":"replacement note"}}}}}}}}),
+            ),
+        );
+        let record = resolve(
+            old,
+            "svg.elements.rect.width",
+            None,
+            &bcd,
+            &source("web-features", Some(json!({"features":{}}))),
+        );
+        let output = hover(&record, "rect")?;
+        assert!(output.contains("Chrome 130"));
+        assert!(output.contains("replacement note"));
+        for stale in [
+            "old-flag",
+            "obsolete note",
+            "-old-",
+            "removed in chrome",
+            "flagged in chrome",
+        ] {
+            assert!(!output.contains(stale), "{output}");
+        }
+        assert!(effective_compat::verdict(&record.facts).is_none());
         Ok(())
     }
 }

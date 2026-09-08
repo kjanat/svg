@@ -28,9 +28,15 @@
 //! [publish]: https://raw.githubusercontent.com/w3c/svgwg/master/publish.xml
 
 mod aria;
+#[path = "../../svg-data/src/browser_compat.rs"]
+#[allow(dead_code)]
+mod browser_compat;
 mod catalog;
 mod chapter;
 mod compat;
+#[allow(dead_code)]
+#[path = "../../svg-data/src/compat_model.rs"]
+mod compat_model;
 mod css;
 mod discover;
 mod extract;
@@ -40,6 +46,7 @@ mod legacy;
 mod npm;
 mod paths;
 mod provenance;
+mod refresh_compat;
 mod schema;
 mod treesitter;
 mod util;
@@ -78,6 +85,9 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Fallible<()> {
+    if std::env::args().nth(1).as_deref() == Some("--refresh-compat") {
+        return refresh_compat::run();
+    }
     // Resolve the ref to pin: an explicit CLI arg, else the default branch.
     let reference = match std::env::args().nth(1) {
         Some(arg) => arg,

@@ -36,7 +36,7 @@ function bucketOf(entry: CompatEntry): BaselineBucket {
 	return entry.baseline?.status ?? 'unknown';
 }
 
-function countBuckets(entries: Record<string, CompatEntry>): BaselineCounts {
+export function countBuckets(entries: Record<string, CompatEntry>): BaselineCounts {
 	const counts: BaselineCounts = {
 		widely: 0,
 		newly: 0,
@@ -81,10 +81,28 @@ export function renderDataSummary(out: Out, data: SvgCompatOutput): void {
 	out.table([countBuckets(data.elements)]);
 	out.log('');
 
-	out.log('attributes (baseline buckets)');
-	out.table([countBuckets(data.attributes)]);
+	out.log('attributes (derived summaries of observed contexts)');
+	const attributeAggregates = Object.fromEntries(Object.entries(data.attributes).map(([name, entry]) => [name, entry.aggregate]));
+	out.table([countBuckets(attributeAggregates)]);
+	out.table(Object.entries(data.attributes).map(([name, entry]) => ({ name, ...entry.coverage })));
 	out.log('');
 
+	const discouraged = [...Object.values(data.elements), ...Object.values(attributeAggregates)].filter(entry => entry.discouraged?.length).length;
+	out.log(`entries with WebDX discouragement: ${discouraged} (independent of Baseline buckets)`);
+	const advice = new Map<string, NonNullable<CompatEntry['discouraged']>[number]>();
+	for (const entry of [...Object.values(data.elements), ...Object.values(attributeAggregates)]) {
+		for (const item of entry.discouraged ?? []) advice.set(`${item.feature_id}:${item.compat_key}`, item);
+	}
+	if (advice.size) {
+		out.table([...advice.values()].map(item => ({
+			feature: item.feature_id,
+			scope: item.scope,
+			context: item.compat_key,
+			reason: item.reason,
+			alternatives: item.alternatives.join(', '),
+			references: item.according_to.join(', '),
+		})));
+	}
 	out.log('(pass --json or pipe stdout for the full structured dump)');
 }
 

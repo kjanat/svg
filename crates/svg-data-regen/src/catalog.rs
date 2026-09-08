@@ -255,6 +255,9 @@ pub struct CatalogElement {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -296,6 +299,9 @@ pub struct CatalogAttribute {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -711,109 +717,13 @@ pub enum CatalogCompatSubfeatureKind {
     LegacyXlinkAlias,
 }
 
-/// Web-platform baseline status of a feature.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CatalogBaselineStatus {
-    /// Widely available across engines.
-    Widely {
-        /// Year it reached widely-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<CatalogBaselineQualifier>,
-    },
-    /// Newly available, not yet widely available.
-    Newly {
-        /// Year it reached newly-available baseline.
-        since: u16,
-        /// Qualifier when the upstream date was inexact.
-        qualifier: Option<CatalogBaselineQualifier>,
-    },
-    /// Limited availability.
-    Limited,
-}
+/// Full Baseline facts shared with runtime parsing.
+pub type CatalogBaselineStatus = crate::compat_model::Baseline;
+/// `WebDX` feature-scoped advice.
+pub type CatalogDiscouraged = crate::compat_model::Discouraged;
 
-/// Inexactness qualifier on a baseline / version date.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CatalogBaselineQualifier {
-    /// The date is an "on or before" upper bound.
-    Before,
-    /// The date is an "on or after" lower bound.
-    After,
-    /// The date is approximate.
-    Approximately,
-}
-
-/// Per-browser support across the four tracked engines.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserSupport {
-    /// Chrome support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chrome: Option<CatalogBrowserVersion>,
-    /// Edge support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edge: Option<CatalogBrowserVersion>,
-    /// Firefox support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firefox: Option<CatalogBrowserVersion>,
-    /// Safari support.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub safari: Option<CatalogBrowserVersion>,
-}
-
-/// Baked support detail for one browser.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserVersion {
-    /// Explicit support flag, when the data states one (`false` = unsupported).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub supported: Option<bool>,
-    /// Whether support is partial.
-    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
-    pub partial_implementation: bool,
-    /// Upstream notes.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub notes: Vec<String>,
-    /// Vendor prefix required, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub prefix: Option<String>,
-    /// Alternative name the browser ships under, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alternative_name: Option<String>,
-    /// Runtime flags gating the feature.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub flags: Vec<CatalogBrowserFlag>,
-    /// First version (`"15"`, `"<=37"`), when known.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_added: Option<String>,
-    /// Qualifier on the added version's date inexactness.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_qualifier: Option<CatalogBaselineQualifier>,
-    /// Version support was removed in, when any.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_removed: Option<String>,
-    /// Qualifier on the removed version's date inexactness.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_removed_qualifier: Option<CatalogBaselineQualifier>,
-}
-
-impl CatalogBrowserSupport {
-    /// Whether all tracked browser entries are absent.
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.chrome.is_none()
-            && self.edge.is_none()
-            && self.firefox.is_none()
-            && self.safari.is_none()
-    }
-}
-
-/// A runtime flag a browser gates a feature behind.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct CatalogBrowserFlag {
-    /// Flag/preference name.
-    pub name: String,
-}
+/// All browser products and complete support histories.
+pub type CatalogBrowserSupport = crate::browser_compat::BrowserSupport;
 
 /// Objective browser-compat facts for one catalog entry.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
@@ -833,6 +743,9 @@ pub struct CatalogCompatFacts {
     /// Web-platform baseline status, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<CatalogBaselineStatus>,
+    /// `WebDX` discouragement, retaining feature identity and compatibility context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discouraged: Vec<CatalogDiscouraged>,
     /// Per-browser support data, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_support: Option<CatalogBrowserSupport>,
@@ -1500,7 +1413,10 @@ fn build_element(
         deprecated: compat.is_some_and(|facts| facts.deprecated),
         experimental: compat.is_some_and(|facts| facts.experimental),
         standard_track: compat.and_then(|facts| facts.standard_track),
-        baseline: compat.and_then(|facts| facts.baseline),
+        baseline: compat.and_then(|facts| facts.baseline.clone()),
+        discouraged: compat
+            .map(|facts| facts.discouraged.clone())
+            .unwrap_or_default(),
         browser_support: compat.and_then(|facts| facts.browser_support.clone()),
         content_model,
         attrs,
@@ -1715,6 +1631,7 @@ fn append_compat_only_attributes(attributes: &mut Vec<CatalogAttribute>, compat:
             animation: CatalogAnimation::NotAnimatable,
             presentation_attribute: None,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
             element_compat: Vec::new(),
             element_values: Vec::new(),
@@ -2177,6 +2094,7 @@ impl AttributeAccumulator {
             animation,
             presentation_attribute: self.presentation_attribute,
             baseline: None,
+            discouraged: Vec::new(),
             browser_support: None,
             element_compat: Vec::new(),
             element_values,
@@ -2207,7 +2125,8 @@ impl CatalogAttribute {
         self.deprecated = facts.deprecated;
         self.experimental = facts.experimental;
         self.standard_track = facts.standard_track;
-        self.baseline = facts.baseline;
+        self.baseline.clone_from(&facts.baseline);
+        self.discouraged.clone_from(&facts.discouraged);
         self.browser_support.clone_from(&facts.browser_support);
     }
 

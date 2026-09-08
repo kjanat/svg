@@ -9,7 +9,7 @@ use crate::catalog::{
 };
 
 /// Version of the `catalog.json` data contract.
-pub const CATALOG_SCHEMA_VERSION: u16 = 1;
+pub const CATALOG_SCHEMA_VERSION: u16 = 2;
 
 /// File name for the generated JSON Schema.
 pub const CATALOG_SCHEMA_FILE: &str = "catalog.schema.json";
@@ -28,12 +28,12 @@ const CATALOG_SCHEMA_ID: &str = concat!(
     env!("CARGO_PKG_REPOSITORY"),
     "/raw/HEAD/crates/svg-data/data/catalog.schema.json"
 );
-const CATALOG_SCHEMA_TITLE: &str = "svg-data catalog v1";
-const CATALOG_CORE_SCHEMA_TITLE: &str = "svg-data core catalog v1";
-const CATALOG_COMPAT_SCHEMA_TITLE: &str = "svg-data compat catalog v1";
-const CATALOG_GRAPH_SCHEMA_TITLE: &str = "svg-data graph catalog v1";
-const CATALOG_TREE_SITTER_SCHEMA_TITLE: &str = "svg-data tree-sitter catalog v1";
-const CATALOG_SNAPSHOT_SCHEMA_TITLE: &str = "svg-data snapshot overlay v1";
+const CATALOG_SCHEMA_TITLE: &str = "svg-data catalog v2";
+const CATALOG_CORE_SCHEMA_TITLE: &str = "svg-data core catalog v2";
+const CATALOG_COMPAT_SCHEMA_TITLE: &str = "svg-data compat catalog v2";
+const CATALOG_GRAPH_SCHEMA_TITLE: &str = "svg-data graph catalog v2";
+const CATALOG_TREE_SITTER_SCHEMA_TITLE: &str = "svg-data tree-sitter catalog v2";
+const CATALOG_SNAPSHOT_SCHEMA_TITLE: &str = "svg-data snapshot overlay v2";
 
 /// One generated schema document to write under `svg-data/data`.
 pub struct CatalogSchemaDocument {

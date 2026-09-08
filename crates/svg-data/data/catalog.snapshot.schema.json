@@ -719,7 +719,7 @@
       ]
     }
   },
-  "title": "svg-data snapshot overlay v1",
+  "title": "svg-data snapshot overlay v2",
   "description": "Version-specific overlay document.",
   "type": "object",
   "required": [
@@ -748,7 +748,7 @@
       "description": "Profile snapshot this overlay describes."
     },
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "sources": {
       "description": "Exact source URLs used to derive this snapshot.",

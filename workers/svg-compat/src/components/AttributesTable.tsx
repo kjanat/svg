@@ -9,7 +9,7 @@ interface Props {
 }
 
 function formatScope(elements: string[]): string {
-	if (elements.length === 1 && elements[0] === '*') return 'global';
+	if (elements.includes('*')) return 'global';
 	return elements.join(', ');
 }
 
@@ -34,7 +34,21 @@ export function AttributesTable({ rows }: Props) {
 							</th>
 							<td class='scope-cell'>{formatScope(entry.elements)}</td>
 							<td>
-								<BaselineBadge baseline={entry.baseline} />
+								<small>Observed-context summary</small>
+								<BaselineBadge baseline={entry.baseline} discouraged={entry.discouraged} />
+								<details>
+									<summary>By element ({entry.coverage.baseline_known}/{entry.coverage.contexts} known Baselines)</summary>
+									{Object.entries(entry.contexts).map(([key, facts]) => (
+										<div>
+											<strong>{key.startsWith('svg.global_attributes.') ? 'Global' : key.split('.')[2]}</strong>
+											<BaselineBadge baseline={facts.baseline} discouraged={facts.discouraged} />
+											<BrowserSupport support={facts.browser_support} baselineStatus={facts.baseline?.status} />
+										</div>
+									))}
+									<p>
+										{entry.coverage.baseline_unknown} unknown, {entry.coverage.baseline_missing} missing. Unlisted elements have no recorded context.
+									</p>
+								</details>
 							</td>
 							<td>
 								<BrowserSupport support={entry.browser_support} baselineStatus={entry.baseline?.status} />

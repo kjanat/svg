@@ -3,27 +3,12 @@
  * + web-features feature map) into typed `CompatEntry` / `Baseline`
  * / `BrowserSupport` objects.
  *
- * Two non-negotiable design rules govern this module:
- *
- *  1. **Never pass raw upstream strings we couldn't interpret
- *     through to consumers.** If we can't parse `≤2021-04-02`,
- *     downstream readers of `/data.json` (including the Rust
- *     crates) shouldn't have to reinvent the parser. The parsed
- *     form is the canonical output.
- *
- *  2. **Never discard anything in the pipeline. Warn loudly on
- *     every unknown.** Replace `return undefined` paths with
- *     degrade-and-preserve. `parseBaselineDate` is a *total*
- *     function for any non-empty input — it always returns a
- *     `BaselineDate` so the original byte-string survives even
- *     when parsing fails. `parseBaseline` similarly never
- *     discards a baseline tier we received.
- *
+ * Recognized status and dates are independent. Preserve raw input and parsing
+ * diagnostics without guessing tiers or the meaning of unknown qualifiers.
  * @module
  */
-// @ts-nocheck Deno
 
-import type { Baseline, BaselineDate, BrowserFlag, BrowserSupport, BrowserVersion, CompatEntry, VersionQualifier } from '#lib/types.ts';
+import type { Baseline, BaselineDate, BrowserFlag, BrowserSupport, BrowserVersion, CompatEntry, Discouraged } from '#lib/types.ts';
 import type { JsonRecord } from '#src/sources.ts';
 import { isRecord } from '#src/sources.ts';
 
@@ -103,153 +88,90 @@ const KNOWN_DATE_PREFIXES: Record<string, BaselineDate['qualifier']> = {
 	'>': 'after',
 	'>=': 'after',
 	'~': 'approximately',
+	'≈': 'approximately',
 };
 
-/**
- * Parses a web-features baseline date string into our typed form.
- *
- * Total function: given any non-empty `raw`, **always** returns a
- * `BaselineDate`. The caller can inspect whether `date` was
- * extractable.
- *
- * ```
- *   "2021-04-02"   → { raw: "2021-04-02", date: "2021-04-02" }
- *   "≤2021-04-02"  → { raw: "≤2021-04-02", date: "2021-04-02", qualifier: "before" }
- *   "~2024-01-01"  → { raw: "~2024-01-01", date: "2024-01-01", qualifier: "approximately" }
- *   "garbage-2021" → { raw: "garbage-2021" }   + warnOnce
- *   "2099"         → { raw: "2099" }           + warnOnce
- *   "%2024-01-01"  → { raw: "%2024-01-01", date: "2024-01-01", qualifier: "approximately" } + warnOnce
- * ```
- *
- * Unknown prefixes still produce a parsed `date` (the prefix is
- * stripped) and `qualifier: "approximately"`, but also fire a
- * `warnOnce` so an operator can extend `KNOWN_DATE_PREFIXES`.
- *
- * Returns `undefined` only when `raw` itself is `undefined` or
- * empty — that's the "we never had any data" case, not a discard.
- */
-export function parseBaselineDate(
-	raw: string | undefined,
-	compatKey: string,
-): BaselineDate | undefined {
-	if (!raw) return undefined;
-	const match = raw.match(/^(\D*)(\d{4}-\d{2}-\d{2})/);
-	if (!match) {
-		warnOnce(
-			`wf-date-unparseable:${raw}`,
-			`svg-compat: could not extract YYYY-MM-DD from baseline date ${stringifyUnknown(raw)} for "${compatKey}". Preserving as raw.`,
-		);
-		return { raw };
+/** Parse a full valid calendar date with known qualifiers; retain unknown input. */
+export function parseBaselineDate(raw: unknown, compatKey: string): BaselineDate | undefined {
+	if (raw === undefined) return undefined;
+	if (typeof raw !== 'string') return { raw: stringifyUnknown(raw) };
+	const match = raw.match(/^(≤|≥|<=|>=|<|>|~|≈)?(\d{4}-\d{2}-\d{2})$/);
+	if (match) {
+		const [, prefix, date] = match;
+		const parsed = new Date(date);
+		if (date.slice(0, 4) !== '0000' && !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === date) {
+			return { raw, date, qualifier: prefix ? KNOWN_DATE_PREFIXES[prefix] : undefined };
+		}
 	}
-	const [, prefix, isoDate] = match;
-	if (Number.isNaN(Date.parse(isoDate))) {
-		warnOnce(
-			`wf-date-invalid-iso:${isoDate}`,
-			`svg-compat: extracted "${isoDate}" from ${stringifyUnknown(raw)} but it is not a valid date for "${compatKey}". Preserving as raw.`,
-		);
-		return { raw };
-	}
-	if (prefix.length === 0) return { raw, date: isoDate };
-	const known = KNOWN_DATE_PREFIXES[prefix];
-	if (known) return { raw, date: isoDate, qualifier: known };
 	warnOnce(
-		`wf-date-prefix:${prefix}`,
-		`svg-compat: unrecognised baseline date prefix ${stringifyUnknown(prefix)} (in ${
-			stringifyUnknown(raw)
-		}) — treating as "approximately". Add it to KNOWN_DATE_PREFIXES if it should map to "before" or "after".`,
+		`wf-date:${raw}`,
+		`svg-compat: unrecognized baseline date ${stringifyUnknown(raw)} for "${compatKey}"; preserving raw input without a date interpretation.`,
 	);
-	return { raw, date: isoDate, qualifier: 'approximately' };
+	return { raw };
 }
 
-/**
- * Year extraction. Only useful once we know the date parsed
- * cleanly — if `parsed.date` is undefined this returns undefined
- * and the caller leaves `Baseline.since` unset.
- */
+/** Year summaries are derived at presentation time, never stored in the data contract. */
 export function yearOfBaselineDate(parsed: BaselineDate): number | undefined {
-	if (!parsed.date) return undefined;
-	const ts = Date.parse(parsed.date);
-	if (Number.isNaN(ts)) return undefined;
-	return new Date(ts).getUTCFullYear();
+	return parsed.date ? Number(parsed.date.slice(0, 4)) : undefined;
 }
 
-/**
- * Parses the `status` block of a web-features feature into our
- * `Baseline` shape. Never discards data we received: an unknown
- * baseline value becomes `status: "limited"` with the original
- * stashed in `raw_status`, and a date that can't be parsed still
- * yields a `BaselineDate` with `raw` set.
- *
- * Returns `undefined` only when there is genuinely no upstream
- * baseline information to emit (no `baseline` field and no dates).
- */
-export function parseBaseline(
-	status: JsonRecord,
-	compatKey: string,
-): Baseline | undefined {
-	const baselineValue = status.baseline;
-	const low = parseBaselineDate(getString(status.baseline_low_date), compatKey);
-	const high = parseBaselineDate(getString(status.baseline_high_date), compatKey);
-
-	// Nothing at all upstream → nothing to emit. NOT a discard:
-	// we never had any baseline data for this entry to begin with.
-	if (baselineValue === undefined && !low && !high) return undefined;
-
-	if (baselineValue === false) {
-		// "limited" tier normally has no dates; preserve any that
-		// upstream did include rather than dropping them.
-		return { status: 'limited', low_date: low, high_date: high };
+/** Import recognized status independently of the presence or meaning of dates. */
+export function parseBaseline(input: JsonRecord, compatKey: string): Baseline | undefined {
+	const value = input.baseline;
+	const low_date = parseBaselineDate(input.baseline_low_date, compatKey);
+	const high_date = parseBaselineDate(input.baseline_high_date, compatKey);
+	const rawSupport = getRecordProperty(input, 'support');
+	const support = rawSupport
+		? Object.fromEntries(Object.entries(rawSupport).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+		: undefined;
+	if (value === undefined && !low_date && !high_date && !support) return undefined;
+	const status = value === false ? 'limited' : value === 'low' ? 'newly' : value === 'high' ? 'widely' : undefined;
+	const status_diagnostic = status ? undefined : value === undefined ? 'missing' : 'unrecognized';
+	if (status_diagnostic) {
+		warnOnce(`wf-baseline:${stringifyUnknown(value)}`, `svg-compat: ${status_diagnostic} baseline value for "${compatKey}"; no recognized tier.`);
 	}
+	return { support, status, raw_status: value === undefined ? undefined : stringifyUnknown(value), status_diagnostic, low_date, high_date };
+}
 
-	if (baselineValue === 'high') {
-		return {
-			status: 'widely',
-			since: high ? yearOfBaselineDate(high) : undefined,
-			since_qualifier: high?.qualifier,
-			low_date: low,
-			high_date: high,
-		};
-	}
-
-	if (baselineValue === 'low') {
-		return {
-			status: 'newly',
-			since: low ? yearOfBaselineDate(low) : undefined,
-			since_qualifier: low?.qualifier,
-			low_date: low,
-		};
-	}
-
-	// Unknown baseline value — warn AND preserve. Fall back to
-	// "limited" (safest visual default) but stash the original
-	// in `raw_status` so it isn't lost.
-	warnOnce(
-		`wf-baseline:${stringifyUnknown(baselineValue)}`,
-		`svg-compat: unsupported baseline value ${
-			stringifyUnknown(baselineValue)
-		} for "${compatKey}". Falling back to "limited" and preserving as raw_status.`,
+/** Keep all applicable feature-level discouragement separately from Baseline. */
+export function extractDiscouraged(compat: JsonRecord, featureMap: JsonRecord, compatKey: string): Discouraged[] | undefined {
+	const ids = new Set(
+		(getStringArray(compat.tags) ?? []).filter(tag => tag.startsWith('web-features:')).map(tag => tag.slice('web-features:'.length)),
 	);
-	return {
-		status: 'limited',
-		raw_status: stringifyUnknown(baselineValue),
-		low_date: low,
-		high_date: high,
-	};
+	const result: Discouraged[] = [];
+	for (const [id, feature] of Object.entries(featureMap)) {
+		if (!isRecord(feature) || feature.kind !== WEB_FEATURE_KIND_FEATURE) continue;
+		if (!ids.has(id) && !getStringArray(feature.compat_features)?.includes(compatKey)) continue;
+		const advice = getRecordProperty(feature, 'discouraged');
+		if (!advice) continue;
+		result.push({
+			feature_id: id,
+			compat_key: compatKey,
+			scope: 'feature',
+			feature_name: getString(feature.name),
+			reason: getString(advice.reason) ?? '',
+			reason_html: getString(advice.reason_html),
+			according_to: getStringArray(advice.according_to) ?? [],
+			alternatives: getStringArray(advice.alternatives) ?? [],
+			removal_date: getString(advice.removal_date),
+		});
+	}
+	return result.length ? result : undefined;
 }
 
-/** Resolves baseline from web-features using `web-features:` tags in BCD `__compat.tags`. */
+/** Resolves baseline from web-features using BCD tags or Web Features compat keys, preferring per-key status. */
 export function extractBaseline(
 	compat: JsonRecord,
 	featureMap: JsonRecord,
 	compatKey: string,
 ): Baseline | undefined {
-	const tags = getStringArray(compat.tags);
-	if (!tags) return undefined;
+	const tags = getStringArray(compat.tags) ?? [];
 
 	const featureTag = tags.find((tag) => tag.startsWith('web-features:'));
-	if (!featureTag) return undefined;
 
-	const featureId = featureTag.slice('web-features:'.length);
+	const featureId = featureTag?.slice('web-features:'.length)
+		?? Object.keys(featureMap).find(id => getStringArray(getRecordProperty(featureMap, id)?.compat_features)?.includes(compatKey));
+	if (!featureId) return undefined;
 	const feature = getRecordProperty(featureMap, featureId);
 	if (!feature) return undefined;
 	const featureKind = getString(feature.kind);
@@ -265,212 +187,58 @@ export function extractBaseline(
 	if (!status) return undefined;
 
 	const byCompatKey = getRecordProperty(status, 'by_compat_key');
-	const overrideStatus = byCompatKey ? getRecordProperty(byCompatKey, compatKey) : undefined;
-	if (overrideStatus) return parseBaseline(overrideStatus, compatKey);
+	if (byCompatKey && Object.hasOwn(byCompatKey, compatKey)) {
+		const overrideStatus = getRecordProperty(byCompatKey, compatKey);
+		return overrideStatus ? parseBaseline(overrideStatus, compatKey) : undefined;
+	}
 
 	return parseBaseline(status, compatKey);
 }
 
-/**
- * Lookup table for known BCD version-string prefixes. Same set as
- * `KNOWN_DATE_PREFIXES` — version numbers carry the same "at or
- * before / at or after" semantics as baseline dates.
- */
-const KNOWN_VERSION_PREFIXES: Record<string, VersionQualifier> = {
-	'≤': 'before',
-	'<': 'before',
-	'<=': 'before',
-	'≥': 'after',
-	'>': 'after',
-	'>=': 'after',
-	'~': 'approximately',
-};
-
-interface ParsedVersionString {
-	version: string;
-	qualifier?: VersionQualifier;
-}
-
-/**
- * Splits a BCD version string into a clean version + qualifier.
- * Mirrors `parseBaselineDate` on version numbers rather than dates.
- * Returns `undefined` only when `raw` is empty or not a string.
- *
- * Examples:
- *   "50"   → { version: "50" }
- *   "≤50"  → { version: "50", qualifier: "before" }
- *   "<=50" → { version: "50", qualifier: "before" }
- *   "~50"  → { version: "50", qualifier: "approximately" }
- *   "%50"  → { version: "50", qualifier: "approximately" } + warnOnce
- */
-function parseBrowserVersionString(
-	raw: string,
-	compatKey: string,
-): ParsedVersionString | undefined {
-	if (raw.length === 0) return undefined;
-	const match = raw.match(/^([^0-9A-Za-z]*)(.+)$/);
-	if (!match) return undefined;
-	const [, prefix, body] = match;
-	if (body.length === 0) return undefined;
-	if (prefix.length === 0) return { version: body };
-	const known = KNOWN_VERSION_PREFIXES[prefix];
-	if (known) return { version: body, qualifier: known };
-	warnOnce(
-		`wf-version-prefix:${prefix}`,
-		`svg-compat: unrecognised version prefix ${stringifyUnknown(prefix)} (in ${
-			stringifyUnknown(raw)
-		}) for "${compatKey}" — treating as "approximately". Add it to KNOWN_VERSION_PREFIXES if it should map to "before" or "after".`,
-	);
-	return { version: body, qualifier: 'approximately' };
-}
-
-function parseBrowserNotes(value: unknown): string[] | undefined {
-	if (typeof value === 'string') return [value];
-	if (!Array.isArray(value)) return undefined;
-	const notes = value.filter((entry): entry is string => typeof entry === 'string');
-	return notes.length > 0 ? notes : undefined;
-}
-
-function parseBrowserFlags(
-	value: unknown,
-	compatKey: string,
-	browser: string,
-): BrowserFlag[] | undefined {
-	if (!Array.isArray(value)) return undefined;
+/** Parse a single statement without selecting or discarding support history. */
+export function parseBrowserVersion(value: unknown, browser: string, compatKey: string): BrowserVersion | undefined {
+	if (!isRecord(value)) return undefined;
+	const strings = (v: unknown): string[] => typeof v === 'string' ? [v] : Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
 	const flags: BrowserFlag[] = [];
-	for (const entry of value) {
-		if (!isRecord(entry)) continue;
-		const type = getString(entry.type);
-		const name = getString(entry.name);
-		if (type === undefined || name === undefined) {
-			warnOnce(
-				`wf-flag-shape:${stringifyUnknown(entry)}`,
-				`svg-compat: unrecognised flag shape ${stringifyUnknown(entry)} for "${compatKey}" / ${browser}. Skipping.`,
-			);
+	for (const flag of Array.isArray(value.flags) ? value.flags : []) {
+		if (!isRecord(flag) || typeof flag.name !== 'string' || (flag.type !== 'preference' && flag.type !== 'runtime_flag')) {
+			warnOnce(`bcd-flag:${stringifyUnknown(flag)}`, `Invalid BCD flag for ${compatKey}/${browser}`);
 			continue;
 		}
-		const flag: BrowserFlag = { type, name };
-		const valueToSet = getString(entry.value_to_set);
-		if (valueToSet !== undefined) flag.value_to_set = valueToSet;
-		flags.push(flag);
+		flags.push({ type: flag.type, name: flag.name, ...(typeof flag.value_to_set === 'string' ? { value_to_set: flag.value_to_set } : {}) });
 	}
-	return flags.length > 0 ? flags : undefined;
-}
-
-/**
- * Parses a single browser's `support` entry from a BCD compat block
- * into our typed `BrowserVersion` form.
- *
- * `support[browser]` can be:
- * - a single statement object (most common),
- * - an array of statements (BCD convention: most-recent first),
- * - absent entirely — returns `undefined`.
- *
- * When the upstream shape is unexpected, we warn and return
- * `undefined` rather than inventing data. When the upstream shape
- * is recognised, we ALWAYS return a `BrowserVersion` — no silent
- * discard, even for `version_added: false`.
- */
-export function parseBrowserVersion(
-	value: unknown,
-	browser: string,
-	compatKey: string,
-): BrowserVersion | undefined {
-	if (value === undefined) return undefined;
-	const stmt = isRecord(value)
-		? value
-		: Array.isArray(value) && value.length > 0 && isRecord(value[0])
-		? value[0]
-		: undefined;
-	if (!stmt) {
-		warnOnce(
-			`wf-browser-shape:${browser}`,
-			`svg-compat: unrecognised support statement shape ${stringifyUnknown(value)} for "${compatKey}" / ${browser}. Skipping.`,
-		);
-		return undefined;
+	const result: BrowserVersion = {
+		flags,
+		notes: strings(value.notes),
+		impl_url: strings(value.impl_url),
+		partial_implementation: value.partial_implementation === true,
+	};
+	if (typeof value.version_added === 'string' || value.version_added === false) result.version_added = value.version_added;
+	for (const key of ['version_removed', 'version_last', 'prefix', 'alternative_name'] as const) {
+		if (typeof value[key] === 'string') result[key] = value[key];
 	}
-
-	const rawAdded = stmt.version_added;
-	let raw_value_added: BrowserVersion['raw_value_added'];
-	if (
-		typeof rawAdded === 'string'
-		|| typeof rawAdded === 'boolean'
-		|| rawAdded === null
-	) {
-		raw_value_added = rawAdded;
-	} else {
-		warnOnce(
-			`wf-version-added-type:${typeof rawAdded}`,
-			`svg-compat: unexpected version_added type ${stringifyUnknown(rawAdded)} for "${compatKey}" / ${browser}. Coercing to null.`,
-		);
-		raw_value_added = null;
-	}
-
-	const result: BrowserVersion = { raw_value_added };
-
-	if (typeof raw_value_added === 'string') {
-		const parsed = parseBrowserVersionString(raw_value_added, compatKey);
-		if (parsed) {
-			result.version_added = parsed.version;
-			if (parsed.qualifier !== undefined) result.version_qualifier = parsed.qualifier;
-		}
-	} else if (raw_value_added === false) {
-		result.supported = false;
-	} else if (raw_value_added === true) {
-		result.supported = true;
-	}
-
-	const rawRemoved = getString(stmt.version_removed);
-	if (rawRemoved !== undefined) {
-		const parsedRemoved = parseBrowserVersionString(rawRemoved, compatKey);
-		if (parsedRemoved) {
-			result.version_removed = parsedRemoved.version;
-			if (parsedRemoved.qualifier !== undefined) {
-				result.version_removed_qualifier = parsedRemoved.qualifier;
-			}
-		}
-	}
-
-	if (stmt.partial_implementation === true) result.partial_implementation = true;
-	const prefix = getString(stmt.prefix);
-	if (prefix !== undefined) result.prefix = prefix;
-	const altName = getString(stmt.alternative_name);
-	if (altName !== undefined) result.alternative_name = altName;
-	const flags = parseBrowserFlags(stmt.flags, compatKey, browser);
-	if (flags !== undefined) result.flags = flags;
-	const notes = parseBrowserNotes(stmt.notes);
-	if (notes !== undefined) result.notes = notes;
-
 	return result;
 }
 
-export function extractBrowserSupport(
-	compat: JsonRecord,
-	compatKey: string,
-): BrowserSupport | undefined {
+export function extractBrowserSupport(compat: JsonRecord, compatKey: string): BrowserSupport | undefined {
 	const support = getRecordProperty(compat, 'support');
 	if (!support) return undefined;
+	return Object.fromEntries(
+		Object.entries(support).map(([id, value]) => [
+			id,
+			(Array.isArray(value) ? value : [value]).map(v => parseBrowserVersion(v, id, compatKey)).filter((v): v is BrowserVersion => v !== undefined),
+		]),
+	);
+}
 
-	const chrome = parseBrowserVersion(support.chrome, 'chrome', compatKey);
-	const edge = parseBrowserVersion(support.edge, 'edge', compatKey);
-	const firefox = parseBrowserVersion(support.firefox, 'firefox', compatKey);
-	const safari = parseBrowserVersion(support.safari, 'safari', compatKey);
-
-	if (
-		chrome === undefined
-		&& edge === undefined
-		&& firefox === undefined
-		&& safari === undefined
-	) {
-		return undefined;
-	}
-
-	const result: BrowserSupport = {};
-	if (chrome !== undefined) result.chrome = chrome;
-	if (edge !== undefined) result.edge = edge;
-	if (firefox !== undefined) result.firefox = firefox;
-	if (safari !== undefined) result.safari = safari;
-	return result;
+/** Choose current unrestricted support for compact display; storage always keeps every statement. */
+export function selectBrowserStatement(statements: BrowserVersion[] | undefined): BrowserVersion | undefined {
+	return statements?.find(v =>
+		typeof v.version_added === 'string' && v.version_removed === undefined && !v.flags.length && v.prefix === undefined
+		&& v.alternative_name === undefined && !v.partial_implementation
+	)
+		?? statements?.find(v => typeof v.version_added === 'string' && v.version_removed === undefined)
+		?? statements?.[0];
 }
 
 export function extractSpecUrls(compat: JsonRecord): string[] {
@@ -495,6 +263,7 @@ export function makeCompatEntry(
 		standard_track: getBoolean(status?.standard_track) ?? true,
 		spec_url: extractSpecUrls(compat),
 		baseline: extractBaseline(compat, featureMap, compatKey),
+		discouraged: extractDiscouraged(compat, featureMap, compatKey),
 		browser_support: extractBrowserSupport(compat, compatKey),
 	};
 }

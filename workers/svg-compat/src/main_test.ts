@@ -124,6 +124,7 @@ Deno.test('browser gets HTML explorer', async () => {
 
 Deno.test('renderHtml includes baseline badge classes', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -147,24 +148,29 @@ Deno.test('renderHtml includes baseline badge classes', () => {
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'widely', since: 2015 },
+				baseline: { status: 'widely', high_date: { raw: '2015-01-01', date: '2015-01-01' } },
 			},
 			dialog: {
 				deprecated: false,
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'newly', since: 2024 },
+				baseline: { status: 'newly', low_date: { raw: '2024-01-01', date: '2024-01-01' } },
 			},
 		},
 		attributes: {
 			fill: {
-				deprecated: false,
-				experimental: false,
-				standard_track: true,
-				spec_url: [],
 				elements: ['*'],
-				baseline: { status: 'limited' },
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: false,
+					experimental: false,
+					standard_track: true,
+					spec_url: [],
+					baseline: { status: 'limited' },
+				},
 			},
 		},
 	};
@@ -176,6 +182,7 @@ Deno.test('renderHtml includes baseline badge classes', () => {
 
 Deno.test('renderHtml docs links include MDN and W3C spec links', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -196,22 +203,32 @@ Deno.test('renderHtml docs links include MDN and W3C spec links', () => {
 		elements: {},
 		attributes: {
 			'xlink:href': {
-				deprecated: true,
-				experimental: false,
-				standard_track: true,
-				mdn_url: 'https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:href',
-				spec_url: [
-					'https://svgwg.org/svg2-draft/linking.html#XLinkHrefAttribute',
-					'https://www.w3.org/TR/SVG11/filters.html#FilterElementHrefAttribute',
-				],
 				elements: ['use'],
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: true,
+					experimental: false,
+					standard_track: true,
+					mdn_url: 'https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:href',
+					spec_url: [
+						'https://svgwg.org/svg2-draft/linking.html#XLinkHrefAttribute',
+						'https://www.w3.org/TR/SVG11/filters.html#FilterElementHrefAttribute',
+					],
+				},
 			},
 			'ping': {
-				deprecated: false,
-				experimental: true,
-				standard_track: true,
-				spec_url: ['https://svgwg.org/svg2-draft/linking.html#AElementPingAttribute'],
 				elements: ['a'],
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: false,
+					experimental: true,
+					standard_track: true,
+					spec_url: ['https://svgwg.org/svg2-draft/linking.html#AElementPingAttribute'],
+				},
 			},
 		},
 	};
@@ -227,21 +244,22 @@ Deno.test('path attribute includes fallback docs links', async () => {
 	const pathAttr = data.attributes.path;
 	assertExists(pathAttr);
 	assertEquals(
-		pathAttr.mdn_url,
+		pathAttr.aggregate.mdn_url,
 		'https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/path',
 	);
 	assertEquals(
-		pathAttr.spec_url.includes('https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute'),
+		pathAttr.aggregate.spec_url.includes('https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute'),
 		true,
 	);
 	assertEquals(
-		pathAttr.spec_url.includes('https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute'),
+		pathAttr.aggregate.spec_url.includes('https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute'),
 		true,
 	);
 });
 
 Deno.test('renderHtml keeps active source selection in Open JSON endpoint link', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -278,6 +296,7 @@ Deno.test('renderHtml keeps active source selection in Open JSON endpoint link',
 
 Deno.test('renderHtml uses masked browser status glyphs', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -302,7 +321,7 @@ Deno.test('renderHtml uses masked browser status glyphs', () => {
 				standard_track: true,
 				spec_url: [],
 				browser_support: {
-					chrome: { raw_value_added: '1', version_added: '1' },
+					chrome: [{ version_added: '1', flags: [], notes: [], impl_url: [], partial_implementation: false }],
 				},
 			},
 		},
@@ -318,6 +337,7 @@ Deno.test('renderHtml uses masked browser status glyphs', () => {
 
 Deno.test('renderHtml uses blue check tone for newly baseline', () => {
 	const output: SvgCompatOutput = {
+		schema_version: 2,
 		generated_at: '2026-01-01T00:00:00.000Z',
 		sources: {
 			bcd: {
@@ -341,9 +361,9 @@ Deno.test('renderHtml uses blue check tone for newly baseline', () => {
 				experimental: false,
 				standard_track: true,
 				spec_url: [],
-				baseline: { status: 'newly', since: 2024 },
+				baseline: { status: 'newly', low_date: { raw: '2024-01-01', date: '2024-01-01' } },
 				browser_support: {
-					chrome: { raw_value_added: '127', version_added: '127' },
+					chrome: [{ version_added: '127', flags: [], notes: [], impl_url: [], partial_implementation: false }],
 				},
 			},
 		},
@@ -363,8 +383,8 @@ Deno.test('baseline parser preserves ≤ qualifier on real feGaussianBlur entry'
 	const blur = json.elements.feGaussianBlur;
 	assertExists(blur.baseline);
 	assertEquals(blur.baseline?.status, 'widely');
-	assertEquals(blur.baseline?.since, 2021);
-	assertEquals(blur.baseline?.since_qualifier, 'before');
+	assertEquals(blur.baseline?.low_date?.date, '2018-10-02');
+	assertEquals(blur.baseline?.high_date?.qualifier, 'before');
 	assertExists(blur.baseline?.high_date);
 	assertEquals(blur.baseline?.high_date?.raw, '≤2021-04-02');
 	assertEquals(blur.baseline?.high_date?.date, '2021-04-02');
@@ -383,15 +403,14 @@ Deno.test('browser support preserves explicit false + ≤ qualifier on glyph-ori
 	assertEquals(res.status, 200);
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['glyph-orientation-horizontal'];
-	assertExists(attr.browser_support);
-	assertEquals(attr.browser_support?.chrome?.raw_value_added, false);
-	assertEquals(attr.browser_support?.chrome?.supported, false);
-	assertEquals(attr.browser_support?.firefox?.supported, false);
-	assertEquals(attr.browser_support?.edge?.supported, false);
-	assertExists(attr.browser_support?.safari);
-	assertEquals(attr.browser_support?.safari?.raw_value_added, '≤13.1');
-	assertEquals(attr.browser_support?.safari?.version_added, '13.1');
-	assertEquals(attr.browser_support?.safari?.version_qualifier, 'before');
+	assertExists(attr.aggregate.browser_support);
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.[0]?.version_added, false);
+	assertExists(attr.aggregate.browser_support?.safari);
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '≤13.1');
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '≤13.1');
 });
 
 Deno.test('browser support preserves font-width (Safari-only attribute)', async () => {
@@ -399,11 +418,11 @@ Deno.test('browser support preserves font-width (Safari-only attribute)', async 
 	assertEquals(res.status, 200);
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['font-width'];
-	assertExists(attr.browser_support);
-	assertEquals(attr.browser_support?.chrome?.supported, false);
-	assertEquals(attr.browser_support?.firefox?.supported, false);
-	assertEquals(attr.browser_support?.edge?.supported, false);
-	assertEquals(attr.browser_support?.safari?.version_added, '18.4');
+	assertExists(attr.aggregate.browser_support);
+	assertEquals(attr.aggregate.browser_support?.chrome?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.[0]?.version_added, false);
+	assertEquals(attr.aggregate.browser_support?.safari?.[0]?.version_added, '18.4');
 });
 
 Deno.test('dashboard surfaces new stat tiles for preserved signals', async () => {
@@ -443,10 +462,10 @@ Deno.test('BaselineBadge title surfaces raw upstream dates', async () => {
 	);
 	const body = await res.text();
 	// Look for a baseline badge title that contains a raw date string.
-	const titleMatch = body.match(/<span class="badge badge-widely" title="[^"]*Widely since[^"]*"/);
+	const titleMatch = body.match(/<span class="badge badge-widely" title="[^"]*Widely Available since[^"]*"/);
 	assert(
 		titleMatch !== null,
-		`expected BaselineBadge title with "Widely since …" text on at least one widely badge`,
+		`expected BaselineBadge title with "Widely Available since …" text on at least one widely badge`,
 	);
 });
 

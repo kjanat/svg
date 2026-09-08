@@ -14,6 +14,44 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Added
+
+- Configure hover browser products, sections, individual support details and
+  optional implementation history through `svg.hover`, at initialization or
+  without restarting through configuration updates.
+
+### Changed
+
+- **Breaking:** browser support maps retain every upstream product and all
+  support statements. Preserve BCD version unions, last-supported versions,
+  implementation links and complete flag declarations in generated and refreshed
+  facts. Retain Web Features' independent browser-version support map. Hover
+  defaults stay compact while storage retains the complete histories.
+
+- **Breaking:** compatibility schema v2 and the Rust Baseline model preserve
+  optional full Newly/Widely Available dates, raw values, and unknown statuses.
+  Consumers must migrate from year-only enum variants and `since` fields; see
+  [the migration guide](docs/compat-metadata-v2.md).
+- Preserve feature-scoped WebDX discouragement separately from Baseline, BCD
+  flags, and SVG lifecycle; show its reason, references, and alternatives in
+  hover, the compatibility dashboard, and CLI output.
+
+### Fixed
+
+- Preserve exact element-and-attribute compatibility context in runtime hover,
+  diagnostics and completion. Keep worker attribute summaries separate from
+  per-context facts and expose missing/unknown Baseline coverage.
+- Recompute compatibility warnings and browser details from the same effective
+  facts after refresh. Clear removed upstream facts on successful loads, retain
+  bundled facts with explicit stale provenance on failure, and preserve SVG
+  profile restrictions.
+
+- Keep missing or unrecognized Baseline status neutral instead of Limited;
+  retain recognized tiers even when their dates are missing or malformed.
+- Label Newly Available and Widely Available milestones explicitly in hover and
+  dashboard details, preserving known date qualifiers without guessing the
+  meaning of unknown prefixes.
+
 ## [0.2.1] - 2026-09-08
 
 ### Added

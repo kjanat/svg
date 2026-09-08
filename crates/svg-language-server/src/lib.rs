@@ -35,6 +35,7 @@ mod completion;
 mod definition;
 mod diagnostics;
 mod hover;
+mod hover_settings;
 mod logging;
 mod positions;
 mod stylesheets;
@@ -60,6 +61,7 @@ use hover::{
     format_element_hover_with_profile, format_unsupported_attribute_hover_with_profile_name,
     profile_lifecycle_hover_line,
 };
+use hover_settings::HoverSettings;
 use logging::init_logging;
 use positions::{byte_col_to_utf16, byte_offset_for_position, end_position_utf16, u32_from_usize};
 use stylesheets::{
@@ -628,6 +630,7 @@ fn tag_resolves_to_svg(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
         .is_some_and(|name| svg_lint::resolves_to_svg_namespace(source, name))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn completion_from_context(
     source: &[u8],
     tree: &tree_sitter::Tree,
@@ -642,6 +645,7 @@ fn completion_from_context(
     // profile: completion lists drop constructs the profile does not support.
     // `None` for snapshot/edition targets.
     native: Option<&svg_data::profile::SvgNative>,
+    runtime: Option<&RuntimeCompat>,
 ) -> Option<CompletionResponse> {
     let mut cursor = node;
     loop {
@@ -669,6 +673,7 @@ fn completion_from_context(
             let elem_name = tag_element_name(cursor, source).unwrap_or("");
             let existing = existing_attribute_names(cursor, source);
             let mut items = attribute_completion_items(elem_name, &existing, profile);
+            completion::reconcile_compat_items(&mut items, Some(elem_name), profile, runtime);
             if let Some(inventory) = inventory {
                 restrict_attribute_items_to_inventory(&mut items, inventory, elem_name);
             }
@@ -685,6 +690,7 @@ fn completion_from_context(
             let elem_name = enclosing_element_name(cursor, source).unwrap_or("");
             svg_data::element(elem_name)?;
             let mut items = child_element_completion_items(elem_name, profile);
+            completion::reconcile_compat_items(&mut items, None, profile, runtime);
             if let Some(inventory) = inventory {
                 restrict_child_items_to_inventory(&mut items, inventory);
             }
@@ -696,6 +702,7 @@ fn completion_from_context(
 
         if kind == "document" {
             let mut items = root_element_completion_items(profile);
+            completion::reconcile_compat_items(&mut items, None, profile, runtime);
             if let Some(native) = native {
                 restrict_element_items_to_native(&mut items, native);
             }
@@ -748,6 +755,7 @@ fn build_hover_context(
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
     native: Option<&'static svg_data::profile::SvgNative>,
+    settings: &HoverSettings,
 ) -> HoverContext {
     let source = doc.source.as_bytes();
     let byte_offset = byte_offset_for_position(source, pos);
@@ -757,19 +765,25 @@ fn build_hover_context(
     } else {
         raw_node.parent().unwrap_or(raw_node)
     };
-    let kind = node.kind().to_owned();
     let node_text = node.utf8_text(source).unwrap_or("").to_owned();
 
-    let element_markdown =
-        build_element_hover_markdown(node, &node_text, source, profile, runtime_compat, native);
-    let attribute_markdown = build_attribute_hover_markdown(
+    let element_markdown = build_element_hover_markdown(
         node,
-        &kind,
         &node_text,
         source,
         profile,
         runtime_compat,
         native,
+        settings,
+    );
+    let attribute_markdown = build_attribute_hover_markdown(
+        node,
+        &node_text,
+        source,
+        profile,
+        runtime_compat,
+        native,
+        settings,
     );
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
@@ -841,6 +855,7 @@ fn build_element_hover_markdown(
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
     native: Option<&'static svg_data::profile::SvgNative>,
+    settings: &HoverSettings,
 ) -> Option<String> {
     if node.kind() != "name" || !svg_lint::resolves_to_svg_namespace(source, node) {
         return None;
@@ -862,6 +877,7 @@ fn build_element_hover_markdown(
                         profile_lifecycle,
                         runtime_override,
                         native,
+                        settings,
                     ))
                 }
                 svg_data::ProfileLookup::UnsupportedInProfile { .. } => {
@@ -872,6 +888,7 @@ fn build_element_hover_markdown(
                             profile_lifecycle,
                             runtime_override,
                             native,
+                            settings,
                         )
                     })
                 }
@@ -882,13 +899,14 @@ fn build_element_hover_markdown(
 
 fn build_attribute_hover_markdown(
     node: tree_sitter::Node<'_>,
-    kind: &str,
     node_text: &str,
     source: &[u8],
     profile: svg_data::SpecSnapshotId,
     runtime_compat: Option<&RuntimeCompat>,
     native: Option<&'static svg_data::profile::SvgNative>,
+    settings: &HoverSettings,
 ) -> Option<String> {
+    let kind = node.kind();
     if !is_attribute_name_kind(kind) {
         return None;
     }
@@ -896,18 +914,22 @@ fn build_attribute_hover_markdown(
     let lookup = svg_data::attribute_for_profile(profile, node_text);
     let element_name = attribute_owner_element_name(node, source);
     let profile_lifecycle = profile_lifecycle_hover_line(profile, &lookup);
-    let runtime_override = runtime_compat.and_then(|runtime| runtime.attributes.get(node_text));
+    let runtime_override =
+        runtime_compat.and_then(|runtime| runtime.attribute(node_text, element_name.as_deref()));
 
     match lookup {
         svg_data::ProfileLookup::Present { value, .. } => {
             Some(format_attribute_hover_with_profile_name(
                 value,
                 node_text,
-                element_name.as_deref(),
-                profile,
-                profile_lifecycle,
-                runtime_override,
-                native,
+                crate::hover::AttributeHoverContext {
+                    element_name: element_name.as_deref(),
+                    profile,
+                    profile_lifecycle,
+                    rt: runtime_override,
+                    native,
+                    settings,
+                },
             ))
         }
         svg_data::ProfileLookup::UnsupportedInProfile { known_in } => {
@@ -922,6 +944,7 @@ fn build_attribute_hover_markdown(
                         profile_lifecycle,
                         rt: runtime_override,
                         native,
+                        settings,
                     },
                 )
             })
@@ -948,6 +971,7 @@ struct SvgLanguageServer {
     stylesheet_cache: StylesheetCache,
     runtime_compat: Arc<RwLock<Option<RuntimeCompat>>>,
     profile_config: Arc<RwLock<ProfileConfig>>,
+    hover_settings: Arc<RwLock<HoverSettings>>,
 }
 
 impl SvgLanguageServer {
@@ -967,6 +991,7 @@ impl SvgLanguageServer {
             stylesheet_cache: Arc::new(StdRwLock::new(HashMap::new())),
             runtime_compat: Arc::new(RwLock::new(None)),
             profile_config: Arc::new(RwLock::new(ProfileConfig::default())),
+            hover_settings: Arc::new(RwLock::new(HoverSettings::default())),
         }
     }
 
@@ -996,10 +1021,6 @@ impl SvgLanguageServer {
             lint_overrides,
             verdict_overrides,
         )
-    }
-
-    async fn effective_profile_for_doc(&self, doc: &DocumentState) -> svg_data::SpecSnapshotId {
-        self.profile_config.read().await.effective_profile_for(doc)
     }
 
     async fn relint_open_documents(&self) {
@@ -1050,7 +1071,36 @@ impl SvgLanguageServer {
         }
     }
 
+    async fn hover_context_for(
+        &self,
+        uri: &Uri,
+        pos: Position,
+        doc: &DocumentState,
+    ) -> HoverContext {
+        let (profile, native) = {
+            let config = self.profile_config.read().await;
+            (
+                config.effective_profile_for(doc),
+                config.native_constraints(),
+            )
+        };
+        let runtime = self.runtime_compat.read().await;
+        let settings = self.hover_settings.read().await;
+        build_hover_context(uri, pos, doc, profile, runtime.as_ref(), native, &settings)
+    }
+
     async fn apply_profile_config(&self, config: &Value) {
+        match HoverSettings::from_config(config) {
+            Ok(settings) => *self.hover_settings.write().await = settings,
+            Err(error) => {
+                self.client
+                    .show_message(
+                        MessageType::WARNING,
+                        format!("Invalid svg.hover settings; keeping previous settings: {error}"),
+                    )
+                    .await;
+            }
+        }
         let (resolved, warning) = resolve_profile_config(config);
         tracing::debug!(
             target = describe_target(&resolved.target),
@@ -1176,19 +1226,16 @@ impl LanguageServer for SvgLanguageServer {
             tokio::spawn(async move {
                 let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
                 match result {
-                    Ok(Some(data)) => {
+                    Ok(data) => {
                         let el_count = data.elements.len();
                         let attr_count = data.attributes.len();
                         *compat.write().await = Some(data);
                         tracing::info!(
                             elements = el_count,
                             attributes = attr_count,
-                            "runtime compat data loaded"
+                            "runtime compat resolution complete"
                         );
                         server.relint_open_documents().await;
-                    }
-                    Ok(None) => {
-                        tracing::info!("runtime compat fetch returned no data (offline?)");
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, "runtime compat fetch failed");
@@ -1196,6 +1243,7 @@ impl LanguageServer for SvgLanguageServer {
                 }
             });
         } else {
+            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
             tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
         }
 
@@ -1372,14 +1420,7 @@ impl LanguageServer for SvgLanguageServer {
             attribute_markdown,
             class_hover,
             property_hover,
-        } = {
-            let profile = self.effective_profile_for_doc(&doc).await;
-            // `native_constraints()` returns a `'static` reference, so it stays
-            // valid after the config guard is released.
-            let native = self.profile_config.read().await.native_constraints();
-            let runtime_compat = self.runtime_compat.read().await;
-            build_hover_context(uri, pos, &doc, profile, runtime_compat.as_ref(), native)
-        };
+        } = self.hover_context_for(uri, pos, &doc).await;
 
         if let Some(markdown) = element_markdown {
             return Ok(Some(markdown_hover(markdown)));
@@ -1614,6 +1655,7 @@ impl LanguageServer for SvgLanguageServer {
         }
 
         let response = {
+            let runtime = self.runtime_compat.read().await;
             let profile_config = self.profile_config.read().await;
             completion_from_context(
                 source,
@@ -1622,6 +1664,7 @@ impl LanguageServer for SvgLanguageServer {
                 profile_config.effective_profile_for(&doc),
                 profile_config.active_edition_inventory(&doc),
                 profile_config.native_constraints(),
+                runtime.as_ref(),
             )
         };
         Ok(response)

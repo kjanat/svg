@@ -9,9 +9,8 @@
  *
  * @module
  */
-// @ts-nocheck Deno
 
-import { getCompat, getRecordProperty, makeCompatEntry } from '#lib/parse.ts';
+import { getCompat, getRecordProperty, makeCompatEntry, selectBrowserStatement } from '#lib/parse.ts';
 import type { AttributeEntry, Baseline, BrowserSupport, BrowserVersion, CompatEntry, SvgCompatOutput, SvgCompatSnapshot } from '#lib/types.ts';
 import type { JsonRecord, LoadedSourceData } from '#src/sources.ts';
 import { isRecord, UpstreamSourceError } from '#src/sources.ts';
@@ -51,11 +50,19 @@ function canonicalAttributeName(name: string): string {
 function baselineRank(baseline: Baseline): number {
 	if (baseline.status === 'limited') return 0;
 	if (baseline.status === 'newly') return 1;
-	return 2;
+	return baseline.status === 'widely' ? 2 : 3;
+}
+
+function baselineMilestone(baseline: Baseline): string {
+	if (baseline.status === 'widely') return baseline.high_date?.date ?? '';
+	if (baseline.status === 'newly') return baseline.low_date?.date ?? '';
+	return '';
 }
 
 function parseVersionParts(version: string): number[] | undefined {
-	const parts = version.split('.').map(Number);
+	const literal = version.match(/^(?:≤|≥|<=|>=|<|>|~|≈)?(\d+(?:\.\d+)*)$/)?.[1];
+	if (literal === undefined) return undefined;
+	const parts = literal.split('.').map(Number);
 	if (parts.some(Number.isNaN)) return undefined;
 	return parts;
 }
@@ -82,18 +89,16 @@ function compareVersionStrings(left: string, right: string): number {
  * Rank for cross-element merging. Higher = more restrictive = wins.
  * Rationale: an attribute shared across elements surfaces the
  * tightest support envelope. `false` (explicitly unsupported here)
- * trumps any concrete version; a concrete version trumps `true` /
- * `null` (which carry no version data).
+ * trumps any concrete version; a concrete version trumps unknown support.
  *
  * Two BrowserVersions with concrete string versions fall through to
  * a numeric compare on `version_added`.
  */
 function browserVersionRank(version: BrowserVersion): number {
-	const raw = version.raw_value_added;
+	const raw = version.version_added;
 	if (raw === false) return 4;
 	if (typeof raw === 'string') return 3;
-	if (raw === true) return 2;
-	if (raw === null) return 1;
+	if (raw === undefined) return 1;
 	return 0;
 }
 
@@ -109,10 +114,8 @@ function mergeBrowserVersion(
 	if (incomingRank < existingRank) return existing;
 	// Same rank. For concrete versions, compare numerically.
 	if (
-		typeof existing.raw_value_added === 'string'
-		&& typeof incoming.raw_value_added === 'string'
-		&& existing.version_added !== undefined
-		&& incoming.version_added !== undefined
+		typeof existing.version_added === 'string'
+		&& typeof incoming.version_added === 'string'
 	) {
 		return compareVersionStrings(incoming.version_added, existing.version_added) > 0
 			? incoming
@@ -121,17 +124,16 @@ function mergeBrowserVersion(
 	return existing;
 }
 
-function mergeBrowserSupport(
-	existing: BrowserSupport | undefined,
-	incoming: BrowserSupport,
-): BrowserSupport {
-	if (!existing) return { ...incoming };
-	return {
-		chrome: mergeBrowserVersion(existing.chrome, incoming.chrome),
-		edge: mergeBrowserVersion(existing.edge, incoming.edge),
-		firefox: mergeBrowserVersion(existing.firefox, incoming.firefox),
-		safari: mergeBrowserVersion(existing.safari, incoming.safari),
-	};
+function mergeBrowserSupport(existing: BrowserSupport | undefined, incoming: BrowserSupport): BrowserSupport {
+	const result = { ...existing };
+	for (const [id, history] of Object.entries(incoming)) {
+		// An aggregate is a summary. Keep the complete history of the more restrictive context;
+		// every context's own history remains available in attribute.contexts.
+		const previous = selectBrowserStatement(result[id]);
+		const next = selectBrowserStatement(history);
+		if (!result[id] || mergeBrowserVersion(previous, next) === next) result[id] = history;
+	}
+	return result;
 }
 
 /**
@@ -144,13 +146,22 @@ function mergeAttributeEntry(
 	attributeName: string,
 	elementName: string,
 	compat: CompatEntry,
+	compatKey: string,
 ): void {
-	const existing = attributes.get(attributeName);
-	if (!existing) {
-		attributes.set(attributeName, { ...compat, elements: [elementName] });
+	const attribute = attributes.get(attributeName);
+	if (!attribute) {
+		attributes.set(attributeName, {
+			aggregate: structuredClone(compat),
+			contexts: { [compatKey]: compat },
+			elements: [elementName],
+			aggregation: 'observed-contexts',
+			coverage: { contexts: 0, baseline_known: 0, baseline_unknown: 0, baseline_missing: 0 },
+		});
 		return;
 	}
 
+	attribute.contexts[compatKey] = compat;
+	const existing = attribute.aggregate;
 	existing.deprecated = existing.deprecated && compat.deprecated;
 	existing.experimental = existing.experimental && compat.experimental;
 	if (!compat.standard_track) existing.standard_track = false;
@@ -159,8 +170,8 @@ function mergeAttributeEntry(
 	for (const url of compat.spec_url) {
 		if (!existing.spec_url.includes(url)) existing.spec_url.push(url);
 	}
-	if (!existing.elements.includes('*') && !existing.elements.includes(elementName)) {
-		existing.elements.push(elementName);
+	if (!attribute.elements.includes('*') && !attribute.elements.includes(elementName)) {
+		attribute.elements.push(elementName);
 	}
 
 	if (!existing.baseline) {
@@ -171,12 +182,18 @@ function mergeAttributeEntry(
 		if (
 			incomingRank < existingRank
 			|| (incomingRank === existingRank
-				&& (compat.baseline.since ?? 0) > (existing.baseline.since ?? 0))
+				&& baselineMilestone(compat.baseline) > baselineMilestone(existing.baseline))
 		) {
 			existing.baseline = compat.baseline;
 		}
 	}
 
+	for (const advice of compat.discouraged ?? []) {
+		existing.discouraged ??= [];
+		if (!existing.discouraged.some(item => item.feature_id === advice.feature_id && item.compat_key === advice.compat_key)) {
+			existing.discouraged.push(advice);
+		}
+	}
 	if (compat.browser_support) {
 		existing.browser_support = mergeBrowserSupport(
 			existing.browser_support,
@@ -185,7 +202,7 @@ function mergeAttributeEntry(
 	}
 }
 
-function applyAttributeDocsFallback(attributeName: string, entry: AttributeEntry): void {
+function applyAttributeDocsFallback(attributeName: string, entry: CompatEntry): void {
 	const fallback = ATTRIBUTE_DOCS_FALLBACKS[attributeName];
 	if (!fallback) return;
 	if (!entry.mdn_url && fallback.mdn_url) entry.mdn_url = fallback.mdn_url;
@@ -227,7 +244,7 @@ function collectAttributes(
 			if (!compat) continue;
 			const canonicalName = canonicalAttributeName(name);
 			const entry = makeCompatEntry(compat, featureMap, `svg.global_attributes.${name}`);
-			attributes.set(canonicalName, { ...entry, elements: ['*'] });
+			mergeAttributeEntry(attributes, canonicalName, '*', entry, `svg.global_attributes.${name}`);
 		}
 	}
 
@@ -247,13 +264,20 @@ function collectAttributes(
 					featureMap,
 					`svg.elements.${elementName}.${attributeName}`,
 				);
-				mergeAttributeEntry(attributes, canonicalName, elementName, entry);
+				mergeAttributeEntry(attributes, canonicalName, elementName, entry, `svg.elements.${elementName}.${attributeName}`);
 			}
 		}
 	}
 
 	for (const [name, entry] of attributes.entries()) {
-		applyAttributeDocsFallback(name, entry);
+		applyAttributeDocsFallback(name, entry.aggregate);
+		const contexts = Object.values(entry.contexts);
+		entry.coverage = {
+			contexts: contexts.length,
+			baseline_known: contexts.filter(c => c.baseline?.status !== undefined).length,
+			baseline_unknown: contexts.filter(c => c.baseline !== undefined && c.baseline.status === undefined).length,
+			baseline_missing: contexts.filter(c => c.baseline === undefined).length,
+		};
 	}
 
 	return Object.fromEntries(
@@ -286,6 +310,7 @@ export function buildOutput(
 	generatedAt: string,
 ): SvgCompatOutput {
 	return {
+		schema_version: 2,
 		generated_at: generatedAt,
 		sources: snapshot.sources,
 		elements: snapshot.elements,

@@ -829,6 +829,7 @@ mod tests {
         let tree = parser.parse(src, None).ok_or("parse")?;
 
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes: std::collections::HashMap::new(),
         };
@@ -874,6 +875,7 @@ mod tests {
             },
         );
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes,
         };
@@ -912,12 +914,13 @@ mod tests {
         let verdict = svg_data::CompatVerdict {
             recommendation: svg_data::VerdictRecommendation::Caution,
             headline_template: "behind a flag",
-            reasons: vec![svg_data::VerdictReason::BehindFlagIn("chrome")],
+            reasons: vec![svg_data::VerdictReason::BehindFlagIn("chrome".to_owned())],
         };
 
         let mut attributes = std::collections::HashMap::new();
         attributes.insert("width".to_string(), verdict);
         let verdict_overrides = VerdictOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes,
         };
@@ -1268,6 +1271,7 @@ mod tests {
             },
         );
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements,
             attributes: std::collections::HashMap::new(),
         };

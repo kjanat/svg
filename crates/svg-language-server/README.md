@@ -67,6 +67,64 @@ All settings go in the LSP `initializationOptions`, under an `svg` key:
 | `svg.runtime_compat`    | bool             | `true`  | Fetch fresh MDN browser-compat-data + web-features at startup and overlay them on the baked catalog. Set `false` for fully offline/private sessions (baked data is still used).                                                                           |
 | `svg.svgwg_drift_check` | bool             | `false` | Opt-in: probe `api.w3.org`/`api.github.com` once at startup and warn when the baked spec catalog has drifted from the live specs.                                                                                                                         |
 
+### Hover presentation
+
+`svg.hover` controls SVG element and attribute hovers. It is read during
+initialization and on `workspace/didChangeConfiguration`, without restarting.
+For example, show mobile browser support with selected details:
+
+```json
+{
+	"svg": {
+		"hover": {
+			"browsers": ["chrome_android", "safari_ios"],
+			"sections": [
+				"description",
+				"baseline",
+				"discouraged",
+				"browsers",
+				"browser_details"
+			],
+			"browser_details": [
+				"notes",
+				"flags",
+				"version_removed",
+				"version_last",
+				"implementation_links"
+			],
+			"browser_history": false
+		}
+	}
+}
+```
+
+| Setting                     | Default                                                                                     | Behavior                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `svg.hover.browsers`        | `["chrome", "edge", "firefox", "safari"]`                                                   | BCD product IDs, in display order. `[]` hides browser-specific information. Duplicate IDs display once.                                                              |
+| `svg.hover.sections`        | All sections below except `web_features_support`                                            | Choose which information blocks appear. Blocks retain the normal reading order. Element and attribute names stay visible.                                            |
+| `svg.hover.browser_details` | `notes`, `partial_implementation`, `prefix`, `alternative_name`, `flags`, `version_removed` | Fields shown in `browser_details`. Also accepts `version_last` and `implementation_links`.                                                                           |
+| `svg.hover.browser_history` | `false`                                                                                     | Show all original support statements in `browser_details`, including historical and conditional implementations. Otherwise show the selected current implementation. |
+
+Available sections: `description`, `status`, `values`, `baseline`,
+`discouraged`, `browsers`, `browser_details`, `web_features_support`, `sources`,
+and `links`. When both are enabled, discouragement takes the place of the
+Baseline badge. `web_features_support` shows that package's independently
+resolved browser versions; the normal browser row uses BCD.
+
+Product IDs also include `firefox_android`, `samsunginternet_android`,
+`webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
+`bun`, `deno`, and `nodejs`. New upstream IDs can be selected without changing
+the data model. An explicitly selected product with no data displays unknown.
+
+Omitted fields use defaults. Removing `svg.hover` restores all defaults. Invalid
+field types, section names or detail names produce a warning and keep the
+previous valid hover settings.
+
+These are presentation preferences. All browser data remains available in the
+catalog and runtime records. Diagnostics keep their existing four-browser
+policy, and completion documentation keeps its default presentation. Templates
+and user-supplied HTML are outside this settings contract.
+
 ## Part of [svg-language-server]
 
 [svg-language-server]: https://github.com/kjanat/svg

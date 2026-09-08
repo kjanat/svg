@@ -6,8 +6,17 @@
 //! of that data for the SVG language server and linter: element/attribute
 //! lookups, content models, compatibility verdicts, and spec permalinks.
 
-pub mod compat_parse;
+pub mod browser_compat;
+pub mod compat_model;
+/// Package name, version and URL for the compatibility facts bundled in this build.
+#[must_use]
+pub const fn compat_sources() -> &'static [(&'static str, &'static str, &'static str)] {
+    catalog::COMPAT_SOURCES
+}
+
 pub mod edition;
+/// Owned effective compatibility facts and common verdict derivation.
+pub mod effective_compat;
 pub mod inventory;
 pub mod profile;
 pub mod xlink;
@@ -17,13 +26,13 @@ pub mod types;
 
 pub use types::{
     Animation, AttributeApplicability, AttributeDef, AttributeElementCompat,
-    AttributeElementValues, AttributeValues, BaselineQualifier, BaselineStatus, BrowserFlag,
-    BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge, CatalogGraphEdgeKind,
-    CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature, CompatSubfeatureKind,
-    CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind, CssGrammarGraph,
-    CssGrammarNode, CssGrammarNodeKind, ElementCategory, ElementDef, FeatureLifecycle,
-    ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata,
-    SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
+    AttributeElementValues, AttributeValues, BaselineDate, BaselineQualifier, BaselineStatus,
+    BaselineTier, BrowserFlag, BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge,
+    CatalogGraphEdgeKind, CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature,
+    CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind,
+    CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, Discouraged, ElementCategory, ElementDef,
+    FeatureLifecycle, ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle,
+    SnapshotMetadata, SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{
@@ -378,6 +387,7 @@ pub fn compat_verdict_for_element(
         experimental: element.experimental,
         standard_track: element.standard_track,
         baseline: element.baseline,
+        discouraged: element.discouraged,
         browser_support: element.browser_support,
     })
 }
@@ -526,96 +536,7 @@ pub fn resolve_edition_id(requested: &str) -> Option<inventory::EditionId> {
 }
 
 fn compat_verdict_from_facts(facts: &CompatFacts) -> Option<CompatVerdict> {
-    let mut reasons = Vec::new();
-    if facts.deprecated {
-        reasons.push(VerdictReason::BcdDeprecated);
-    }
-    if facts.experimental {
-        reasons.push(VerdictReason::BcdExperimental);
-    }
-    if facts.standard_track == Some(false) {
-        reasons.push(VerdictReason::BcdNonStandard);
-    }
-    match facts.baseline {
-        Some(BaselineStatus::Limited) => reasons.push(VerdictReason::BaselineLimited),
-        Some(BaselineStatus::Newly { since, qualifier }) => {
-            reasons.push(VerdictReason::BaselineNewly { since, qualifier });
-        }
-        Some(BaselineStatus::Widely { .. }) | None => {}
-    }
-    if let Some(support) = facts.browser_support.as_ref() {
-        collect_browser_reasons(&mut reasons, "chrome", support.chrome);
-        collect_browser_reasons(&mut reasons, "edge", support.edge);
-        collect_browser_reasons(&mut reasons, "firefox", support.firefox);
-        collect_browser_reasons(&mut reasons, "safari", support.safari);
-    }
-    if reasons.is_empty() {
-        return None;
-    }
-    let recommendation = recommendation_for_reasons(&reasons);
-    Some(CompatVerdict {
-        recommendation,
-        headline_template: headline_for_recommendation(recommendation),
-        reasons,
-    })
-}
-
-fn collect_browser_reasons(
-    reasons: &mut Vec<VerdictReason>,
-    browser: &'static str,
-    version: Option<BrowserVersion>,
-) {
-    let Some(version) = version else {
-        return;
-    };
-    if version.supported == Some(false) {
-        reasons.push(VerdictReason::UnsupportedIn(browser));
-    }
-    if version.partial_implementation {
-        reasons.push(VerdictReason::PartialImplementationIn(browser));
-    }
-    if let Some(prefix) = version.prefix {
-        reasons.push(VerdictReason::PrefixRequiredIn { browser, prefix });
-    }
-    if !version.flags.is_empty() {
-        reasons.push(VerdictReason::BehindFlagIn(browser));
-    }
-    if let Some(version_removed) = version.version_removed {
-        reasons.push(VerdictReason::RemovedIn {
-            browser,
-            version: version_removed,
-            qualifier: version.version_removed_qualifier,
-        });
-    }
-}
-
-fn recommendation_for_reasons(reasons: &[VerdictReason]) -> VerdictRecommendation {
-    if reasons
-        .iter()
-        .any(|reason| matches!(reason, VerdictReason::ProfileObsolete { .. }))
-    {
-        return VerdictRecommendation::Forbid;
-    }
-    if reasons.iter().any(|reason| {
-        matches!(
-            reason,
-            VerdictReason::BcdDeprecated
-                | VerdictReason::BcdNonStandard
-                | VerdictReason::RemovedIn { .. }
-        )
-    }) {
-        return VerdictRecommendation::Avoid;
-    }
-    VerdictRecommendation::Caution
-}
-
-const fn headline_for_recommendation(recommendation: VerdictRecommendation) -> &'static str {
-    match recommendation {
-        VerdictRecommendation::Safe => "safe to use",
-        VerdictRecommendation::Caution => "use with care",
-        VerdictRecommendation::Avoid => "avoid in new work",
-        VerdictRecommendation::Forbid => "do not use",
-    }
+    effective_compat::verdict(&(*facts).into())
 }
 
 fn allowed_child_names(content_model: &ContentModel) -> Vec<&'static str> {
@@ -1112,19 +1033,27 @@ mod catalog_tests {
             standard_track: Some(false),
             animation: Animation::NotAnimatable,
             presentation_attribute: None,
-            baseline: Some(BaselineStatus::Limited),
-            browser_support: Some(BrowserSupport {
-                chrome: Some(BrowserVersion {
-                    partial_implementation: true,
-                    ..BrowserVersion::EMPTY
-                }),
-                edge: None,
-                firefox: None,
-                safari: Some(BrowserVersion {
-                    prefix: Some("-webkit-"),
-                    ..BrowserVersion::EMPTY
-                }),
+            baseline: Some(BaselineStatus {
+                status: Some(BaselineTier::Limited),
+                ..BaselineStatus::EMPTY
             }),
+            discouraged: &[],
+            browser_support: Some(&[
+                (
+                    "chrome",
+                    &[BrowserVersion {
+                        partial_implementation: true,
+                        ..BrowserVersion::EMPTY
+                    }],
+                ),
+                (
+                    "safari",
+                    &[BrowserVersion {
+                        prefix: Some("-webkit-"),
+                        ..BrowserVersion::EMPTY
+                    }],
+                ),
+            ]),
             element_compat: &[],
             element_values: &[],
             values: AttributeValues::FreeText,
@@ -1143,11 +1072,11 @@ mod catalog_tests {
         assert!(
             verdict
                 .reasons
-                .contains(&VerdictReason::PartialImplementationIn("chrome"))
+                .contains(&VerdictReason::PartialImplementationIn("chrome".to_owned()))
         );
         assert!(verdict.reasons.contains(&VerdictReason::PrefixRequiredIn {
-            browser: "safari",
-            prefix: "-webkit-"
+            browser: "safari".to_owned(),
+            prefix: "-webkit-".to_owned()
         }));
     }
 
@@ -1163,10 +1092,11 @@ mod catalog_tests {
             standard_track: Some(true),
             animation: Animation::NotAnimatable,
             presentation_attribute: None,
-            baseline: Some(BaselineStatus::Widely {
-                since: 2020,
-                qualifier: None,
+            baseline: Some(BaselineStatus {
+                status: Some(BaselineTier::Widely),
+                ..BaselineStatus::EMPTY
             }),
+            discouraged: &[],
             browser_support: None,
             element_compat: &[],
             element_values: &[],
@@ -1188,8 +1118,8 @@ mod catalog_tests {
         assert_eq!(fetchpriority.standard_track, Some(false));
         assert!(fetchpriority.experimental);
         assert!(matches!(
-            fetchpriority.baseline,
-            Some(BaselineStatus::Limited)
+            fetchpriority.baseline.and_then(|baseline| baseline.status),
+            Some(BaselineTier::Limited)
         ));
         assert!(matches!(
             fetchpriority.applicability,
@@ -1236,7 +1166,7 @@ mod catalog_tests {
         assert!(
             text_path_verdict
                 .reasons
-                .contains(&VerdictReason::UnsupportedIn("chrome"))
+                .contains(&VerdictReason::UnsupportedIn("chrome".to_owned()))
         );
     }
 
@@ -1256,15 +1186,15 @@ mod catalog_tests {
         assert!(
             verdict
                 .reasons
-                .contains(&VerdictReason::UnsupportedIn("safari"))
+                .contains(&VerdictReason::UnsupportedIn("safari".to_owned()))
         );
         assert!(verdict.reasons.iter().any(|reason| matches!(
             reason,
             VerdictReason::RemovedIn {
-                browser: "chrome",
-                version: "120",
+                browser,
+                version,
                 ..
-            }
+            } if browser == "chrome" && version == "120"
         )));
 
         let Some(xlink_href) = compat_subfeature("svg.elements.use.xlink_href") else {

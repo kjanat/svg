@@ -45,7 +45,7 @@ Deno.test('cli emit schema (piped) produces parseable JSON with new baselineDate
 	const { code, stdout } = await runCli(['emit', 'schema']);
 	assertEquals(code, 0);
 	const parsed = JSON.parse(stdout);
-	assertEquals(parsed.title, 'SVG Compat Output');
+	assertEquals(parsed.title, 'SVG Compat Output v2');
 	assertExists(parsed.$defs.baselineDate);
 	assertEquals(parsed.$defs.baselineDate.required, ['raw']);
 	assertEquals(parsed.$defs.baselineDate.properties.qualifier.enum, [
@@ -66,8 +66,9 @@ Deno.test('cli emit data (piped) preserves ≤ qualifier on feGaussianBlur', asy
 	const blur = parsed.elements.feGaussianBlur;
 	assertExists(blur.baseline);
 	assertEquals(blur.baseline.status, 'widely');
-	assertEquals(blur.baseline.since, 2021);
-	assertEquals(blur.baseline.since_qualifier, 'before');
+	assertEquals(blur.baseline.low_date.date, '2018-10-02');
+	assertEquals(parsed.schema_version, 2);
+	assertEquals(blur.baseline.high_date.qualifier, 'before');
 	assertEquals(blur.baseline.high_date.raw, '≤2021-04-02');
 	assertEquals(blur.baseline.high_date.date, '2021-04-02');
 	assertEquals(blur.baseline.high_date.qualifier, 'before');
@@ -90,7 +91,7 @@ Deno.test('cli emit data --out writes pretty JSON and logs status to stderr', as
 		// File contents must be pretty-printed (2-space indent + trailing
 		// newline) and structurally identical to the stdout dump.
 		const fileBody = await Deno.readTextFile(outPath);
-		assertEquals(fileBody.startsWith('{\n  "generated_at"'), true);
+		assertEquals(fileBody.startsWith('{\n  "schema_version": 2'), true);
 		assertEquals(fileBody.endsWith('}\n'), true);
 		const fromFile = JSON.parse(fileBody);
 		assertEquals(fromFile.elements.feGaussianBlur, fromStdout.elements.feGaussianBlur);
@@ -107,7 +108,7 @@ Deno.test('dataCommand (in-process, TTY mode) renders human summary, not JSON', 
 	assertStringIncludes(stdout, 'svg-compat · generated ');
 	assertStringIncludes(stdout, 'sources');
 	assertStringIncludes(stdout, 'elements (baseline buckets)');
-	assertStringIncludes(stdout, 'attributes (baseline buckets)');
+	assertStringIncludes(stdout, 'attributes (derived summaries of observed contexts)');
 	assertStringIncludes(stdout, '(pass --json or pipe stdout for the full structured dump)');
 	// No JSON dump bled through — stdout should not start with '{'.
 	assertEquals(stdout.trimStart().startsWith('{'), false);
@@ -138,6 +139,6 @@ Deno.test('schemaCommand (in-process, jsonMode) emits the raw schema', async () 
 	const result = await runCommand(schemaCommand, [], { isTTY: false, jsonMode: true });
 	assertEquals(result.exitCode, 0);
 	const parsed = JSON.parse(result.stdout.join(''));
-	assertEquals(parsed.title, 'SVG Compat Output');
+	assertEquals(parsed.title, 'SVG Compat Output v2');
 	assertExists(parsed.$defs.baselineDate);
 });
