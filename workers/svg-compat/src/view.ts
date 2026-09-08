@@ -30,7 +30,7 @@ export interface NamedCompatEntry extends CompatEntry {
 }
 
 /** Attribute entry + the attribute name it belongs to. */
-export interface NamedAttributeEntry extends AttributeEntry {
+export interface NamedAttributeEntry extends AttributeEntry, CompatEntry {
 	/** Attribute name (e.g. `"fill"`). */
 	name: string;
 }
@@ -183,7 +183,7 @@ export function buildPageModel(
 	requestUrl: URL,
 ): PageModel {
 	const elements = named(output.elements);
-	const attributes = named(output.attributes);
+	const attributes = named(output.attributes).map(entry => ({ ...entry, ...entry.aggregate }));
 	const deprecatedElements = elements.filter((entry) => entry.deprecated);
 	const limitedAttributes = attributes.filter(
 		(entry) => entry.baseline?.status === 'limited',

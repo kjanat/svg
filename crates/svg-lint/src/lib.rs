@@ -829,6 +829,7 @@ mod tests {
         let tree = parser.parse(src, None).ok_or("parse")?;
 
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes: std::collections::HashMap::new(),
         };
@@ -874,6 +875,7 @@ mod tests {
             },
         );
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes,
         };
@@ -918,6 +920,7 @@ mod tests {
         let mut attributes = std::collections::HashMap::new();
         attributes.insert("width".to_string(), verdict);
         let verdict_overrides = VerdictOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements: std::collections::HashMap::new(),
             attributes,
         };
@@ -1268,6 +1271,7 @@ mod tests {
             },
         );
         let overrides = LintOverrides {
+            attribute_contexts: std::collections::HashMap::new(),
             elements,
             attributes: std::collections::HashMap::new(),
         };

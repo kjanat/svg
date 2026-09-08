@@ -149,13 +149,22 @@ function mergeAttributeEntry(
 	attributeName: string,
 	elementName: string,
 	compat: CompatEntry,
+	compatKey: string,
 ): void {
-	const existing = attributes.get(attributeName);
-	if (!existing) {
-		attributes.set(attributeName, { ...compat, elements: [elementName] });
+	const attribute = attributes.get(attributeName);
+	if (!attribute) {
+		attributes.set(attributeName, {
+			aggregate: structuredClone(compat),
+			contexts: { [compatKey]: compat },
+			elements: [elementName],
+			aggregation: 'observed-contexts',
+			coverage: { contexts: 0, baseline_known: 0, baseline_unknown: 0, baseline_missing: 0 },
+		});
 		return;
 	}
 
+	attribute.contexts[compatKey] = compat;
+	const existing = attribute.aggregate;
 	existing.deprecated = existing.deprecated && compat.deprecated;
 	existing.experimental = existing.experimental && compat.experimental;
 	if (!compat.standard_track) existing.standard_track = false;
@@ -164,8 +173,8 @@ function mergeAttributeEntry(
 	for (const url of compat.spec_url) {
 		if (!existing.spec_url.includes(url)) existing.spec_url.push(url);
 	}
-	if (!existing.elements.includes('*') && !existing.elements.includes(elementName)) {
-		existing.elements.push(elementName);
+	if (!attribute.elements.includes('*') && !attribute.elements.includes(elementName)) {
+		attribute.elements.push(elementName);
 	}
 
 	if (!existing.baseline) {
@@ -196,7 +205,7 @@ function mergeAttributeEntry(
 	}
 }
 
-function applyAttributeDocsFallback(attributeName: string, entry: AttributeEntry): void {
+function applyAttributeDocsFallback(attributeName: string, entry: CompatEntry): void {
 	const fallback = ATTRIBUTE_DOCS_FALLBACKS[attributeName];
 	if (!fallback) return;
 	if (!entry.mdn_url && fallback.mdn_url) entry.mdn_url = fallback.mdn_url;
@@ -238,7 +247,7 @@ function collectAttributes(
 			if (!compat) continue;
 			const canonicalName = canonicalAttributeName(name);
 			const entry = makeCompatEntry(compat, featureMap, `svg.global_attributes.${name}`);
-			attributes.set(canonicalName, { ...entry, elements: ['*'] });
+			mergeAttributeEntry(attributes, canonicalName, '*', entry, `svg.global_attributes.${name}`);
 		}
 	}
 
@@ -258,13 +267,20 @@ function collectAttributes(
 					featureMap,
 					`svg.elements.${elementName}.${attributeName}`,
 				);
-				mergeAttributeEntry(attributes, canonicalName, elementName, entry);
+				mergeAttributeEntry(attributes, canonicalName, elementName, entry, `svg.elements.${elementName}.${attributeName}`);
 			}
 		}
 	}
 
 	for (const [name, entry] of attributes.entries()) {
-		applyAttributeDocsFallback(name, entry);
+		applyAttributeDocsFallback(name, entry.aggregate);
+		const contexts = Object.values(entry.contexts);
+		entry.coverage = {
+			contexts: contexts.length,
+			baseline_known: contexts.filter(c => c.baseline?.status !== undefined).length,
+			baseline_unknown: contexts.filter(c => c.baseline !== undefined && c.baseline.status === undefined).length,
+			baseline_missing: contexts.filter(c => c.baseline === undefined).length,
+		};
 	}
 
 	return Object.fromEntries(

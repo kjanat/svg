@@ -715,8 +715,12 @@ fn attribute_diagnostic_lifecycle(
     diagnostic_lifecycle(
         lifecycle,
         effective_catalog_flags(ctx.options.profile, facts.deprecated, facts.experimental),
-        ctx.overrides
-            .and_then(|overrides| overrides.attributes.get(attribute_name)),
+        ctx.overrides.and_then(|overrides| {
+            overrides
+                .attribute_contexts
+                .get(&(element_name.to_owned(), attribute_name.to_owned()))
+                .or_else(|| overrides.attributes.get(attribute_name))
+        }),
     )
 }
 
@@ -745,7 +749,13 @@ fn attribute_compat_verdict(
     lookup_name: &str,
     value: &svg_data::AttributeDef,
 ) -> Option<CompatVerdict> {
-    runtime_verdict_override(ctx, |overrides| overrides.attributes.get(lookup_name)).or_else(|| {
+    runtime_verdict_override(ctx, |overrides| {
+        overrides
+            .attribute_contexts
+            .get(&(element_name.to_owned(), lookup_name.to_owned()))
+            .or_else(|| overrides.attributes.get(lookup_name))
+    })
+    .or_else(|| {
         svg_data::compat_verdict_for_attribute_on_element(
             value,
             Some(element_name),

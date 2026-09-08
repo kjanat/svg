@@ -751,7 +751,7 @@ pub enum CompatSubfeatureKind {
 /// let reason = svg_data::VerdictReason::BcdDeprecated;
 /// assert_eq!(reason, svg_data::VerdictReason::BcdDeprecated);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerdictReason {
     /// Compat data marks the feature deprecated.
     BcdDeprecated,
@@ -782,7 +782,7 @@ pub enum VerdictReason {
         /// Browser identifier.
         browser: &'static str,
         /// Required prefix literal.
-        prefix: &'static str,
+        prefix: String,
     },
     /// A browser gates the feature behind a flag.
     BehindFlagIn(&'static str),
@@ -793,7 +793,7 @@ pub enum VerdictReason {
         /// Browser identifier.
         browser: &'static str,
         /// Version support was removed in.
-        version: &'static str,
+        version: String,
         /// Qualifier on the removal version's date inexactness.
         qualifier: Option<BaselineQualifier>,
     },

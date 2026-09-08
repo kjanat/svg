@@ -828,6 +828,79 @@ fn preserve_aspect_ratio_completions() -> Vec<CompletionItem> {
     items
 }
 
+/// Completion metadata follows the same selected context as hover and diagnostics.
+pub fn reconcile_compat_items(
+    items: &mut [CompletionItem],
+    owner: Option<&str>,
+    profile: svg_data::SpecSnapshotId,
+    runtime: Option<&crate::compat::RuntimeCompat>,
+) {
+    use tower_lsp_server::ls_types::{Documentation, MarkupContent, MarkupKind};
+    for item in items {
+        let (facts, lifecycle, description, documentation) = if let Some(owner) = owner {
+            let lookup = svg_data::attribute_for_profile(profile, &item.label);
+            let svg_data::ProfileLookup::Present { value, lifecycle } = lookup else {
+                continue;
+            };
+            let rt = runtime.and_then(|r| r.attribute(&item.label, Some(owner)));
+            let facts = rt.map_or_else(
+                || value.compat_facts_for_element(Some(owner)).into(),
+                |r| r.facts.clone(),
+            );
+            let documentation = crate::hover::format_attribute_hover_with_profile_name(
+                value,
+                &item.label,
+                Some(owner),
+                profile,
+                crate::hover::profile_lifecycle_hover_line(profile, &lookup),
+                rt,
+                None,
+            );
+            (facts, lifecycle, value.description, documentation)
+        } else {
+            let lookup = svg_data::element_for_profile(profile, &item.label);
+            let svg_data::ProfileLookup::Present { value, lifecycle } = lookup else {
+                continue;
+            };
+            let rt = runtime.and_then(|r| r.elements.get(&item.label));
+            let facts = rt.map_or_else(
+                || svg_data::effective_compat::Facts {
+                    deprecated: value.deprecated,
+                    experimental: value.experimental,
+                    ..Default::default()
+                },
+                |r| r.facts.clone(),
+            );
+            let documentation = crate::hover::format_element_hover_with_profile(
+                value,
+                profile,
+                crate::hover::profile_lifecycle_hover_line(profile, &lookup),
+                rt,
+                None,
+            );
+            (facts, lifecycle, value.description, documentation)
+        };
+        let lifecycle = match lifecycle {
+            SpecLifecycle::Deprecated | SpecLifecycle::Obsolete => lifecycle,
+            _ if facts.deprecated => SpecLifecycle::Deprecated,
+            SpecLifecycle::Experimental => lifecycle,
+            _ if facts.experimental => SpecLifecycle::Experimental,
+            SpecLifecycle::Stable => SpecLifecycle::Stable,
+        };
+        let deprecated = matches!(
+            lifecycle,
+            SpecLifecycle::Deprecated | SpecLifecycle::Obsolete
+        );
+        item.deprecated = deprecated.then_some(true);
+        item.tags = deprecated.then(|| vec![CompletionItemTag::DEPRECATED]);
+        item.detail = Some(lifecycle_completion_detail(description, lifecycle));
+        item.documentation = Some(Documentation::MarkupContent(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: documentation,
+        }));
+    }
+}
+
 fn lifecycle_completion_detail(description: &str, lifecycle: SpecLifecycle) -> String {
     match lifecycle {
         SpecLifecycle::Stable => description.to_owned(),

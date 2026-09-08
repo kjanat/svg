@@ -44,6 +44,8 @@ pub struct LintOverrides {
     pub elements: HashMap<String, CompatFlags>,
     /// Attribute name → override flags.
     pub attributes: HashMap<String, CompatFlags>,
+    /// Element and attribute pair, taking precedence over common facts.
+    pub attribute_contexts: HashMap<(String, String), CompatFlags>,
 }
 
 /// Runtime overrides for the catalog-derived [`CompatVerdict`] that drives advisory
@@ -56,8 +58,7 @@ pub struct LintOverrides {
 /// verdict, so an empty (or unsupplied) [`VerdictOverrides`] is exactly
 /// catalog behaviour.
 ///
-/// Kept separate from [`LintOverrides`] so the existing flag-override
-/// channel stays source-compatible.
+/// Both adapters must be derived from the same effective compatibility record.
 ///
 /// # Examples
 ///
@@ -71,6 +72,8 @@ pub struct VerdictOverrides {
     pub elements: HashMap<String, CompatVerdict>,
     /// Attribute name → runtime-overridden compat verdict.
     pub attributes: HashMap<String, CompatVerdict>,
+    /// Element and attribute pair, taking precedence over common facts.
+    pub attribute_contexts: HashMap<(String, String), CompatVerdict>,
 }
 
 /// A single diagnostic produced by the SVG linter.

@@ -164,11 +164,24 @@ export const SVG_COMPAT_SCHEMA = {
 		compatEntry: COMPAT_ENTRY_SCHEMA,
 		attributeEntry: {
 			type: 'object',
-			required: [...COMPAT_ENTRY_SCHEMA.required, 'elements'],
 			additionalProperties: false,
+			required: ['elements', 'contexts', 'aggregate', 'aggregation', 'coverage'],
 			properties: {
-				...COMPAT_ENTRY_SCHEMA.properties,
-				elements: { type: 'array', items: { type: 'string' }, minItems: 1 },
+				elements: { type: 'array', items: { type: 'string' } },
+				contexts: { type: 'object', additionalProperties: { $ref: '#/$defs/compatEntry' } },
+				aggregate: { $ref: '#/$defs/compatEntry' },
+				aggregation: { const: 'observed-contexts' },
+				coverage: {
+					type: 'object',
+					additionalProperties: false,
+					required: ['contexts', 'baseline_known', 'baseline_unknown', 'baseline_missing'],
+					properties: {
+						contexts: { type: 'integer', minimum: 0 },
+						baseline_known: { type: 'integer', minimum: 0 },
+						baseline_unknown: { type: 'integer', minimum: 0 },
+						baseline_missing: { type: 'integer', minimum: 0 },
+					},
+				},
 			},
 		},
 	},

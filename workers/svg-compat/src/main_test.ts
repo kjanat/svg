@@ -160,12 +160,17 @@ Deno.test('renderHtml includes baseline badge classes', () => {
 		},
 		attributes: {
 			fill: {
-				deprecated: false,
-				experimental: false,
-				standard_track: true,
-				spec_url: [],
 				elements: ['*'],
-				baseline: { status: 'limited' },
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: false,
+					experimental: false,
+					standard_track: true,
+					spec_url: [],
+					baseline: { status: 'limited' },
+				},
 			},
 		},
 	};
@@ -198,22 +203,32 @@ Deno.test('renderHtml docs links include MDN and W3C spec links', () => {
 		elements: {},
 		attributes: {
 			'xlink:href': {
-				deprecated: true,
-				experimental: false,
-				standard_track: true,
-				mdn_url: 'https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:href',
-				spec_url: [
-					'https://svgwg.org/svg2-draft/linking.html#XLinkHrefAttribute',
-					'https://www.w3.org/TR/SVG11/filters.html#FilterElementHrefAttribute',
-				],
 				elements: ['use'],
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: true,
+					experimental: false,
+					standard_track: true,
+					mdn_url: 'https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/xlink:href',
+					spec_url: [
+						'https://svgwg.org/svg2-draft/linking.html#XLinkHrefAttribute',
+						'https://www.w3.org/TR/SVG11/filters.html#FilterElementHrefAttribute',
+					],
+				},
 			},
 			'ping': {
-				deprecated: false,
-				experimental: true,
-				standard_track: true,
-				spec_url: ['https://svgwg.org/svg2-draft/linking.html#AElementPingAttribute'],
 				elements: ['a'],
+				aggregation: 'observed-contexts',
+				coverage: { contexts: 1, baseline_known: 0, baseline_unknown: 0, baseline_missing: 1 },
+				contexts: {},
+				aggregate: {
+					deprecated: false,
+					experimental: true,
+					standard_track: true,
+					spec_url: ['https://svgwg.org/svg2-draft/linking.html#AElementPingAttribute'],
+				},
 			},
 		},
 	};
@@ -229,15 +244,15 @@ Deno.test('path attribute includes fallback docs links', async () => {
 	const pathAttr = data.attributes.path;
 	assertExists(pathAttr);
 	assertEquals(
-		pathAttr.mdn_url,
+		pathAttr.aggregate.mdn_url,
 		'https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/path',
 	);
 	assertEquals(
-		pathAttr.spec_url.includes('https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute'),
+		pathAttr.aggregate.spec_url.includes('https://svgwg.org/svg2-draft/text.html#TextPathElementPathAttribute'),
 		true,
 	);
 	assertEquals(
-		pathAttr.spec_url.includes('https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute'),
+		pathAttr.aggregate.spec_url.includes('https://svgwg.org/specs/animations/#AnimateMotionElementPathAttribute'),
 		true,
 	);
 });
@@ -388,15 +403,15 @@ Deno.test('browser support preserves explicit false + ≤ qualifier on glyph-ori
 	assertEquals(res.status, 200);
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['glyph-orientation-horizontal'];
-	assertExists(attr.browser_support);
-	assertEquals(attr.browser_support?.chrome?.raw_value_added, false);
-	assertEquals(attr.browser_support?.chrome?.supported, false);
-	assertEquals(attr.browser_support?.firefox?.supported, false);
-	assertEquals(attr.browser_support?.edge?.supported, false);
-	assertExists(attr.browser_support?.safari);
-	assertEquals(attr.browser_support?.safari?.raw_value_added, '≤13.1');
-	assertEquals(attr.browser_support?.safari?.version_added, '13.1');
-	assertEquals(attr.browser_support?.safari?.version_qualifier, 'before');
+	assertExists(attr.aggregate.browser_support);
+	assertEquals(attr.aggregate.browser_support?.chrome?.raw_value_added, false);
+	assertEquals(attr.aggregate.browser_support?.chrome?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.supported, false);
+	assertExists(attr.aggregate.browser_support?.safari);
+	assertEquals(attr.aggregate.browser_support?.safari?.raw_value_added, '≤13.1');
+	assertEquals(attr.aggregate.browser_support?.safari?.version_added, '13.1');
+	assertEquals(attr.aggregate.browser_support?.safari?.version_qualifier, 'before');
 });
 
 Deno.test('browser support preserves font-width (Safari-only attribute)', async () => {
@@ -404,11 +419,11 @@ Deno.test('browser support preserves font-width (Safari-only attribute)', async 
 	assertEquals(res.status, 200);
 	const json = (await res.json()) as SvgCompatOutput;
 	const attr = json.attributes['font-width'];
-	assertExists(attr.browser_support);
-	assertEquals(attr.browser_support?.chrome?.supported, false);
-	assertEquals(attr.browser_support?.firefox?.supported, false);
-	assertEquals(attr.browser_support?.edge?.supported, false);
-	assertEquals(attr.browser_support?.safari?.version_added, '18.4');
+	assertExists(attr.aggregate.browser_support);
+	assertEquals(attr.aggregate.browser_support?.chrome?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.firefox?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.edge?.supported, false);
+	assertEquals(attr.aggregate.browser_support?.safari?.version_added, '18.4');
 });
 
 Deno.test('dashboard surfaces new stat tiles for preserved signals', async () => {

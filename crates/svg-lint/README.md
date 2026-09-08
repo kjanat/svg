@@ -46,6 +46,7 @@ let diagnostics = lint_tree(source, &tree, None);
 
 // Lint with runtime compat overrides (e.g. from live BCD data)
 let overrides = LintOverrides {
+    attribute_contexts: HashMap::new(),
     elements: [("font".into(), CompatFlags { deprecated: true, experimental: false })]
         .into_iter().collect(),
     attributes: Default::default(),

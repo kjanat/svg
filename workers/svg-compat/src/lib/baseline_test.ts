@@ -37,10 +37,14 @@ Deno.test('attribute aggregation uses the selected tier milestone and retains ad
 			},
 		},
 	});
-	assertEquals(snapshot.attributes.width.baseline?.status, 'newly');
-	assertEquals(snapshot.attributes.width.baseline?.low_date?.date, '2024-01-01');
-	assertEquals(snapshot.attributes.width.baseline?.high_date?.date, '2023-01-01');
-	assertEquals(snapshot.attributes.width.discouraged?.map(item => item.compat_key), [
+	assertEquals(snapshot.attributes.width.contexts['svg.elements.a.width'].baseline?.low_date?.date, '2021-01-01');
+	assertEquals(snapshot.attributes.width.contexts['svg.elements.a.width'].discouraged?.length, 1);
+	assertEquals(snapshot.attributes.width.contexts['svg.elements.c.width'].baseline?.status, undefined);
+	assertEquals(snapshot.attributes.width.coverage, { contexts: 3, baseline_known: 2, baseline_unknown: 1, baseline_missing: 0 });
+	assertEquals(snapshot.attributes.width.aggregate.baseline?.status, 'newly');
+	assertEquals(snapshot.attributes.width.aggregate.baseline?.low_date?.date, '2024-01-01');
+	assertEquals(snapshot.attributes.width.aggregate.baseline?.high_date?.date, '2023-01-01');
+	assertEquals(snapshot.attributes.width.aggregate.discouraged?.map(item => item.compat_key), [
 		'svg.elements.a.width',
 		'svg.elements.b.width',
 		'svg.elements.c.width',

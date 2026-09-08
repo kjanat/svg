@@ -68,7 +68,7 @@ export function renderHtml(
 			<TableSection
 				id='attributes'
 				title='Attributes'
-				description='All attributes with scope and baseline.'
+				description='Attribute summaries cover observed contexts. Expand a row for the facts on each element.'
 				total={model.attributes.length}
 				placeholder='Filter attributes…'
 			>

@@ -211,10 +211,18 @@ export interface CompatEntry {
 	browser_support?: BrowserSupport;
 }
 
-/** Compat entry for an attribute, with the list of elements it applies to (`["*"]` = global). */
-export interface AttributeEntry extends CompatEntry {
-	/** Element names this attribute applies to. `["*"]` means global. */
+/** Exact upstream contexts and an explicitly project-derived attribute summary. */
+export interface AttributeEntry {
+	/** Element names observed in BCD. `*` denotes a global record. */
 	elements: string[];
+	/** Facts keyed by their full original BCD compatibility key. */
+	contexts: Record<string, CompatEntry>;
+	/** Summary of observed contexts, never an upstream attribute-wide status. */
+	aggregate: CompatEntry;
+	/** The aggregate considers observed contexts only; unobserved elements are unknown. */
+	aggregation: 'observed-contexts';
+	/** Coverage makes unknown or absent Baseline data visible alongside a known summary. */
+	coverage: { contexts: number; baseline_known: number; baseline_unknown: number; baseline_missing: number };
 }
 
 /** Top-level JSON response shape served at `/data.json`. */

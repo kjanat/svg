@@ -8,7 +8,15 @@
 
 pub mod compat_model;
 pub mod compat_parse;
+/// Package name, version and URL for the compatibility facts bundled in this build.
+#[must_use]
+pub const fn compat_sources() -> &'static [(&'static str, &'static str, &'static str)] {
+    catalog::COMPAT_SOURCES
+}
+
 pub mod edition;
+/// Owned effective compatibility facts and common verdict derivation.
+pub mod effective_compat;
 pub mod inventory;
 pub mod profile;
 pub mod xlink;
@@ -528,100 +536,7 @@ pub fn resolve_edition_id(requested: &str) -> Option<inventory::EditionId> {
 }
 
 fn compat_verdict_from_facts(facts: &CompatFacts) -> Option<CompatVerdict> {
-    let mut reasons = Vec::new();
-    if facts.deprecated {
-        reasons.push(VerdictReason::BcdDeprecated);
-    }
-    if facts.experimental {
-        reasons.push(VerdictReason::BcdExperimental);
-    }
-    if facts.standard_track == Some(false) {
-        reasons.push(VerdictReason::BcdNonStandard);
-    }
-    match facts.baseline.and_then(|baseline| baseline.status) {
-        Some(BaselineTier::Limited) => reasons.push(VerdictReason::BaselineLimited),
-        Some(BaselineTier::Newly) => {
-            let date = facts.baseline.and_then(|baseline| baseline.low_date);
-            reasons.push(VerdictReason::BaselineNewly {
-                since: date.and_then(|date| date.year()),
-                qualifier: date.and_then(|date| date.qualifier),
-            });
-        }
-        Some(BaselineTier::Widely) | None => {}
-    }
-    if let Some(support) = facts.browser_support.as_ref() {
-        collect_browser_reasons(&mut reasons, "chrome", support.chrome);
-        collect_browser_reasons(&mut reasons, "edge", support.edge);
-        collect_browser_reasons(&mut reasons, "firefox", support.firefox);
-        collect_browser_reasons(&mut reasons, "safari", support.safari);
-    }
-    if reasons.is_empty() {
-        return None;
-    }
-    let recommendation = recommendation_for_reasons(&reasons);
-    Some(CompatVerdict {
-        recommendation,
-        headline_template: headline_for_recommendation(recommendation),
-        reasons,
-    })
-}
-
-fn collect_browser_reasons(
-    reasons: &mut Vec<VerdictReason>,
-    browser: &'static str,
-    version: Option<BrowserVersion>,
-) {
-    let Some(version) = version else {
-        return;
-    };
-    if version.supported == Some(false) {
-        reasons.push(VerdictReason::UnsupportedIn(browser));
-    }
-    if version.partial_implementation {
-        reasons.push(VerdictReason::PartialImplementationIn(browser));
-    }
-    if let Some(prefix) = version.prefix {
-        reasons.push(VerdictReason::PrefixRequiredIn { browser, prefix });
-    }
-    if !version.flags.is_empty() {
-        reasons.push(VerdictReason::BehindFlagIn(browser));
-    }
-    if let Some(version_removed) = version.version_removed {
-        reasons.push(VerdictReason::RemovedIn {
-            browser,
-            version: version_removed,
-            qualifier: version.version_removed_qualifier,
-        });
-    }
-}
-
-fn recommendation_for_reasons(reasons: &[VerdictReason]) -> VerdictRecommendation {
-    if reasons
-        .iter()
-        .any(|reason| matches!(reason, VerdictReason::ProfileObsolete { .. }))
-    {
-        return VerdictRecommendation::Forbid;
-    }
-    if reasons.iter().any(|reason| {
-        matches!(
-            reason,
-            VerdictReason::BcdDeprecated
-                | VerdictReason::BcdNonStandard
-                | VerdictReason::RemovedIn { .. }
-        )
-    }) {
-        return VerdictRecommendation::Avoid;
-    }
-    VerdictRecommendation::Caution
-}
-
-const fn headline_for_recommendation(recommendation: VerdictRecommendation) -> &'static str {
-    match recommendation {
-        VerdictRecommendation::Safe => "safe to use",
-        VerdictRecommendation::Caution => "use with care",
-        VerdictRecommendation::Avoid => "avoid in new work",
-        VerdictRecommendation::Forbid => "do not use",
-    }
+    effective_compat::verdict(&(*facts).into())
 }
 
 fn allowed_child_names(content_model: &ContentModel) -> Vec<&'static str> {
@@ -1157,7 +1072,7 @@ mod catalog_tests {
         );
         assert!(verdict.reasons.contains(&VerdictReason::PrefixRequiredIn {
             browser: "safari",
-            prefix: "-webkit-"
+            prefix: "-webkit-".to_owned()
         }));
     }
 
@@ -1273,9 +1188,9 @@ mod catalog_tests {
             reason,
             VerdictReason::RemovedIn {
                 browser: "chrome",
-                version: "120",
+                version,
                 ..
-            }
+            } if version == "120"
         )));
 
         let Some(xlink_href) = compat_subfeature("svg.elements.use.xlink_href") else {

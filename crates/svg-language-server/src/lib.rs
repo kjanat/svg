@@ -628,6 +628,7 @@ fn tag_resolves_to_svg(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
         .is_some_and(|name| svg_lint::resolves_to_svg_namespace(source, name))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn completion_from_context(
     source: &[u8],
     tree: &tree_sitter::Tree,
@@ -642,6 +643,7 @@ fn completion_from_context(
     // profile: completion lists drop constructs the profile does not support.
     // `None` for snapshot/edition targets.
     native: Option<&svg_data::profile::SvgNative>,
+    runtime: Option<&RuntimeCompat>,
 ) -> Option<CompletionResponse> {
     let mut cursor = node;
     loop {
@@ -669,6 +671,7 @@ fn completion_from_context(
             let elem_name = tag_element_name(cursor, source).unwrap_or("");
             let existing = existing_attribute_names(cursor, source);
             let mut items = attribute_completion_items(elem_name, &existing, profile);
+            completion::reconcile_compat_items(&mut items, Some(elem_name), profile, runtime);
             if let Some(inventory) = inventory {
                 restrict_attribute_items_to_inventory(&mut items, inventory, elem_name);
             }
@@ -685,6 +688,7 @@ fn completion_from_context(
             let elem_name = enclosing_element_name(cursor, source).unwrap_or("");
             svg_data::element(elem_name)?;
             let mut items = child_element_completion_items(elem_name, profile);
+            completion::reconcile_compat_items(&mut items, None, profile, runtime);
             if let Some(inventory) = inventory {
                 restrict_child_items_to_inventory(&mut items, inventory);
             }
@@ -696,6 +700,7 @@ fn completion_from_context(
 
         if kind == "document" {
             let mut items = root_element_completion_items(profile);
+            completion::reconcile_compat_items(&mut items, None, profile, runtime);
             if let Some(native) = native {
                 restrict_element_items_to_native(&mut items, native);
             }
@@ -896,7 +901,8 @@ fn build_attribute_hover_markdown(
     let lookup = svg_data::attribute_for_profile(profile, node_text);
     let element_name = attribute_owner_element_name(node, source);
     let profile_lifecycle = profile_lifecycle_hover_line(profile, &lookup);
-    let runtime_override = runtime_compat.and_then(|runtime| runtime.attributes.get(node_text));
+    let runtime_override =
+        runtime_compat.and_then(|runtime| runtime.attribute(node_text, element_name.as_deref()));
 
     match lookup {
         svg_data::ProfileLookup::Present { value, .. } => {
@@ -1176,19 +1182,16 @@ impl LanguageServer for SvgLanguageServer {
             tokio::spawn(async move {
                 let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
                 match result {
-                    Ok(Some(data)) => {
+                    Ok(data) => {
                         let el_count = data.elements.len();
                         let attr_count = data.attributes.len();
                         *compat.write().await = Some(data);
                         tracing::info!(
                             elements = el_count,
                             attributes = attr_count,
-                            "runtime compat data loaded"
+                            "runtime compat resolution complete"
                         );
                         server.relint_open_documents().await;
-                    }
-                    Ok(None) => {
-                        tracing::info!("runtime compat fetch returned no data (offline?)");
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, "runtime compat fetch failed");
@@ -1196,6 +1199,7 @@ impl LanguageServer for SvgLanguageServer {
                 }
             });
         } else {
+            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
             tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
         }
 
@@ -1614,6 +1618,7 @@ impl LanguageServer for SvgLanguageServer {
         }
 
         let response = {
+            let runtime = self.runtime_compat.read().await;
             let profile_config = self.profile_config.read().await;
             completion_from_context(
                 source,
@@ -1622,6 +1627,7 @@ impl LanguageServer for SvgLanguageServer {
                 profile_config.effective_profile_for(&doc),
                 profile_config.active_edition_inventory(&doc),
                 profile_config.native_constraints(),
+                runtime.as_ref(),
             )
         };
         Ok(response)

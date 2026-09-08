@@ -26,6 +26,14 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Preserve exact element-and-attribute compatibility context in runtime hover,
+  diagnostics and completion. Keep worker attribute summaries separate from
+  per-context facts and expose missing/unknown Baseline coverage.
+- Recompute compatibility warnings and browser details from the same effective
+  facts after refresh. Clear removed upstream facts on successful loads, retain
+  bundled facts with explicit stale provenance on failure, and preserve SVG
+  profile restrictions.
+
 - Keep missing or unrecognized Baseline status neutral instead of Limited;
   retain recognized tiers even when their dates are missing or malformed.
 - Label Newly Available and Widely Available milestones explicitly in hover and

@@ -1,9 +1,10 @@
 # Compatibility metadata v2
 
-Issue [#41](https://github.com/kjanat/svg/issues/41) changes the public Rust and
-JSON compatibility contracts. This is a breaking change for consumers of the 0.2
-API and must ship in the next minor release on the 0.x line. Package versions
-remain unchanged in this PR.
+Issues [#41](https://github.com/kjanat/svg/issues/41) and
+[#42](https://github.com/kjanat/svg/issues/42) change the public Rust and JSON
+compatibility contracts. This is a breaking change for consumers of the 0.2 API
+and must ship in the next minor release on the 0.x line. Package versions remain
+unchanged in this PR.
 
 The split catalog documents and worker `/data.json` now declare
 `schema_version: 2`. Check that version before consuming a document. Worker
@@ -78,8 +79,67 @@ alternatives. The CLI reports separate Baseline buckets and discouragement
 details. Upstream prose is rendered as text; `reason_html` is preserved but is
 not trusted HTML.
 
-Runtime overlay and broader attribute-context reconciliation are tracked
-separately in [#42](https://github.com/kjanat/svg/issues/42).
+## Attribute contexts and summaries
+
+Worker attributes now contain `contexts`, keyed by the exact original BCD key,
+and a separate project-derived `aggregate`. A context such as
+`svg.elements.rect.width` retains its own Baseline and advice; it cannot take
+advice from `svg.elements.svg.width`.
+
+The dashboard labels the aggregate as an observed-context summary and exposes
+individual contexts in each row. The aggregate selects the worst **known**
+Baseline tier, then the later corresponding milestone on ties. BCD deprecated
+and experimental flags require agreement across observed contexts; non-standard
+status and browser limitations use the conservative existing merge policy.
+Discouragement is a union whose entries keep their exact feature and context
+keys. An aggregate can combine facts from different contexts and is not an
+upstream claim about an attribute everywhere.
+
+`aggregation: "observed-contexts"` identifies this policy. `coverage` reports
+`contexts`, `baseline_known`, `baseline_unknown`, and `baseline_missing`. A
+known aggregate does not fill gaps: unlisted elements and missing Baseline
+records remain unknown. The CLI reports this coverage alongside its summary.
+JSON clients must read `attribute.aggregate.baseline` for a summary or
+`attribute.contexts[key].baseline` for exact facts.
+
+## Runtime refresh and effective facts
+
+Each source resolves its package version first, then downloads that pinned
+version. BCD and Web Features are resolved independently for the requested
+context: exact element-plus-attribute key first, then the global attribute key.
+A present empty or unrecognized exact Web Features override is authoritative.
+The resolver does not merge unrelated element contexts.
+
+The bundled catalog retains its genuinely common attribute fallback. A disabled
+or failed refresh preserves the bundled contextual facts, including that common
+fallback. A successful source load with no applicable key clears that source's
+old facts. An invalid or unknown Baseline clears the old tier and stays neutral.
+The server refreshes once per session; its failure policy is bundled fallback,
+not an undocumented mixture with a previous session's cache.
+
+Effective records distinguish loaded, absent, unknown, failed, and disabled
+outcomes. Hover records the contributing package versions, URLs and selected
+keys. Failed refreshes explicitly label retained bundled facts stale. A partial
+refresh shows separate BCD and Web Features provenance, including the bundled
+version for the failed source.
+
+One complete effective record supplies the badge, dates, discouragement, browser
+versions, notes, flags, removals and compatibility verdict. Fresh compatibility
+reasons replace old ones; independent SVG profile restrictions remain. Lint and
+completion preserve the element context through their adapters. An explicit
+neutral verdict clears old warnings. Missing or unknown browser support is
+displayed as unknown, separately from an explicit unsupported value.
+
+The Rust `effective_compat::Facts` model owns refreshed strings; generated
+catalog records convert into it for the shared verdict calculation.
+`VerdictReason` owns prefix and removal-version strings and is no longer `Copy`.
+`LintOverrides` and `VerdictOverrides` have `attribute_contexts` maps keyed by
+`(element, attribute)`, taking precedence over their common-attribute maps.
+`compat_sources()` exposes the bundled package identities.
+
+The worker builds from two successfully loaded packages. It does not manufacture
+a mixed-source output after a failed upstream load; the runtime fallback policy
+above belongs to the language server.
 
 ## Regeneration and verification
 
