@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Required env: CARGO_REGISTRY_TOKEN, CRATE, VERSION.
+# Required env: CARGO_REGISTRY_TOKEN, CRATE, VERSION, PROOF_DIR, RELEASE_TAG, HELPER_SHA.
 # Optional env: RETRY_WAIT (seconds after a 429, default 630),
 # MAX_RETRIES (default 8).
 set -euo pipefail
@@ -9,7 +9,24 @@ CRATE="${CRATE:?CRATE required}"
 VERSION="${VERSION:?VERSION required}"
 export CARGO_REGISTRY_TOKEN
 
+PROOF_DIR="${PROOF_DIR:?PROOF_DIR required}"
+RELEASE_TAG="${RELEASE_TAG:?RELEASE_TAG required}"
+HELPER_SHA="${HELPER_SHA:?HELPER_SHA required}"
+if [[ "${RELEASE_TAG}" != "v${VERSION}" ]]; then
+	echo "error: release tag does not match requested package version" >&2
+	exit 1
+fi
+verify_script="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../crates-verify" && pwd)/verify.py"
+# Resolve these before entering the independent release checkout.
+PROOF_DIR="$(cd -- "${PROOF_DIR}" && pwd)"
+
 cd "${SOURCE_DIR:-.}"
+
+verify_args=(--source-dir "${PWD}" --proof-dir "${PROOF_DIR}"
+	--tag "${RELEASE_TAG}" --helper-sha "${HELPER_SHA}" --crate "${CRATE}")
+
+# Even a resumed/already-published crate must belong to this verified release.
+python3 "${verify_script}" inputs "${verify_args[@]}"
 
 # crates.io refills the new-crate-name allowance on the order of one per ten
 # minutes; anything shorter than that just burns a retry.
@@ -41,13 +58,23 @@ if [[ "${published}" == yes ]]; then
 fi
 
 attempt=0
+package_checked=false
 while true; do
 	attempt=$((attempt + 1))
-	# Workspace-level verify (clippy + tests + build) gates the release
-	# before any publish job runs; a per-crate verify build would add a
-	# redundant build inside the rate-limit window.
+	# Setup built all extracted packages before any upload. Repack once to
+	# compare the exact archive, then keep expensive builds out of retries.
+	python3 "${verify_script}" inputs "${verify_args[@]}"
 	status=0
-	output=$(cargo publish -p "${CRATE}" --locked --no-verify 2>&1) || status=$?
+	output=""
+	if [[ "${package_checked}" != true ]]; then
+		output=$(python3 "${verify_script}" package "${verify_args[@]}" 2>&1) || status=$?
+		if [[ "${status}" -eq 0 ]]; then
+			package_checked=true
+		fi
+	fi
+	if [[ "${status}" -eq 0 ]]; then
+		output=$(cargo publish -p "${CRATE}" --locked --all-features --registry crates-io --no-verify 2>&1) || status=$?
+	fi
 	if [[ "${status}" -eq 0 ]]; then
 		printf '%s\n' "${output}" | tail -2
 		echo "published ${CRATE}@${VERSION}"

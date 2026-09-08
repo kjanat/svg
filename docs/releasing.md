@@ -45,6 +45,56 @@
 Tier 3 targets are `experimental: true` and run with `continue-on-error`; their
 absence never blocks a release. Tier 1/2 targets are release-blocking.
 
+## Crates.io verification and recovery
+
+Every `crates-release.yml` entry point verifies the complete package set before
+the first crates.io upload. Setup uses `cargo package` with the locked
+dependencies and all features, excluding non-publishable workspace members.
+Cargo builds the extracted archives and stages unpublished sibling versions in
+its temporary registry. This checks the distributed sources on the runner's
+host; it is separate from cross-platform binary runtime testing.
+
+The workflow retains the `.crate` archives and a verification report for 14
+days. The report lists each verified crate, its archive checksum, the release
+tag, source commit, helper commit, lockfile checksum and Rust/Cargo versions.
+Cargo's packaging order supplies the dependency-first publication matrix.
+
+Before uploading a crate, the publishing job checks the report against its clean
+source checkout, toolchain and helper revision. It then repackages the crate
+without building and requires the archive checksum to match the verified
+archive. Upload uses the same package options. Rate-limit retries reuse this
+verification; index-propagation retries can repeat packaging, but never the
+verification builds. Already-published versions remain resumable.
+
+Helpers and release sources have deliberately separate identities:
+
+- Setup checks out `.github/actions` from the default branch and records its
+  exact commit. Every publishing job checks out that recorded helper commit,
+  even if the default branch advances during the release.
+- Each source checkout still uses the requested release tag in `source/`. Its
+  commit must match setup, and the tag version must match all publishable
+  packages. The toolchain comes from that source's `rust-toolchain.toml`.
+- The helper selection does **not** change which workflow YAML GitHub evaluates.
+  An old tag or rerun can retain an old workflow definition. To use an updated
+  definition for an existing release, manually dispatch `crates-release.yml`
+  from the updated default branch and supply the existing release tag. Start
+  with `dry-run: true` to verify packages without uploads.
+
+Both `workflow_dispatch` and `workflow_call` accept `dry-run: true`. Normal
+registry index and dependency downloads can occur during verification; no
+publishing job runs in this mode. If verification artifacts expire, start a
+fresh preparation run rather than bypassing the checks.
+
+`just release-package-test` exercises real unpublished-sibling packaging, an
+excluded required input, archive/source mismatches, workflow wiring and the
+publication retry loop. It also runs as part of `just verify`. CI separately
+verifies the repository's actual packages on every PR and push to `master`,
+without uploading them.
+
+References:
+[Cargo package verification](https://doc.rust-lang.org/cargo/commands/cargo-package.html)
+and [checkout revision selection](https://github.com/actions/checkout#usage).
+
 ## npm bootstrap
 
 The long-term path is trusted publishing from GitHub Actions using OIDC
