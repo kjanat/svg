@@ -224,7 +224,9 @@ fn closing_tags_do_not_leak_into_excluded_contexts() -> TestResult {
 
 #[test]
 fn slash_triggers_completion_and_document_changes_update_the_match() -> TestResult {
-    let mut server = TestServer::start()?;
+    let mut server = TestServer::start_with_initialize_options(&json!({
+        "svg": { "runtime_compat": false },
+    }))?;
     let triggers = server.init_response["result"]["capabilities"]["completionProvider"]
         ["triggerCharacters"]
         .as_array()

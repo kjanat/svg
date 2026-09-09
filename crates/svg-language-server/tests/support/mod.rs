@@ -103,6 +103,10 @@ pub struct TestServer {
 }
 
 impl TestServer {
+    #[allow(
+        dead_code,
+        reason = "shared test scaffolding; some test binaries configure every server explicitly"
+    )]
     pub fn start() -> TestResult<Self> {
         Self::start_with_initialize_options(&Value::Null)
     }
