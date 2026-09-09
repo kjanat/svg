@@ -50,6 +50,7 @@ test('runtime checks use transferred artifacts, native runners and a real musl c
 
 test('both artifact producers preserve archives and modes before the shared runtime workflow', () => {
 	for (const job of [release.jobs['build-dist'], ci.jobs.package]) {
+		expect(stepsText(job)).toContain('bun install --frozen-lockfile --ignore-scripts');
 		expect(stepsText(job)).toContain('tar -cf distribution/npm/dist.tar -C distribution/npm dist downloads');
 		expect(stepsText(job)).toContain('runtime.mjs inventory');
 	}
