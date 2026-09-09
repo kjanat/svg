@@ -16,6 +16,16 @@ just lint      # run clippy
 just ci        # full preflight (lint + test + format check + dist check)
 ```
 
+For the compatibility dashboard, run `deno task check:deploy` from the
+repository root. GitHub CI and Deno Deploy use this same check: verify the
+canonical assets, run the worker tests, and exercise HTTP responses with
+production caching enabled. A failed check stops the Deno build before it
+receives traffic.
+
+Static asset URLs revalidate in browsers and are cached by Deno for up to an
+hour. Deno invalidates that shared cache on deployment. Local development uses
+`Cache-Control: no-store`.
+
 ## Workspace structure
 
 ```text

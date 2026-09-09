@@ -7,6 +7,7 @@
 	"lock": false,
 	"fmt": { "exclude": ["**"] },
 	"tasks": {
+		"check:deploy": "deno task --config workers/svg-compat/deno.jsonc check:deploy",
 		"dev:all": "deno task --recursive dev",
 		"fmt": {
 			"command": "dprint fmt",
@@ -17,6 +18,7 @@
 		"org": "kjanat",
 		"app": "svg-compat",
 		"install": "deno install",
+		"build": "deno task check:deploy",
 		"runtime": { "entrypoint": "main.ts", "cwd": "workers/svg-compat/src" },
 	},
 	"exclude": ["./target", "./grammars"],

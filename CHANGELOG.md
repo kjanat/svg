@@ -52,6 +52,10 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Check canonical assets and run compatibility worker tests before Deno
+  deployment, including production HTTP caching. Revalidate static asset URLs in
+  browsers while allowing Deno to cache successful responses for an hour.
+
 - Verify all packaged Rust crates before crates.io publication, including
   unpublished sibling dependencies. Retain verified archives and reject
   publication when package contents, sources or toolchain no longer match.
