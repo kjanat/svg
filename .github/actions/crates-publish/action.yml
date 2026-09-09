@@ -16,6 +16,9 @@ inputs:
   version:
     description: the version being published (tag without the v prefix)
     required: true
+  proof-dir: { description: Verified package archives and report from setup, required: true }
+  tag: { description: Release tag bound to the verification report, required: true }
+  helper-sha: { description: Helper commit bound to the verification report, required: true }
   token:
     description: crates.io token (bootstrap secret or OIDC-minted)
     required: true
@@ -33,5 +36,8 @@ runs:
         CARGO_REGISTRY_TOKEN: ${{ inputs.token }}
         CRATE: ${{ inputs.crate }}
         VERSION: ${{ inputs.version }}
+        PROOF_DIR: ${{ inputs.proof-dir }}
+        RELEASE_TAG: ${{ inputs.tag }}
+        HELPER_SHA: ${{ inputs.helper-sha }}
         RETRY_WAIT: ${{ inputs.retry-wait }}
       run: bash "${GITHUB_ACTION_PATH}/run.sh"

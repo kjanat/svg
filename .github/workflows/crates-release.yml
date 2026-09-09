@@ -3,7 +3,10 @@ name: crates-release
 run-name: "crates publish ${{ inputs.tag }}"
 
 on:
-  workflow_call: { inputs: { tag: { required: true, type: string } } }
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      dry-run: { description: Verify packages without uploading, required: false, default: false, type: boolean }
   workflow_dispatch:
     inputs:
       tag: { description: Release tag to publish (e.g. vX.Y.Z), required: true, type: string }
@@ -20,25 +23,35 @@ env:
 
 jobs:
   setup:
-    name: verify + publish order
+    name: verify packaged crates
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     permissions: { contents: read }
     outputs:
       version: ${{ steps.verify.outputs.version }}
-      crates: ${{ steps.order.outputs.crates }}
+      crates: ${{ steps.packages.outputs.crates }}
+      helper_sha: ${{ steps.identity.outputs.helper_sha }}
+      source_sha: ${{ steps.identity.outputs.source_sha }}
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
     steps:
-      # Action code from the default branch (fixable without moving the tag,
-      # no tag-supplied action code); crate sources from the tag, in source/.
+      # Resolve default-branch helpers once; publish jobs reuse this exact SHA.
+      # This does not change the workflow YAML GitHub selected for this run.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+      - name: record helper and release source revisions
+        id: identity
+        shell: python
+        run: |
+          import runpy
+          runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-        with: { toolchain: stable }
+        with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
 
@@ -47,10 +60,22 @@ jobs:
         uses: ./.github/actions/verify-tag-version
         with: { tag: "${{ env.RELEASE_TAG }}", source-dir: source }
 
-      - name: derive publish order
-        id: order
-        uses: ./.github/actions/publish-order
-        with: { source-dir: source }
+      - name: build every packaged crate without uploading
+        id: packages
+        uses: ./.github/actions/crates-verify
+        with:
+          source-dir: source
+          proof-dir: ${{ runner.temp }}/verified-crates
+          tag: ${{ env.RELEASE_TAG }}
+          helper-sha: ${{ steps.identity.outputs.helper_sha }}
+      - name: retain verified archives and report
+        id: artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: verified-crates-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/verified-crates
+          retention-days: 14
+          if-no-files-found: error
 
   publish:
     name: publish ${{ matrix.crate }}
@@ -66,15 +91,31 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          ref: ${{ needs.setup.outputs.helper_sha }}
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+      - name: check helper and release source revisions
+        id: identity
+        shell: python
+        env:
+          EXPECTED_SOURCE_SHA: ${{ needs.setup.outputs.source_sha }}
+          EXPECTED_HELPER_SHA: ${{ needs.setup.outputs.helper_sha }}
+        run: |
+          import runpy
+          runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-        with: { toolchain: stable }
+        with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
+      - name: download this run's verified packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.setup.outputs.artifact_id }}
+          path: ${{ runner.temp }}/verified-crates
+          merge-multiple: true
 
       - name: mint crates.io token (trusted publishing)
         if: env.HAS_CRATES_TOKEN != 'true'
@@ -88,3 +129,6 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
           token: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.auth.outputs.token }}
           source-dir: source
+          proof-dir: ${{ runner.temp }}/verified-crates
+          tag: ${{ env.RELEASE_TAG }}
+          helper-sha: ${{ needs.setup.outputs.helper_sha }}

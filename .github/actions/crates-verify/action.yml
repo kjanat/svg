@@ -1,0 +1,25 @@
+name: verify crate packages
+description: Build all packaged crates before publication and record the verified archives in dependency order.
+inputs:
+  source-dir: { description: Clean release source checkout, required: true }
+  proof-dir: { description: Directory for verified archives and report, required: true }
+  tag: { description: Release tag, required: true }
+  helper-sha: { description: Helper commit used for this release, required: true }
+outputs:
+  crates:
+    description: JSON array of crate entries in Cargo's dependency-first packaging order
+    value: ${{ steps.verify.outputs.crates }}
+runs:
+  using: composite
+  steps:
+    - id: verify
+      shell: python
+      env:
+        SOURCE_DIR: ${{ inputs.source-dir }}
+        PROOF_DIR: ${{ inputs.proof-dir }}
+        RELEASE_TAG: ${{ inputs.tag }}
+        HELPER_SHA: ${{ inputs.helper-sha }}
+      run: |
+        import os
+        import runpy
+        runpy.run_path(os.path.join(os.environ["GITHUB_ACTION_PATH"], "verify.py"), run_name="__main__")

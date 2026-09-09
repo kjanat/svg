@@ -38,6 +38,12 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Verify all packaged Rust crates before crates.io publication, including
+  unpublished sibling dependencies. Retain verified archives and reject
+  publication when package contents, sources or toolchain no longer match.
+- Resolve release helpers from the default branch once and reuse that commit
+  across publishing jobs while keeping crate sources tied to the release tag.
+
 - Preserve exact element-and-attribute compatibility context in runtime hover,
   diagnostics and completion. Keep worker attribute summaries separate from
   per-context facts and expose missing/unknown Baseline coverage.
