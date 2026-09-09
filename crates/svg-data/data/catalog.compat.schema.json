@@ -135,15 +135,15 @@
       ]
     },
     "BaselineTier": {
-      "description": "A recognized upstream Baseline tier, independent of dates and BCD flags.",
+      "description": "A recognized upstream Baseline tier, independent of dates and BCD flags.\n\nImported from Web Features, never calculated from the selected desktop\nbrowser rows. Missing/unrecognized status is `None`, not [`Self::Limited`].\nThis interoperability signal is separate from SVG validity and svg's usage\nrecommendations. See the [user guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)\nand [upstream definition](https://github.com/web-platform-dx/web-features/blob/main/docs/baseline.md).",
       "oneOf": [
         {
-          "description": "Widely Available (`\"high\"` upstream).",
+          "description": "Widely Available (`\"high\"` upstream): meets the longer-term upstream criteria.",
           "type": "string",
           "const": "widely"
         },
         {
-          "description": "Newly Available (`\"low\"` upstream).",
+          "description": "Newly Available (`\"low\"` upstream): reaches the upstream core browser set.",
           "type": "string",
           "const": "newly"
         },

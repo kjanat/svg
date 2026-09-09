@@ -11,7 +11,7 @@ use svg_tree::{is_attribute_name_kind, is_attribute_node_kind, walk_tree};
 use tree_sitter::{Node, Tree};
 
 use crate::{
-    namespaces::{self, NamespaceScope, SVG_NAMESPACE_URI, XLINK_NAMESPACE_URI},
+    namespaces::{self, NamespaceScope, SVG_NAMESPACE_URI, XLINK_NAMESPACE_URI, XML_NAMESPACE_URI},
     types::{
         CompatFlags, DiagnosticCode, LintOptions, LintOverrides, Severity, SvgDiagnostic,
         VerdictOverrides,
@@ -36,6 +36,7 @@ struct LifecycleCodes {
 #[derive(Clone)]
 struct LifecycleDiagnostic<'a> {
     lifecycle: SpecLifecycle,
+    declaration: Option<svg_data::LifecycleDeclaration>,
     /// Catalog-derived verdict for richer messages.
     verdict: Option<CompatVerdict>,
     codes: LifecycleCodes,
@@ -371,7 +372,7 @@ fn check_attributes(
             continue;
         };
         let attr_name = std::str::from_utf8(&ctx.source[name_node.byte_range()]).unwrap_or("");
-        if attr_name.is_empty() || is_xml_infrastructure(attr_name) {
+        if attr_name.is_empty() || (is_xml_infrastructure(attr_name) && attr_name != "xml:space") {
             continue;
         }
         let expanded_name = namespaces::expand_attribute_name(attr_name, scope);
@@ -388,7 +389,11 @@ fn check_attributes(
         // Generic attribute names are a mixed bucket of valid SVG attributes and truly
         // unknown ones. Without a complete checked-in attribute catalog, treating a catalog
         // miss as "unknown" makes diagnostics depend on build-time BCD fetch state.
-        match svg_data::attribute_for_profile(ctx.options.profile, lookup_name.as_ref()) {
+        match svg_data::attribute_for_profile_on_element(
+            ctx.options.profile,
+            lookup_name.as_ref(),
+            Some(elem_name),
+        ) {
             ProfileLookup::Present { value, lifecycle } => {
                 let lifecycle = attribute_diagnostic_lifecycle(
                     ctx,
@@ -405,9 +410,15 @@ fn check_attributes(
                     Some(tag_start),
                     LifecycleDiagnostic {
                         lifecycle,
+                        declaration: svg_data::attribute_lifecycle_on_element(
+                            ctx.options.profile,
+                            lookup_name.as_ref(),
+                            Some(elem_name),
+                        )
+                        .and_then(|l| l.declaration),
                         verdict: verdict.clone(),
                         codes: ATTRIBUTE_LIFECYCLE_CODES,
-                        subject: value.name,
+                        subject: lookup_name.as_ref(),
                     },
                 );
                 emit_verdict_hints(
@@ -416,7 +427,7 @@ fn check_attributes(
                     name_node,
                     Some(tag_start),
                     verdict,
-                    value.name,
+                    lookup_name.as_ref(),
                 );
             }
             ProfileLookup::UnsupportedInProfile { .. } => {
@@ -638,6 +649,9 @@ fn canonical_svg_attribute_name<'a>(
         (Some("xlink"), Some(XLINK_NAMESPACE_URI)) => {
             Some(Cow::Owned(format!("xlink:{}", expanded_name.local_name)))
         }
+        (Some("xml"), Some(XML_NAMESPACE_URI)) if raw_name == "xml:space" => {
+            Some(Cow::Borrowed(raw_name))
+        }
         _ => None,
     }
 }
@@ -675,6 +689,8 @@ fn emit_element_compat_diags(
         name_node,
         LifecycleDiagnostic {
             lifecycle,
+            declaration: svg_data::element_lifecycle_for_profile(ctx.options.profile, value.name)
+                .and_then(|l| l.declaration),
             verdict: verdict.clone(),
             codes: ELEMENT_LIFECYCLE_CODES,
             subject: &subject,
@@ -697,8 +713,12 @@ fn element_diagnostic_lifecycle(
     lifecycle: SpecLifecycle,
 ) -> SpecLifecycle {
     diagnostic_lifecycle(
+        ctx.options.profile,
         lifecycle,
-        effective_catalog_flags(ctx.options.profile, value.deprecated, value.experimental),
+        CompatFlags {
+            deprecated: value.deprecated,
+            experimental: value.experimental,
+        },
         ctx.overrides
             .and_then(|overrides| overrides.elements.get(element_name)),
     )
@@ -713,8 +733,12 @@ fn attribute_diagnostic_lifecycle(
 ) -> SpecLifecycle {
     let facts = value.compat_facts_for_element(Some(element_name));
     diagnostic_lifecycle(
+        ctx.options.profile,
         lifecycle,
-        effective_catalog_flags(ctx.options.profile, facts.deprecated, facts.experimental),
+        CompatFlags {
+            deprecated: facts.deprecated,
+            experimental: facts.experimental,
+        },
         ctx.overrides.and_then(|overrides| {
             overrides
                 .attribute_contexts
@@ -774,34 +798,6 @@ fn runtime_verdict_override(
     ctx.verdict_overrides.and_then(select).cloned()
 }
 
-/// The catalog's baked `deprecated` / `experimental` flags come from BCD,
-/// which encodes latest-era advice — "don't use this in new web work".
-/// When the caller selected a non-latest profile they are deliberately
-/// targeting an older spec where those flags don't apply (the canonical
-/// example: `xlink:href` was the standard linking attribute in SVG 1.1;
-/// BCD's deprecation reflects its SVG 2 removal). Zero the flags in that
-/// case so diagnostic promotion only fires under the latest profile.
-///
-/// Runtime overrides are applied downstream and are unaffected — they're
-/// intentional user-set signals, not catalog-baked ones.
-fn effective_catalog_flags(
-    profile: svg_data::SpecSnapshotId,
-    deprecated: bool,
-    experimental: bool,
-) -> CompatFlags {
-    if profile == svg_data::SpecSnapshotId::LATEST {
-        CompatFlags {
-            deprecated,
-            experimental,
-        }
-    } else {
-        CompatFlags {
-            deprecated: false,
-            experimental: false,
-        }
-    }
-}
-
 fn unknown_element_message(name: &str) -> String {
     let mut msg = format!("Unknown SVG element: <{name}>");
     if let Some(suggestion) = closest_name(name, svg_data::elements().iter().map(|e| e.name)) {
@@ -820,10 +816,15 @@ fn emit_lifecycle_diag_in_tag(
 ) {
     let LifecycleDiagnostic {
         lifecycle,
+        declaration,
         verdict,
         codes,
         subject,
     } = lifecycle_diag;
+    let with_source = |message: String| match declaration {
+        Some(declaration) => format!("{message}\nSVG specification: {}", declaration.source),
+        None => message,
+    };
     match lifecycle {
         SpecLifecycle::Deprecated => push_diag_in_tag(
             diagnostics,
@@ -832,7 +833,7 @@ fn emit_lifecycle_diag_in_tag(
             tag_start,
             Severity::Warning,
             codes.deprecated,
-            format_deprecated_message(verdict, subject),
+            with_source(format_deprecated_message(verdict, subject)),
         ),
         SpecLifecycle::Obsolete => push_diag_in_tag(
             diagnostics,
@@ -841,7 +842,7 @@ fn emit_lifecycle_diag_in_tag(
             tag_start,
             Severity::Warning,
             codes.obsolete,
-            format_obsolete_message(verdict, subject),
+            with_source(format_obsolete_message(verdict, subject)),
         ),
         SpecLifecycle::Experimental => push_diag_in_tag(
             diagnostics,
@@ -973,32 +974,21 @@ fn emit_verdict_hints(
 }
 
 fn diagnostic_lifecycle(
+    profile: svg_data::SpecSnapshotId,
     spec_lifecycle: SpecLifecycle,
     compat_flags: CompatFlags,
     override_flags: Option<&CompatFlags>,
 ) -> SpecLifecycle {
-    if matches!(
+    let flags = |flags: &CompatFlags| svg_data::effective_compat::LifecycleFlags {
+        deprecated: flags.deprecated,
+        experimental: flags.experimental,
+    };
+    svg_data::effective_compat::lifecycle(
+        profile,
         spec_lifecycle,
-        SpecLifecycle::Deprecated | SpecLifecycle::Obsolete
-    ) {
-        return spec_lifecycle;
-    }
-
-    let deprecated = override_flags.map_or(compat_flags.deprecated, |flags| flags.deprecated);
-    if deprecated {
-        return SpecLifecycle::Deprecated;
-    }
-
-    if spec_lifecycle == SpecLifecycle::Experimental {
-        return spec_lifecycle;
-    }
-
-    let experimental = override_flags.map_or(compat_flags.experimental, |flags| flags.experimental);
-    if experimental {
-        SpecLifecycle::Experimental
-    } else {
-        SpecLifecycle::Stable
-    }
+        flags(&compat_flags),
+        override_flags.map(flags),
+    )
 }
 
 fn collect_defined_ids(source: &[u8], tree: &Tree) -> HashSet<String> {
@@ -1212,6 +1202,7 @@ mod tests {
             name,
             LifecycleDiagnostic {
                 lifecycle: SpecLifecycle::Experimental,
+                declaration: None,
                 verdict: None,
                 codes: ELEMENT_LIFECYCLE_CODES,
                 subject: "<svg>",

@@ -3,6 +3,7 @@ use tree_sitter::Node;
 
 pub const SVG_NAMESPACE_URI: &str = "http://www.w3.org/2000/svg";
 pub const XLINK_NAMESPACE_URI: &str = "http://www.w3.org/1999/xlink";
+pub const XML_NAMESPACE_URI: &str = "http://www.w3.org/XML/1998/namespace";
 
 #[derive(Clone, Debug, Default)]
 pub struct NamespaceScope<'a> {
@@ -114,6 +115,7 @@ pub fn expand_attribute_name<'a>(
             // Keep linting lenient instead of treating that as an unknown
             // foreign namespace.
             Some("xlink") => scope.resolve_prefix("xlink").or(Some(XLINK_NAMESPACE_URI)),
+            Some("xml") => scope.resolve_prefix("xml").or(Some(XML_NAMESPACE_URI)),
             Some(other_prefix) => scope.resolve_prefix(other_prefix),
             None => None,
         },

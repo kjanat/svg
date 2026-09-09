@@ -46,7 +46,7 @@ pub const SVG11_PROPERTY_INDEXES: &[LegacyPropertyIndexSource] = &[
     LegacyPropertyIndexSource {
         name: "SVG 1.1 Second Edition Property Index",
         profile: CatalogSpecSnapshotId::Svg11Rec20110816,
-        url: "https://www.w3.org/TR/SVG11/propidx.html",
+        url: "https://www.w3.org/TR/2011/REC-SVG11-20110816/propidx.html",
     },
 ];
 

@@ -548,6 +548,26 @@
         }
       ]
     },
+    "CatalogDeclaredStatus": {
+      "description": "Explicit specification lifecycle declarations.",
+      "oneOf": [
+        {
+          "description": "Still defined, but deprecated for new content.",
+          "type": "string",
+          "const": "deprecated"
+        },
+        {
+          "description": "Still defined for legacy content, but obsoleted.",
+          "type": "string",
+          "const": "obsolete"
+        },
+        {
+          "description": "Explicitly removed from the specification.",
+          "type": "string",
+          "const": "removed"
+        }
+      ]
+    },
     "CatalogInventoryElement": {
       "description": "One element's per-snapshot attribute inventory.",
       "type": "object",
@@ -569,6 +589,24 @@
         }
       }
     },
+    "CatalogLifecycleDeclaration": {
+      "description": "A normative lifecycle statement at an immutable specification location.",
+      "type": "object",
+      "required": [
+        "source",
+        "status"
+      ],
+      "properties": {
+        "source": {
+          "description": "Dated publication or commit-pinned source URL, including its anchor.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CatalogDeclaredStatus",
+          "description": "What the specification declares, independently of inventory membership."
+        }
+      }
+    },
     "CatalogLifecycleEntry": {
       "description": "One feature lifecycle fact in a snapshot overlay.",
       "type": "object",
@@ -583,6 +621,17 @@
           "type": [
             "null",
             "string"
+          ]
+        },
+        "declaration": {
+          "description": "Explicit specification declaration, independent of browser advice.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatalogLifecycleDeclaration"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "known_in": {
@@ -600,6 +649,13 @@
           "description": "Feature name as written in this profile family (`xlink:href` stays\ndistinct from `href`).",
           "type": "string"
         },
+        "owner": {
+          "description": "Bearer element for an attribute-local declaration; absent means global.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "present": {
           "description": "Whether the feature is present in the containing snapshot.",
           "type": "boolean"
@@ -607,7 +663,7 @@
       }
     },
     "CatalogLifecycleStatus": {
-      "description": "Lifecycle statuses the snapshot overlay can derive from profile membership.",
+      "description": "Lifecycle derived from profile membership and explicit spec declarations.",
       "oneOf": [
         {
           "description": "Present and stable, included only when the overlay must carry profile\nspelling metadata.",
@@ -620,7 +676,12 @@
           "const": "experimental"
         },
         {
-          "description": "Known in earlier snapshots, absent from this one.",
+          "description": "Present but explicitly deprecated by the specification.",
+          "type": "string",
+          "const": "deprecated"
+        },
+        {
+          "description": "Explicitly obsoleted while retained, or removed from this edition.",
           "type": "string",
           "const": "obsolete"
         },
@@ -741,7 +802,7 @@
     },
     "lifecycle": {
       "$ref": "#/$defs/CatalogSnapshotLifecycle",
-      "description": "Profile lifecycle facts derived from snapshot membership."
+      "description": "Profile lifecycle facts derived from membership and explicit spec declarations."
     },
     "profile": {
       "$ref": "#/$defs/CatalogSpecSnapshotId",

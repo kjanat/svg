@@ -2359,7 +2359,9 @@
         "lifecycle": "stable",
         "known_in": [
           "Svg11Rec20030114",
-          "Svg11Rec20110816"
+          "Svg11Rec20110816",
+          "Svg2Cr20181004",
+          "Svg2EditorsDraft"
         ]
       },
       {

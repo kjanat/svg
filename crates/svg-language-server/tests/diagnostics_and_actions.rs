@@ -148,7 +148,7 @@ fn missing_reference_diagnostics_and_code_actions() -> TestResult {
 fn multiline_tag_suppression_inserts_before_opening_tag() -> TestResult {
     let mut server = TestServer::start()?;
 
-    // Multiline tag with profile-unsupported attribute on a later line
+    // Multiline tag with a spec-deprecated attribute on a later line.
     let svg = "<svg>\n<use\n\txlink:href=\"#icon\"/>\n</svg>";
     server.open("file:///multiline.svg", svg)?;
 
@@ -159,11 +159,11 @@ fn multiline_tag_suppression_inserts_before_opening_tag() -> TestResult {
         .as_array()
         .ok_or("diagnostics should be array")?;
 
-    // Verify there's an UnsupportedInProfile diagnostic on row 2 (the `xlink:href` line)
+    // The deprecation diagnostic belongs to row 2 (the `xlink:href` line).
     let deprecated_diag = diag_list
         .iter()
-        .find(|d| d["code"].as_str() == Some("UnsupportedInProfile"))
-        .ok_or("expected UnsupportedInProfile diagnostic")?;
+        .find(|d| d["code"].as_str() == Some("DeprecatedAttribute"))
+        .ok_or("expected DeprecatedAttribute diagnostic")?;
     assert_eq!(
         deprecated_diag["range"]["start"]["line"].as_u64(),
         Some(2),
@@ -187,7 +187,7 @@ fn multiline_tag_suppression_inserts_before_opening_tag() -> TestResult {
         .as_array()
         .ok_or("codeAction result should be an array")?;
 
-    // The line suppression should insert BEFORE the <text line (row 1), not on the clip line (row 2)
+    // The line suppression belongs before the opening tag on row 1.
     let line_action = code_actions
         .iter()
         .find(|a| {
@@ -228,9 +228,10 @@ fn profile_config_applies_on_init_and_relints_open_documents() -> TestResult {
         .as_array()
         .ok_or("diagnostics should be array")?;
     assert!(
-        initial_diags
-            .iter()
-            .all(|diag| diag["code"].as_str() != Some("UnsupportedInProfile")),
+        initial_diags.iter().all(|diag| !matches!(
+            diag["code"].as_str(),
+            Some("UnsupportedInProfile" | "DeprecatedAttribute")
+        )),
         "svg11 init config should accept xlink:href: {initial}"
     );
 
@@ -250,8 +251,8 @@ fn profile_config_applies_on_init_and_relints_open_documents() -> TestResult {
     assert!(
         relinted_diags
             .iter()
-            .any(|diag| diag["code"].as_str() == Some("UnsupportedInProfile")),
-        "config change should re-lint open docs with the new profile: {relinted}"
+            .any(|diag| diag["code"].as_str() == Some("DeprecatedAttribute")),
+        "config change should re-lint open docs with SVG 2 deprecation: {relinted}"
     );
 
     server.shutdown_and_exit()?;
@@ -291,8 +292,11 @@ fn profile_switch_moves_completions_and_diagnostics_together() -> TestResult {
             .as_array()
             .ok_or("diagnostics should be array")?
             .iter()
-            .all(|diag| diag["code"].as_str() != Some("UnsupportedInProfile")),
-        "svg11 should accept xlink:href without UnsupportedInProfile: {svg11_diags}"
+            .all(|diag| !matches!(
+                diag["code"].as_str(),
+                Some("UnsupportedInProfile" | "DeprecatedAttribute")
+            )),
+        "svg11 should accept xlink:href without lifecycle warnings: {svg11_diags}"
     );
 
     let svg11_completion = server.request(
@@ -325,8 +329,8 @@ fn profile_switch_moves_completions_and_diagnostics_together() -> TestResult {
             .as_array()
             .ok_or("diagnostics should be array")?
             .iter()
-            .any(|diag| diag["code"].as_str() == Some("UnsupportedInProfile")),
-        "svg2draft re-lint should flag xlink:href as UnsupportedInProfile: {svg2_diags}"
+            .any(|diag| diag["code"].as_str() == Some("DeprecatedAttribute")),
+        "svg2draft re-lint should flag xlink:href as deprecated: {svg2_diags}"
     );
 
     let svg2_completion = server.request(

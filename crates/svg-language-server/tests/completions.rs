@@ -409,7 +409,7 @@ fn completions_follow_selected_profile() -> TestResult {
         svg2_items
             .iter()
             .all(|item| item["label"].as_str() != Some("xlink:href")),
-        "SVG 2 profile should hide unsupported xlink:href completions: {svg2_resp}"
+        "SVG 2 profile should prefer modern href completions: {svg2_resp}"
     );
     svg2_server.shutdown_and_exit()?;
     Ok(())
@@ -540,7 +540,7 @@ fn value_completions_follow_profile_snapshot_overrides() -> TestResult {
 fn completions_follow_document_version_attribute() -> TestResult {
     // Default server profile is SVG 2. A document declaring
     // `version="1.1"` must auto-swap, so completions for `<use>` show
-    // `xlink:href` (SVG 1.1-only) instead of `href` (SVG 2-only).
+    // `xlink:href` (canonical in SVG 1.1) instead of `href` (introduced in SVG 2).
     let mut server = TestServer::start()?;
 
     let doc = r#"<svg version="1.1" xmlns="http://www.w3.org/2000/svg"><use height="32" /></svg>"#;

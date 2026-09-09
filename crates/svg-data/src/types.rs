@@ -62,7 +62,7 @@ pub enum SpecLifecycle {
     Experimental,
     /// Explicitly deprecated by the spec.
     Deprecated,
-    /// Removed from later snapshots but known historically.
+    /// Obsoleted by the spec, or absent from a later snapshot. Membership is separate.
     Obsolete,
 }
 
@@ -1081,10 +1081,12 @@ pub struct SnapshotLifecycle {
 /// ```rust
 /// let lifecycle = svg_data::FeatureLifecycle {
 ///     name: "font",
+///     owner: None,
 ///     catalog_name: None,
 ///     present: false,
 ///     lifecycle: svg_data::SpecLifecycle::Obsolete,
 ///     known_in: &[svg_data::SpecSnapshotId::Svg11Rec20110816],
+///     declaration: None,
 /// };
 /// assert!(!lifecycle.present);
 /// ```
@@ -1092,6 +1094,8 @@ pub struct SnapshotLifecycle {
 pub struct FeatureLifecycle {
     /// Feature name as written for the profile family.
     pub name: &'static str,
+    /// Bearer element for an attribute-local declaration; absent means global.
+    pub owner: Option<&'static str>,
     /// Canonical catalog attribute name, when different from `name`.
     pub catalog_name: Option<&'static str>,
     /// Whether the feature is present in the snapshot.
@@ -1101,4 +1105,26 @@ pub struct FeatureLifecycle {
     pub lifecycle: SpecLifecycle,
     /// Snapshots where this feature is present.
     pub known_in: &'static [SpecSnapshotId],
+    /// Explicit specification declaration, separate from browser compatibility.
+    pub declaration: Option<LifecycleDeclaration>,
+}
+
+/// An explicit lifecycle declaration in the containing specification snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LifecycleDeclaration {
+    /// Declared status, independently of index membership.
+    pub status: DeclaredStatus,
+    /// Immutable publication or commit-pinned source URL and anchor.
+    pub source: &'static str,
+}
+
+/// What a specification explicitly says about a feature's lifecycle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclaredStatus {
+    /// Defined, but deprecated for new content.
+    Deprecated,
+    /// Defined for legacy content, but obsoleted.
+    Obsolete,
+    /// Removed from the specification.
+    Removed,
 }

@@ -599,15 +599,16 @@ fn hover_shows_profile_lifecycle_separately_from_browser_support() -> TestResult
     let svg2_hover_value = svg2_hover["result"]["contents"]["value"]
         .as_str()
         .ok_or("SVG 2 hover markdown")?;
-    // In SVG 2 profile, xlink:href is no longer defined — verdict escalates
-    // to ✗ Forbid with "removed after `Svg11Rec20110816`" in the Status line.
+    // SVG 2 retains xlink:href but explicitly deprecates it. Its spec status
+    // must not be confused with removal or the independent browser verdict.
     assert!(
-        svg2_hover_value.contains("\u{2717}") && svg2_hover_value.contains("xlink:href"),
-        "SVG 2 hover for xlink:href should display ✗ Forbid verdict: {svg2_hover_value}"
+        svg2_hover_value.contains("xlink:href")
+            && svg2_hover_value.contains("**SVG specification:** Deprecated."),
+        "SVG 2 hover should report the explicit deprecation: {svg2_hover_value}"
     );
     assert!(
-        svg2_hover_value.contains("removed after `Svg11Rec20110816`"),
-        "SVG 2 hover should surface the removal point in the Status line: {svg2_hover_value}"
+        !svg2_hover_value.contains("removed after"),
+        "retained xlink:href must not be reported as removed: {svg2_hover_value}"
     );
     assert!(
         svg2_hover_value.contains("Chrome"),

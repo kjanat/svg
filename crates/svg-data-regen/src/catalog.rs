@@ -416,7 +416,7 @@ pub struct CatalogSnapshot {
     pub sources: Vec<String>,
     /// Per-snapshot element/attribute inventory.
     pub inventory: CatalogSnapshotInventory,
-    /// Profile lifecycle facts derived from snapshot membership.
+    /// Profile lifecycle facts derived from membership and explicit spec declarations.
     #[serde(default, skip_serializing_if = "CatalogSnapshotLifecycle::is_empty")]
     pub lifecycle: CatalogSnapshotLifecycle,
     /// Per-profile value-space overrides for this snapshot.
@@ -447,6 +447,9 @@ pub struct CatalogLifecycleEntry {
     /// Feature name as written in this profile family (`xlink:href` stays
     /// distinct from `href`).
     pub name: String,
+    /// Bearer element for an attribute-local declaration; absent means global.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
     /// Canonical catalog attribute name, when different from `name`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub catalog_name: Option<String>,
@@ -457,9 +460,33 @@ pub struct CatalogLifecycleEntry {
     /// Snapshots where this feature is present.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub known_in: Vec<CatalogSpecSnapshotId>,
+    /// Explicit specification declaration, independent of browser advice.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declaration: Option<CatalogLifecycleDeclaration>,
 }
 
-/// Lifecycle statuses the snapshot overlay can derive from profile membership.
+/// A normative lifecycle statement at an immutable specification location.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct CatalogLifecycleDeclaration {
+    /// What the specification declares, independently of inventory membership.
+    pub status: CatalogDeclaredStatus,
+    /// Dated publication or commit-pinned source URL, including its anchor.
+    pub source: String,
+}
+
+/// Explicit specification lifecycle declarations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogDeclaredStatus {
+    /// Still defined, but deprecated for new content.
+    Deprecated,
+    /// Still defined for legacy content, but obsoleted.
+    Obsolete,
+    /// Explicitly removed from the specification.
+    Removed,
+}
+
+/// Lifecycle derived from profile membership and explicit spec declarations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogLifecycleStatus {
@@ -468,7 +495,9 @@ pub enum CatalogLifecycleStatus {
     Stable,
     /// Present only in a draft snapshot.
     Experimental,
-    /// Known in earlier snapshots, absent from this one.
+    /// Present but explicitly deprecated by the specification.
+    Deprecated,
+    /// Explicitly obsoleted while retained, or removed from this edition.
     Obsolete,
     /// Known in later snapshots, absent from this one.
     NotYetIntroduced,

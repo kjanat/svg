@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn unsupported_attribute_does_not_also_emit_deprecated() {
-        let src = br##"<svg><use xlink:href="#icon"/></svg>"##;
+        let src = br#"<svg baseProfile="full"/>"#;
         let diags = lint_with_options(
             src,
             LintOptions {
@@ -538,7 +538,7 @@ mod tests {
             diags
                 .iter()
                 .any(|d| d.code == DiagnosticCode::UnsupportedInProfile),
-            "xlink:href should be unsupported in svg 2: {diags:?}"
+            "baseProfile should be unsupported in SVG 2: {diags:?}"
         );
         assert!(
             !diags
@@ -839,22 +839,16 @@ mod tests {
     }
 
     #[test]
-    fn compat_deprecated_attribute_emits_diagnostic() {
-        // `glyph-orientation-vertical` is the canonical "defined-but-
-        // obsoleted" BCD-deprecated attribute: the spec scanner marks it
-        // `obsoleted`, not `removed`, so it stays in SVG 2 snapshot data
-        // and surfaces through the BCD↔spec exception path as a
-        // `DeprecatedAttribute` diagnostic. Distinct from `glyph-orientation-
-        // horizontal`/`kerning`/`baseProfile` which the scanner flagged
-        // as removed and which surface as `UnsupportedInProfile`.
+    fn retained_obsolete_attribute_emits_spec_diagnostic() {
         let src = br#"<svg><text glyph-orientation-vertical="0">deprecated</text></svg>"#;
         let diags = lint(src);
 
         assert!(
             diags
                 .iter()
-                .any(|d| d.code == DiagnosticCode::DeprecatedAttribute),
-            "compat deprecated attrs should warn: {diags:?}"
+                .any(|d| d.code == DiagnosticCode::ObsoleteAttribute
+                    && d.message.contains("#GlyphOrientationVerticalProperty")),
+            "retained obsolete attribute should cite the spec: {diags:?}"
         );
     }
 
@@ -887,6 +881,53 @@ mod tests {
                 .any(|d| d.code == DiagnosticCode::DeprecatedAttribute),
             "runtime overrides should replace compat deprecation flags: {diags:?}"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn xlink_advisories_preserve_the_attribute_subject() -> Result<(), Box<dyn std::error::Error>> {
+        let source = br##"<svg xmlns:xlink="http://www.w3.org/1999/xlink"><g id="icon"/><use xlink:href="#icon"/></svg>"##;
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        let tree = parser.parse(source, None).ok_or("tree")?;
+        let mut overrides = VerdictOverrides::default();
+        overrides.attributes.insert(
+            "xlink:href".into(),
+            svg_data::CompatVerdict {
+                recommendation: svg_data::VerdictRecommendation::Caution,
+                headline_template: "limited support",
+                reasons: vec![
+                    svg_data::VerdictReason::PartialImplementationIn("chrome".into()),
+                    svg_data::VerdictReason::PrefixRequiredIn {
+                        browser: "firefox".into(),
+                        prefix: "test-".into(),
+                    },
+                    svg_data::VerdictReason::BehindFlagIn("safari".into()),
+                ],
+            },
+        );
+        let diagnostics = lint_tree_with_compat(
+            source,
+            &tree,
+            LintOptions::default(),
+            None,
+            Some(&overrides),
+        );
+        for code in [
+            DiagnosticCode::DeprecatedAttribute,
+            DiagnosticCode::PartialImplementation,
+            DiagnosticCode::PrefixRequired,
+            DiagnosticCode::BehindFlag,
+        ] {
+            let diagnostic = diagnostics
+                .iter()
+                .find(|d| d.code == code)
+                .ok_or("expected lifecycle/advisory diagnostic")?;
+            assert!(
+                diagnostic.message.starts_with("xlink:href "),
+                "{diagnostic:?}"
+            );
+        }
         Ok(())
     }
 
@@ -1155,13 +1196,7 @@ mod tests {
     }
 
     #[test]
-    fn deprecated_attribute_message_surfaces_bcd_origin_under_latest_profile() {
-        // Under the latest profile (SVG 2 Editor's Draft), BCD deprecation
-        // is honoured. `glyph-orientation-vertical` is defined in SVG 2
-        // (via the obsolescence exception allowlist) so lookup succeeds,
-        // lifecycle resolves Stable, and the BCD `deprecated: true` flag
-        // promotes the diagnostic to DeprecatedAttribute with the
-        // verdict-derived BCD message.
+    fn obsolete_attribute_message_preserves_both_spec_and_bcd_origins() {
         let src = br#"<svg><text glyph-orientation-vertical="0">x</text></svg>"#;
         let diags = lint_with_options(
             src,
@@ -1174,11 +1209,132 @@ mod tests {
 
         let dep = diags
             .iter()
-            .find(|d| d.code == DiagnosticCode::DeprecatedAttribute);
+            .find(|d| d.code == DiagnosticCode::ObsoleteAttribute);
         assert!(
-            dep.is_some_and(|d| d.message.contains("BCD-deprecated")),
-            "deprecated message should read from verdict reasons under latest: {diags:?}"
+            dep.is_some_and(|d| d.message.contains("BCD-deprecated")
+                && d.message.contains("SVG specification:")),
+            "both sources should remain identifiable: {diags:?}"
         );
+    }
+
+    #[test]
+    fn clear_runtime_flags_preserve_spec_status_and_exact_element_context()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let source = br#"<svg><text glyph-orientation-vertical="0"/><style type="text/css"></style><animateTransform type="rotate"/></svg>"#;
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        let tree = parser.parse(source, None).ok_or("tree")?;
+        let clear = CompatFlags {
+            deprecated: false,
+            experimental: false,
+        };
+        let mut flags = LintOverrides::default();
+        flags
+            .attributes
+            .insert("glyph-orientation-vertical".into(), clear);
+        flags.attributes.insert(
+            "type".into(),
+            CompatFlags {
+                deprecated: true,
+                experimental: true,
+            },
+        );
+        flags
+            .attribute_contexts
+            .insert(("style".into(), "type".into()), clear);
+        flags
+            .attribute_contexts
+            .insert(("animateTransform".into(), "type".into()), clear);
+        let mut verdicts = VerdictOverrides::default();
+        verdicts.attributes.insert(
+            "glyph-orientation-vertical".into(),
+            svg_data::CompatVerdict {
+                recommendation: svg_data::VerdictRecommendation::Safe,
+                headline_template: "safe to use",
+                reasons: Vec::new(),
+            },
+        );
+        for profile in [
+            svg_data::SpecSnapshotId::Svg11Rec20110816,
+            svg_data::SpecSnapshotId::LATEST,
+        ] {
+            let diagnostics = lint_tree_with_compat(
+                source,
+                &tree,
+                LintOptions {
+                    profile,
+                    native: None,
+                    edition: None,
+                },
+                Some(&flags),
+                Some(&verdicts),
+            );
+            let obsolete: Vec<_> = diagnostics
+                .iter()
+                .filter(|d| d.code == DiagnosticCode::ObsoleteAttribute)
+                .collect();
+            if profile == svg_data::SpecSnapshotId::LATEST {
+                assert_eq!(obsolete.len(), 2, "{diagnostics:?}");
+                assert!(
+                    obsolete
+                        .iter()
+                        .all(|d| d.message.contains("SVG specification:"))
+                );
+                assert!(
+                    !obsolete
+                        .iter()
+                        .any(|d| d.message.contains("BCD-deprecated"))
+                );
+                assert!(
+                    obsolete
+                        .iter()
+                        .any(|d| d.message.contains("#StyleElementTypeAttribute"))
+                );
+            } else {
+                assert!(obsolete.is_empty(), "{diagnostics:?}");
+            }
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::DeprecatedAttribute),
+                "exact clear overrides must beat global flags: {diagnostics:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn svg_xml_space_deprecation_preserves_xml_metadata_and_older_profiles() {
+        let source =
+            br#"<svg xml:space="preserve" xml:lang="en" xmlns="http://www.w3.org/2000/svg"/>"#;
+        for (profile, deprecated) in [
+            (svg_data::SpecSnapshotId::Svg11Rec20110816, false),
+            (svg_data::SpecSnapshotId::LATEST, true),
+        ] {
+            let diagnostics = lint_with_options(
+                source,
+                LintOptions {
+                    profile,
+                    native: None,
+                    edition: None,
+                },
+            );
+            assert_eq!(
+                diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::DeprecatedAttribute
+                        && d.message.contains("xml:space")
+                        && d.message.contains("#XMLSpaceAttribute")),
+                deprecated,
+                "{diagnostics:?}"
+            );
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::UnknownAttribute),
+                "XML metadata is not unknown SVG: {diagnostics:?}"
+            );
+        }
     }
 
     #[test]

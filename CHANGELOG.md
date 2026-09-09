@@ -14,6 +14,20 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Added
+
+- Preserve explicit SVG deprecation, obsoletion and removal declarations with
+  edition-specific source links, including element-local attribute status.
+- Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
+  without upgrading browser compatibility or Webref packages.
+
+### Fixed
+
+- Keep spec-obsolete features flagged after browser data refreshes, and align
+  lifecycle annotations in lint and completion across historical profiles.
+- Treat retained `xlink:href` as deprecated in SVG 2, preserve SVG 1.1 usage,
+  and restrict the obsolete `type` warning to `<style>` in the editor's draft.
+
 ## [0.3.0] - 2026-09-09
 
 ### Added
