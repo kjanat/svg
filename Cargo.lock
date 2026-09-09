@@ -1123,7 +1123,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "svg-color"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "svg-tree",
  "tree-sitter",
@@ -1134,7 +1134,7 @@ dependencies = [
 
 [[package]]
 name = "svg-data"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "schemars",
  "serde",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "svg-data-regen"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "json-schema-sort",
  "quick-xml",
@@ -1159,7 +1159,7 @@ dependencies = [
 
 [[package]]
 name = "svg-format"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "clap",
  "tree-sitter",
@@ -1169,7 +1169,7 @@ dependencies = [
 
 [[package]]
 name = "svg-language-server"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "base64",
  "quick-xml",
@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "svg-lint"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "clap",
  "serde_json",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "svg-references"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "svg-tree",
  "tree-sitter",
@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "svg-tree"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "tree-sitter",
  "tree-sitter-svg",
@@ -1534,7 +1534,7 @@ checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
 name = "tree-sitter-svg"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1543,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-paint"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1552,7 +1552,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-path"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-transform"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1932,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "zed-svg"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "zed_extension_api",
 ]

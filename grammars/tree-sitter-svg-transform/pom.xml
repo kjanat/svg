@@ -9,7 +9,7 @@
 	<groupId>io.github.tree-sitter</groupId>
 	<artifactId>jtreesitter-svg-transform</artifactId>
 	<name>JTreeSitter SvgTransform</name>
-	<version>0.2.1</version>
+	<version>0.3.0</version>
 	<description>SVG transform-list grammar for Tree-sitter</description>
 	<url>https://github.com/kjanat/svg</url>
 	<licenses>

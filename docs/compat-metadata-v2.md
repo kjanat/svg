@@ -2,9 +2,8 @@
 
 Issues [#41](https://github.com/kjanat/svg/issues/41) and
 [#42](https://github.com/kjanat/svg/issues/42) change the public Rust and JSON
-compatibility contracts. This is a breaking change for consumers of the 0.2 API
-and must ship in the next minor release on the 0.x line. Package versions remain
-unchanged in this PR.
+compatibility contracts in v0.3.0. This is a breaking change for users of the
+0.2 API. This guide describes the migration to the new Rust and JSON models.
 
 The split catalog documents and worker `/data.json` now declare
 `schema_version: 2`. Check that version before consuming a document. Worker
