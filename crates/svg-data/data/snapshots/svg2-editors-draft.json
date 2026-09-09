@@ -7619,7 +7619,7 @@
         ],
         "declaration": {
           "status": "removed",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#GlyphOrientationHorizontalProperty"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#GlyphOrientationHorizontalProperty"
         }
       },
       {
@@ -7634,7 +7634,7 @@
         ],
         "declaration": {
           "status": "obsolete",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#GlyphOrientationVerticalProperty"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#GlyphOrientationVerticalProperty"
         }
       },
       {
@@ -7647,7 +7647,7 @@
         ],
         "declaration": {
           "status": "removed",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#KerningProperty"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/text.html#KerningProperty"
         }
       },
       {
@@ -7775,7 +7775,7 @@
         ],
         "declaration": {
           "status": "obsolete",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/styling.html#StyleElementTypeAttribute"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/styling.html#StyleElementTypeAttribute"
         }
       },
       {
@@ -7809,7 +7809,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/linking.html#XLinkRefAttrs"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/linking.html#XLinkRefAttrs"
         }
       },
       {
@@ -7833,7 +7833,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/linking.html#XLinkRefAttrs"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/linking.html#XLinkRefAttrs"
         }
       },
       {
@@ -7856,7 +7856,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githubusercontent.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/struct.html#XMLSpaceAttribute"
+          "source": "https://raw.githack.com/w3c/svgwg/c403ca46ad045ebdaeda148bae69f814fb744db7/master/struct.html#XMLSpaceAttribute"
         }
       },
       {

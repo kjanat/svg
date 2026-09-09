@@ -885,6 +885,53 @@ mod tests {
     }
 
     #[test]
+    fn xlink_advisories_preserve_the_attribute_subject() -> Result<(), Box<dyn std::error::Error>> {
+        let source = br##"<svg xmlns:xlink="http://www.w3.org/1999/xlink"><g id="icon"/><use xlink:href="#icon"/></svg>"##;
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        let tree = parser.parse(source, None).ok_or("tree")?;
+        let mut overrides = VerdictOverrides::default();
+        overrides.attributes.insert(
+            "xlink:href".into(),
+            svg_data::CompatVerdict {
+                recommendation: svg_data::VerdictRecommendation::Caution,
+                headline_template: "limited support",
+                reasons: vec![
+                    svg_data::VerdictReason::PartialImplementationIn("chrome".into()),
+                    svg_data::VerdictReason::PrefixRequiredIn {
+                        browser: "firefox".into(),
+                        prefix: "test-".into(),
+                    },
+                    svg_data::VerdictReason::BehindFlagIn("safari".into()),
+                ],
+            },
+        );
+        let diagnostics = lint_tree_with_compat(
+            source,
+            &tree,
+            LintOptions::default(),
+            None,
+            Some(&overrides),
+        );
+        for code in [
+            DiagnosticCode::DeprecatedAttribute,
+            DiagnosticCode::PartialImplementation,
+            DiagnosticCode::PrefixRequired,
+            DiagnosticCode::BehindFlag,
+        ] {
+            let diagnostic = diagnostics
+                .iter()
+                .find(|d| d.code == code)
+                .ok_or("expected lifecycle/advisory diagnostic")?;
+            assert!(
+                diagnostic.message.starts_with("xlink:href "),
+                "{diagnostic:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn verdict_override_changes_attribute_advisory() -> Result<(), Box<dyn std::error::Error>> {
         // `width` on `<rect>` carries no behind-flag hint by default. A
         // runtime verdict override (standing in for a newer BCD load)

@@ -907,17 +907,17 @@ fn build_attribute_hover_markdown(
     native: Option<&'static svg_data::profile::SvgNative>,
     settings: &HoverSettings,
 ) -> Option<String> {
+    let element_name = attribute_owner_element_name(node, source)?;
     let kind = node.kind();
     if !is_attribute_name_kind(kind) {
         return None;
     }
 
-    let element_name = attribute_owner_element_name(node, source);
     let lookup =
-        svg_data::attribute_for_profile_on_element(profile, node_text, element_name.as_deref());
+        svg_data::attribute_for_profile_on_element(profile, node_text, Some(&element_name));
     let profile_lifecycle = profile_lifecycle_hover_line(profile, &lookup);
     let runtime_override =
-        runtime_compat.and_then(|runtime| runtime.attribute(node_text, element_name.as_deref()));
+        runtime_compat.and_then(|runtime| runtime.attribute(node_text, Some(&element_name)));
 
     match lookup {
         svg_data::ProfileLookup::Present { value, .. } => {
@@ -925,7 +925,7 @@ fn build_attribute_hover_markdown(
                 value,
                 node_text,
                 crate::hover::AttributeHoverContext {
-                    element_name: element_name.as_deref(),
+                    element_name: Some(&element_name),
                     profile,
                     profile_lifecycle,
                     rt: runtime_override,
@@ -939,7 +939,7 @@ fn build_attribute_hover_markdown(
                 format_unsupported_attribute_hover_with_profile_name(
                     attribute,
                     node_text,
-                    element_name.as_deref(),
+                    Some(&element_name),
                     UnsupportedAttributeHoverProfile {
                         profile,
                         known_in,
@@ -957,6 +957,9 @@ fn build_attribute_hover_markdown(
 
 fn attribute_owner_element_name(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let tag = find_ancestor_any(node, &["start_tag", "self_closing_tag"])?;
+    if !tag_resolves_to_svg(tag, source) {
+        return None;
+    }
     let mut cursor = tag.walk();
     tag.children(&mut cursor)
         .find(|child| child.kind() == "name")

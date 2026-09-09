@@ -205,6 +205,14 @@ fn paragraph_declarations(
     Ok(found)
 }
 
+/// Link to rendered HTML so fragment anchors work, while fetching upstream directly.
+fn declaration_source_url(source: &str) -> String {
+    source.replace(
+        "https://raw.githubusercontent.com/",
+        "https://raw.githack.com/",
+    )
+}
+
 /// Fetch the dated historical chapters or the same commit used by definitions.
 /// The publication's table of contents discovers chapters; no cached verdicts
 /// or manually classified feature list participates in extraction.
@@ -281,7 +289,7 @@ pub fn fetch_declarations(
         let source = format!("{base}{chapter}");
         let html =
             fetch::url_text(&source, "text/html").map_err(|e| boxed(format!("{source}: {e}")))?;
-        for declaration in extract(&html, &source)? {
+        for declaration in extract(&html, &declaration_source_url(&source))? {
             let key = (
                 declaration.element,
                 declaration.name.clone(),

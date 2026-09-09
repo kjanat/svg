@@ -266,6 +266,12 @@ pub fn attributes_for_with_profile(
     let Some(element) = element(elem_name) else {
         return Vec::new();
     };
+    let attribute_names: std::collections::HashSet<_> =
+        inventory::for_edition(&inventory::EditionId::for_snapshot(profile))
+            .into_iter()
+            .flat_map(|inventory| inventory.elements)
+            .flat_map(|element| element.attributes.iter().map(|attribute| attribute.name))
+            .collect();
     ATTRIBUTES
         .iter()
         .filter(|attribute| {
@@ -274,7 +280,11 @@ pub fn attributes_for_with_profile(
                 .includes(elem_name, element.global_attrs)
         })
         .filter_map(|attribute| {
-            let (name, lifecycle) = attribute_profile_name_and_lifecycle(profile, attribute.name)?;
+            let (name, lifecycle) = attribute_profile_name_and_lifecycle(
+                profile,
+                attribute.name,
+                attribute_names.contains(attribute.name),
+            )?;
             let lifecycle = match attribute_for_profile_on_element(profile, name, Some(elem_name)) {
                 ProfileLookup::Present { lifecycle, .. } => lifecycle,
                 ProfileLookup::UnsupportedInProfile { .. } => return None,
@@ -361,14 +371,8 @@ pub fn attribute_lifecycle_on_element(
 fn attribute_profile_name_and_lifecycle(
     profile: SpecSnapshotId,
     catalog_name: &'static str,
+    canonical_present: bool,
 ) -> Option<(&'static str, SpecLifecycle)> {
-    let canonical_present = inventory::for_edition(&inventory::EditionId::for_snapshot(profile))
-        .is_some_and(|inventory| {
-            inventory
-                .elements
-                .iter()
-                .any(|e| e.attributes.iter().any(|a| a.name == catalog_name))
-        });
     if let Some(entry) = lifecycle_overlay(profile).and_then(|overlay| {
         overlay.attributes.iter().find(|entry| {
             entry.present
@@ -866,17 +870,16 @@ mod catalog_tests {
                 if value.name == "href"
         ));
 
-        let svg11_use_attrs = attributes_for_with_profile(SpecSnapshotId::Svg11Rec20110816, "use");
-        assert!(
-            svg11_use_attrs
-                .iter()
-                .any(|profiled| profiled.name == "xlink:href")
-        );
-        assert!(
-            !svg11_use_attrs
-                .iter()
-                .any(|profiled| profiled.name == "href")
-        );
+        for (profile, preferred, other) in [
+            (SpecSnapshotId::Svg11Rec20030114, "xlink:href", "href"),
+            (SpecSnapshotId::Svg11Rec20110816, "xlink:href", "href"),
+            (SpecSnapshotId::Svg2Cr20181004, "href", "xlink:href"),
+            (SpecSnapshotId::Svg2EditorsDraft, "href", "xlink:href"),
+        ] {
+            let attrs = attributes_for_with_profile(profile, "use");
+            assert!(attrs.iter().any(|a| a.name == preferred), "{profile:?}");
+            assert!(!attrs.iter().any(|a| a.name == other), "{profile:?}");
+        }
     }
 
     #[test]

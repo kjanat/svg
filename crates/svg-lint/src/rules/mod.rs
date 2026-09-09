@@ -427,7 +427,7 @@ fn check_attributes(
                     name_node,
                     Some(tag_start),
                     verdict,
-                    value.name,
+                    lookup_name.as_ref(),
                 );
             }
             ProfileLookup::UnsupportedInProfile { .. } => {

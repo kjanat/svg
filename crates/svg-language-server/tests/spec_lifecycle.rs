@@ -8,6 +8,48 @@ use support::TestServer;
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
+fn attribute_hover_rejects_foreign_owners() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(&json!({"svg": {
+        "profile": "Svg2EditorsDraft", "runtime_compat": false,
+    }}))?;
+    for (index, (source, attribute)) in [
+        (
+            r#"<svg xmlns:h="http://www.w3.org/1999/xhtml"><h:style type="text/css"/></svg>"#,
+            "type",
+        ),
+        (
+            r#"<svg><style xmlns="http://www.w3.org/1999/xhtml" type="text/css"/></svg>"#,
+            "type",
+        ),
+        (
+            r#"<svg><foreignObject><style type="text/css"/></foreignObject></svg>"#,
+            "type",
+        ),
+        (
+            r#"<svg xmlns:h="http://www.w3.org/1999/xhtml"><h:rect width="1"/></svg>"#,
+            "width",
+        ),
+        (r#"<svg><rect xmlns="" width="1"/></svg>"#, "width"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let uri = format!("file:///foreign-attribute-{index}.svg");
+        server.open(&uri, source)?;
+        let response = server.request("textDocument/hover", &json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": source.find(&format!("{attribute}=")).ok_or("attribute")? + 1 },
+        }))?;
+        assert!(
+            response["result"].is_null(),
+            "foreign owner must not receive SVG attribute metadata: {source}: {response}"
+        );
+    }
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
 fn spec_lifecycle_hover_and_completion_follow_the_selected_edition() -> TestResult {
     for (profile, svg2) in [
         ("Svg11Rec20030114", false),
