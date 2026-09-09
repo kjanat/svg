@@ -21,7 +21,7 @@ import {
 	verifyChecksum,
 } from './runtime.mjs';
 
-const root = resolve(process.env.NPM_ROOT ?? 'distribution/npm');
+const root = resolve('distribution/npm');
 const manifest = readJson(join(root, 'targets.json'));
 const tag = process.env.RELEASE_TAG;
 const version = expectedVersion(tag);

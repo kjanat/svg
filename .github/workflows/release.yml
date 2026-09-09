@@ -190,7 +190,6 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
       run-id: ${{ github.run_id }}
-      helper-ref: ${{ github.sha }}
       report-prefix: release-runtime
 
   publish-release:

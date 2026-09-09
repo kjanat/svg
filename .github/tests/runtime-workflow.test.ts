@@ -25,7 +25,7 @@ test('every npm entry point gates both publishing roots, preserving publication 
 	expect(dependencies(npm.jobs.facades)).toContain('scoped');
 	expect(dependencies(npm.jobs.shims)).toContain('facades');
 	expect(dependencies(npm.jobs.bundles)).toContain('shims');
-	expect(npm.jobs['runtime-smoke'].with['helper-ref']).toBe('${{ needs.setup.outputs.helper-ref }}');
+	expect(runtime.on.workflow_call.inputs['helper-ref']).toBeUndefined();
 });
 
 test('runtime checks use transferred artifacts, native runners and a real musl container', () => {
@@ -37,8 +37,13 @@ test('runtime checks use transferred artifacts, native runners and a real musl c
 	expect(stepsText(smoke)).not.toMatch(/cargo|build-packages|gh release download/);
 	expect(stepsText(smoke)).toContain('docker run --rm');
 	expect(stepsText(smoke)).toContain('node --test distribution/npm/facade/test/*.test.mjs');
+	for (const job of [runtime.jobs.matrix, smoke]) {
+		for (const step of job.steps.filter((s: any) => s.uses?.startsWith('actions/setup-node@'))) {
+			expect(step.with['package-manager-cache']).toBe(false);
+		}
+	}
 	for (const step of smoke.steps.filter((s: any) => s.uses?.startsWith('actions/checkout@'))) {
-		expect(step.with.ref).toBe('${{ inputs.helper-ref }}');
+		expect(step.with.ref).toBe('${{ github.sha }}');
 		expect(step.with['persist-credentials']).toBe(false);
 	}
 });

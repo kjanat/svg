@@ -10,7 +10,7 @@ export const digest = path => createHash('sha256').update(readFileSync(path)).di
 export const packageDirectory = name => name.replace(/^@/, '').replaceAll('/', '-');
 
 export function run(command, args, options = {}) {
-	const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...options });
+	const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...options, shell: false });
 	if (result.error || result.status !== 0) {
 		throw new Error(`${command} failed (${result.status}): ${result.error?.message ?? ''}\n${result.stdout ?? ''}\n${result.stderr ?? ''}`);
 	}
@@ -37,7 +37,7 @@ export function runCommand(command, args, options = {}) {
 		command = npmPath;
 	}
 	if (process.platform === 'win32' && command.toLowerCase().endsWith('.cmd')) {
-		return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/v:off', '/s', '/c', cmdLine(command, args)], {
+		return run('cmd.exe', ['/d', '/v:off', '/s', '/c', cmdLine(command, args)], {
 			...options,
 			windowsVerbatimArguments: true,
 		});
@@ -124,7 +124,7 @@ export function summary(text) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-	const root = resolve(process.env.NPM_ROOT ?? 'distribution/npm');
+	const root = resolve('distribution/npm');
 	const manifest = readJson(join(root, 'targets.json'));
 	const mode = process.argv[2];
 	if (mode === 'matrix') {

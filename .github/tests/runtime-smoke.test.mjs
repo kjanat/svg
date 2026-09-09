@@ -63,6 +63,13 @@ test('Windows shim invocation preserves spaces and disables command expansion', 
 	for (const arg of ['%PATH%', 'a"b', 'line\nbreak']) assert.throws(() => cmdLine('npm', [arg]), /Unsupported cmd/);
 });
 
+test('subprocess callers cannot enable shell interpretation', () => {
+	assert.equal(
+		run(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', 'one argument with spaces'], { shell: true }),
+		'one argument with spaces',
+	);
+});
+
 test('Windows executes an absolute batch shim from a different working directory', t => {
 	if (process.platform !== 'win32') return t.skip('Windows-only .cmd behavior');
 	const root = mkdtempSync(join(tmpdir(), 'svg shim test '));
@@ -75,12 +82,11 @@ test('Windows executes an absolute batch shim from a different working directory
 test('an incompatible host fails without reporting installation or execution success', t => {
 	const root = mkdtempSync(join(tmpdir(), 'svg-host-test-'));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
-	writeFileSync(join(root, 'targets.json'), JSON.stringify(manifest));
 	const host = process.platform === 'win32' ? 'linux-x64-gnu' : 'win32-x64-msvc';
 	const reportDir = join(root, 'reports');
 	assert.throws(() =>
 		run(process.execPath, [fileURLToPath(new URL('../actions/npm-smoke/run.mjs', import.meta.url))], {
-			env: { ...process.env, NPM_ROOT: root, RELEASE_TAG: 'v1.2.3', HOST_PKG: host, RUNTIME_RESULTS: reportDir },
+			env: { ...process.env, RELEASE_TAG: 'v1.2.3', HOST_PKG: host, RUNTIME_RESULTS: reportDir },
 		}), /Runtime OS does not match/);
 	const report = readJson(join(reportDir, `${host}.json`));
 	assert.equal(report.built, 'FAILED');

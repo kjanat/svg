@@ -52,7 +52,6 @@ jobs:
       shims: ${{ steps.matrix.outputs.shims }}
       bundle: ${{ steps.matrix.outputs.bundle }}
       grammars: ${{ steps.matrix.outputs.grammars }}
-      helper-ref: ${{ steps.helper.outputs.sha }}
     steps:
       # Sparse-checkout from default branch — no tag-supplied code on disk.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -64,10 +63,6 @@ jobs:
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with: { registry-url: "${{ env.REGISTRY }}" }
-
-      - name: record runtime helper revision
-        id: helper
-        run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: resolve build run-id
         id: resolve
@@ -102,7 +97,6 @@ jobs:
     with:
       tag: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
       run-id: ${{ needs.setup.outputs.run-id }}
-      helper-ref: ${{ needs.setup.outputs.helper-ref }}
       report-prefix: npm-runtime
 
   # Tree-sitter grammar node packages, published from the tag's sources —

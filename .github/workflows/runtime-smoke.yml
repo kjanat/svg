@@ -4,7 +4,6 @@ on:
     inputs:
       tag: { required: true, type: string }
       run-id: { required: true, type: string }
-      helper-ref: { required: true, type: string }
       report-prefix: { required: true, type: string }
 permissions: { contents: read, actions: read }
 
@@ -15,12 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ inputs.helper-ref }}
+          ref: ${{ github.sha }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json\npackage.json"
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with: { node-version-file: package.json }
+        with: { node-version-file: package.json, package-manager-cache: false }
       - id: plan
         run: node .github/actions/npm-smoke/runtime.mjs matrix
 
@@ -36,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ inputs.helper-ref }}
+          ref: ${{ github.sha }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json\ndistribution/npm/facade\npackage.json"
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with: { node-version-file: package.json, architecture: "${{ matrix.arch }}" }
+        with: { node-version-file: package.json, architecture: "${{ matrix.arch }}", package-manager-cache: false }
       - name: download and extract producer dist artifact
         uses: ./.github/actions/dist-artifact
         with: { run-id: "${{ inputs.run-id }}", token: "${{ github.token }}" }

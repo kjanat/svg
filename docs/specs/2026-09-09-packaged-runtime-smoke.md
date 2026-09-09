@@ -16,6 +16,10 @@ matrix.
   never compile inside a smoke job. Verify checksums, executable modes, exact
   versions, and binary identity through extraction, npm packing, and
   installation.
+- Helpers come from the running workflow's immutable commit, with no caller
+  supplied checkout reference. Runtime jobs have read permissions and disable
+  package-manager caches. Artifact paths are fixed under the workspace;
+  subprocesses use argument arrays and cannot enable shell interpretation.
 - Use native Node on Windows/macOS/GNU runners and Node inside Alpine for musl.
   Assert the actual OS, architecture, and libc before accepting runtime
   evidence.
