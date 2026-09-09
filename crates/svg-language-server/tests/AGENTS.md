@@ -52,5 +52,5 @@ tests/
 ## NOTES
 
 - `support/mod.rs` caches the built binary path with `OnceLock`.
-- Current docs/plans may still mention an older `tests/integration.rs`; current
-  suite is split by feature.
+- Historical design docs may mention an older `tests/integration.rs`; the
+  current suite is split by feature.

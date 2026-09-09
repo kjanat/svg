@@ -29,7 +29,6 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 │   └── zed-svg/               # Zed extension for SVG
 ├── .github/workflows/         # release + npm publish automation
 ├── docs/
-│   ├── plans/                 # dated implementation checklists
 │   ├── specs/                 # dated design docs + non-goals
 │   └── patches/               # archived downstream patch bundles
 ├── samples/                   # manual SVG fixtures and smoke-test files
@@ -42,21 +41,21 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 
 ## WHERE TO LOOK
 
-| Task                                          | Location                                                                        | Notes                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Add or debug LSP method                       | `crates/svg-language-server/src/lib.rs`                                         | Main async server/orchestrator                       |
-| Change lint behavior                          | `crates/svg-lint/src/rules/mod.rs`                                              | Rule engine + suppression handling                   |
-| Add hover/completion metadata                 | `crates/svg-data/build.rs`, `crates/svg-data/src/lib.rs`                        | Build-time catalog generation + runtime API          |
-| Change formatter output                       | `crates/svg-format/src/lib.rs`                                                  | Attribute layout/sort, ignore directives, tag policy |
-| Change color extraction/presentation          | `crates/svg-color/src/extract.rs`, `crates/svg-color/src/present.rs`            | CSS + SVG extraction and output labels               |
-| Change definition/reference lookup            | `crates/svg-references/src/lib.rs`                                              | Shared symbol model for ids/classes/custom props     |
-| Change shared tree traversal                  | `crates/svg-tree/src/lib.rs`                                                    | Shared node-walk, ancestor, and kind helpers         |
-| Change parser grammar or grammar-side queries | `grammars/tree-sitter-svg/grammar.js`, `grammars/tree-sitter-svg/queries/`      | Tree-sitter SVG source of truth                      |
-| Change Zed extension behavior                 | `editors/zed-svg/`                                                              | Extension manifest, Rust wrapper, Zed queries        |
-| Validate E2E feature behavior                 | `crates/svg-language-server/tests/*.rs`                                         | Spawns binary, speaks raw JSON-RPC                   |
-| Change release automation                     | `.github/workflows/*.yml`, `.github/actions/*`, `distribution/npm/targets.json` | Hand-owned pipeline; targets.json is source of truth |
-| Check design intent / file maps               | `docs/plans/*.md`, `docs/specs/*.md`                                            | Dated plan/spec pairs with verification guidance     |
-| Repro behavior manually                       | `samples/`                                                                      | Manual fixtures; not wired into automated test runs  |
+| Task                                          | Location                                                                        | Notes                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Add or debug LSP method                       | `crates/svg-language-server/src/lib.rs`                                         | Main async server/orchestrator                        |
+| Change lint behavior                          | `crates/svg-lint/src/rules/mod.rs`                                              | Rule engine + suppression handling                    |
+| Add hover/completion metadata                 | `crates/svg-data/build.rs`, `crates/svg-data/src/lib.rs`                        | Build-time catalog generation + runtime API           |
+| Change formatter output                       | `crates/svg-format/src/lib.rs`                                                  | Attribute layout/sort, ignore directives, tag policy  |
+| Change color extraction/presentation          | `crates/svg-color/src/extract.rs`, `crates/svg-color/src/present.rs`            | CSS + SVG extraction and output labels                |
+| Change definition/reference lookup            | `crates/svg-references/src/lib.rs`                                              | Shared symbol model for ids/classes/custom props      |
+| Change shared tree traversal                  | `crates/svg-tree/src/lib.rs`                                                    | Shared node-walk, ancestor, and kind helpers          |
+| Change parser grammar or grammar-side queries | `grammars/tree-sitter-svg/grammar.js`, `grammars/tree-sitter-svg/queries/`      | Tree-sitter SVG source of truth                       |
+| Change Zed extension behavior                 | `editors/zed-svg/`                                                              | Extension manifest, Rust wrapper, Zed queries         |
+| Validate E2E feature behavior                 | `crates/svg-language-server/tests/*.rs`                                         | Spawns binary, speaks raw JSON-RPC                    |
+| Change release automation                     | `.github/workflows/*.yml`, `.github/actions/*`, `distribution/npm/targets.json` | Hand-owned pipeline; targets.json is source of truth  |
+| Check design intent                           | `docs/specs/*.md`                                                               | Dated design history; active work is in GitHub issues |
+| Repro behavior manually                       | `samples/`                                                                      | Manual fixtures; not wired into automated test runs   |
 
 ## CODE MAP
 
@@ -83,8 +82,8 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 - Release automation is fully hand-owned: `distribution/npm/targets.json`
   defines the build/publish matrix consumed by `release.yml` and
   `npm-release.yml`.
-- `docs/plans/*` and `docs/specs/*` are date-paired design history, not
-  generated output.
+- `docs/specs/*` contains dated design history, not generated output. Track
+  active implementation work in GitHub issues.
 - `grammars/tree-sitter-svg` is the canonical grammar in this repo. Keep parser
   node names, grammar queries, and editor query consumers aligned.
 - `editors/zed-svg` is a workspace member, but its published grammar pin still
@@ -115,7 +114,7 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 - Diagnostic suppression comments live in SVG source and are regression-tested.
 - Formatter behavior is structural and deterministic, not whitespace-preserving
   pretty-print.
-- Plans/specs are checked in as dated architecture history with explicit
+- Design specs are checked in as dated architecture history with explicit
   verification sections.
 
 ## COMMANDS

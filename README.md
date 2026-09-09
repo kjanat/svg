@@ -208,7 +208,6 @@ grammars/
 editors/
   zed-svg/              Zed extension
 docs/
-  plans/
   specs/
 samples/                manual fixtures and examples
 ```
