@@ -124,7 +124,7 @@ fn unknown_profile_is_usage_error() -> TestResult {
 
 #[test]
 fn profile_alias_resolves_and_affects_linting() -> TestResult {
-    // xlink:href is clean under SVG 1.1 but unsupported under SVG 2.
+    // xlink:href is clean under SVG 1.1 but deprecated under SVG 2.
     let src = r##"<svg xmlns:xlink="http://www.w3.org/1999/xlink"><defs><g id="i"/></defs><use xlink:href="#i"/></svg>"##;
 
     let svg11 = run(
@@ -139,7 +139,7 @@ fn profile_alias_resolves_and_affects_linting() -> TestResult {
     )?;
     assert_eq!(svg2.code, 1, "svg2 stdout: {}", svg2.stdout);
     assert!(
-        svg2.stdout.contains("UnsupportedInProfile"),
+        svg2.stdout.contains("DeprecatedAttribute"),
         "svg2 stdout: {}",
         svg2.stdout
     );
