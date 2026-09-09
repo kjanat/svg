@@ -5,12 +5,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// A recognized upstream Baseline tier, independent of dates and BCD flags.
+///
+/// Imported from Web Features, never calculated from the selected desktop
+/// browser rows. Missing/unrecognized status is `None`, not [`Self::Limited`].
+/// This interoperability signal is separate from SVG validity and svg's usage
+/// recommendations. See the [user guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)
+/// and [upstream definition](https://github.com/web-platform-dx/web-features/blob/main/docs/baseline.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BaselineTier {
-    /// Widely Available (`"high"` upstream).
+    /// Widely Available (`"high"` upstream): meets the longer-term upstream criteria.
     Widely,
-    /// Newly Available (`"low"` upstream).
+    /// Newly Available (`"low"` upstream): reaches the upstream core browser set.
     Newly,
     /// Non-Baseline (`false` upstream), including discouraged features.
     Limited,

@@ -16,7 +16,7 @@ export function ElementsTable({ rows }: Props) {
 					<tr>
 						<th scope='col'>Name</th>
 						<th scope='col'>Baseline</th>
-						<th scope='col'>Support</th>
+						<th scope='col'>Desktop support</th>
 						<th scope='col'>Docs</th>
 					</tr>
 				</thead>

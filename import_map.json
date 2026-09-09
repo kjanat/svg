@@ -4,6 +4,7 @@
 		"#component/AttributesTable.tsx": "./workers/svg-compat/src/components/AttributesTable.tsx",
 		"#component/BaselineBadge.tsx": "./workers/svg-compat/src/components/BaselineBadge.tsx",
 		"#component/BrowserSupport.tsx": "./workers/svg-compat/src/components/BrowserSupport.tsx",
+		"#component/CompatibilityGuide.tsx": "./workers/svg-compat/src/components/CompatibilityGuide.tsx",
 		"#component/DevReload.tsx": "./workers/svg-compat/src/components/DevReload.tsx",
 		"#component/DocsLinks.tsx": "./workers/svg-compat/src/components/DocsLinks.tsx",
 		"#component/ElementsTable.tsx": "./workers/svg-compat/src/components/ElementsTable.tsx",

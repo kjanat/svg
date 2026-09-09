@@ -110,6 +110,25 @@ graph BT
   property definitions
 - `textDocument/formatting` for deterministic structural SVG formatting
 
+## Understanding compatibility
+
+Baseline summarizes availability within WebDX's browser set. **Newly Available**
+means a feature has reached that set under upstream policy; **Widely Available**
+also meets the criteria for longer-established availability. **Limited** means
+non-Baseline, which can include formally discouraged features. Missing or
+unrecognized data is **Unknown**, never Limited.
+
+Baseline statuses and both optional milestone dates come from `web-features`;
+detailed browser support comes from MDN BCD. The default browser overview shows
+four desktop products. SVG validity and this project's Caution/Avoid advice are
+separate from those upstream facts.
+
+Read the [compatibility guide](docs/baseline.md) for dates, mobile browsers,
+attribute context, source versions, startup refresh, and offline/stale behavior.
+The editor uses bundled data and enables startup refresh by default; set
+[`svg.runtime_compat: false`](crates/svg-language-server/README.md#configuration)
+to keep compatibility lookups offline.
+
 ## Color Support
 
 `svg-color` recognizes and presents a broad set of CSS/SVG color syntaxes,

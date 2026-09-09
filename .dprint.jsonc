@@ -41,6 +41,8 @@
 		]
 	},
 	"excludes": [
+		"crates/svg-language-server/assets/baseline-*.svg",
+		"workers/svg-compat/static/badges/baseline-*.svg",
 		"**/*.lock",
 		"**/fixtures",
 		"**/grammars/tree-sitter-*/**/w3/*.svg",

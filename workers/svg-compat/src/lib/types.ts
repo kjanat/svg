@@ -105,7 +105,7 @@ export interface CompatEntry {
 	baseline?: Baseline;
 	/** WebDX explanations retain their feature identity across attribute aggregation. */
 	discouraged?: Discouraged[];
-	/** Minimum browser versions from BCD. */
+	/** Browser support statements from BCD, including history and conditions. */
 	browser_support?: BrowserSupport;
 }
 

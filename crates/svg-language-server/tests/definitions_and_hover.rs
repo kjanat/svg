@@ -427,7 +427,7 @@ fn hover_baseprofile_verdict_is_forbid_in_svg2_profile() -> TestResult {
     );
     // Status line must consolidate all three reasons.
     assert!(
-        value.contains("**Status:**") && value.contains("removed after"),
+        value.contains("**Status (svg assessment):**") && value.contains("removed after"),
         "expected Status line with 'removed after': {value}"
     );
     assert!(
@@ -496,7 +496,7 @@ fn hover_marks_glyph_orientation_horizontal_unsupported_across_chromium_firefox(
     // browser_support block was silently dropped by the worker, so the
     // hover line read "Chrome supported | ..." even though BCD said the
     // opposite. After the fix, hover must render `✗` for unsupported
-    // engines.
+    // browser products.
     let mut server = TestServer::start()?;
     let svg = r#"<svg><text glyph-orientation-horizontal="0">x</text></svg>"#;
     server.open("file:///goh.svg", svg)?;
