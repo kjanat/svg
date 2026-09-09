@@ -544,11 +544,6 @@ Deno.test('favicon routes serve static assets', async () => {
 	assertEquals(ico.headers.get('x-content-type-options'), 'nosniff');
 	assertEquals(typeof ico.headers.get('etag'), 'string');
 	assertEquals(typeof ico.headers.get('last-modified'), 'string');
-	if (DEV) {
-		assertEquals(ico.headers.get('cache-control'), 'no-store');
-	} else {
-		assertEquals(ico.headers.get('cache-control')?.includes('immutable'), true);
-	}
 
 	const svg = await server.fetch(new Request('http://localhost/favicon.svg'));
 	assertEquals(svg.status, 200);
@@ -579,6 +574,48 @@ Deno.test('root asset routes serve static assets', async () => {
 	assertEquals(badge.headers.get('x-content-type-options'), 'nosniff');
 	assertEquals(badge.headers.get('content-type'), 'image/svg+xml');
 	await badge.arrayBuffer();
+});
+
+Deno.test('asset URLs revalidate in browsers and share cached responses in production', async (t) => {
+	for (
+		const path of ['/favicon.ico', '/favicon.svg', '/style.css', '/version-picker.mjs', '/badges/baseline-newly-icon.svg', '/browsers/chrome.svg']
+	) {
+		await t.step(path, async () => {
+			const url = `http://localhost${path}`;
+			const first = await server.fetch(new Request(url));
+			assertEquals(first.status, 200);
+			const policy = DEV ? 'no-store' : 'public, max-age=0, s-maxage=3600';
+			assertEquals(first.headers.get('cache-control'), policy);
+			const etag = first.headers.get('etag');
+			assert(etag);
+			assert((await first.arrayBuffer()).byteLength > 0);
+
+			const head = await server.fetch(new Request(url, { method: 'HEAD' }));
+			assertEquals(head.status, 200);
+			assertEquals(head.headers.get('cache-control'), policy);
+			assertEquals(head.headers.get('etag'), etag);
+			assertEquals((await head.arrayBuffer()).byteLength, 0);
+
+			if (!DEV) {
+				const unchanged = await server.fetch(new Request(url, { headers: { 'if-none-match': etag } }));
+				assertEquals(unchanged.status, 304);
+				assertEquals(unchanged.headers.get('cache-control'), policy);
+				assertEquals(unchanged.headers.get('etag'), etag);
+				assertEquals((await unchanged.arrayBuffer()).byteLength, 0);
+
+				const outdated = await server.fetch(new Request(url, { headers: { 'if-none-match': '"older-asset"' } }));
+				assertEquals(outdated.status, 200);
+				assert((await outdated.arrayBuffer()).byteLength > 0);
+			}
+		});
+	}
+});
+
+Deno.test('missing assets are not cached', async () => {
+	const response = await server.fetch(new Request('http://localhost/badges/missing.svg'));
+	assertEquals(response.status, 404);
+	assertEquals(response.headers.get('cache-control'), 'no-store');
+	await response.arrayBuffer();
 });
 
 Deno.test('version picker script clears empty override params', async () => {

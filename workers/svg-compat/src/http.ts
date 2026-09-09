@@ -18,7 +18,6 @@ interface CachePolicyOptions {
 	maxAge: number;
 	sharedMaxAge?: number;
 	staleWhileRevalidate?: number;
-	immutable?: boolean;
 }
 
 function buildCacheControl(options: CachePolicyOptions): string {
@@ -29,7 +28,6 @@ function buildCacheControl(options: CachePolicyOptions): string {
 		options.staleWhileRevalidate !== undefined
 			? `stale-while-revalidate=${options.staleWhileRevalidate}`
 			: undefined,
-		options.immutable ? 'immutable' : undefined,
 	];
 	return directives.filter((value): value is string => value !== undefined).join(', ');
 }
@@ -50,8 +48,10 @@ export const CACHE_POLICY = {
 		staleWhileRevalidate: 86400,
 	}),
 	staticAsset: buildCacheControl({
-		maxAge: 31536000,
-		immutable: true,
+		// Asset URLs are not fingerprinted. Browsers must revalidate, while
+		// Deno's shared cache is invalidated automatically on each deployment.
+		maxAge: 0,
+		sharedMaxAge: 3600,
 	}),
 } as const;
 
@@ -232,6 +232,10 @@ export async function serveStaticRoute(request: Request, urlRoot = 'static'): Pr
 		fsRoot: fileURLToPath(new URL('../static', import.meta.url)),
 		urlRoot,
 	});
+	response.headers.set(
+		'cache-control',
+		!DEV && (response.status === 200 || response.status === 304) ? CACHE_POLICY.staticAsset : 'no-store',
+	);
 	applyCommonSecurityHeaders(response.headers);
 	return response;
 }
