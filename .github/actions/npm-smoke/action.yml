@@ -15,8 +15,9 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - shell: node {0}
       env:
         RELEASE_TAG: ${{ inputs.tag }}
         HOST_PKG: ${{ inputs.host-pkg }}
-      run: bash "${GITHUB_ACTION_PATH}/run.sh"
+      run: |
+        require('node:child_process').execFileSync(process.execPath, [require('node:path').join(process.env.GITHUB_ACTION_PATH, 'run.mjs')], { stdio: 'inherit' });

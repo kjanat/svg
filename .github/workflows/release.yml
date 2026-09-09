@@ -6,10 +6,11 @@
 #     │                          actions/package-asset|verify-asset
 #     └─ matrix ───────────── actions/release-matrix from distribution/npm/targets.json
 #   build-dist (needs: build-and-upload)
-#     └─ actions/download-archives → build-packages.ts → smoke;
+#     └─ actions/download-archives → build-packages.ts;
 #        artifact `dist` (tarred: keeps exec bits)
-#   publish-release (needs: build-dist) ── draft → published
-#     └─ call-npm-release ──→ npm-release.yml: setup (actions/npm-smoke|npm-derive)
+#   runtime-smoke (needs: build-dist) ── required native/Alpine artifact checks
+#   publish-release (needs: runtime-smoke) ── draft → published
+#     └─ call-npm-release ──→ npm-release.yml: setup → runtime-smoke
 #                              → per-package publish matrix → facades (actions/npm-publish)
 ---
 name: release
@@ -171,30 +172,30 @@ jobs:
       - name: build npm packages
         run: node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
 
-      # Dirs and bins derive from targets.json so a facade change cannot
-      # leave these steps referencing packages that no longer exist.
-      - name: add bin dirs to path
-        run: |
-          jq -r --arg ws "${GITHUB_WORKSPACE}" '.facades[].pkg | "\($ws)/distribution/npm/dist/\(.)-linux-x64-gnu/bin"' \
-            distribution/npm/targets.json >> "${GITHUB_PATH}"
-
-      # Only target executable on ubuntu-latest; others exercised at install.
-      - name: smoke-test packaged linux-x64-gnu binaries
-        run: |
-          for bin in $(jq -r '.facades[].bin' distribution/npm/targets.json); do
-            "${bin}" --version
-          done
+      - name: report archive and package evidence
+        run: node .github/actions/npm-smoke/runtime.mjs inventory
 
       - name: tar dist (preserve file modes)
-        run: tar -cf distribution/npm/dist.tar -C distribution/npm dist
+        run: tar -cf distribution/npm/dist.tar -C distribution/npm dist downloads
 
       - name: upload dist artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
+  runtime-smoke:
+    name: validate distributed runtimes
+    needs: build-dist
+    permissions: { contents: read, actions: read }
+    uses: ./.github/workflows/runtime-smoke.yml
+    with:
+      tag: ${{ github.ref_name }}
+      run-id: ${{ github.run_id }}
+      helper-ref: ${{ github.sha }}
+      report-prefix: release-runtime
+
   publish-release:
     name: publish github release
-    needs: [build-dist]
+    needs: [build-dist, runtime-smoke]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     env: { GH_TOKEN: "${{ github.token }}", RELEASE_TAG: "${{ github.ref_name }}" }

@@ -166,6 +166,7 @@ verify:
     just baseline-icons-check
     just release-config-check
     just release-package-test
+    just release-runtime-test
     just lint
     just test
     just test-deno
@@ -181,7 +182,7 @@ commit model="openai/gpt-5.4" variant="medium" message='':
 [group('release')]
 release-config-check:
     jq -e '(.binaries | length > 0) and ([.facades[].bin] - .binaries == []) and ([.targets[] | select(.experimental and .tier != 3)] == [])' distribution/npm/targets.json > /dev/null
-    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml .github/workflows/ci.yml
+    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml .github/workflows/ci.yml .github/workflows/runtime-smoke.yml .github/workflows/runtime-smoke-ci.yml
     shellcheck -x -o all --shell=bash .github/actions/*/run.sh
     node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
     ! grep -riEl 'not (yet )?published|not on (crates\.io|npm)( yet)?|coming soon' crates/*/README.md grammars/*/README.md distribution/npm/facade/*/README.md README.md
@@ -192,6 +193,12 @@ release-package-test:
     bun test ./.github/tests/crates-release.test.ts
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
     bash .github/tests/crates-publish.sh
+
+# check runtime coverage policy, artifact checks and publication gates
+[group('release')]
+release-runtime-test:
+    node --test .github/tests/runtime-smoke.test.mjs
+    bun test ./.github/tests/runtime-workflow.test.ts
 
 # preview the per-target build matrix release.yml will run
 [group('release')]

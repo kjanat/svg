@@ -180,6 +180,24 @@
 					"type": "string",
 					"minLength": 1
 				},
+				"runtime": {
+					"description": "Required runtime smoke environment. Omit for build-only targets; configured checks must pass before publication.",
+					"type": "object",
+					"required": [
+						"runner"
+					],
+					"properties": {
+						"container": {
+							"type": "string",
+							"pattern": "^node:[0-9]+-alpine$"
+						},
+						"runner": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"additionalProperties": false
+				},
 				"rust": {
 					"description": "Passed to \"cargo build --target\" / \"cross build --target\". \nAlso used to locate the release tarball: \"svg-<tag>-<rust>.tar.gz\".",
 					"type": "string",
@@ -248,6 +266,7 @@
 					"then": {
 						"description": "Only tier-3 targets may be marked experimental.",
 						"properties": {
+							"runtime": false,
 							"tier": {
 								"const": 3
 							}

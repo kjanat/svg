@@ -117,6 +117,7 @@ interface Target {
 	build: 'cargo' | 'cross' | 'cargo-cross-toolchain' | 'cargo-build-std' | 'vm';
 	tier: 1 | 2 | 3;
 	experimental?: boolean;
+	runtime?: { runner: string; container?: string };
 }
 
 interface Facade {

@@ -1,0 +1,77 @@
+name: packaged runtime
+on:
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      run-id: { required: true, type: string }
+      helper-ref: { required: true, type: string }
+      report-prefix: { required: true, type: string }
+permissions: { contents: read, actions: read }
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs: { include: "${{ steps.plan.outputs.include }}" }
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.helper-ref }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json\npackage.json"
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with: { node-version-file: package.json }
+      - id: plan
+        run: node .github/actions/npm-smoke/runtime.mjs matrix
+
+  smoke:
+    name: runtime ${{ matrix.pkg }}
+    needs: matrix
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.matrix.outputs.include) }}" } }
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      HOST_PKG: ${{ matrix.pkg }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.helper-ref }}
+          persist-credentials: false
+          sparse-checkout: ".github/actions\ndistribution/npm/targets.json\ndistribution/npm/facade\npackage.json"
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with: { node-version-file: package.json, architecture: "${{ matrix.arch }}" }
+      - name: download and extract producer dist artifact
+        uses: ./.github/actions/dist-artifact
+        with: { run-id: "${{ inputs.run-id }}", token: "${{ github.token }}" }
+      - name: native archive and npm install smoke
+        if: matrix.container == ''
+        uses: ./.github/actions/npm-smoke
+        with: { tag: "${{ inputs.tag }}", host-pkg: "${{ matrix.pkg }}" }
+      - name: musl archive and npm install smoke in Alpine
+        if: matrix.container != ''
+        shell: bash
+        env: { RUNTIME_CONTAINER: "${{ matrix.container }}" }
+        run: |
+          docker run --rm --volume "${PWD}:/work" --workdir /work \
+            --volume "${GITHUB_STEP_SUMMARY}:/step-summary" --env GITHUB_STEP_SUMMARY=/step-summary \
+            --env RELEASE_TAG --env HOST_PKG --env EXPECT_LIBC=musl \
+            "${RUNTIME_CONTAINER}" sh -ec \
+            'node --test distribution/npm/facade/test/*.test.mjs; node .github/actions/npm-smoke/run.mjs'
+      - name: report checks that could not start
+        if: always()
+        shell: node {0}
+        run: |
+          const fs = require('node:fs');
+          if (!fs.existsSync(`runtime-results/${process.env.HOST_PKG}.json`)) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${process.env.HOST_PKG}: runtime not completed; see failed or cancelled steps.\n`);
+          }
+      - name: preserve runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.report-prefix }}-${{ matrix.pkg }}
+          path: runtime-results/*.json
+          retention-days: 14
+          if-no-files-found: warn
