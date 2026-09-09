@@ -29,6 +29,7 @@ use tower_lsp_server::{
 use url::Url;
 
 mod clipboard;
+mod closing_tags;
 mod code_actions;
 mod compat;
 mod completion;
@@ -1639,6 +1640,10 @@ impl LanguageServer for SvgLanguageServer {
         let source = doc.source.as_bytes();
         let byte_offset = byte_offset_for_position(source, pos);
         let node = deepest_node_at(&doc.tree, byte_offset);
+
+        if let Some(items) = closing_tags::completion(source, &doc.tree, byte_offset) {
+            return Ok(completion_response(items));
+        }
 
         if is_comment_like_context(node) {
             return Ok(None);

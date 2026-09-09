@@ -70,7 +70,7 @@ const CSS_PROPERTY_NAMES: &[&str] = &[
     "visibility",
 ];
 
-const COMPLETION_TRIGGER_CHARACTERS: &[&str] = &["<", " ", "\"", "'", ":", "-"];
+const COMPLETION_TRIGGER_CHARACTERS: &[&str] = &["<", "/", " ", "\"", "'", ":", "-"];
 
 pub fn completion_trigger_characters() -> Vec<String> {
     COMPLETION_TRIGGER_CHARACTERS
