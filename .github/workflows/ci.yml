@@ -77,3 +77,44 @@ jobs:
         run: deno run --allow-read scripts/baseline-icons.ts --check
       - name: Test compatibility dashboard and CLI
         run: deno task --config workers/svg-compat/deno.jsonc test
+
+  crates:
+    name: Packaged crates (no uploads)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env: { PYTHONDONTWRITEBYTECODE: "1" }
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: taiki-e/install-action@v2
+        with: { tool: rust }
+      - uses: Swatinem/rust-cache@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: workflow contract regressions
+        run: bun test ./.github/tests/crates-release.test.ts
+      - name: package verification regressions
+        shell: python
+        run: |
+          import unittest
+          suite = unittest.defaultTestLoader.discover(".github/tests", pattern="test_crates.py")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful():
+              raise SystemExit(1)
+      - name: publication gate and retry regressions
+        run: bash .github/tests/crates-publish.sh
+      - name: verify actual workspace packages without uploading
+        shell: python
+        run: |
+          import os
+          import runpy
+          import subprocess
+          import tomllib
+          with open("Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["workspace"]["package"]["version"]
+          os.environ.update(
+              SOURCE_DIR=".",
+              PROOF_DIR=os.path.join(os.environ["RUNNER_TEMP"], "verified-crates"),
+              RELEASE_TAG=f"v{version}",
+              HELPER_SHA=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+          )
+          runpy.run_path(".github/actions/crates-verify/verify.py", run_name="__main__")
