@@ -97,8 +97,8 @@ graph BT
 
 - `textDocument/hover` for element and attribute docs, MDN links, and baseline
   status
-- `textDocument/completion` for SVG element, attribute, value, and inline CSS
-  completions
+- `textDocument/completion` for SVG element, matching closing tag, attribute,
+  value, and inline CSS completions
 - `textDocument/publishDiagnostics` for structural validation such as unknown
   elements, invalid nesting, duplicate IDs, deprecated usage, and missing local
   references

@@ -200,6 +200,20 @@ pub fn resolves_to_svg_namespace(source: &[u8], name_node: Node) -> bool {
     }
     chain.reverse();
 
+    tag_chain_resolves_to_svg_namespace(source, &chain)
+}
+
+/// Resolve the last tag in an outermost-to-innermost chain of open tags.
+///
+/// Callers recovering unfinished XML can supply the open tags from the cached
+/// tree even when parser error recovery has flattened their ancestor nodes.
+/// The chain must include the target tag and exclude closed/self-closing siblings.
+#[must_use]
+pub fn tag_chain_resolves_to_svg_namespace(source: &[u8], chain: &[Node]) -> bool {
+    let Some(name_node) = chain.last().and_then(|tag| tag.child_by_field_name("name")) else {
+        return false;
+    };
+
     let mut scope = NamespaceScope::default();
     let last = chain.len() - 1;
     for (index, link) in chain.iter().enumerate() {

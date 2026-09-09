@@ -17,7 +17,7 @@ swatches.
 - **Hover** — element and attribute documentation with MDN links and baseline
   status
 - **Completions** — context-aware suggestions for elements, attributes, and
-  values
+  values, including the matching open tag after `</`
 - **Diagnostics** — structural validation (invalid nesting, unknown elements,
   duplicate IDs, deprecated usage, missing local references)
 - **Colors** — color swatches and conversions across hex, `rgb()`, `hsl()`,
