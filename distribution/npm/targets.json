@@ -57,7 +57,10 @@
 			],
 			"runner": "ubuntu-latest",
 			"build": "cross",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "ubuntu-latest"
+			}
 		},
 		{
 			"pkg": "linux-x64-musl",
@@ -73,7 +76,11 @@
 			],
 			"runner": "ubuntu-latest",
 			"build": "cross",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "ubuntu-latest",
+				"container": "node:26-alpine"
+			}
 		},
 		{
 			"pkg": "linux-arm64-gnu",
@@ -89,7 +96,10 @@
 			],
 			"runner": "ubuntu-latest",
 			"build": "cross",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "ubuntu-24.04-arm"
+			}
 		},
 		{
 			"pkg": "linux-arm64-musl",
@@ -105,7 +115,11 @@
 			],
 			"runner": "ubuntu-latest",
 			"build": "cross",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "ubuntu-24.04-arm",
+				"container": "node:26-alpine"
+			}
 		},
 		{
 			"pkg": "darwin-x64",
@@ -118,7 +132,10 @@
 			],
 			"runner": "macos-15-intel",
 			"build": "cargo",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "macos-15-intel"
+			}
 		},
 		{
 			"pkg": "darwin-arm64",
@@ -131,7 +148,10 @@
 			],
 			"runner": "macos-latest",
 			"build": "cargo",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "macos-latest"
+			}
 		},
 		{
 			"pkg": "win32-x64-msvc",
@@ -144,7 +164,10 @@
 			],
 			"runner": "windows-latest",
 			"build": "cargo",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "windows-latest"
+			}
 		},
 		{
 			"pkg": "win32-arm64-msvc",
@@ -157,7 +180,10 @@
 			],
 			"runner": "windows-11-arm",
 			"build": "cargo",
-			"tier": 1
+			"tier": 1,
+			"runtime": {
+				"runner": "windows-11-arm"
+			}
 		},
 		{
 			"pkg": "linux-armv7-gnueabihf",

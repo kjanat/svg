@@ -13,20 +13,25 @@
 6. GitHub Actions (`release.yml`) verifies (clippy + tests), drafts the GitHub
    Release, builds every target in `distribution/npm/targets.json`, uploads
    `svg-<tag>-<target>.tar.gz` archives with `.sha256` checksums, builds the npm
-   package trees, publishes the release, then hands off to `npm-release.yml` to
-   publish the platform packages and the facades (`svg-language-server`,
-   `svg-lint`, `svg-format`).
+   package trees, transfers and runtime-tests the artifacts, publishes the
+   release, then hands off to `npm-release.yml` to publish the platform packages
+   and the facades (`svg-language-server`, `svg-lint`, `svg-format`).
 
 ## Pipeline layout
 
 - `distribution/npm/targets.json` — single source of truth: build targets
-  (runner, build tool, tier), npm platform packages, facades, binaries. Schema
-  in `distribution/npm/targets.schema.json`.
+  (runner, build tool, tier), runtime environments, npm platform packages,
+  facades, binaries. Schema in `distribution/npm/targets.schema.json`.
 - `.github/workflows/release.yml` — verify → draft release → target matrix →
-  build-dist → publish → npm handoff.
+  build-dist → runtime checks → publish → npm handoff.
 - `.github/workflows/npm-release.yml` — smoke-tests the dist artifact, then
   publishes platform packages and facades. Also runnable via `workflow_dispatch`
   for backfills and dry runs.
+- `.github/workflows/runtime-smoke.yml` — shared required runtime checks used
+  before GitHub release publication and again by every npm entry point.
+- `.github/workflows/runtime-smoke-ci.yml` — validates that same artifact
+  handoff on PRs and `master`, using existing released binaries and the current
+  npm templates. It does not compile binaries or publish anything.
 - `.github/workflows/crates-release.yml` — publishes the 11 publishable
   workspace crates to crates.io in dependency order
   (`cargo publish
@@ -44,6 +49,76 @@
 
 Tier 3 targets are `experimental: true` and run with `continue-on-error`; their
 absence never blocks a release. Tier 1/2 targets are release-blocking.
+
+## Distributed runtime coverage
+
+Runtime environments are explicit `runtime` objects on the existing entries in
+`distribution/npm/targets.json`. All configured runtime checks must pass before
+the GitHub release is published. Every npm trigger, including manual backfills,
+also runs the checks before either the grammar or platform publication wave.
+Failure prevents subsequent facade, alias, and bundle publication.
+
+| Targets                | Runtime environment                                          | Required         |
+| ---------------------- | ------------------------------------------------------------ | ---------------- |
+| Linux GNU x64 / ARM64  | Native Ubuntu runners                                        | Yes              |
+| Linux musl x64 / ARM64 | Official Node Alpine containers on matching Ubuntu runners   | Yes              |
+| macOS x64 / ARM64      | Native Intel / Apple Silicon runners                         | Yes              |
+| Windows x64 / ARM64    | Native Windows runners with matching Node architecture       | Yes              |
+| Other twelve targets   | Build/package checks only, no runtime environment configured | No runtime claim |
+
+Build-only targets retain their existing policy: tier 1/2 build or packaging
+failures block release; experimental tier 3 failures remain non-blocking. Adding
+a runtime object creates a required gate. Experimental targets cannot declare
+one under this policy. There is no emulated architecture coverage implied by a
+successful cross-build.
+
+The `dist` artifact contains a tarred `dist/` and `downloads/`: the exact npm
+trees and original release archives with checksums. Runtime jobs download and
+extract this artifact. They do not rebuild from a checkout. Checks verify:
+
+- The actual runtime OS, Node architecture, and detected libc match the selected
+  manifest entry. The existing #19 resolver regressions run in Alpine too.
+- Original archive checksums and one copy of each of the three CLIs; executable
+  permission bits on Unix before npm has a chance to repair them.
+- Binary hashes match through archive extraction, npm packaging, and install.
+- Clean installs of each platform package, facade (and any twins), alias, and
+  the bundle. A temporary local registry serves the unmodified tarballs and
+  platform metadata, so npm itself selects the optional dependencies. Ordinary
+  external JavaScript dependencies still come from the public npm registry.
+- All raw CLIs, direct launchers, declared aliases, and npm command links report
+  the exact expected version. Windows runs the actual `.exe` files and generated
+  `.cmd` shims; command links must resolve to an installed artifact entry point.
+  Direct launcher checks cover facade/alias/bundle commands even when npm links
+  a dependency's identically named command.
+- Installed facade resolvers select the expected package and libc, and npm did
+  not install an incompatible platform package.
+
+The producer summary reports **built** (verified producer archive evidence) and
+**packaged** (all three npm packages present). It leaves **installed** and
+**executed** as `not run`. Each runtime job records its own separate stages and
+retains a JSON report for 14 days. Failed, absent, skipped, or unconfigured
+checks never count as successful runtime execution. These are startup/version
+checks, not a claim of full application testing on every platform.
+
+`just release-runtime-test` covers policy, archive integrity, version matching,
+permissions, stage reporting, and workflow gates. It is included in
+`just verify`. PR runtime validation builds npm trees from the latest published
+release's binaries using current templates, then transfers them to all eight
+environments. This validates packaging and execution without claiming a new
+binary build.
+
+For an existing release whose old `dist` artifact lacks the original archives,
+dispatch `runtime-smoke-ci.yml` from the updated default branch with its `tag`
+input. A successful run produces a fresh `dist` artifact and runtime evidence
+without uploads. That run ID can supply a subsequent `npm-release.yml` dry run
+for the same tag. Always review template changes when regenerating an old
+version's packages. An old workflow rerun keeps its old YAML; choose the updated
+workflow explicitly to use these checks.
+
+Runner availability:
+[GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+Container details:
+[official Node Docker images](https://github.com/nodejs/docker-node).
 
 ## Crates.io verification and recovery
 

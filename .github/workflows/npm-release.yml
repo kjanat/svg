@@ -10,8 +10,9 @@ on:
       tag: { description: Release tag to publish (e.g. v0.1.0), required: true, type: string }
       run-id:
         description: |-
-          release.yml run ID that produced the dist artifact for this tag.
+          Producer run ID that created the dist artifact for this tag.
           Find it via `gh run list --workflow=release.yml --branch=<tag> --status=success`.
+          A successful runtime-smoke-ci.yml recovery run for the same tag is also supported.
         required: true
         type: string
       dist-tag:
@@ -65,25 +66,19 @@ jobs:
 
       - name: resolve build run-id
         id: resolve
-        uses: ./.github/actions/resolve-run-id
+        uses: $/.github/actions/resolve-run-id
         with:
           tag: ${{ env.RELEASE_TAG }}
           run-id: ${{ inputs.run-id }}
           token: ${{ github.token }}
 
       - name: download dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ steps.resolve.outputs.run-id }}", token: "${{ github.token }}" }
-
-      # Execute what will be published; build-dist's smoke test runs
-      # before the artifact handoff and can't see what it breaks.
-      - name: smoke-test dist artifact
-        uses: ./.github/actions/npm-smoke
-        with: { tag: "${{ env.RELEASE_TAG }}" }
 
       - name: derive dist-tag and dry-run
         id: derive
-        uses: ./.github/actions/npm-derive
+        uses: $/.github/actions/npm-derive
         with:
           tag: ${{ env.RELEASE_TAG }}
           event-name: ${{ github.event_name }}
@@ -92,14 +87,24 @@ jobs:
 
       - name: generate publish matrices
         id: matrix
-        uses: ./.github/actions/publish-matrices
+        uses: $/.github/actions/publish-matrices
+
+  runtime-smoke:
+    name: validate dist before npm publication
+    needs: setup
+    permissions: { contents: read, actions: read }
+    uses: $/.github/workflows/runtime-smoke.yml
+    with:
+      tag: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+      run-id: ${{ needs.setup.outputs.run-id }}
+      report-prefix: npm-runtime
 
   # Tree-sitter grammar node packages, published from the tag's sources —
   # independent of the dist artifact, so this runs parallel to the platform
   # wave.
   grammars:
     name: publish ${{ matrix.pkg }}
-    needs: setup
+    needs: [setup, runtime-smoke]
     if: needs.setup.outputs.grammars != '[]'
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write }
@@ -122,7 +127,7 @@ jobs:
 
       - name: publish to npm
         id: publish
-        uses: ./.github/actions/grammar-publish
+        uses: $/.github/actions/grammar-publish
         with:
           tag: ${{ env.RELEASE_TAG }}
           grammar: ${{ matrix.pkg }}
@@ -134,7 +139,7 @@ jobs:
 
   scoped:
     name: publish ${{ matrix.pkg }}
-    needs: setup
+    needs: [setup, runtime-smoke]
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
@@ -152,12 +157,12 @@ jobs:
         with: { registry-url: "${{ env.REGISTRY }}" }
 
       - name: download dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
       - name: publish to npm
         id: publish
-        uses: ./.github/actions/npm-publish
+        uses: $/.github/actions/npm-publish
         with:
           tag: ${{ env.RELEASE_TAG }}
           dist-tag: ${{ needs.setup.outputs.dist-tag }}
@@ -186,12 +191,12 @@ jobs:
         with: { registry-url: "${{ env.REGISTRY }}" }
 
       - name: download dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
       - name: publish to npm
         id: publish
-        uses: ./.github/actions/npm-publish
+        uses: $/.github/actions/npm-publish
         with:
           tag: ${{ env.RELEASE_TAG }}
           dist-tag: ${{ needs.setup.outputs.dist-tag }}
@@ -221,12 +226,12 @@ jobs:
         with: { registry-url: "${{ env.REGISTRY }}" }
 
       - name: download dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
       - name: publish to npm
         id: publish
-        uses: ./.github/actions/npm-publish
+        uses: $/.github/actions/npm-publish
         with:
           tag: ${{ env.RELEASE_TAG }}
           dist-tag: ${{ needs.setup.outputs.dist-tag }}
@@ -259,12 +264,12 @@ jobs:
         with: { registry-url: "${{ env.REGISTRY }}" }
 
       - name: download dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
       - name: publish to npm
         id: publish
-        uses: ./.github/actions/npm-publish
+        uses: $/.github/actions/npm-publish
         with:
           tag: ${{ env.RELEASE_TAG }}
           dist-tag: ${{ needs.setup.outputs.dist-tag }}

@@ -16,6 +16,11 @@ When bumping the workspace version after a catalog refresh:
 
 ### Added
 
+- Gate releases and npm publication on distributed archive and clean-install
+  checks for x64 and ARM64 Windows, macOS, Linux GNU, and Linux musl. Report
+  build, package, install, and execution coverage separately, with explicit
+  build-only targets.
+
 - Explain Baseline meanings, optional milestones, source versions, browser
   scope, contextual summaries, and offline/stale behavior in user documentation,
   the compatibility dashboard, and CLI help.

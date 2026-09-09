@@ -10,7 +10,7 @@ jobs:
   version-check:
     name: versions
     permissions: { contents: read }
-    uses: ./.github/workflows/version-check.yml
+    uses: $/.github/workflows/version-check.yml
 
   rust:
     name: Rust (clippy + test)
