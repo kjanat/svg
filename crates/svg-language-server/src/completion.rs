@@ -394,7 +394,10 @@ pub fn first_attribute_name_text(node: tree_sitter::Node<'_>, source: &[u8]) -> 
 
 pub fn tag_element_name<'a>(tag_node: tree_sitter::Node<'_>, source: &'a [u8]) -> Option<&'a str> {
     let name_node = tag_node.child_by_field_name("name")?;
-    name_node.utf8_text(source).ok()
+    name_node
+        .utf8_text(source)
+        .ok()
+        .map(|name| name.split_once(':').map_or(name, |(_, local)| local))
 }
 
 pub fn enclosing_element_name<'a>(
@@ -837,8 +840,9 @@ pub fn reconcile_compat_items(
 ) {
     use tower_lsp_server::ls_types::{Documentation, MarkupContent, MarkupKind};
     for item in items {
-        let (facts, lifecycle, description, documentation) = if let Some(owner) = owner {
-            let lookup = svg_data::attribute_for_profile(profile, &item.label);
+        let (facts, refreshed, lifecycle, description, documentation) = if let Some(owner) = owner {
+            let lookup =
+                svg_data::attribute_for_profile_on_element(profile, &item.label, Some(owner));
             let svg_data::ProfileLookup::Present { value, lifecycle } = lookup else {
                 continue;
             };
@@ -859,7 +863,13 @@ pub fn reconcile_compat_items(
                     settings: &crate::hover_settings::HoverSettings::default(),
                 },
             );
-            (facts, lifecycle, value.description, documentation)
+            (
+                facts,
+                rt.is_some_and(crate::compat::CompatOverride::has_refreshed_bcd),
+                lifecycle,
+                value.description,
+                documentation,
+            )
         } else {
             let lookup = svg_data::element_for_profile(profile, &item.label);
             let svg_data::ProfileLookup::Present { value, lifecycle } = lookup else {
@@ -882,15 +892,24 @@ pub fn reconcile_compat_items(
                 None,
                 &crate::hover_settings::HoverSettings::default(),
             );
-            (facts, lifecycle, value.description, documentation)
+            (
+                facts,
+                rt.is_some_and(crate::compat::CompatOverride::has_refreshed_bcd),
+                lifecycle,
+                value.description,
+                documentation,
+            )
         };
-        let lifecycle = match lifecycle {
-            SpecLifecycle::Deprecated | SpecLifecycle::Obsolete => lifecycle,
-            _ if facts.deprecated => SpecLifecycle::Deprecated,
-            SpecLifecycle::Experimental => lifecycle,
-            _ if facts.experimental => SpecLifecycle::Experimental,
-            SpecLifecycle::Stable => SpecLifecycle::Stable,
+        let flags = svg_data::effective_compat::LifecycleFlags {
+            deprecated: facts.deprecated,
+            experimental: facts.experimental,
         };
+        let lifecycle = svg_data::effective_compat::lifecycle(
+            profile,
+            lifecycle,
+            flags,
+            refreshed.then_some(flags),
+        );
         let deprecated = matches!(
             lifecycle,
             SpecLifecycle::Deprecated | SpecLifecycle::Obsolete

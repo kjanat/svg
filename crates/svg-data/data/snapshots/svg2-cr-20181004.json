@@ -5020,7 +5020,6 @@
       "from",
       "fx",
       "fy",
-      "glyph-orientation-horizontal",
       "glyph-orientation-vertical",
       "gradientTransform",
       "gradientUnits",
@@ -5475,14 +5474,45 @@
         ]
       },
       {
+        "name": "glyph-orientation-horizontal",
+        "present": false,
+        "lifecycle": "obsolete",
+        "known_in": [
+          "Svg11Rec20030114",
+          "Svg11Rec20110816"
+        ],
+        "declaration": {
+          "status": "removed",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/text.html#GlyphOrientationHorizontalProperty"
+        }
+      },
+      {
+        "name": "glyph-orientation-vertical",
+        "present": true,
+        "lifecycle": "obsolete",
+        "known_in": [
+          "Svg11Rec20030114",
+          "Svg11Rec20110816",
+          "Svg2Cr20181004",
+          "Svg2EditorsDraft"
+        ],
+        "declaration": {
+          "status": "obsolete",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/text.html#GlyphOrientationVerticalProperty"
+        }
+      },
+      {
         "name": "kerning",
         "present": false,
         "lifecycle": "obsolete",
         "known_in": [
           "Svg11Rec20030114",
-          "Svg11Rec20110816",
-          "Svg2EditorsDraft"
-        ]
+          "Svg11Rec20110816"
+        ],
+        "declaration": {
+          "status": "removed",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/text.html#KerningProperty"
+        }
       },
       {
         "name": "mask-type",
@@ -5557,12 +5587,18 @@
       {
         "name": "xlink:href",
         "catalog_name": "href",
-        "present": false,
-        "lifecycle": "obsolete",
+        "present": true,
+        "lifecycle": "deprecated",
         "known_in": [
           "Svg11Rec20030114",
-          "Svg11Rec20110816"
-        ]
+          "Svg11Rec20110816",
+          "Svg2Cr20181004",
+          "Svg2EditorsDraft"
+        ],
+        "declaration": {
+          "status": "deprecated",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/linking.html#XLinkRefAttrs"
+        }
       },
       {
         "name": "xlink:show",
@@ -5574,12 +5610,42 @@
         ]
       },
       {
+        "name": "xlink:title",
+        "present": true,
+        "lifecycle": "deprecated",
+        "known_in": [
+          "Svg11Rec20030114",
+          "Svg11Rec20110816",
+          "Svg2Cr20181004",
+          "Svg2EditorsDraft"
+        ],
+        "declaration": {
+          "status": "deprecated",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/linking.html#XLinkRefAttrs"
+        }
+      },
+      {
         "name": "xml:lang",
         "present": false,
         "lifecycle": "obsolete",
         "known_in": [
           "Svg11Rec20110816"
         ]
+      },
+      {
+        "name": "xml:space",
+        "present": true,
+        "lifecycle": "deprecated",
+        "known_in": [
+          "Svg11Rec20030114",
+          "Svg11Rec20110816",
+          "Svg2Cr20181004",
+          "Svg2EditorsDraft"
+        ],
+        "declaration": {
+          "status": "deprecated",
+          "source": "https://www.w3.org/TR/2018/CR-SVG2-20181004/struct.html#XMLSpaceAttribute"
+        }
       }
     ]
   }

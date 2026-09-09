@@ -48,6 +48,7 @@ mod paths;
 mod provenance;
 mod refresh_compat;
 mod schema;
+mod spec_lifecycle;
 mod treesitter;
 mod util;
 
@@ -89,7 +90,10 @@ fn run() -> Fallible<()> {
         return refresh_compat::run();
     }
     // Resolve the ref to pin: an explicit CLI arg, else the default branch.
-    let reference = match std::env::args().nth(1) {
+    let reference = match std::env::args()
+        .skip(1)
+        .find(|arg| arg != "--recorded-packages")
+    {
         Some(arg) => arg,
         None => fetch::default_branch(REPO_SLUG)?,
     };
@@ -185,7 +189,17 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     )?;
     let compat = fetch_and_report_compat()?;
     let legacy = fetch_and_report_legacy_value_overrides()?;
-    let inventories = fetch_and_report_inventories(&all_defs)?;
+    let mut inventories = fetch_and_report_inventories(&all_defs)?;
+    let mut lifecycle_declarations = std::collections::BTreeMap::new();
+    for inventory in &mut inventories {
+        let declarations = spec_lifecycle::fetch_declarations(
+            inventory.profile,
+            &provenance.commit_sha,
+            &graph.chapters,
+        )?;
+        spec_lifecycle::reconcile_inventory(inventory, &declarations)?;
+        lifecycle_declarations.insert(inventory.profile, declarations);
+    }
     let grammar_inputs =
         fetch_and_report_grammar_projection_inputs(REPO_SLUG, &provenance.commit_sha)?;
     let aria = fetch_and_report_aria()?;
@@ -208,9 +222,37 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
             svg11_property_grammars: &legacy.property_grammars,
         },
     )?;
-    let path = write_catalog(&built, &inventories)?;
+    let snapshots = lifecycle_snapshots(&built, &inventories, &lifecycle_declarations)?;
+    let path = write_catalog(&built, &snapshots)?;
     print_catalog_written(&built, &path);
     Ok(())
+}
+
+fn lifecycle_snapshots(
+    built: &catalog::Catalog,
+    inventories: &[catalog::CatalogInventory],
+    declarations: &std::collections::BTreeMap<
+        catalog::CatalogSpecSnapshotId,
+        Vec<spec_lifecycle::Declaration>,
+    >,
+) -> Fallible<Vec<catalog::CatalogSnapshot>> {
+    inventories
+        .iter()
+        .map(|inventory| {
+            let mut snapshot = catalog::CatalogSnapshot::from_inventory(
+                inventory,
+                inventories,
+                &built.attributes,
+                &built.legacy_sources,
+            );
+            spec_lifecycle::apply(
+                &mut snapshot,
+                inventories,
+                &declarations[&inventory.profile],
+            )?;
+            Ok(snapshot)
+        })
+        .collect()
 }
 
 struct DefinitionsExtraction {
@@ -481,11 +523,11 @@ fn fetch_and_report_compat() -> Fallible<compat::CompatCatalog> {
 /// `data/` directory, returning the path written.
 fn write_catalog(
     built: &catalog::Catalog,
-    inventories: &[catalog::CatalogInventory],
+    snapshots: &[catalog::CatalogSnapshot],
 ) -> Fallible<PathBuf> {
     let data_dir = catalog_data_dir()?;
     write_catalog_components(&data_dir, built)?;
-    write_catalog_snapshots(&data_dir, built, inventories)?;
+    write_catalog_snapshots(&data_dir, snapshots)?;
     let path = data_dir.join("catalog.json");
     write_json(&path, &built.manifest())?;
     for schema in schema::catalog_schema_documents()? {
@@ -518,23 +560,16 @@ fn write_catalog_components(data_dir: &Path, built: &catalog::Catalog) -> Fallib
 
 fn write_catalog_snapshots(
     data_dir: &Path,
-    built: &catalog::Catalog,
-    inventories: &[catalog::CatalogInventory],
+    snapshots: &[catalog::CatalogSnapshot],
 ) -> Fallible<()> {
     let snapshots_dir = data_dir.join("snapshots");
     std::fs::create_dir_all(&snapshots_dir)?;
     let mut expected = BTreeSet::new();
 
-    for inventory in inventories {
-        let href = catalog::catalog_snapshot_href(inventory.profile);
+    for snapshot in snapshots {
+        let href = catalog::catalog_snapshot_href(snapshot.profile);
         let path = resolve_data_ref_for_write(data_dir, href)?;
-        let snapshot = catalog::CatalogSnapshot::from_inventory(
-            inventory,
-            inventories,
-            &built.attributes,
-            &built.legacy_sources,
-        );
-        write_json(&path, &snapshot)?;
+        write_json(&path, snapshot)?;
         expected.insert(path.canonicalize()?);
     }
 

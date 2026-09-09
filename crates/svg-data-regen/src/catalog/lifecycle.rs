@@ -54,8 +54,7 @@ fn collect_attribute_presence(
     let mut presence: BTreeMap<String, BTreeSet<CatalogSpecSnapshotId>> = BTreeMap::new();
     for inventory in inventories {
         for attribute in &inventory.attributes {
-            let Some(attribute) =
-                lifecycle_attribute_name(inventory.profile, attribute, catalog_attribute_names)
+            let Some(attribute) = lifecycle_attribute_name(attribute, catalog_attribute_names)
             else {
                 continue;
             };
@@ -102,23 +101,21 @@ fn lifecycle_entries_for_profile(
         };
         entries.push(CatalogLifecycleEntry {
             name: name.clone(),
+            owner: None,
             catalog_name,
             present,
             lifecycle,
             known_in: known_in.clone(),
+            declaration: None,
         });
     }
     entries
 }
 
 fn lifecycle_attribute_name(
-    profile: CatalogSpecSnapshotId,
     attribute: &str,
     catalog_attribute_names: &BTreeSet<&str>,
 ) -> Option<String> {
-    if attribute == "xlink:href" && !is_svg11_profile(profile) {
-        return None;
-    }
     let canonical = canonical_attribute_name(attribute);
     (attribute == "xlink:href" || catalog_attribute_names.contains(canonical.as_ref()))
         .then(|| attribute.to_owned())
@@ -135,11 +132,4 @@ fn known_before(profile: CatalogSpecSnapshotId, known_in: &[CatalogSpecSnapshotI
 
 fn known_after(profile: CatalogSpecSnapshotId, known_in: &[CatalogSpecSnapshotId]) -> bool {
     known_in.iter().any(|known| *known > profile)
-}
-
-const fn is_svg11_profile(profile: CatalogSpecSnapshotId) -> bool {
-    matches!(
-        profile,
-        CatalogSpecSnapshotId::Svg11Rec20030114 | CatalogSpecSnapshotId::Svg11Rec20110816
-    )
 }

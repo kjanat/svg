@@ -232,11 +232,29 @@ struct SnapshotLifecycle {
 struct LifecycleEntry {
     name: String,
     #[serde(default)]
+    owner: Option<String>,
+    #[serde(default)]
     catalog_name: Option<String>,
     present: bool,
     lifecycle: LifecycleStatus,
     #[serde(default)]
     known_in: Vec<SpecSnapshot>,
+    #[serde(default)]
+    declaration: Option<LifecycleDeclaration>,
+}
+
+#[derive(Deserialize)]
+struct LifecycleDeclaration {
+    status: DeclaredStatus,
+    source: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum DeclaredStatus {
+    Deprecated,
+    Obsolete,
+    Removed,
 }
 
 /// Lifecycle statuses emitted by snapshot overlays.
@@ -245,6 +263,7 @@ struct LifecycleEntry {
 enum LifecycleStatus {
     Stable,
     Experimental,
+    Deprecated,
     Obsolete,
     NotYetIntroduced,
 }
@@ -732,6 +751,25 @@ fn emit_snapshot_lifecycle(out: &mut String, snapshot: &SnapshotDocument) {
 }
 
 fn emit_lifecycle_entry(entry: &LifecycleEntry) -> String {
+    let owner = entry
+        .owner
+        .as_ref()
+        .map_or_else(|| "None".to_owned(), |s| format!("Some({s:?})"));
+    let declaration = entry.declaration.as_ref().map_or_else(
+        || "None".to_owned(),
+        |d| {
+            let status = match d.status {
+                DeclaredStatus::Deprecated => "Deprecated",
+                DeclaredStatus::Obsolete => "Obsolete",
+                DeclaredStatus::Removed => "Removed",
+            };
+            format!(
+                "Some(crate::types::LifecycleDeclaration {{ status: \
+                 crate::types::DeclaredStatus::{status}, source: {:?} }})",
+                d.source
+            )
+        },
+    );
     let catalog_name = entry
         .catalog_name
         .as_ref()
@@ -740,8 +778,9 @@ fn emit_lifecycle_entry(entry: &LifecycleEntry) -> String {
         emit_spec_snapshot(*snapshot).to_string()
     });
     format!(
-        "crate::types::FeatureLifecycle {{ name: {:?}, catalog_name: {catalog_name}, present: {}, \
-         lifecycle: {}, known_in: &[{}] }}",
+        "crate::types::FeatureLifecycle {{ name: {:?}, owner: {owner}, catalog_name: \
+         {catalog_name}, present: {}, lifecycle: {}, known_in: &[{}], declaration: {declaration} \
+         }}",
         entry.name,
         entry.present,
         emit_lifecycle_status(&entry.lifecycle),
@@ -753,6 +792,7 @@ const fn emit_lifecycle_status(status: &LifecycleStatus) -> &'static str {
     match status {
         LifecycleStatus::Stable => "crate::types::SpecLifecycle::Stable",
         LifecycleStatus::Experimental => "crate::types::SpecLifecycle::Experimental",
+        LifecycleStatus::Deprecated => "crate::types::SpecLifecycle::Deprecated",
         LifecycleStatus::Obsolete | LifecycleStatus::NotYetIntroduced => {
             "crate::types::SpecLifecycle::Obsolete"
         }

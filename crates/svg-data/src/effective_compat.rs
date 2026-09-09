@@ -2,6 +2,44 @@
 use crate::compat_model::{Baseline, BaselineDate, Discouraged};
 use crate::{BaselineTier, CompatVerdict, VerdictReason, VerdictRecommendation};
 
+/// BCD flags used to annotate supported features.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LifecycleFlags {
+    /// BCD deprecation flag.
+    pub deprecated: bool,
+    /// BCD experimental flag.
+    pub experimental: bool,
+}
+
+/// Combine specification lifecycle with the selected compatibility record.
+///
+/// Explicit spec status survives refreshes. A runtime record replaces both
+/// bundled flags, including when both are false. Bundled current-web advice
+/// does not promote diagnostics or completions for historical profiles.
+#[must_use]
+pub fn lifecycle(
+    profile: crate::SpecSnapshotId,
+    specification: crate::SpecLifecycle,
+    bundled: LifecycleFlags,
+    runtime: Option<LifecycleFlags>,
+) -> crate::SpecLifecycle {
+    use crate::SpecLifecycle;
+    let flags = runtime.unwrap_or_else(|| {
+        if profile == crate::SpecSnapshotId::LATEST {
+            bundled
+        } else {
+            LifecycleFlags::default()
+        }
+    });
+    match specification {
+        SpecLifecycle::Deprecated | SpecLifecycle::Obsolete => specification,
+        _ if flags.deprecated => SpecLifecycle::Deprecated,
+        SpecLifecycle::Experimental => specification,
+        _ if flags.experimental => SpecLifecycle::Experimental,
+        SpecLifecycle::Stable => SpecLifecycle::Stable,
+    }
+}
+
 /// All compatibility dimensions for one element or attribute context.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Facts {
@@ -227,6 +265,70 @@ const fn headline_for_recommendation(recommendation: VerdictRecommendation) -> &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lifecycle_precedence_preserves_spec_and_replaces_browser_flags() {
+        use crate::SpecLifecycle::{Deprecated, Experimental, Obsolete, Stable};
+        let clear = LifecycleFlags::default();
+        let deprecated = LifecycleFlags {
+            deprecated: true,
+            experimental: false,
+        };
+        let experimental = LifecycleFlags {
+            deprecated: false,
+            experimental: true,
+        };
+        for (spec, bundled, runtime, latest, historical) in [
+            (Obsolete, deprecated, Some(clear), Obsolete, Obsolete),
+            (
+                Deprecated,
+                clear,
+                Some(experimental),
+                Deprecated,
+                Deprecated,
+            ),
+            (Experimental, deprecated, None, Deprecated, Experimental),
+            (
+                Experimental,
+                clear,
+                Some(deprecated),
+                Deprecated,
+                Deprecated,
+            ),
+            (Stable, deprecated, None, Deprecated, Stable),
+            (Stable, experimental, None, Experimental, Stable),
+            (Stable, deprecated, Some(clear), Stable, Stable),
+            (Stable, experimental, Some(clear), Stable, Stable),
+            (
+                Stable,
+                deprecated,
+                Some(experimental),
+                Experimental,
+                Experimental,
+            ),
+            (
+                Experimental,
+                deprecated,
+                Some(clear),
+                Experimental,
+                Experimental,
+            ),
+        ] {
+            assert_eq!(
+                lifecycle(crate::SpecSnapshotId::LATEST, spec, bundled, runtime),
+                latest
+            );
+            assert_eq!(
+                lifecycle(
+                    crate::SpecSnapshotId::Svg11Rec20110816,
+                    spec,
+                    bundled,
+                    runtime
+                ),
+                historical
+            );
+        }
+    }
     #[test]
     fn embedded_and_refreshed_statements_have_the_same_information()
     -> Result<(), Box<dyn std::error::Error>> {

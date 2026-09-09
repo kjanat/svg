@@ -30,9 +30,10 @@ pub use types::{
     BaselineTier, BrowserFlag, BrowserSupport, BrowserVersion, CatalogGraph, CatalogGraphEdge,
     CatalogGraphEdgeKind, CatalogGraphNode, CatalogGraphNodeKind, CompatFacts, CompatSubfeature,
     CompatSubfeatureKind, CompatVerdict, ContentModel, CssGrammarEdge, CssGrammarEdgeKind,
-    CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, Discouraged, ElementCategory, ElementDef,
-    FeatureLifecycle, ProfileLookup, ProfiledAttribute, ProfiledElement, SnapshotLifecycle,
-    SnapshotMetadata, SpecLifecycle, SpecSnapshotId, VerdictReason, VerdictRecommendation,
+    CssGrammarGraph, CssGrammarNode, CssGrammarNodeKind, DeclaredStatus, Discouraged,
+    ElementCategory, ElementDef, FeatureLifecycle, LifecycleDeclaration, ProfileLookup,
+    ProfiledAttribute, ProfiledElement, SnapshotLifecycle, SnapshotMetadata, SpecLifecycle,
+    SpecSnapshotId, VerdictReason, VerdictRecommendation,
 };
 
 use catalog::{
@@ -211,7 +212,17 @@ pub fn element_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup
 /// ```
 #[must_use]
 pub fn attribute_for_profile(profile: SpecSnapshotId, name: &str) -> ProfileLookup<AttributeDef> {
-    if let Some(lifecycle) = attribute_lifecycle_for_profile(profile, name) {
+    attribute_for_profile_on_element(profile, name, None)
+}
+
+/// Profile-aware attribute lookup with exact bearer lifecycle precedence.
+#[must_use]
+pub fn attribute_for_profile_on_element(
+    profile: SpecSnapshotId,
+    name: &str,
+    element_name: Option<&str>,
+) -> ProfileLookup<AttributeDef> {
+    if let Some(lifecycle) = attribute_lifecycle_on_element(profile, name, element_name) {
         if !lifecycle.present {
             return ProfileLookup::UnsupportedInProfile {
                 known_in: lifecycle.known_in,
@@ -264,6 +275,11 @@ pub fn attributes_for_with_profile(
         })
         .filter_map(|attribute| {
             let (name, lifecycle) = attribute_profile_name_and_lifecycle(profile, attribute.name)?;
+            let lifecycle = match attribute_for_profile_on_element(profile, name, Some(elem_name)) {
+                ProfileLookup::Present { lifecycle, .. } => lifecycle,
+                ProfileLookup::UnsupportedInProfile { .. } => return None,
+                ProfileLookup::Unknown => lifecycle,
+            };
             Some(ProfiledAttribute {
                 name,
                 attribute,
@@ -304,7 +320,9 @@ pub fn allowed_children_with_profile(
         .collect()
 }
 
-fn element_lifecycle_for_profile(
+/// Specification lifecycle and its source declaration for an element.
+#[must_use]
+pub fn element_lifecycle_for_profile(
     profile: SpecSnapshotId,
     name: &str,
 ) -> Option<&'static FeatureLifecycle> {
@@ -314,26 +332,49 @@ fn element_lifecycle_for_profile(
         .find(|entry| entry.name == name)
 }
 
-fn attribute_lifecycle_for_profile(
+/// Specification lifecycle and its source declaration for an attribute.
+#[must_use]
+pub fn attribute_lifecycle_for_profile(
     profile: SpecSnapshotId,
     name: &str,
 ) -> Option<&'static FeatureLifecycle> {
-    lifecycle_overlay(profile)?.attributes.iter().find(|entry| {
-        entry.name == name
-            || entry
-                .catalog_name
-                .is_some_and(|catalog_name| catalog_name == name && entry.present)
-    })
+    attribute_lifecycle_on_element(profile, name, None)
+}
+
+/// Resolve an exact element/attribute declaration before the global lifecycle.
+#[must_use]
+pub fn attribute_lifecycle_on_element(
+    profile: SpecSnapshotId,
+    name: &str,
+    element_name: Option<&str>,
+) -> Option<&'static FeatureLifecycle> {
+    let entries = &lifecycle_overlay(profile)?.attributes;
+    element_name
+        .and_then(|owner| {
+            entries
+                .iter()
+                .find(|e| e.name == name && e.owner == Some(owner))
+        })
+        .or_else(|| entries.iter().find(|e| e.name == name && e.owner.is_none()))
 }
 
 fn attribute_profile_name_and_lifecycle(
     profile: SpecSnapshotId,
     catalog_name: &'static str,
 ) -> Option<(&'static str, SpecLifecycle)> {
+    let canonical_present = inventory::for_edition(&inventory::EditionId::for_snapshot(profile))
+        .is_some_and(|inventory| {
+            inventory
+                .elements
+                .iter()
+                .any(|e| e.attributes.iter().any(|a| a.name == catalog_name))
+        });
     if let Some(entry) = lifecycle_overlay(profile).and_then(|overlay| {
         overlay.attributes.iter().find(|entry| {
             entry.present
-                && (entry.name == catalog_name || entry.catalog_name == Some(catalog_name))
+                && entry.owner.is_none()
+                && (entry.name == catalog_name
+                    || (!canonical_present && entry.catalog_name == Some(catalog_name)))
         })
     }) {
         return Some((entry.name, entry.lifecycle));
@@ -342,7 +383,7 @@ fn attribute_profile_name_and_lifecycle(
         overlay
             .attributes
             .iter()
-            .any(|entry| !entry.present && entry.name == catalog_name)
+            .any(|entry| !entry.present && entry.owner.is_none() && entry.name == catalog_name)
     }) {
         return None;
     }
@@ -814,8 +855,10 @@ mod catalog_tests {
         ));
         assert!(matches!(
             attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "xlink:href"),
-            ProfileLookup::UnsupportedInProfile { known_in }
-                if known_in == [SpecSnapshotId::Svg11Rec20030114, SpecSnapshotId::Svg11Rec20110816]
+            ProfileLookup::Present {
+                lifecycle: SpecLifecycle::Deprecated,
+                ..
+            }
         ));
         assert!(matches!(
             attribute_for_profile(SpecSnapshotId::Svg2EditorsDraft, "href"),
@@ -834,6 +877,26 @@ mod catalog_tests {
                 .iter()
                 .any(|profiled| profiled.name == "href")
         );
+    }
+
+    #[test]
+    fn legacy_font_name_is_not_spec_deprecation() {
+        for &profile in spec_snapshots() {
+            assert!(
+                matches!(
+                    attribute_for_profile(profile, "font-stretch"),
+                    ProfileLookup::Present {
+                        lifecycle: SpecLifecycle::Stable,
+                        ..
+                    }
+                ),
+                "{profile:?}"
+            );
+            assert!(
+                attribute_lifecycle_for_profile(profile, "font-stretch")
+                    .is_none_or(|l| l.declaration.is_none())
+            );
+        }
     }
 
     #[test]

@@ -35,6 +35,19 @@ pub struct CompatOverride {
     pub sources: [Provenance; 2],
 }
 
+impl CompatOverride {
+    /// Whether BCD successfully replaced the bundled lifecycle flags.
+    pub fn has_refreshed_bcd(&self) -> bool {
+        self.sources.iter().any(|source| {
+            source.source == "@mdn/browser-compat-data"
+                && matches!(
+                    source.outcome,
+                    Outcome::Loaded | Outcome::Absent | Outcome::Unknown
+                )
+        })
+    }
+}
+
 #[derive(Clone)]
 struct Source {
     name: &'static str,
@@ -100,25 +113,19 @@ impl RuntimeCompat {
             elements: self
                 .elements
                 .iter()
-                .filter(|(_, v)| {
-                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
-                })
+                .filter(|(_, v)| v.has_refreshed_bcd())
                 .map(|(k, v)| (k.clone(), flags(v)))
                 .collect(),
             attributes: self
                 .attributes
                 .iter()
-                .filter(|(_, v)| {
-                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
-                })
+                .filter(|(_, v)| v.has_refreshed_bcd())
                 .map(|(k, v)| (k.clone(), flags(v)))
                 .collect(),
             attribute_contexts: self
                 .attribute_contexts
                 .iter()
-                .filter(|(_, v)| {
-                    !matches!(v.sources[0].outcome, Outcome::Failed | Outcome::Disabled)
-                })
+                .filter(|(_, v)| v.has_refreshed_bcd())
                 .map(|(k, v)| (k.clone(), flags(v)))
                 .collect(),
         }

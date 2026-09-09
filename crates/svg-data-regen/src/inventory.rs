@@ -54,8 +54,8 @@ pub const SNAPSHOT_INDEX_SOURCES: &[EditionIndexSource] = &[
     EditionIndexSource {
         name: "SVG 1.1 Second Edition indexes",
         profile: CatalogSpecSnapshotId::Svg11Rec20110816,
-        element_index_url: "https://www.w3.org/TR/SVG11/eltindex.html",
-        attribute_index_url: "https://www.w3.org/TR/SVG11/attindex.html",
+        element_index_url: "https://www.w3.org/TR/2011/REC-SVG11-20110816/eltindex.html",
+        attribute_index_url: "https://www.w3.org/TR/2011/REC-SVG11-20110816/attindex.html",
     },
     EditionIndexSource {
         name: "SVG 2 Candidate Recommendation 2018 indexes",

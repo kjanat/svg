@@ -436,7 +436,6 @@ pub fn format_element_hover_with_profile(
     let facts = rt.map_or(&baked, |r| &r.facts);
     let verdict =
         effective_compat::verdict_for_browsers(facts, settings.browsers.iter().map(String::as_str));
-    let _ = profile;
 
     let mut builder = CompatMarkdownBuilder::new();
 
@@ -465,6 +464,11 @@ pub fn format_element_hover_with_profile(
     }
 
     append_compat_details(&mut builder, facts, rt, settings);
+    append_spec_declaration(
+        &mut builder,
+        svg_data::element_lifecycle_for_profile(profile, el.name),
+        settings,
+    );
     if settings.shows(Section::Links) {
         builder.links(hover_link_list(el.mdn_url, el.spec_url));
     }
@@ -583,11 +587,38 @@ fn format_attribute_hover_with_verdict(
     }
 
     append_compat_details(&mut builder, facts, rt, settings);
+    append_spec_declaration(
+        &mut builder,
+        svg_data::attribute_lifecycle_on_element(profile, display_name, element_name),
+        settings,
+    );
     if settings.shows(Section::Links) {
         builder.links(hover_link_list(attr.mdn_url, attr.spec_url));
     }
 
     builder.build()
+}
+
+fn append_spec_declaration(
+    builder: &mut CompatMarkdownBuilder,
+    lifecycle: Option<&svg_data::FeatureLifecycle>,
+    settings: &HoverSettings,
+) {
+    if !settings.shows(Section::Status) {
+        return;
+    }
+    let Some(declaration) = lifecycle.and_then(|l| l.declaration) else {
+        return;
+    };
+    let status = match declaration.status {
+        svg_data::DeclaredStatus::Deprecated => "Deprecated",
+        svg_data::DeclaredStatus::Obsolete => "Obsoleted (retained for legacy content)",
+        svg_data::DeclaredStatus::Removed => "Removed",
+    };
+    builder.status(format!(
+        "**SVG specification:** {status}. [Source]({})",
+        declaration.source
+    ));
 }
 
 fn profile_unsupported_attribute_verdict(

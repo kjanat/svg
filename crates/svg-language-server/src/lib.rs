@@ -912,8 +912,9 @@ fn build_attribute_hover_markdown(
         return None;
     }
 
-    let lookup = svg_data::attribute_for_profile(profile, node_text);
     let element_name = attribute_owner_element_name(node, source);
+    let lookup =
+        svg_data::attribute_for_profile_on_element(profile, node_text, element_name.as_deref());
     let profile_lifecycle = profile_lifecycle_hover_line(profile, &lookup);
     let runtime_override =
         runtime_compat.and_then(|runtime| runtime.attribute(node_text, element_name.as_deref()));
@@ -960,7 +961,11 @@ fn attribute_owner_element_name(node: tree_sitter::Node<'_>, source: &[u8]) -> O
     tag.children(&mut cursor)
         .find(|child| child.kind() == "name")
         .and_then(|name| name.utf8_text(source).ok())
-        .map(str::to_owned)
+        .map(|name| {
+            name.split_once(':')
+                .map_or(name, |(_, local)| local)
+                .to_owned()
+        })
 }
 
 #[derive(Clone)]

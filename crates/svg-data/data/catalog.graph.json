@@ -21820,16 +21820,6 @@
     },
     {
       "from": "attribute:glyph-orientation-horizontal",
-      "to": "profile:Svg2Cr20181004",
-      "kind": "present_in"
-    },
-    {
-      "from": "attribute:glyph-orientation-horizontal",
-      "to": "profile:Svg2EditorsDraft",
-      "kind": "present_in"
-    },
-    {
-      "from": "attribute:glyph-orientation-horizontal",
       "to": "value:glyph-orientation-horizontal",
       "kind": "has_value_grammar"
     },
@@ -23786,11 +23776,6 @@
     {
       "from": "attribute:kerning",
       "to": "profile:Svg11Rec20110816",
-      "kind": "present_in"
-    },
-    {
-      "from": "attribute:kerning",
-      "to": "profile:Svg2EditorsDraft",
       "kind": "present_in"
     },
     {
