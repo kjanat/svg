@@ -91,19 +91,17 @@ for (const input of inputs) {
 		list.innerHTML = '';
 		active = -1;
 		const q = filter.toLowerCase();
+		const versions = allVersions.filter((v) => !v.includes('-'));
 		const matches = q
-			? allVersions
+			? versions
 				.filter((v) => v.includes(q))
 				.sort((a, b) => {
 					const as = a.startsWith(q),
 						bs = b.startsWith(q);
 					if (as !== bs) return as ? -1 : 1;
-					const ap = a.includes('-'),
-						bp = b.includes('-');
-					if (ap !== bp) return ap ? 1 : -1;
 					return 0;
 				})
-			: allVersions;
+			: versions;
 		for (const v of matches.slice(0, 100)) {
 			const li = document.createElement('li');
 			li.textContent = v;
