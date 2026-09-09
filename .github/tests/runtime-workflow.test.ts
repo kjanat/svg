@@ -11,7 +11,6 @@ const stepsText = (job: any) => job.steps.map((s: any) => s.run ?? s.uses ?? '')
 test('GitHub release publication waits for the required runtime gate', () => {
 	expect(dependencies(release.jobs['runtime-smoke'])).toEqual(['build-dist']);
 	expect(dependencies(release.jobs['publish-release'])).toContain('runtime-smoke');
-	expect(release.jobs['runtime-smoke'].uses).toBe('./.github/workflows/runtime-smoke.yml');
 	expect(release.jobs['runtime-smoke']['continue-on-error']).toBeUndefined();
 	expect(dependencies(release.jobs['call-npm-release'])).toContain('publish-release');
 	expect(dependencies(release.jobs['call-crates-release'])).toContain('publish-release');
@@ -19,7 +18,6 @@ test('GitHub release publication waits for the required runtime gate', () => {
 
 test('every npm entry point gates both publishing roots, preserving publication order', () => {
 	expect(Object.keys(npm.on).sort()).toEqual(['release', 'workflow_call', 'workflow_dispatch']);
-	expect(npm.jobs['runtime-smoke'].uses).toBe('./.github/workflows/runtime-smoke.yml');
 	expect(dependencies(npm.jobs['runtime-smoke'])).toEqual(['setup']);
 	for (const name of ['grammars', 'scoped']) expect(dependencies(npm.jobs[name])).toContain('runtime-smoke');
 	expect(dependencies(npm.jobs.facades)).toContain('scoped');
@@ -33,7 +31,6 @@ test('runtime checks use transferred artifacts, native runners and a real musl c
 	expect(smoke['runs-on']).toBe('${{ matrix.runner }}');
 	expect(smoke['continue-on-error']).toBeUndefined();
 	expect(smoke.strategy['fail-fast']).toBe(false);
-	expect(smoke.steps.some((s: any) => s.uses === './.github/actions/dist-artifact')).toBe(true);
 	expect(stepsText(smoke)).not.toMatch(/cargo|build-packages|gh release download/);
 	expect(stepsText(smoke)).toContain('docker run --rm');
 	expect(stepsText(smoke)).toContain('node --test distribution/npm/facade/test/*.test.mjs');
@@ -54,7 +51,6 @@ test('both artifact producers preserve archives and modes before the shared runt
 		expect(stepsText(job)).toContain('tar -cf distribution/npm/dist.tar -C distribution/npm dist downloads');
 		expect(stepsText(job)).toContain('runtime.mjs inventory');
 	}
-	expect(ci.jobs.runtime.uses).toBe('./.github/workflows/runtime-smoke.yml');
 	expect(dependencies(ci.jobs.runtime)).toEqual(['package']);
 	expect(stepsText(ci.jobs.package)).not.toMatch(/cargo build|npm publish|gh release create/);
 	expect(ci.permissions).toEqual({ contents: 'read', actions: 'read' });

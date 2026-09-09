@@ -36,7 +36,7 @@ jobs:
           const tag = require('node:child_process').execFileSync('gh', ['release', 'view', ...(requested ? [requested] : []), '--json', 'tagName', '--jq', '.tagName'], { encoding: 'utf8' }).trim();
           if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(tag)) throw new Error('Invalid release tag');
           require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
-      - uses: ./.github/actions/download-archives
+      - uses: $/.github/actions/download-archives
         with: { tag: "${{ steps.release.outputs.tag }}", token: "${{ github.token }}" }
       - name: package existing release binaries using current npm templates
         env: { RELEASE_TAG: "${{ steps.release.outputs.tag }}" }
@@ -51,7 +51,7 @@ jobs:
 
   runtime:
     needs: package
-    uses: ./.github/workflows/runtime-smoke.yml
+    uses: $/.github/workflows/runtime-smoke.yml
     with:
       tag: ${{ needs.package.outputs.tag }}
       run-id: ${{ github.run_id }}

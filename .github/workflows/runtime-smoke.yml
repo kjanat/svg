@@ -42,11 +42,11 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with: { node-version-file: package.json, architecture: "${{ matrix.arch }}", package-manager-cache: false }
       - name: download and extract producer dist artifact
-        uses: ./.github/actions/dist-artifact
+        uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ inputs.run-id }}", token: "${{ github.token }}" }
       - name: native archive and npm install smoke
         if: matrix.container == ''
-        uses: ./.github/actions/npm-smoke
+        uses: $/.github/actions/npm-smoke
         with: { tag: "${{ inputs.tag }}", host-pkg: "${{ matrix.pkg }}" }
       - name: musl archive and npm install smoke in Alpine
         if: matrix.container != ''
