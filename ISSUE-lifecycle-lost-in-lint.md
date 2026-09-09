@@ -230,8 +230,8 @@ Goal:
 
 - `ISSUE-PLAN-one-lifecycle-rule.md`
   - broader lifecycle consistency across hover, lint, completion
-- `ISSUE-PLAN-compat-ux.md`
-  - richer verdict modeling, alias metadata, obsolete/compat reconciliation
+- [Issue #50](https://github.com/kjanat/svg/issues/50)
+  - remaining spec lifecycle, alias handling, and generator validation
 
 ## Bottom Line
 
