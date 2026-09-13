@@ -56,9 +56,8 @@ Why it matters: `just verify` fails before release-config check, lint, or tests.
 That breaks the repo's local quality gate exactly while this PR claims future
 quality control.
 
-Suggested fix: change `just typecheck` to
-`deno task --config scripts/deno.jsonc typecheck`, or restore a
-`scripts/package.json` with a matching Bun script.
+Suggested fix: change `just typecheck` to `deno task --config scripts/deno.jsonc
+typecheck`, or restore a `scripts/package.json` with a matching Bun script.
 
 ### 2. High - runtime BCD refresh does not override baked compat verdicts
 
@@ -166,9 +165,9 @@ Issue: the scheduled workflow opens or comments on an issue when drift is
 detected, and the LSP optionally warns. Neither path updates sources,
 regenerates data, or opens a PR.
 
-Evidence: the issue body tells humans to run `just refresh-editions` and
-`just refresh-svgwg <commit>`. Runtime freshness message also tells users to
-refresh manually.
+Evidence: the issue body tells humans to run `just refresh-editions` and `just
+refresh-svgwg <commit>`. Runtime freshness message also tells users to refresh
+manually.
 
 Why it matters: this is an alerting system, not a fully automated update/QC
 pipeline.
@@ -203,9 +202,8 @@ five SMIL elements.
 
 File: `crates/svg-data/tests/spec_scan_repro.rs:24-48`
 
-Issue: the test locates the vendored checkout with
-`read_dir().find(|name| starts_with("svgwg-"))`, but the PR adds multiple
-`svgwg-*` dirs.
+Issue: the test locates the vendored checkout with `read_dir().find(|name|
+starts_with("svgwg-"))`, but the PR adds multiple `svgwg-*` dirs.
 
 Evidence: changed files include `svgwg-19482daf` and `svgwg-bd0b7819`. The test
 picks the first filesystem entry, which is not a stable oracle.
@@ -240,13 +238,13 @@ Files: `.github/workflows/release.yml:41-80`,
 `.github/workflows/refresh-spec.yml:12-36`,
 `.github/workflows/publish-npm-oidc.yml:1-28`
 
-Issue: the checked-in workflows do not run `just verify`, `cargo test`,
-`cargo clippy`, or Deno worker tests on ordinary PRs.
+Issue: the checked-in workflows do not run `just verify`, `cargo test`, `cargo
+clippy`, or Deno worker tests on ordinary PRs.
 
-Evidence: grep found no `just verify`, `cargo test`, `cargo clippy`,
-`deno test`, or `deno task` in `.github/workflows/*.yml`. The release workflow
-runs cargo-dist planning/builds. The freshness workflow only runs
-`spec-freshness`. The npm workflow only publishes downloaded artifacts.
+Evidence: grep found no `just verify`, `cargo test`, `cargo clippy`, `deno
+test`, or `deno task` in `.github/workflows/*.yml`. The release workflow runs
+cargo-dist planning/builds. The freshness workflow only runs `spec-freshness`.
+The npm workflow only publishes downloaded artifacts.
 
 Why it matters: the PR claims automated CI quality control, but there is no
 general PR quality gate.
@@ -390,8 +388,8 @@ File: `.github/workflows/publish-npm-oidc.yml:26-33`
 Issue: the npm publish workflow sets `node-version: latest` and then installs
 `npm@latest`.
 
-Evidence: setup-node uses `latest`; the publish step also runs
-`npm install -g npm@latest`.
+Evidence: setup-node uses `latest`; the publish step also runs `npm install -g
+npm@latest`.
 
 Why it matters: release behavior can change under the repo without a code
 change.

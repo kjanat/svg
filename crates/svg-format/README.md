@@ -43,8 +43,8 @@ let pretty_custom = format_with_options(
 
 ## CLI
 
-`svg-format` is also available as a CLI binary from the same crate
-(`cargo install svg-format`, or `npm install --global svg-format` /
+`svg-format` is also available as a CLI binary from the same crate (`cargo
+install svg-format`, or `npm install --global svg-format` /
 `@svg-toolkit/svg-format` for the prebuilt binary).
 
 ```sh

@@ -159,8 +159,8 @@ without requiring a new release for every BCD update.
 
 ### Why `#[expect]` on float casts?
 
-Five `#[expect(clippy::cast_possible_truncation)]` annotations exist on
-`f64 as f32`, `f32 as u8`, and `f32 as u16` casts in `svg-color`. Rust's
-standard library has no `TryFrom<f32> for u8` or `From<f64> for f32`. The values
-are pre-clamped to safe ranges, making truncation impossible. Each annotation
+Five `#[expect(clippy::cast_possible_truncation)]` annotations exist on `f64 as
+f32`, `f32 as u8`, and `f32 as u16` casts in `svg-color`. Rust's standard
+library has no `TryFrom<f32> for u8` or `From<f64> for f32`. The values are
+pre-clamped to safe ranges, making truncation impossible. Each annotation
 carries a `reason` string explaining why no alternative exists.

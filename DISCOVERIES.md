@@ -59,15 +59,13 @@
   introduced a clippy ICE — "unexpected rigid alias in layout_of after
   normalization" inside `clippy::large_futures`'s `layout_of` query — that
   panics specifically on `svg-language-server`'s async LSP handlers (opaque
-  RPITIT/async-fn types from `tower-lsp-server`/`tokio`). Bisected with
-  `rustup toolchain install nightly-YYYY-MM-DD` +
-  `cargo +nightly-YYYY-MM-DD
-  clippy -p svg-language-server --lib`:
-  `nightly-2026-08-21` (rustc built 2026-08-20) is clean, `nightly-2026-08-22`
-  (rustc built 2026-08-21) ICEs. Reproduces identically on unmodified `master`,
-  so it's a toolchain regression, not a code bug. Pinned `rust-toolchain.toml`
-  to `nightly-2026-08-21` until upstream fixes it; re-bisect forward
-  periodically to find a fixed nightly and un-pin.
+  RPITIT/async-fn types from `tower-lsp-server`/`tokio`). Bisected with `rustup
+  toolchain install nightly-YYYY-MM-DD` + `cargo +nightly-YYYY-MM-DD clippy -p
+  svg-language-server --lib`: `nightly-2026-08-21` (rustc built 2026-08-20) is
+  clean, `nightly-2026-08-22` (rustc built 2026-08-21) ICEs. Reproduces
+  identically on unmodified `master`, so it's a toolchain regression, not a code
+  bug. Pinned `rust-toolchain.toml` to `nightly-2026-08-21` until upstream fixes
+  it; re-bisect forward periodically to find a fixed nightly and un-pin.
 
 ## svg-data Catalog
 
@@ -91,14 +89,14 @@
 - `font-stretch` is a known source-of-truth trap. Current repo data keeps it as
   a normal SVG presentation attribute
   (`Svg2EditorsDraft20250914/element_attribute_matrix.json` includes it;
-  generated catalog currently says `spec_lifecycle: Stable`,
-  `deprecated: false`), while newer MDN / CSS Fonts 4 prose says it was renamed
-  to `font-width` and retained as a legacy alias. Useful quotes: SVG 2 styling
+  generated catalog currently says `spec_lifecycle: Stable`, `deprecated:
+  false`), while newer MDN / CSS Fonts 4 prose says it was renamed to
+  `font-width` and retained as a legacy alias. Useful quotes: SVG 2 styling
   lists `font-stretch` among presentation attributes and required CSS properties
-  (`https://svgwg.org/svg2-draft/styling.html`); CSS Fonts 3 calls it
-  `Font width: the font-stretch property`
+  (`https://svgwg.org/svg2-draft/styling.html`); CSS Fonts 3 calls it `Font
+  width: the font-stretch property`
   (`https://www.w3.org/TR/css-fonts-3/#font-stretch-prop`); CSS Fonts 4 says
-  `For historical reasons, a font-stretch property exists ... and functions in the identical way to the font-width.`
-  Do not mark `font-stretch` deprecated from MDN prose alone; first decide
-  whether the repo should follow pinned SVG 2 / CSS Fonts 3 data, or add
-  first-class alias/replacement metadata.
+  `For historical reasons, a font-stretch property exists ... and functions in
+  the identical way to the font-width.` Do not mark `font-stretch` deprecated
+  from MDN prose alone; first decide whether the repo should follow pinned SVG 2
+  / CSS Fonts 3 data, or add first-class alias/replacement metadata.

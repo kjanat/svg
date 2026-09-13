@@ -75,11 +75,10 @@ Gotchas hit:
   eventually fixes `--reuse-allocator`
 - CI `run:` using a YAML folded scalar (`>-`) must keep continuation lines at
   the *same* indentation as the first line. Lines indented deeper are treated as
-  literal blocks and keep their newlines, so
-  `runner install --frozen --keep-going` + deeper-indented task names became two
-  shell commands — `runner install` (ran) then bare `typecheck` (exit 127,
-  command not found). Fix: dedent task lines to align with `runner`. The
-  intended single command is
+  literal blocks and keep their newlines, so `runner install --frozen
+  --keep-going` + deeper-indented task names became two shell commands — `runner
+  install` (ran) then bare `typecheck` (exit 127, command not found). Fix:
+  dedent task lines to align with `runner`. The intended single command is
   `runner install --frozen --keep-going typecheck test:corpus …`
   (install-then-chain; `runner install [TASKS]...` is a real feature, and
   `--keep-going` still returns the first non-zero chain exit so CI stays honest)
@@ -138,9 +137,9 @@ Gotchas hit:
   `<!--` occupies cols 0-3 so `^` carets can only target col 4+; use indented
   arrow tests (`<!-- <- capture -->`) to reach earlier columns
 - In highlight tests, child literal captures (`"<?"`, `"<!--"`, `"<!DOCTYPE"` →
-  `@punctuation.delimiter`) override parent node captures
-  (`(xml_declaration) @keyword`, `(comment) @comment`); test the inner text, not
-  the delimiter, for the parent's highlight
+  `@punctuation.delimiter`) override parent node captures (`(xml_declaration)
+  @keyword`, `(comment) @comment`); test the inner text, not the delimiter, for
+  the parent's highlight
 - Tag test assertion comments (`<!-- ^ definition.id -->`) are real comment
   nodes in the CST; if an assertion comment appears right before another
   id-bearing element, it becomes that element's `@doc` docstring. Insert a
@@ -158,10 +157,10 @@ Gotchas hit:
   sibling comments and elements; the `.` anchor requires consecutive named
   siblings, so use `(comment) . (text) . (element)` to bridge. Also need a
   variant without `(text)` for inline placement (`<!-- doc --><el/>`)
-- Query child patterns match direct children only, not descendants;
-  `(element (self_closing_tag (id_attribute ...)))` is "Impossible pattern"
-  because `attribute` wraps `id_attribute` — must write
-  `(element (self_closing_tag (attribute (id_attribute ...))))`
+- Query child patterns match direct children only, not descendants; `(element
+  (self_closing_tag (id_attribute ...)))` is "Impossible pattern" because
+  `attribute` wraps `id_attribute` — must write `(element (self_closing_tag
+  (attribute (id_attribute ...))))`
 - SVG IDs are document-global; `@local.scope` should be on `svg_root_element`
   only, not per-element — a `<linearGradient id="grad1">` inside `<defs>` must
   be referenceable from anywhere
@@ -187,18 +186,18 @@ Gotchas hit:
   `token(prec(..., '<?xml'))` fixes declaration recognition. The literal 5-char
   token is *insufficient* though: it also matches the `<?xml-stylesheet` PI
   target prefix, causing xml_declaration to commit and then fail at the `-`.
-  Require mandatory trailing whitespace in the start token
-  (`token(prec(2, /<\?xml[ \t\r\n]+/))`) so the lexer only emits
-  `_xml_declaration_start` when a well-formed declaration follows; `<?xml-*` PI
-  targets fall through to the generic `<?` + `pi_target_name` path. XML 1.0 §2.8
-  guarantees VersionInfo begins with S whitespace, so this is spec-sound
+  Require mandatory trailing whitespace in the start token (`token(prec(2,
+  /<\?xml[ \t\r\n]+/))`) so the lexer only emits `_xml_declaration_start` when a
+  well-formed declaration follows; `<?xml-*` PI targets fall through to the
+  generic `<?` + `pi_target_name` path. XML 1.0 §2.8 guarantees VersionInfo
+  begins with S whitespace, so this is spec-sound
 - XML 1.0 §2.8 requires `<?xml ... ?>` to be the absolute first thing in the
   document (no preceding whitespace), but real-world SVGs can gain a leading
   newline/BOM/whitespace via formatters, editors, or copy-paste pipelines (our
   local `samples/w3/arcs01.svg` picked up a leading `\n` from dprint before we
-  stripped it; upstream W3C is clean). Strict
-  `source_file = optional(xml_declaration) ...` fails these inputs because misc
-  cannot appear before xml_declaration. Fix: `source_file` takes
+  stripped it; upstream W3C is clean). Strict `source_file =
+  optional(xml_declaration) ...` fails these inputs because misc cannot appear
+  before xml_declaration. Fix: `source_file` takes
   `optional(seq(repeat($._misc), $.xml_declaration))` so leading misc is
   permitted only when an xml_declaration follows, keeping `source_file_repeat1`
   unambiguous. Regression fixture at `samples/leading-ws-before-xml-decl.svg`
@@ -312,9 +311,9 @@ Gotchas hit:
   losslessly as `css_text_attribute` content. Same treatment for other unions
   the catalog cannot disambiguate (MIME `type`, media queries).
 - `values`/`tableValues`/`kernelMatrix` are number *lists*, but the spec writes
-  their grammar as prose (`list of <number>s`, `(list of <number>s)`,
-  `<list of numbers>`) which the scraper used to degrade to a bare `<number>`
-  (or garbled keyword tokens). Root-caused in `svg-data-regen`:
+  their grammar as prose (`list of <number>s`, `(list of <number>s)`, `<list of
+  numbers>`) which the scraper used to degrade to a bare `<number>` (or garbled
+  keyword tokens). Root-caused in `svg-data-regen`:
   `chapter::number_list_prose_production` canonicalizes those prose idioms to a
   real `<number>+` production (shape-based, no attribute-name allowlist), so the
   catalog now routes all three to the `number_list` bucket. The grammar's

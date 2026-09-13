@@ -4,9 +4,19 @@
 [![NPM](https://img.shields.io/npm/v/svg-language-server?logo=npm&labelColor=CB3837&color=black)](https://npm.im/svg-language-server)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover.png">
-  <img alt="svg-language-server in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints" src="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover.png" width="100%">
+  <source
+    media="(prefers-color-scheme: dark)"
+    srcset="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover-dark.png"
+  >
+  <source
+    media="(prefers-color-scheme: light)"
+    srcset="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover.png"
+  >
+  <img
+    alt="svg-language-server in Zed: hover docs with browser support, deprecated/experimental diagnostics, and missing-reference hints"
+    src="https://raw.githubusercontent.com/kjanat/svg/b7c6611efa83adfb4cccc6f8054940fa6491c3b1/docs/assets/editor-hover.png"
+    width="100%"
+  >
 </picture>
 
 LSP server for SVG files — hover docs, completions, diagnostics, and color
@@ -49,13 +59,13 @@ All settings go in the LSP `initializationOptions`, under an `svg` key:
 
 ```jsonc
 {
-	"svg": {
-		"profile": "svg2draft", // spec snapshot to validate against
-		"force_profile": false, // ignore the document's version attribute
-		"edition": "svg11", // or { "series": "svg2", "editors_draft": true }
-		"runtime_compat": true, // live MDN BCD + web-features refresh at startup
-		"svgwg_drift_check": false // opt-in staleness probe against W3C/svgwg
-	}
+  "svg": {
+    "profile": "svg2draft", // spec snapshot to validate against
+    "force_profile": false, // ignore the document's version attribute
+    "edition": "svg11", // or { "series": "svg2", "editors_draft": true }
+    "runtime_compat": true, // live MDN BCD + web-features refresh at startup
+    "svgwg_drift_check": false // opt-in staleness probe against W3C/svgwg
+  }
 }
 ```
 
@@ -75,26 +85,26 @@ For example, show mobile browser support with selected details:
 
 ```json
 {
-	"svg": {
-		"hover": {
-			"browsers": ["chrome_android", "safari_ios"],
-			"sections": [
-				"description",
-				"baseline",
-				"discouraged",
-				"browsers",
-				"browser_details"
-			],
-			"browser_details": [
-				"notes",
-				"flags",
-				"version_removed",
-				"version_last",
-				"implementation_links"
-			],
-			"browser_history": false
-		}
-	}
+  "svg": {
+    "hover": {
+      "browsers": ["chrome_android", "safari_ios"],
+      "sections": [
+        "description",
+        "baseline",
+        "discouraged",
+        "browsers",
+        "browser_details"
+      ],
+      "browser_details": [
+        "notes",
+        "flags",
+        "version_removed",
+        "version_last",
+        "implementation_links"
+      ],
+      "browser_history": false
+    }
+  }
 }
 ```
 

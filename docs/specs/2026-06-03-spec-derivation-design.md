@@ -21,10 +21,10 @@ All findings were cross-checked against the live tree:
 - `[build-dependencies]` = `schemars, serde, serde_json, toml, ureq`; `regex` +
   `winnow` are present transitively in `Cargo.lock`; `quick-xml`/`roxmltree`/
   `scraper` are **not**.
-- svgwg is a **gitignored, untracked local discovery clone**
-  (`git ls-files svgwg` = 0, no `.gitmodules`) — not a tracked submodule. Its
-  HEAD was `bd0b7819` when this was written; the ED provenance pin `19482daf`
-  (see §0) was merely absent from that stale clone.
+- svgwg is a **gitignored, untracked local discovery clone** (`git ls-files
+  svgwg` = 0, no `.gitmodules`) — not a tracked submodule. Its HEAD was
+  `bd0b7819` when this was written; the ED provenance pin `19482daf` (see §0)
+  was merely absent from that stale clone.
 
 ---
 
@@ -91,10 +91,10 @@ Rust edit**.\
 Sources: `https://svgwg.org/svg2-draft/` (+ `single-page.html`), repo
 `https://github.com/w3c/svgwg`.
 
-Today the enum (`src/types.rs:410`) has 4 dated variants with
-`LATEST = Svg2EditorsDraft20250914`, referenced in **37 places across 16
-files**; renaming to an undated `Svg2EditorsDraft` (date → `snapshot.json` data)
-is the mechanical change that kills the date-bumping toil.
+Today the enum (`src/types.rs:410`) has 4 dated variants with `LATEST =
+Svg2EditorsDraft20250914`, referenced in **37 places across 16 files**; renaming
+to an undated `Svg2EditorsDraft` (date → `snapshot.json` data) is the mechanical
+change that kills the date-bumping toil.
 
 ### Drift / usability signal (LSP feature — the point of capturing editions)
 
@@ -152,9 +152,9 @@ from **vendored** dated artifacts (the API may be used offline-gated at
 > documents** (propidx.html, `definitions*.xml`, DTD, chapter HTML). The API is
 > purely the *edition-index + drift* layer, never a content source.
 
-Format: **HAL+JSON** — every response is a pagination envelope
-`{ page, limit, pages, total, _links, _embedded }`; related resources are linked
-(`_links`) or inlined (`_embedded`) per `?embed=1`. Payloads are tiny:
+Format: **HAL+JSON** — every response is a pagination envelope `{ page, limit,
+pages, total, _links, _embedded }`; related resources are linked (`_links`) or
+inlined (`_embedded`) per `?embed=1`. Payloads are tiny:
 
 | Request                                             | Bytes                         |
 | --------------------------------------------------- | ----------------------------- |
@@ -194,11 +194,11 @@ profile axis rather than the version axis.
 **SVG Native** (the immediate ask):
 
 - Source: `svgwg/specs/svg-native/index.bs` — a **Bikeshed** doc in the svgwg
-  repo (`Title: SVG Native`, `Shortname: svg-native`, `Status: ED`,
-  `Group: SVG`); published at `https://svgwg.org/specs/svg-native/`. **Rolling
-  like the SVG2 ED** (not on `/TR/` — the W3C API knows the shortname but has no
-  dated versions). → treat as an **undated `SvgNative` profile**, capture
-  commit/date as data, drift vs svgwg git HEAD.
+  repo (`Title: SVG Native`, `Shortname: svg-native`, `Status: ED`, `Group:
+  SVG`); published at `https://svgwg.org/specs/svg-native/`. **Rolling like the
+  SVG2 ED** (not on `/TR/` — the W3C API knows the shortname but has no dated
+  versions). → treat as an **undated `SvgNative` profile**, capture commit/date
+  as data, drift vs svgwg git HEAD.
 - **This is real spec data** (unlike the W3C API). SVG Native is defined as
   *reductive differences* from SVG 2 Secure Static Mode: explicit lists of
   **unsupported** elements / attributes / properties / values (e.g. no `text`/

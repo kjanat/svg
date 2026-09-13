@@ -33,11 +33,10 @@
   handoff on PRs and `master`, using existing released binaries and the current
   npm templates. It does not compile binaries or publish anything.
 - `.github/workflows/crates-release.yml` — publishes the 11 publishable
-  workspace crates to crates.io in dependency order
-  (`cargo publish
-  --workspace`). Bootstrap auth via the `CARGO_REGISTRY_TOKEN`
-  secret in the `crates-io` environment; delete it once every crate has a
-  trusted publisher configured and OIDC takes over.
+  workspace crates to crates.io in dependency order (`cargo publish
+  --workspace`). Bootstrap auth via the `CARGO_REGISTRY_TOKEN` secret in the
+  `crates-io` environment; delete it once every crate has a trusted publisher
+  configured and OIDC takes over.
 - `.github/actions/*/action.yml` — composite subactions holding all multi-step
   logic (asset packaging/verification, archive download, npm smoke/derive/
   publish, matrix generation).
@@ -101,8 +100,8 @@ checks never count as successful runtime execution. These are startup/version
 checks, not a claim of full application testing on every platform.
 
 `just release-runtime-test` covers policy, archive integrity, version matching,
-permissions, stage reporting, and workflow gates. It is included in
-`just verify`. PR runtime validation builds npm trees from the latest published
+permissions, stage reporting, and workflow gates. It is included in `just
+verify`. PR runtime validation builds npm trees from the latest published
 release's binaries using current templates, then transfers them to all eight
 environments. This validates packaging and execution without claiming a new
 binary build.
@@ -172,8 +171,8 @@ and [checkout revision selection](https://github.com/actions/checkout#usage).
 
 ## npm bootstrap
 
-The long-term path is trusted publishing from GitHub Actions using OIDC
-(`npm publish --provenance`, `id-token: write`).
+The long-term path is trusted publishing from GitHub Actions using OIDC (`npm
+publish --provenance`, `id-token: write`).
 
 Because npm trusted publishers are configured per existing package, the first
 publish of each new package name may require a temporary `NPM_TOKEN` secret in

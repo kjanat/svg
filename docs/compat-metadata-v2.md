@@ -5,11 +5,11 @@ Issues [#41](https://github.com/kjanat/svg/issues/41) and
 compatibility contracts in v0.3.0. This is a breaking change for users of the
 0.2 API. This guide describes the migration to the new Rust and JSON models.
 
-The split catalog documents and worker `/data.json` now declare
-`schema_version: 2`. Check that version before consuming a document. Worker
-clients previously received an unversioned document. `/schema.json` and the CLI
-`emit schema` command describe the new worker contract; the catalog's individual
-schema files describe its documents.
+The split catalog documents and worker `/data.json` now declare `schema_version:
+2`. Check that version before consuming a document. Worker clients previously
+received an unversioned document. `/schema.json` and the CLI `emit schema`
+command describe the new worker contract; the catalog's individual schema files
+describe its documents.
 
 ## Baseline
 
@@ -31,10 +31,10 @@ the worker's `since` / `since_qualifier` fields are replaced by:
 
 ```json
 {
-	"status": "widely",
-	"raw_status": "\"high\"",
-	"low_date": { "raw": "2020-01-15", "date": "2020-01-15" },
-	"high_date": { "raw": "2022-07-15", "date": "2022-07-15" }
+  "status": "widely",
+  "raw_status": "\"high\"",
+  "low_date": { "raw": "2020-01-15", "date": "2020-01-15" },
+  "high_date": { "raw": "2022-07-15", "date": "2022-07-15" }
 }
 ```
 

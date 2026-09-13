@@ -75,12 +75,11 @@ The grammar ensures `color_value` only appears inside `paint_attribute` or
 
 ### Grammar Constraints
 
-**`named_color` is a catch-all**: The grammar rule
-`named_color: _ =>
-token(/[A-Za-z][A-Za-z-]*/)` matches any alphabetic string,
-not just CSS color names. `fill="banana"` produces a `(named_color)` node. The
-`svg-color` crate MUST validate against the 148 CSS named color table and
-silently skip non-matching values.
+**`named_color` is a catch-all**: The grammar rule `named_color: _ =>
+token(/[A-Za-z][A-Za-z-]*/)` matches any alphabetic string, not just CSS color
+names. `fill="banana"` produces a `(named_color)` node. The `svg-color` crate
+MUST validate against the 148 CSS named color table and silently skip
+non-matching values.
 
 **`functional_color` is opaque**: The grammar captures `rgb(255, 0, 0)` as a
 single flat token with no sub-structure. The `svg-color` crate must parse the

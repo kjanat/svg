@@ -51,8 +51,8 @@ The workspace enforces strict lint rules in `Cargo.toml`:
 - `missing_docs = "warn"`
 
 Use `?` with `Option`/`Result` instead of `unwrap()`/`expect()`. Use
-`tracing::warn!` for recoverable failures. Tests return
-`Result<(), Box<dyn std::error::Error>>` and use `.ok_or("context")?`.
+`tracing::warn!` for recoverable failures. Tests return `Result<(), Box<dyn
+std::error::Error>>` and use `.ok_or("context")?`.
 
 ## Adding a new lint rule
 
@@ -74,6 +74,6 @@ Cached BCD and spec data in `target/` will be used instead.
 
 ## Commits
 
-Use [Conventional Commits](https://www.conventionalcommits.org/):
-`type(scope): subject`. Keep the subject under 50 characters. Prefer multiline
-bodies for non-trivial changes.
+Use [Conventional Commits](https://www.conventionalcommits.org/): `type(scope):
+subject`. Keep the subject under 50 characters. Prefer multiline bodies for
+non-trivial changes.

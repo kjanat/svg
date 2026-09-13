@@ -1,7 +1,7 @@
 {
 	"$schema": "https://dprint.dev/schemas/v0.json",
 	// update: git ls-remote "https://github.com/kjanat/kjanat.git" HEAD | awk '{print substr($1, 1, 8)}' | xargs -r -I{} sed -i -E 's#(raw\.githubusercontent\.com/kjanat/kjanat/)[0-9a-zA-Z]{4,40}(/configs/dprint\.remote\.json)#\1{}\2#g' .dprint.jsonc
-	"extends": "https://raw.githubusercontent.com/kjanat/kjanat/ba61f5cb/configs/dprint.remote.json",
+	"extends": "https://cdn.jsdelivr.net/gh/kjanat/kjanat@master/configs/dprint.remote.json",
 	"useTabs": true,
 	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
 	"json": {
@@ -22,18 +22,18 @@
 				"command": "tombi format - --stdin-filename {{file_path}}",
 				"exts": ["toml"],
 				"cacheKeyFiles": ["tombi.toml"],
-				"setupCommand": "npm i -g tombi",
+				"setupCommand": "node -e \"try { require('child_process').execSync('tombi --version', {stdio:'ignore'}); } catch { require('child_process').execSync('npm i -g tombi', {stdio:'inherit'}); }\"",
 			},
 			{
 				"command": "rustup run nightly rustfmt --emit stdout",
 				"exts": ["rs"],
 				"cacheKeyFiles": ["rustfmt.toml", ".cargo/config.toml", "rust-toolchain.toml"],
-				"setupCommand": "rustup component add rustfmt --toolchain nightly",
+				"setupCommand": "node -e \"try { require('child_process').execSync('rustfmt --version', {stdio:'ignore'}); } catch { require('child_process').execSync('rustup component add rustfmt --toolchain nightly', {stdio:'inherit'}); }\"",
 			},
 			{
 				"command": "just --dump --justfile {{file_path}}",
 				"fileNames": ["justfile"],
-				"setupCommand": "npm i -g rust-just",
+				"setupCommand": "node -e \"try { require('child_process').execSync('just --version', {stdio:'ignore'}); } catch { require('child_process').execSync('npm i -g rust-just', {stdio:'inherit'}); }\"",
 			},
 			{ "command": "zig fmt --color off --stdin", "exts": ["zig"] },
 			{ "command": "zig fmt --zon --color off --stdin", "exts": ["zon"] }
@@ -60,6 +60,6 @@
 		"single-page.html",
 	],
 	"plugins": [
-		"https://plugins.dprint.dev/exec-0.7.2.json@6c30bd00dfb176774ece412d0fbf149478269ecc92c55ab2d6f4116938ed993e",
+		"npm:@dprint/exec@0.7.3/plugin.json@704701df449dd7e942a71144773778ac529d68c2e4657bfc236d393b898b9a67",
 	],
 }

@@ -18,12 +18,11 @@
 - Grammar/query pin bumps need to track subtree shape changes, not just
   top-level node names.
   `tree-sitter-svg@8ef7d70591529b85624439337e1e9b3c38b47b14` changes
-  functional-IRI values from
-  `functional_iri_attribute_value -> paint_server -> iri_reference` to
-  `functional_iri_attribute_value -> functional_iri -> iri_reference`; if
-  `languages/svg/{tags,locals}.scm` are not updated in the same change, Zed ID
-  navigation breaks for `clip-path`, `mask`, `filter`, `marker-*`, and `cursor`
-  references.
+  functional-IRI values from `functional_iri_attribute_value -> paint_server ->
+  iri_reference` to `functional_iri_attribute_value -> functional_iri ->
+  iri_reference`; if `languages/svg/{tags,locals}.scm` are not updated in the
+  same change, Zed ID navigation breaks for `clip-path`, `mask`, `filter`,
+  `marker-*`, and `cursor` references.
 - The same grammar pin intentionally rejects paint-style fallback tails on
   functional-IRI attributes, e.g. `clip-path="url(#clip) red"`. Treat that as an
   upstream parser strictness change, not something to preserve in Zed queries.
