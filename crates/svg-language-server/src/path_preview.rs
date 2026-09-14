@@ -445,16 +445,18 @@ impl Pen {
         // the control point of whatever curve preceded this arc.
         self.cubic_reflection = None;
         self.quadratic_reflection = None;
+        if arc.radii.x < 0.0 || arc.radii.y < 0.0 {
+            // SVG 2 9.3.8 calls a negative radius an error. Taking its absolute
+            // value would quietly turn invalid data into a plausible curve.
+            // The error is in the command, not in the geometry it would have
+            // drawn, so it stands even where the arc paints nothing.
+            self.invalid = true;
+            return;
+        }
         if identical(start.x, end.x) && identical(start.y, end.y) {
             // SVG 2 9.3.8 omits the arc only when the endpoints are identical.
             // A tolerance here would discard real geometry expressed in small
             // units, where the whole path is narrower than the tolerance.
-            return;
-        }
-        if arc.radii.x < 0.0 || arc.radii.y < 0.0 {
-            // SVG 2 9.3.8 calls a negative radius an error. Taking its absolute
-            // value would quietly turn invalid data into a plausible curve.
-            self.invalid = true;
             return;
         }
         let (mut rx, mut ry) = (arc.radii.x, arc.radii.y);
@@ -505,9 +507,17 @@ impl Pen {
             return;
         }
         let sign = if arc.large == arc.sweep { -1.0 } else { 1.0 };
-        let radius_share = span * span;
-        let factor = sign * (span.mul_add(-span, 1.0).max(0.0) / radius_share).sqrt();
-        let local_center = Point::new(factor * rx * offset.y, -factor * ry * offset.x);
+
+        // Take the root before dividing by the span. Squaring the span first
+        // and dividing into that overflows for an offset as small as the
+        // `5e-161` radii of `A1e160 1e160 0 1 1 1 0`, whose factor is a
+        // perfectly representable `2e160`.
+        let factor = sign * span.mul_add(-span, 1.0).max(0.0).sqrt() / span;
+
+        // Scale the offset by the factor before the radius: the factor alone
+        // can be as large as the reciprocal of a subnormal span, while its
+        // product with the offset never exceeds one.
+        let local_center = Point::new(rx * (factor * offset.y), -(ry * (factor * offset.x)));
         let center = Point::new(
             cos_phi.mul_add(local_center.x, -(sin_phi * local_center.y))
                 + f64::midpoint(start.x, end.x),
@@ -1353,6 +1363,36 @@ mod tests {
         assert!(sketch("M0 0 A-10 10 0 0 1 20 0").is_none(), "negative rx");
         assert!(sketch("M0 0 A10 -10 0 0 1 20 0").is_none(), "negative ry");
         assert!(sketch("M0 0 A10 10 0 0 1 20 0").is_some(), "positive radii");
+    }
+
+    #[test]
+    fn negative_radii_are_rejected_even_where_the_arc_draws_nothing() {
+        // The arc returns to its current point, so it paints nothing either
+        // way, but a negative radius is still an error and the sketch of a
+        // path containing one would be a guess at what was meant.
+        assert!(
+            sketch("M0 0 L10 0 A-1 1 0 0 1 10 0").is_none(),
+            "negative rx on a coincident arc"
+        );
+        assert!(
+            sketch("M0 0 L10 0 A1 -1 0 0 1 10 0").is_none(),
+            "negative ry on a coincident arc"
+        );
+    }
+
+    #[test]
+    fn arcs_on_vast_radii_keep_a_finite_centre() -> TestResult {
+        // The endpoints sit 5e-161 radii apart, so the centre is about 2e160
+        // radii along the chord normal. Reaching it through the square of
+        // that offset, or through the factor times the radius, overflows on
+        // the way to a result that is representable.
+        let sketch = sketch("M0 0 A1e160 1e160 0 1 1 1 0").ok_or("vast arc should sketch")?;
+        assert!(
+            sketch.height > 1.0e160,
+            "a near-complete circle should span about a diameter, got {}",
+            sketch.height
+        );
+        Ok(())
     }
 
     #[test]
