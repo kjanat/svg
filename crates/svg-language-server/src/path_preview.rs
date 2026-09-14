@@ -24,8 +24,15 @@ const GRID_ROWS: usize = 8;
 const CURVE_STEPS: u32 = 24;
 /// Largest arc sweep covered by one flattened chord.
 const ARC_STEP: f64 = std::f64::consts::FRAC_PI_8;
-/// Cap on flattened points, so pathological path data cannot stall a hover.
-const MAX_POINTS: usize = 100_000;
+/// Cap on flattened points. The grid holds 2048 dots, so this is already
+/// heavy oversampling; it stays well under what `MAX_PATH_DATA_BYTES` worth of
+/// curves can generate, so it remains a live guard rather than dead weight.
+const MAX_POINTS: usize = 20_000;
+/// Cap on the path data a hover will parse at all. Sketching runs on the
+/// request path with its own parse of the value, so the work has to stay
+/// bounded by something other than the document's size; artwork past this is
+/// a silhouette nobody can read anyway.
+const MAX_PATH_DATA_BYTES: usize = 32 * 1024;
 /// First code point of the Unicode braille patterns block.
 const BRAILLE_BASE: u32 = 0x2800;
 /// Blank braille cell, which keeps column width uniform where a space would not.
@@ -116,8 +123,12 @@ struct Outline {
 ///
 /// Path data that does not parse cleanly yields `None`: a half-typed path would
 /// otherwise sketch whichever fragment happened to survive error recovery, which
-/// is worse than showing nothing.
+/// is worse than showing nothing. So does path data whose arithmetic leaves the
+/// finite range, or that is too large to parse on the request path.
 fn flatten(path_data: &str) -> Option<Outline> {
+    if path_data.len() > MAX_PATH_DATA_BYTES {
+        return None;
+    }
     let mut parser = Parser::new();
     parser
         .set_language(&tree_sitter_svg_path::LANGUAGE.into())
@@ -130,7 +141,7 @@ fn flatten(path_data: &str) -> Option<Outline> {
 
     let mut pen = Pen::default();
     pen.walk(root, path_data.as_bytes());
-    Some(pen.finish())
+    pen.finish()
 }
 
 /// Which coordinate a `H`/`V` command supplies.
@@ -152,6 +163,10 @@ struct Pen {
     last_command: u8,
     commands: usize,
     points: usize,
+    /// Set when a computed point leaves the finite range. Literals are checked
+    /// before flattening, but arithmetic on finite operands can still overflow:
+    /// `M1e308 0 l1e308 1` has no infinite literal and a doubly-infinite end.
+    overflowed: bool,
 }
 
 impl Pen {
@@ -502,6 +517,9 @@ impl Pen {
     }
 
     fn begin_subpath(&mut self, at: Point) {
+        if !self.accepts(at) {
+            return;
+        }
         self.flush();
         self.cursor = at;
         self.subpath_start = at;
@@ -532,6 +550,9 @@ impl Pen {
 
     /// Append a point, seeding the polyline when drawing resumes after a close.
     fn push(&mut self, to: Point) {
+        if !self.accepts(to) {
+            return;
+        }
         if self.current.is_empty() {
             self.current.push(self.cursor);
             self.points += 1;
@@ -541,18 +562,32 @@ impl Pen {
         self.points += 1;
     }
 
+    /// Every point that reaches a polyline passes through here, so overflow
+    /// anywhere in the coordinate arithmetic invalidates the whole sketch
+    /// rather than collapsing it to a dot with an infinite reported extent.
+    const fn accepts(&mut self, point: Point) -> bool {
+        if point.x.is_finite() && point.y.is_finite() {
+            return true;
+        }
+        self.overflowed = true;
+        false
+    }
+
     fn flush(&mut self) {
         if !self.current.is_empty() {
             self.polylines.push(std::mem::take(&mut self.current));
         }
     }
 
-    fn finish(mut self) -> Outline {
+    fn finish(mut self) -> Option<Outline> {
+        if self.overflowed {
+            return None;
+        }
         self.flush();
-        Outline {
+        Some(Outline {
             polylines: self.polylines,
             commands: self.commands,
-        }
+        })
     }
 }
 
@@ -1067,13 +1102,65 @@ mod tests {
     }
 
     #[test]
-    fn repeated_arguments_stay_within_the_point_cap() -> TestResult {
-        // One curveto command carrying far more argument groups than the cap
-        // allows: flattening must stop instead of running the whole list.
-        let mut path_data = String::from("M0 0");
-        for _ in 0..20_000 {
-            path_data.push_str(" C1 1 2 2 3 3 4 4 5 5 6 6");
+    fn coordinate_overflow_is_rejected() {
+        // Every literal here is finite; the relative arithmetic is what leaves
+        // the range, so the parse-time check alone does not catch these.
+        for path_data in [
+            "M1e308 0 l1e308 1",
+            "M0 0 L1e308 0 l1e308 0",
+            "M1e308 0 c0 0 0 0 1e308 1",
+            "M1e308 1e308 a1 1 0 0 1 1e308 1e308",
+        ] {
+            assert!(
+                sketch(path_data).is_none(),
+                "overflowing arithmetic should not sketch: {path_data}"
+            );
         }
+    }
+
+    /// Build well-formed path data of roughly `bytes` length.
+    fn linetos(bytes: usize) -> String {
+        let segment = " L1 1";
+        let mut path_data = String::from("M0 0");
+        while path_data.len() + segment.len() <= bytes {
+            path_data.push_str(segment);
+        }
+        path_data
+    }
+
+    #[test]
+    fn oversized_path_data_is_not_sketched() {
+        let oversized = linetos(MAX_PATH_DATA_BYTES + 64);
+        assert!(
+            oversized.len() > MAX_PATH_DATA_BYTES,
+            "fixture should exceed the parse cap"
+        );
+        assert!(
+            sketch(&oversized).is_none(),
+            "path data past the parse cap should not reach the parser"
+        );
+
+        let within = linetos(MAX_PATH_DATA_BYTES - 64);
+        assert!(
+            sketch(&within).is_some(),
+            "path data under the cap should still sketch"
+        );
+    }
+
+    #[test]
+    fn repeated_arguments_stay_within_the_point_cap() -> TestResult {
+        // One curveto command carrying far more argument groups than the point
+        // cap allows, while staying under the parse cap: flattening must stop
+        // instead of running the whole list.
+        let groups = MAX_POINTS / usize::try_from(CURVE_STEPS)? * 2;
+        let mut path_data = String::from("M0 0 C");
+        for _ in 0..groups {
+            path_data.push_str("1 1 2 2 3 3 ");
+        }
+        assert!(
+            path_data.len() <= MAX_PATH_DATA_BYTES,
+            "fixture must stay under the parse cap to exercise the point cap"
+        );
         let outline = flatten(&path_data).ok_or("generated path should parse")?;
         let points: usize = outline.polylines.iter().map(Vec::len).sum();
         assert!(
