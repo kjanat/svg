@@ -420,13 +420,7 @@ impl Pen {
         let start = self.cursor;
         for step in 1..=CURVE_STEPS {
             let t = f64::from(step) / f64::from(CURVE_STEPS);
-            let u = 1.0 - t;
-            self.push(blend(&[
-                (u * u * u, start),
-                (3.0 * u * u * t, first),
-                (3.0 * u * t * t, second),
-                (t * t * t, end),
-            ]));
+            self.push(de_casteljau(&[start, first, second, end], t));
         }
         self.cursor = end;
         self.cubic_reflection = Some(second);
@@ -437,12 +431,7 @@ impl Pen {
         let start = self.cursor;
         for step in 1..=CURVE_STEPS {
             let t = f64::from(step) / f64::from(CURVE_STEPS);
-            let u = 1.0 - t;
-            self.push(blend(&[
-                (u * u, start),
-                (2.0 * u * t, control),
-                (t * t, end),
-            ]));
+            self.push(de_casteljau(&[start, control, end], t));
         }
         self.cursor = end;
         self.quadratic_reflection = Some(control);
@@ -488,27 +477,29 @@ impl Pen {
         // the remainder of a representable degree value is exact.
         let phi = (arc.rotation % 360.0).to_radians();
         let (sin_phi, cos_phi) = phi.sin_cos();
+        // Reduce the difference against its own largest component before it is
+        // rotated, let alone before any norm is taken. `A1e308 1e308 …
+        // 1.3e308 1.3e308` is a shallow arc on radii that need no correction
+        // at all, yet the hypotenuse of its endpoints is 1.8e308 and leaves
+        // the range — and at 45 degrees the rotation gets there first, since
+        // it adds the two components the reduction would have bounded.
+        // Measured this way nothing can overflow, and the rotation cannot
+        // shrink a vector, so nothing underflows to a direction that does not
+        // exist either. `scale` is the difference's own size, and `unit`
+        // multiplied by it is that difference, rotated.
         let delta = Point::new(start.x - end.x, start.y - end.y);
-        let local = Point::new(
-            cos_phi.mul_add(delta.x, sin_phi * delta.y),
-            (-sin_phi).mul_add(delta.x, cos_phi * delta.y),
-        );
-
-        // Reduce the difference against its own largest component before any
-        // norm is taken. `A1e308 1e308 0 0 1 1.3e308 1.3e308` is a shallow arc
-        // on radii that need no correction at all, but the hypotenuse of its
-        // endpoints is 1.8e308 and leaves the range, and everything derived
-        // from it then does too. Measured this way nothing can overflow, and
-        // one component stays exactly ±1 so nothing can underflow to a
-        // direction that does not exist either.
-        let scale = local.x.abs().max(local.y.abs());
+        let scale = delta.x.abs().max(delta.y.abs());
         if scale <= 0.0 {
             // Distinct endpoints always differ by something, so this is only
             // reachable if the difference itself left the range.
             self.line_to(end);
             return;
         }
-        let unit = Point::new(local.x / scale, local.y / scale);
+        let toward_end = Point::new(delta.x / scale, delta.y / scale);
+        let unit = Point::new(
+            cos_phi.mul_add(toward_end.x, sin_phi * toward_end.y),
+            (-sin_phi).mul_add(toward_end.x, cos_phi * toward_end.y),
+        );
 
         // Take the direction by multiplying rather than dividing. The ray
         // through `(dx/rx, dy/ry)` is the ray through `(dx*ry, dy*rx)`, and
@@ -581,7 +572,6 @@ impl Pen {
         // same offsets instead of quotients of extreme numbers.
         let from = Point::new(offset.x - arm.y, offset.y + arm.x);
         let to = Point::new(-offset.x - arm.y, -offset.y + arm.x);
-        let theta = angle_between(Point::new(1.0, 0.0), from);
         let mut sweep = angle_between(from, to);
         if !arc.sweep && sweep > 0.0 {
             sweep -= std::f64::consts::TAU;
@@ -610,16 +600,33 @@ impl Pen {
         // identity states as a product: the tiny sweep stays a factor instead
         // of being added to something large, and the radius multiplies a
         // quantity that is small precisely because the sweep is.
+        // `from` is the unit vector from the centre to the start, so it is
+        // already that angle's cosine and sine — taking the angle with `atan2`
+        // and the cosine back out of it would lose what the vector holds.
+        // `A1 1e200 0 0 1 1e-100 0` starts at a cosine of 5e-101, which the
+        // round trip rounds to the 6e-17 residual of `cos(-pi/2)`, and `ry`
+        // then magnifies that into a reported height of 6e83 for an arc whose
+        // sagitta is an eighth of a unit.
         let steps = arc_steps(sweep);
         for step in 1..=steps {
             let at = f64::from(step) / f64::from(steps);
             let half = sweep * at / 2.0;
             let chord = 2.0 * half.sin();
-            let (sin_mid, cos_mid) = (theta + half).sin_cos();
-            let local = Point::new(-(rx * (chord * sin_mid)), ry * (chord * cos_mid));
+            let (sin_half, cos_half) = half.sin_cos();
+            let sin_mid = from.y.mul_add(cos_half, from.x * sin_half);
+            let cos_mid = from.x.mul_add(cos_half, -(from.y * sin_half));
+            // Rotate the step before the radius scales it, not after. The
+            // ellipse's own frame can hold the point further out than the
+            // document does: `A1e308 1e308 45 …` reaches 1.838 radii along
+            // the ellipse's x axis, which is 1.84e308 and past the range,
+            // while the rotation folds it back to a representable 1.3e308.
+            // Each radius multiplying an already-rotated factor never makes
+            // an intermediate larger than the result it contributes to.
+            let along = -(chord * sin_mid);
+            let across = chord * cos_mid;
             self.push(Point::new(
-                cos_phi.mul_add(local.x, -(sin_phi * local.y)) + start.x,
-                sin_phi.mul_add(local.x, cos_phi * local.y) + start.y,
+                f64::mul_add(ry, -(sin_phi * across), rx * (cos_phi * along)) + start.x,
+                f64::mul_add(ry, cos_phi * across, rx * (sin_phi * along)) + start.y,
             ));
         }
         self.cursor = end;
@@ -856,11 +863,32 @@ fn descendant_of_kind_any<'a>(node: Node<'a>, kinds: &[&str]) -> Option<Node<'a>
         .find_map(|child| descendant_of_kind_any(child, kinds))
 }
 
-/// Weighted sum of points, used to evaluate Bezier basis functions.
-fn blend(terms: &[(f64, Point)]) -> Point {
+/// Evaluate a Bezier curve at `t` by repeated linear interpolation.
+///
+/// The Bernstein form sums four independently rounded weights against four
+/// points, and those weights do not always add to exactly one: a stationary
+/// cubic, every control point on the same spot, came out spread over four
+/// units at a magnitude of 1e16, so a point drew as a full-width line.
+/// Interpolating pairwise keeps every intermediate on the segment between two
+/// real points, which for coincident points is that point itself.
+fn de_casteljau(points: &[Point], t: f64) -> Point {
+    let mut level = [Point::default(); 4];
+    let count = points.len();
+    level[..count].copy_from_slice(points);
+    for size in (2..=count).rev() {
+        for index in 0..size - 1 {
+            level[index] = interpolate(level[index], level[index + 1], t);
+        }
+    }
+    level[0]
+}
+
+/// The point `t` of the way from `from` to `to`, written so that `t` of zero
+/// and one land exactly on the endpoints and coincident inputs stay put.
+fn interpolate(from: Point, to: Point, t: f64) -> Point {
     Point::new(
-        terms.iter().map(|(weight, point)| weight * point.x).sum(),
-        terms.iter().map(|(weight, point)| weight * point.y).sum(),
+        t.mul_add(to.x - from.x, from.x),
+        t.mul_add(to.y - from.y, from.y),
     )
 }
 
@@ -1554,6 +1582,56 @@ mod tests {
             sketch.height > 1.0e160,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_stationary_curve_stays_a_point() -> TestResult {
+        // Every control point on the same spot, far enough out that an ulp is
+        // two units. The Bernstein weights are rounded independently and do
+        // not always sum to one, which spread this over four units and drew a
+        // point as a full-width line.
+        let still = sketch(concat!(
+            "M0 0 M10000000000000000 0 C10000000000000000 0",
+            " 10000000000000000 0 10000000000000000 0"
+        ))
+        .ok_or("stationary cubic")?;
+        assert_eq!((still.width, still.height), (0.0, 0.0));
+
+        // The same for a quadratic, and for the relative spellings.
+        let quadratic =
+            sketch("M0 0 M10000000000000000 0 Q10000000000000000 0 10000000000000000 0")
+                .ok_or("stationary quadratic")?;
+        assert_eq!((quadratic.width, quadratic.height), (0.0, 0.0));
+        Ok(())
+    }
+
+    #[test]
+    fn an_eccentric_shallow_arc_keeps_its_sagitta() -> TestResult {
+        // A 1e-100 chord on a unit x radius stretched 1e200 in y. The start
+        // sits at a cosine of 5e-101; recovering that angle with `atan2` and
+        // taking its cosine back gives the 6e-17 residual of `cos(-pi/2)`
+        // instead, and `ry` magnifies the difference into a height of 6e83.
+        let arc = sketch("M0 0 A1 1e200 0 0 1 1e-100 0").ok_or("eccentric arc")?;
+        assert!(
+            (arc.height - 0.125).abs() < 1.0e-3,
+            "the arc should rise an eighth of a unit off its chord, got {}",
+            arc.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_rotated_arc_at_the_top_of_the_range_still_draws() -> TestResult {
+        // At 45 degrees the ellipse's own frame holds this arc further out
+        // than the document does — 1.838 radii along its x axis, which is
+        // 1.84e308 — while the rotation folds that back to a representable
+        // 1.3e308. The same arc an order of magnitude down is the same
+        // picture, so they must rasterise alike.
+        assert_eq!(
+            art("M0 0 A1e308 1e308 45 0 1 1.3e308 1.3e308")?,
+            art("M0 0 A1e307 1e307 45 0 1 1.3e307 1.3e307")?
         );
         Ok(())
     }
