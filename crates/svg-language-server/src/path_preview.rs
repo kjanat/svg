@@ -119,6 +119,12 @@ pub fn sketch_for_attribute(attribute: Node<'_>, source: &[u8]) -> Option<Sketch
     let inner = raw
         .strip_prefix(['"', '\''])
         .and_then(|value| value.strip_suffix(['"', '\'']))?;
+    // Bound the work before decoding, not after: unescaping an oversized value
+    // would scan and allocate all of it before `flatten` ever saw the length.
+    // Decoding only ever shrinks, so the raw length is a sound upper bound.
+    if inner.len() > MAX_PATH_DATA_BYTES {
+        return None;
+    }
     let decoded = quick_xml::escape::unescape(inner).ok()?;
     sketch(&decoded)
 }
@@ -185,10 +191,11 @@ struct Pen {
     /// Whether a subpath is currently open. A close ends one, and the next
     /// drawing command begins another even without an intervening moveto.
     subpath_open: bool,
-    /// Set when a computed point leaves the finite range. Literals are checked
-    /// before flattening, but arithmetic on finite operands can still overflow:
-    /// `M1e308 0 l1e308 1` has no infinite literal and a doubly-infinite end.
-    overflowed: bool,
+    /// Set when the path turns out not to be drawable after all: a computed
+    /// point leaves the finite range (literals are checked before flattening,
+    /// but `M1e308 0 l1e308 1` overflows from finite operands), or a bare
+    /// coordinate pair continues a command that cannot take one.
+    invalid: bool,
 }
 
 impl Pen {
@@ -206,6 +213,13 @@ impl Pen {
     fn segment(&mut self, node: Node<'_>, source: &[u8]) {
         let kind = node.kind();
         if kind == "implicit_lineto_segment" {
+            // The grammar accepts a bare coordinate pair anywhere in its segment
+            // sequence, but the SVG path grammar only allows one continuing a
+            // moveto or lineto: `M0 0 Z 10 10` parses cleanly and is invalid.
+            if !matches!(self.last_command, b'M' | b'm' | b'L' | b'l') {
+                self.invalid = true;
+                return;
+            }
             // Pairs trailing a moveto or lineto inherit that command's relativity.
             let relative = self.last_command.is_ascii_lowercase();
             self.line_pairs(node, source, relative);
@@ -447,26 +461,44 @@ impl Pen {
             (-sin_phi).mul_add(half.x, cos_phi * half.y),
         );
 
+        // Everything from here to the centre offset is a ratio, so work in
+        // units of the largest magnitude involved. Squaring the raw values
+        // underflows to zero for geometry in small units — `A5e-201 5e-201`
+        // would vanish into a zero denominator and degrade to a straight line.
+        let unit = rx.max(ry).max(local.x.abs()).max(local.y.abs());
+        if unit <= 0.0 {
+            self.line_to(end);
+            return;
+        }
+        let scaled = Point::new(local.x / unit, local.y / unit);
+        let mut radii = Point::new(rx / unit, ry / unit);
+
         // Grow radii that are too small to join the endpoints at all.
-        let oversize = (local.x * local.x) / (rx * rx) + (local.y * local.y) / (ry * ry);
+        let oversize = (scaled.x * scaled.x) / (radii.x * radii.x)
+            + (scaled.y * scaled.y) / (radii.y * radii.y);
         if oversize > 1.0 {
             let growth = oversize.sqrt();
-            rx *= growth;
-            ry *= growth;
+            radii = Point::new(radii.x * growth, radii.y * growth);
         }
+        rx = radii.x * unit;
+        ry = radii.y * unit;
 
-        let spread_x = (ry * ry) * (local.x * local.x);
-        let spread_y = (rx * rx) * (local.y * local.y);
+        let spread_x = (radii.y * radii.y) * (scaled.x * scaled.x);
+        let spread_y = (radii.x * radii.x) * (scaled.y * scaled.y);
         let denominator = spread_x + spread_y;
         if denominator <= 0.0 {
             self.line_to(end);
             return;
         }
-        let radii_product = (rx * rx) * (ry * ry);
+        let radii_product = (radii.x * radii.x) * (radii.y * radii.y);
         let numerator = radii_product - spread_y - spread_x;
         let sign = if arc.large == arc.sweep { -1.0 } else { 1.0 };
         let factor = sign * (numerator.max(0.0) / denominator).sqrt();
-        let local_center = Point::new(factor * rx * local.y / ry, -factor * ry * local.x / rx);
+        let scaled_center = Point::new(
+            factor * radii.x * scaled.y / radii.y,
+            -factor * radii.y * scaled.x / radii.x,
+        );
+        let local_center = Point::new(scaled_center.x * unit, scaled_center.y * unit);
         let center = Point::new(
             cos_phi.mul_add(local_center.x, -(sin_phi * local_center.y))
                 + f64::midpoint(start.x, end.x),
@@ -474,13 +506,15 @@ impl Pen {
                 + f64::midpoint(start.y, end.y),
         );
 
+        // The sweep angles are scale-free too, so they also come from the
+        // scaled values rather than from quotients of near-denormal numbers.
         let from = Point::new(
-            (local.x - local_center.x) / rx,
-            (local.y - local_center.y) / ry,
+            (scaled.x - scaled_center.x) / radii.x,
+            (scaled.y - scaled_center.y) / radii.y,
         );
         let to = Point::new(
-            (-local.x - local_center.x) / rx,
-            (-local.y - local_center.y) / ry,
+            (-scaled.x - scaled_center.x) / radii.x,
+            (-scaled.y - scaled_center.y) / radii.y,
         );
         let theta = angle_between(Point::new(1.0, 0.0), from);
         let mut sweep = angle_between(from, to);
@@ -571,7 +605,7 @@ impl Pen {
         if point.x.is_finite() && point.y.is_finite() {
             return true;
         }
-        self.overflowed = true;
+        self.invalid = true;
         false
     }
 
@@ -582,7 +616,7 @@ impl Pen {
     }
 
     fn finish(mut self) -> Option<Outline> {
-        if self.overflowed {
+        if self.invalid {
             return None;
         }
         self.flush();
@@ -714,10 +748,12 @@ fn angle_between(from: Point, to: Point) -> f64 {
     sign * cosine.acos()
 }
 
-/// Exact equality, spelled through `total_cmp` so it reads as deliberate and
-/// does not trip `float_cmp`.
+/// Numeric equality, spelled through `partial_cmp` so it reads as deliberate
+/// and does not trip `float_cmp`. Unlike `total_cmp` this treats `-0.0` and
+/// `0.0` as the same coordinate, which is how SVG compares them; NaN cannot
+/// reach here because non-finite literals are rejected before flattening.
 fn identical(left: f64, right: f64) -> bool {
-    left.total_cmp(&right) == std::cmp::Ordering::Equal
+    left.partial_cmp(&right) == Some(std::cmp::Ordering::Equal)
 }
 
 #[expect(
@@ -1231,6 +1267,49 @@ mod tests {
         assert_eq!(two_closed.subpaths, 2);
         let one = sketch("M0 0 H10").ok_or("sketch")?;
         assert_eq!(one.subpaths, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn implicit_coordinates_after_a_non_repeatable_command_are_invalid() {
+        // The path grammar accepts these, but a bare pair only continues a
+        // moveto or lineto, so the data is in error and must not be sketched.
+        assert!(sketch("M0 0 Z 10 10").is_none(), "pair after a closepath");
+        // The forms that legitimately carry trailing coordinates still draw:
+        // a pair continuing a moveto or lineto, and the repeats that the other
+        // commands take themselves (`H10 20 20` is three horizontal linetos,
+        // not an implicit one).
+        assert!(sketch("M0 0 10 10").is_some(), "pair after a moveto");
+        assert!(sketch("M0 0 L5 5 10 10").is_some(), "pair after a lineto");
+        assert!(sketch("M0 0 H10 20 20").is_some(), "repeated H coordinates");
+    }
+
+    #[test]
+    fn signed_zero_endpoints_are_the_same_point() {
+        // SVG compares coordinates numerically, where -0 equals 0, so this arc
+        // is omitted and leaves a path that draws nothing.
+        assert!(
+            sketch("M0 0 A10 10 0 0 1 -0 0").is_none(),
+            "an arc between numerically equal endpoints should be omitted"
+        );
+    }
+
+    #[test]
+    fn arcs_in_small_units_survive_the_correction() -> TestResult {
+        // Squaring these magnitudes underflows to zero, which would collapse
+        // the denominator and flatten the arc into its chord.
+        let tiny = sketch("M0 0 A5e-201 5e-201 0 0 1 1e-200 0").ok_or("tiny arc")?;
+        assert!(
+            tiny.height > 0.0,
+            "the arc should still bulge off its chord, got {}",
+            tiny.height
+        );
+        // Same shape at a sane magnitude, as a check that the rescaling did not
+        // change the geometry it produces.
+        assert_eq!(
+            art("M0 0 A5e-201 5e-201 0 0 1 1e-200 0")?,
+            art("M0 0 A5 5 0 0 1 10 0")?
+        );
         Ok(())
     }
 
