@@ -24,14 +24,15 @@ const GRID_ROWS: usize = 8;
 const CURVE_STEPS: u32 = 24;
 /// Largest arc sweep covered by one flattened chord.
 const ARC_STEP: f64 = std::f64::consts::FRAC_PI_8;
-/// Cap on flattened points. The grid holds 2048 dots, so this is already
-/// heavy oversampling; it stays well under what `MAX_PATH_DATA_BYTES` worth of
-/// curves can generate, so it remains a live guard rather than dead weight.
-const MAX_POINTS: usize = 20_000;
 /// Cap on the path data a hover will parse at all. Sketching runs on the
 /// request path with its own parse of the value, so the work has to stay
 /// bounded by something other than the document's size; artwork past this is
 /// a silhouette nobody can read anyway.
+///
+/// This is the only bound flattening needs. The densest point generator per
+/// byte is a repeated `T` argument (`"1 1 "`, four bytes, 24 flattened points),
+/// so path data within the cap yields at most a few hundred thousand points —
+/// bounded work, and no truncation to misreport.
 const MAX_PATH_DATA_BYTES: usize = 32 * 1024;
 /// First code point of the Unicode braille patterns block.
 const BRAILLE_BASE: u32 = 0x2800;
@@ -93,7 +94,8 @@ pub struct Sketch {
     pub art: String,
     /// Drawing commands, counting implicit repeats as separate commands.
     pub commands: usize,
-    /// Subpaths, one per `M`/`m` plus any started after a close.
+    /// Subpaths, one per `M`/`m` plus any resumed after a close, including
+    /// subpaths that draw nothing.
     pub subpaths: usize,
     /// Width of the drawn geometry in user units.
     pub width: f64,
@@ -131,6 +133,9 @@ pub fn sketch(path_data: &str) -> Option<Sketch> {
 struct Outline {
     polylines: Vec<Vec<Point>>,
     commands: usize,
+    /// Counted as the path grammar defines them rather than taken from
+    /// `polylines`, which deliberately omits subpaths that draw nothing.
+    subpaths: usize,
 }
 
 /// Parse `path_data` and reduce every command to polylines in user units.
@@ -176,7 +181,10 @@ struct Pen {
     quadratic_reflection: Option<Point>,
     last_command: u8,
     commands: usize,
-    points: usize,
+    subpaths: usize,
+    /// Whether a subpath is currently open. A close ends one, and the next
+    /// drawing command begins another even without an intervening moveto.
+    subpath_open: bool,
     /// Set when a computed point leaves the finite range. Literals are checked
     /// before flattening, but arithmetic on finite operands can still overflow:
     /// `M1e308 0 l1e308 1` has no infinite literal and a doubly-infinite end.
@@ -187,9 +195,6 @@ impl Pen {
     fn walk(&mut self, node: Node<'_>, source: &[u8]) {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            if self.points >= MAX_POINTS {
-                return;
-            }
             if SEGMENT_KINDS.contains(&child.kind()) {
                 self.segment(child, source);
             } else {
@@ -239,9 +244,6 @@ impl Pen {
             if child.kind() != "path_coordinate_pair" {
                 continue;
             }
-            if self.at_capacity() {
-                return;
-            }
             let Some(pair) = read_pair(child, source) else {
                 continue;
             };
@@ -263,9 +265,6 @@ impl Pen {
             if child.kind() != "path_coordinate_pair" {
                 continue;
             }
-            if self.at_capacity() {
-                return;
-            }
             let Some(pair) = read_pair(child, source) else {
                 continue;
             };
@@ -280,9 +279,6 @@ impl Pen {
         for child in node.children(&mut cursor) {
             if child.kind() != "path_coordinate" {
                 continue;
-            }
-            if self.at_capacity() {
-                return;
             }
             let Some(value) = read_number(child, source) else {
                 continue;
@@ -304,9 +300,6 @@ impl Pen {
             if argument.kind() != "curveto_argument" {
                 continue;
             }
-            if self.at_capacity() {
-                return;
-            }
             let [first, second, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
             };
@@ -325,9 +318,6 @@ impl Pen {
         for argument in node.children(&mut cursor) {
             if argument.kind() != "smooth_curveto_argument" {
                 continue;
-            }
-            if self.at_capacity() {
-                return;
             }
             let [second, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
@@ -348,9 +338,6 @@ impl Pen {
             if argument.kind() != "quadratic_bezier_curveto_argument" {
                 continue;
             }
-            if self.at_capacity() {
-                return;
-            }
             let [control, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
             };
@@ -366,9 +353,6 @@ impl Pen {
         for child in node.children(&mut cursor) {
             if child.kind() != "path_coordinate_pair" {
                 continue;
-            }
-            if self.at_capacity() {
-                return;
             }
             let Some(pair) = read_pair(child, source) else {
                 continue;
@@ -388,9 +372,6 @@ impl Pen {
             if argument.kind() != "elliptical_arc_argument" {
                 continue;
             }
-            if self.at_capacity() {
-                return;
-            }
             let Some(arc) = read_arc(argument, source) else {
                 continue;
             };
@@ -398,10 +379,6 @@ impl Pen {
             self.arc_to(&arc, end);
             self.commands += 1;
         }
-    }
-
-    const fn at_capacity(&self) -> bool {
-        self.points >= MAX_POINTS
     }
 
     fn cubic_to(&mut self, first: Point, second: Point, end: Point) {
@@ -446,8 +423,10 @@ impl Pen {
         // the control point of whatever curve preceded this arc.
         self.cubic_reflection = None;
         self.quadratic_reflection = None;
-        if close_enough(start.x, end.x) && close_enough(start.y, end.y) {
-            // Coincident endpoints: the arc is omitted entirely.
+        if identical(start.x, end.x) && identical(start.y, end.y) {
+            // SVG 2 9.3.8 omits the arc only when the endpoints are identical.
+            // A tolerance here would discard real geometry expressed in small
+            // units, where the whole path is narrower than the tolerance.
             return;
         }
         let (mut rx, mut ry) = (arc.radii.x.abs(), arc.radii.y.abs());
@@ -543,6 +522,8 @@ impl Pen {
         self.flush();
         self.cursor = at;
         self.subpath_start = at;
+        self.subpaths += 1;
+        self.subpath_open = true;
         self.cubic_reflection = None;
         self.quadratic_reflection = None;
     }
@@ -562,6 +543,7 @@ impl Pen {
             self.flush();
         }
         self.cursor = self.subpath_start;
+        self.subpath_open = false;
         self.cubic_reflection = None;
         self.quadratic_reflection = None;
     }
@@ -572,12 +554,14 @@ impl Pen {
             return;
         }
         if self.current.is_empty() {
+            if !self.subpath_open {
+                self.subpaths += 1;
+                self.subpath_open = true;
+            }
             self.current.push(self.cursor);
-            self.points += 1;
         }
         self.current.push(to);
         self.cursor = to;
-        self.points += 1;
     }
 
     /// Every point that reaches a polyline passes through here, so overflow
@@ -605,6 +589,7 @@ impl Pen {
         Some(Outline {
             polylines: self.polylines,
             commands: self.commands,
+            subpaths: self.subpaths,
         })
     }
 }
@@ -729,8 +714,10 @@ fn angle_between(from: Point, to: Point) -> f64 {
     sign * cosine.acos()
 }
 
-fn close_enough(left: f64, right: f64) -> bool {
-    (left - right).abs() <= 1e-12
+/// Exact equality, spelled through `total_cmp` so it reads as deliberate and
+/// does not trip `float_cmp`.
+fn identical(left: f64, right: f64) -> bool {
+    left.total_cmp(&right) == std::cmp::Ordering::Equal
 }
 
 #[expect(
@@ -751,6 +738,11 @@ fn render(outline: &Outline) -> Option<Sketch> {
     let (min, max) = bounds(&outline.polylines)?;
     let width = max.x - min.x;
     let height = max.y - min.y;
+    // Individually finite extremes can still span more than f64 can hold, and
+    // an infinite extent would collapse the scale and misreport the size.
+    if !width.is_finite() || !height.is_finite() {
+        return None;
+    }
 
     let dots_x = i32::try_from(GRID_COLUMNS * CELL_COLUMNS).ok()?;
     let dots_y = i32::try_from(GRID_ROWS * CELL_ROWS).ok()?;
@@ -775,7 +767,7 @@ fn render(outline: &Outline) -> Option<Sketch> {
     Some(Sketch {
         art: grid.into_art()?,
         commands: outline.commands,
-        subpaths: outline.polylines.len(),
+        subpaths: outline.subpaths,
         width,
         height,
     })
@@ -987,12 +979,8 @@ mod tests {
     #[test]
     fn reports_geometry_extent_in_user_units() -> TestResult {
         let sketch = sketch("M5 5 H25 V15 H5 Z").ok_or("path should sketch")?;
-        assert!(close_enough(sketch.width, 20.0), "width {}", sketch.width);
-        assert!(
-            close_enough(sketch.height, 10.0),
-            "height {}",
-            sketch.height
-        );
+        assert!(identical(sketch.width, 20.0), "width {}", sketch.width);
+        assert!(identical(sketch.height, 10.0), "height {}", sketch.height);
         Ok(())
     }
 
@@ -1209,24 +1197,61 @@ mod tests {
     }
 
     #[test]
-    fn repeated_arguments_stay_within_the_point_cap() -> TestResult {
-        // One curveto command carrying far more argument groups than the point
-        // cap allows, while staying under the parse cap: flattening must stop
-        // instead of running the whole list.
-        let groups = MAX_POINTS / usize::try_from(CURVE_STEPS)? * 2;
-        let mut path_data = String::from("M0 0 C");
+    fn dense_path_within_the_byte_cap_is_drawn_whole() -> TestResult {
+        // The densest point generator per byte, well past what the old point
+        // cap allowed: the sketch must cover all of it rather than silently
+        // render a prefix and report the prefix's command count as the total.
+        let groups = 6_000;
+        let mut path_data = String::from("M0 0 T");
         for _ in 0..groups {
-            path_data.push_str("1 1 2 2 3 3 ");
+            path_data.push_str("1 1 ");
         }
         assert!(
             path_data.len() <= MAX_PATH_DATA_BYTES,
-            "fixture must stay under the parse cap to exercise the point cap"
+            "fixture must stay under the parse cap"
         );
-        let outline = flatten(&path_data).ok_or("generated path should parse")?;
-        let points: usize = outline.polylines.iter().map(Vec::len).sum();
+        let sketch = sketch(&path_data).ok_or("dense path should sketch")?;
+        assert_eq!(
+            sketch.commands,
+            groups + 1,
+            "every command should be drawn, not just those before a cap"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn subpaths_are_counted_as_the_path_grammar_defines_them() -> TestResult {
+        // An empty subpath draws nothing but is still a subpath,
+        let empty_first = sketch("M0 0 M10 10 L20 20").ok_or("sketch")?;
+        assert_eq!(empty_first.subpaths, 2);
+        // and a drawing command after a close begins one without a moveto.
+        let after_close = sketch("M0 0 L10 0 Z L20 20").ok_or("sketch")?;
+        assert_eq!(after_close.subpaths, 2);
+        let two_closed = sketch("M0 0 H10 Z M0 20 H10 Z").ok_or("sketch")?;
+        assert_eq!(two_closed.subpaths, 2);
+        let one = sketch("M0 0 H10").ok_or("sketch")?;
+        assert_eq!(one.subpaths, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn bounds_overflow_is_rejected() {
+        // Both endpoints are finite and accepted, but their span is not.
         assert!(
-            points <= MAX_POINTS + usize::try_from(CURVE_STEPS)? + 1,
-            "flattening overran the cap: {points} points"
+            sketch("M-1e308 0 L1e308 0").is_none(),
+            "an infinite extent should not sketch"
+        );
+    }
+
+    #[test]
+    fn arcs_between_near_but_distinct_endpoints_still_draw() -> TestResult {
+        // Endpoints a tenth of a picometre apart are distinct, so the arc is
+        // not omitted; a tolerance here would drop the whole path.
+        let sketch = sketch("M0 0 A5e-14 5e-14 0 0 1 1e-13 0").ok_or("tiny arc should sketch")?;
+        assert!(
+            sketch.height > 0.0,
+            "the arc should bulge off its chord, got {}",
+            sketch.height
         );
         Ok(())
     }
