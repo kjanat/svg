@@ -25,10 +25,10 @@
 				"setupCommand": "node -e \"try { require('child_process').execSync('tombi --version', {stdio:'ignore'}); } catch { require('child_process').execSync('npm i -g tombi', {stdio:'inherit'}); }\"",
 			},
 			{
-				"command": "rustup run nightly rustfmt --emit stdout",
+				"command": "rustfmt --emit stdout",
 				"exts": ["rs"],
 				"cacheKeyFiles": ["rustfmt.toml", ".cargo/config.toml", "rust-toolchain.toml"],
-				"setupCommand": "node -e \"try { require('child_process').execSync('rustfmt --version', {stdio:'ignore'}); } catch { require('child_process').execSync('rustup component add rustfmt --toolchain nightly', {stdio:'inherit'}); }\"",
+				"setupCommand": "node -e \"try { require('child_process').execSync('rustfmt --version', {stdio:'ignore'}); } catch { require('child_process').execSync('rustup component add rustfmt', {stdio:'inherit'}); }\"",
 			},
 			{
 				"command": "just --dump --justfile {{file_path}}",
