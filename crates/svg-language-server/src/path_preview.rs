@@ -475,8 +475,9 @@ impl Pen {
         // radian value's own ulp exceeds a full turn, so `sin_cos` can no
         // longer recover the orientation. SVG angles are modulo a turn, and
         // the remainder of a representable degree value is exact.
-        let phi = (arc.rotation % 360.0).to_radians();
-        let (sin_phi, cos_phi) = phi.sin_cos();
+        let degrees = arc.rotation % 360.0;
+        let (sin_phi, cos_phi) =
+            quarter_turn_sin_cos(degrees).unwrap_or_else(|| degrees.to_radians().sin_cos());
         // Reduce the difference against its own largest component before it is
         // rotated, let alone before any norm is taken. `A1e308 1e308 …
         // 1.3e308 1.3e308` is a shallow arc on radii that need no correction
@@ -890,6 +891,37 @@ fn interpolate(from: Point, to: Point, t: f64) -> Point {
         t.mul_add(to.x - from.x, from.x),
         t.mul_add(to.y - from.y, from.y),
     )
+}
+
+/// Exact sine and cosine for a rotation that is a whole number of quarter
+/// turns, or `None` for any other angle.
+///
+/// `sin_cos` cannot return them: a quarter turn in radians is not
+/// representable, so `cos` of it is a residual near 6e-17 rather than zero.
+/// An eccentric ellipse multiplies that residual by its radius, and
+/// `A1e200 1 90 0 1 2 0` — a two-unit-wide arc, since the rotation just swaps
+/// the axes — came out 6e183 wide. A half turn leaves an ellipse exactly where
+/// it was, and was off by 7e167.
+#[expect(
+    clippy::float_cmp,
+    reason = "the guard above establishes that these are whole numbers, so they compare exactly; \
+              a margin would match angles that are not quarter turns"
+)]
+fn quarter_turn_sin_cos(degrees: f64) -> Option<(f64, f64)> {
+    let quarters = degrees / 90.0;
+    if quarters.fract() != 0.0 {
+        return None;
+    }
+    let turn = quarters.rem_euclid(4.0);
+    Some(if turn == 0.0 {
+        (0.0, 1.0)
+    } else if turn == 1.0 {
+        (1.0, 0.0)
+    } else if turn == 2.0 {
+        (0.0, -1.0)
+    } else {
+        (-1.0, 0.0)
+    })
 }
 
 /// Signed angle from `from` to `to`, as SVG 2 appendix B.2.4 defines it.
@@ -1783,6 +1815,42 @@ mod tests {
             sketch.height > 1.0e8,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn quarter_turn_rotations_are_exact() -> TestResult {
+        // A quarter turn in radians is not representable, so `cos` of it is a
+        // residual near 6e-17 rather than zero, and an eccentric ellipse
+        // multiplies that by its radius. A rotation of 90 degrees just swaps
+        // this ellipse's axes, and a rotation of 180 leaves it alone.
+        assert_eq!(
+            art("M0 0 A1e200 1 90 0 1 2 0")?,
+            art("M0 0 A1 1e200 0 0 1 2 0")?,
+            "a quarter turn should swap the axes"
+        );
+        assert_eq!(
+            art("M0 0 A1e200 1 180 0 1 2 0")?,
+            art("M0 0 A1e200 1 0 0 1 2 0")?,
+            "a half turn should leave the ellipse where it was"
+        );
+        assert_eq!(
+            art("M0 0 A1e200 1 270 0 1 2 0")?,
+            art("M0 0 A1e200 1 90 0 1 2 0")?,
+            "three quarter turns differ from one by a half turn"
+        );
+        assert_eq!(
+            art("M0 0 A1e200 1 -90 0 1 2 0")?,
+            art("M0 0 A1e200 1 270 0 1 2 0")?,
+            "a negative quarter turn is the same rotation"
+        );
+
+        let swapped = sketch("M0 0 A1e200 1 90 0 1 2 0").ok_or("quarter turn")?;
+        assert_eq!(
+            (swapped.width, swapped.height),
+            (2.0, 1.0e200),
+            "the rotated ellipse should be two units wide"
         );
         Ok(())
     }
