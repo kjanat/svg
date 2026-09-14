@@ -693,8 +693,18 @@ impl Pen {
     /// Every point that reaches a polyline passes through here, so overflow
     /// anywhere in the coordinate arithmetic invalidates the whole sketch
     /// rather than collapsing it to a dot with an infinite reported extent.
-    const fn accepts(&mut self, point: Point) -> bool {
-        if point.x.is_finite() && point.y.is_finite() {
+    fn accepts(&mut self, point: Point) -> bool {
+        // Both frames have to hold the point. The local one is where the
+        // arithmetic happened, and the absolute one is where the document says
+        // the point is: `M1e308 0 l1e308 1` is a clean line 1e308 long as
+        // measured from its own start, and an endpoint at 2e308 that no
+        // renderer can place. Checking only the local frame would draw it.
+        let origin = self.origin.unwrap_or_default();
+        if point.x.is_finite()
+            && point.y.is_finite()
+            && (origin.x + point.x).is_finite()
+            && (origin.y + point.y).is_finite()
+        {
             return true;
         }
         self.invalid = true;
@@ -1293,11 +1303,14 @@ mod tests {
     #[test]
     fn coordinate_overflow_is_rejected() {
         // Every literal here is finite; the arithmetic is what leaves the
-        // range, so the parse-time check alone does not catch these. What
-        // overflows is the geometry's own extent, which the local frame
-        // cannot bring back: the shape is genuinely wider than a double.
+        // range, so the parse-time check alone does not catch these. The local
+        // frame keeps a distant shape's own precision, and must not be allowed
+        // to make a point the document cannot hold look reachable.
         for path_data in [
+            "M1e308 0 l1e308 1",
             "M0 0 L1e308 0 l1e308 0",
+            "M1e308 0 c0 0 0 0 1e308 1",
+            "M1e308 1e308 a1 1 0 0 1 1e308 1e308",
             "M0 0 l1e308 0 l1e308 0",
             "M-1e308 0 L1e308 0",
         ] {
