@@ -826,3 +826,96 @@ fn hover_browser_selection_and_sections_update_without_restarting() -> TestResul
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn path_data_hover_sketches_the_geometry() -> TestResult {
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><path d="M0 0 H20 V20 H0 Z" fill="none"/></svg>"#;
+    let uri = "file:///path-sketch.svg";
+    server.open(uri, source)?;
+
+    let request =
+        |column| json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}});
+    let name_column = u32::try_from(source.find(" d=").ok_or("d attribute")? + 1)?;
+    let value_column = u32::try_from(source.find("H20").ok_or("path data")?)?;
+
+    // Hovering the attribute name shows the sketch above the catalog entry.
+    let on_name = server.request("textDocument/hover", &request(name_column))?;
+    let name_text = on_name["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover on d attribute name")?;
+    assert!(
+        name_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "hover should carry a braille sketch: {name_text}"
+    );
+    assert!(
+        name_text.contains("5 commands") && name_text.contains("1 subpath"),
+        "hover should summarize the geometry: {name_text}"
+    );
+    assert!(
+        name_text.contains("20 × 20 units"),
+        "hover should report the extent in user units: {name_text}"
+    );
+    assert!(
+        name_text.contains("MDN Reference"),
+        "the catalog entry should survive alongside the sketch: {name_text}"
+    );
+
+    // Hovering inside the value sketches too, where there was no hover before.
+    let in_value = server.request("textDocument/hover", &request(value_column))?;
+    let value_text = in_value["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover inside path data")?;
+    assert!(
+        value_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "hovering path data should sketch it: {value_text}"
+    );
+
+    // The sketch is an opt-out section like every other hover block.
+    server.change_configuration(&json!({"svg":{"hover":{"sections":["description"]}}}))?;
+    let disabled = server.request("textDocument/hover", &request(name_column))?;
+    let disabled_text = disabled["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover with the sketch disabled")?;
+    assert!(
+        !disabled_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "dropping path_sketch from sections should remove the sketch: {disabled_text}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn unparsable_path_data_hover_keeps_the_catalog_entry() -> TestResult {
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><path d="M0 0 L"/></svg>"#;
+    let uri = "file:///path-sketch-invalid.svg";
+    server.open(uri, source)?;
+
+    let column = u32::try_from(source.find(" d=").ok_or("d attribute")? + 1)?;
+    let response = server.request(
+        "textDocument/hover",
+        &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+    )?;
+    let text = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover on truncated path data")?;
+    assert!(
+        !text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "truncated path data should not sketch a guess: {text}"
+    );
+    assert!(
+        text.contains("MDN Reference"),
+        "the catalog entry should still render: {text}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}

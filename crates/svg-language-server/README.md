@@ -115,11 +115,20 @@ For example, show mobile browser support with selected details:
 | `svg.hover.browser_details` | `notes`, `partial_implementation`, `prefix`, `alternative_name`, `flags`, `version_removed` | Fields shown in `browser_details`. Also accepts `version_last` and `implementation_links`.                                                                           |
 | `svg.hover.browser_history` | `false`                                                                                     | Show all original support statements in `browser_details`, including historical and conditional implementations. Otherwise show the selected current implementation. |
 
-Available sections: `description`, `status`, `values`, `baseline`,
-`discouraged`, `browsers`, `browser_details`, `web_features_support`, `sources`,
-and `links`. When both are enabled, discouragement takes the place of the
-Baseline badge. `web_features_support` shows that package's independently
-resolved browser versions; the normal browser row uses BCD.
+Available sections: `path_sketch`, `description`, `status`, `values`,
+`baseline`, `discouraged`, `browsers`, `browser_details`,
+`web_features_support`, `sources`, and `links`. When both are enabled,
+discouragement takes the place of the Baseline badge. `web_features_support`
+shows that package's independently resolved browser versions; the normal browser
+row uses BCD.
+
+`path_sketch` draws the geometry of a `d` (or `animateMotion` `path`) value as a
+braille-dot outline, above the catalog entry, whether the cursor sits on the
+attribute name or inside its value. The sketch is text rather than an image, so
+it also appears in clients that cannot render images in a hover. Path data that
+does not parse is not sketched, so a half-typed path shows nothing rather than a
+guess. It needs a font with Unicode braille patterns (U+2800–U+28FF); drop
+`path_sketch` from `sections` if yours lacks them.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,

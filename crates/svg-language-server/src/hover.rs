@@ -10,9 +10,40 @@ use crate::{
     clipboard::svg_data_uri,
     compat::{CompatOverride, Outcome},
     hover_settings::{BrowserDetail, HoverSettings, Section, browser_label},
+    path_preview::Sketch,
     positions::byte_offset_for_row_col,
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
 };
+
+/// Render a path sketch as a fenced block, so the braille grid keeps its
+/// column alignment in clients that reflow prose.
+pub fn format_path_sketch(sketch: &Sketch) -> String {
+    let commands = plural(sketch.commands, "command");
+    let subpaths = plural(sketch.subpaths, "subpath");
+    let width = round_extent(sketch.width);
+    let height = round_extent(sketch.height);
+    format!(
+        "```text\n{}\n```\n\n{commands} · {subpaths} · {width} × {height} units",
+        sketch.art
+    )
+}
+
+fn plural(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("{count} {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
+}
+
+/// Trim an extent to two decimals without leaving a trailing `.00`.
+fn round_extent(value: f64) -> String {
+    let rounded = format!("{value:.2}");
+    rounded
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_owned()
+}
 
 struct HoverSourceLink {
     label: String,
