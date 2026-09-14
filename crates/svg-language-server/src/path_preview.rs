@@ -103,6 +103,14 @@ pub struct Sketch {
     pub height: f64,
 }
 
+/// The spelling of a `d_attribute`'s name, for callers that need to decide
+/// whether it applies to the element that carries it.
+pub fn attribute_name<'a>(attribute: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    descendant_of_kind_any(attribute, &["d_attribute_name"])?
+        .utf8_text(source)
+        .ok()
+}
+
 /// Sketch the path data owned by a `d_attribute` node, if it draws anything.
 ///
 /// The value is taken whole from between its quotes and XML-decoded, rather
@@ -461,44 +469,35 @@ impl Pen {
             (-sin_phi).mul_add(half.x, cos_phi * half.y),
         );
 
-        // Everything from here to the centre offset is a ratio, so work in
-        // units of the largest magnitude involved. Squaring the raw values
-        // underflows to zero for geometry in small units — `A5e-201 5e-201`
-        // would vanish into a zero denominator and degrade to a straight line.
-        let unit = rx.max(ry).max(local.x.abs()).max(local.y.abs());
-        if unit <= 0.0 {
+        // Measure the endpoint offset in radii. This is SVG 2 B.2.4 divided
+        // through by rx*ry, which keeps every quantity below bounded by one
+        // and so removes the squares the raw form needs. Those squares are
+        // where extreme magnitudes break: `A5e-201 5e-201` underflows them to
+        // zero and vanishes into a zero denominator, and an aspect ratio like
+        // `A1e-200 1` overflows them to infinity and poisons the rest in NaN.
+        let mut offset = Point::new(local.x / rx, local.y / ry);
+
+        // Grow radii too small to join the endpoints. The spec's correction
+        // factor is the square root of that sum of squares, which is exactly
+        // the hypotenuse of the two ratios — finite even where the sum is not.
+        let growth = offset.x.hypot(offset.y);
+        if growth > 1.0 {
+            rx *= growth;
+            ry *= growth;
+            offset = Point::new(offset.x / growth, offset.y / growth);
+        }
+
+        // At most one now, and zero only if the radii dwarf the offset so far
+        // that the arc is a straight line at this scale.
+        let span = offset.x.hypot(offset.y);
+        if span <= 0.0 {
             self.line_to(end);
             return;
         }
-        let scaled = Point::new(local.x / unit, local.y / unit);
-        let mut radii = Point::new(rx / unit, ry / unit);
-
-        // Grow radii that are too small to join the endpoints at all.
-        let oversize = (scaled.x * scaled.x) / (radii.x * radii.x)
-            + (scaled.y * scaled.y) / (radii.y * radii.y);
-        if oversize > 1.0 {
-            let growth = oversize.sqrt();
-            radii = Point::new(radii.x * growth, radii.y * growth);
-        }
-        rx = radii.x * unit;
-        ry = radii.y * unit;
-
-        let spread_x = (radii.y * radii.y) * (scaled.x * scaled.x);
-        let spread_y = (radii.x * radii.x) * (scaled.y * scaled.y);
-        let denominator = spread_x + spread_y;
-        if denominator <= 0.0 {
-            self.line_to(end);
-            return;
-        }
-        let radii_product = (radii.x * radii.x) * (radii.y * radii.y);
-        let numerator = radii_product - spread_y - spread_x;
         let sign = if arc.large == arc.sweep { -1.0 } else { 1.0 };
-        let factor = sign * (numerator.max(0.0) / denominator).sqrt();
-        let scaled_center = Point::new(
-            factor * radii.x * scaled.y / radii.y,
-            -factor * radii.y * scaled.x / radii.x,
-        );
-        let local_center = Point::new(scaled_center.x * unit, scaled_center.y * unit);
+        let radius_share = span * span;
+        let factor = sign * (span.mul_add(-span, 1.0).max(0.0) / radius_share).sqrt();
+        let local_center = Point::new(factor * rx * offset.y, -factor * ry * offset.x);
         let center = Point::new(
             cos_phi.mul_add(local_center.x, -(sin_phi * local_center.y))
                 + f64::midpoint(start.x, end.x),
@@ -506,15 +505,15 @@ impl Pen {
                 + f64::midpoint(start.y, end.y),
         );
 
-        // The sweep angles are scale-free too, so they also come from the
-        // scaled values rather than from quotients of near-denormal numbers.
+        // The sweep angles are radius-relative too, so they follow from the
+        // same offsets instead of quotients of extreme numbers.
         let from = Point::new(
-            (scaled.x - scaled_center.x) / radii.x,
-            (scaled.y - scaled_center.y) / radii.y,
+            factor.mul_add(-offset.y, offset.x),
+            factor.mul_add(offset.x, offset.y),
         );
         let to = Point::new(
-            (-scaled.x - scaled_center.x) / radii.x,
-            (-scaled.y - scaled_center.y) / radii.y,
+            factor.mul_add(-offset.y, -offset.x),
+            factor.mul_add(offset.x, -offset.y),
         );
         let theta = angle_between(Point::new(1.0, 0.0), from);
         let mut sweep = angle_between(from, to);
@@ -782,15 +781,20 @@ fn render(outline: &Outline) -> Option<Sketch> {
 
     let dots_x = i32::try_from(GRID_COLUMNS * CELL_COLUMNS).ok()?;
     let dots_y = i32::try_from(GRID_ROWS * CELL_ROWS).ok()?;
-    let scale = fit_scale(width, height, dots_x, dots_y);
+    // Place points by their position within the geometry rather than by an
+    // absolute units-per-dot factor: dividing by the extent first keeps the
+    // arithmetic in [0, 1], where an extent as small as `L1e-310 1e-310`
+    // cannot overflow the factor into infinity and collapse onto one dot.
+    let span = width.max(height);
+    let scale = fit_scale(width / span, height / span, dots_x, dots_y);
 
     let mut grid = Grid::default();
     for polyline in &outline.polylines {
         let mut previous: Option<(i32, i32)> = None;
         for point in polyline {
             let current = (
-                dot_index((point.x - min.x) * scale, dots_x),
-                dot_index((point.y - min.y) * scale, dots_y),
+                dot_index((point.x - min.x) / span * scale, dots_x),
+                dot_index((point.y - min.y) / span * scale, dots_y),
             );
             match previous {
                 Some(from) => grid.line(from, current),
@@ -821,7 +825,9 @@ fn bounds(polylines: &[Vec<Point>]) -> Option<(Point, Point)> {
     Some((min, max))
 }
 
-/// Scale user units to dots, preserving aspect ratio and never overflowing the grid.
+/// Dots per unit of the geometry's longest side, preserving aspect ratio and
+/// never overflowing the grid. Both extents arrive relative to that side, so
+/// the larger is exactly one and its candidate is always finite.
 fn fit_scale(width: f64, height: f64, dots_x: i32, dots_y: i32) -> f64 {
     let horizontal = if width > 0.0 {
         f64::from(dots_x - 1) / width
@@ -1309,6 +1315,27 @@ mod tests {
         assert_eq!(
             art("M0 0 A5e-201 5e-201 0 0 1 1e-200 0")?,
             art("M0 0 A5 5 0 0 1 10 0")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn tiny_geometry_fills_the_grid_like_its_unit_scaled_twin() -> TestResult {
+        // Both extents are subnormal, so an absolute units-per-dot factor
+        // overflows and collapses the diagonal onto a single dot.
+        assert_eq!(art("M0 0 L1e-310 1e-310")?, art("M0 0 L1 1")?);
+        Ok(())
+    }
+
+    #[test]
+    fn extreme_arc_aspect_ratios_still_draw() -> TestResult {
+        // Squaring the radii overflows at this ratio; the correction scales
+        // them to 0.5 and 5e199 and the arc remains drawable.
+        let sketch = sketch("M0 0 A1e-200 1 0 0 1 1 0").ok_or("lopsided arc should sketch")?;
+        assert!(
+            sketch.height > 0.0,
+            "the corrected arc should bulge off its chord, got {}",
+            sketch.height
         );
         Ok(())
     }

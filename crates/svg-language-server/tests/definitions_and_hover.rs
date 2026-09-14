@@ -949,3 +949,41 @@ fn foreign_namespace_path_attribute_is_not_sketched() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn path_attribute_is_only_sketched_where_it_applies() -> TestResult {
+    // The grammar keys `d_attribute` off the spelling, so a `path` attribute on
+    // a shape that never takes one must not be sketched as if it drew anything,
+    // while the element it does apply to still is.
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><rect path="M0 0 L10 10"/><animateMotion path="M0 0 L10 10"/></svg>"#;
+    let uri = "file:///path-attr-applicability.svg";
+    server.open(uri, source)?;
+
+    let braille = |text: &str| text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c));
+    let hover =
+        |server: &mut TestServer, column: u32| -> Result<String, Box<dyn std::error::Error>> {
+            let response = server.request(
+                "textDocument/hover",
+                &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+            )?;
+            Ok(response["result"]["contents"]["value"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned())
+        };
+
+    let on_rect = u32::try_from(source.find(" path=").ok_or("rect path attr")? + 1)?;
+    let on_motion = u32::try_from(source.rfind(" path=").ok_or("animateMotion path attr")? + 1)?;
+    assert!(
+        !braille(&hover(&mut server, on_rect)?),
+        "`path` on a rect draws nothing and must not be sketched"
+    );
+    assert!(
+        braille(&hover(&mut server, on_motion)?),
+        "`path` on animateMotion should still sketch"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}

@@ -788,7 +788,7 @@ fn build_hover_context(
         native,
         settings,
     );
-    let path_sketch = build_path_sketch_markdown(node, source, settings);
+    let path_sketch = build_path_sketch_markdown(node, source, profile, settings);
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
     let stylesheet_hrefs = svg_references::extract_stylesheet_hrefs(source, &doc.tree);
@@ -862,13 +862,25 @@ fn build_hover_context(
 fn build_path_sketch_markdown(
     node: tree_sitter::Node<'_>,
     source: &[u8],
+    profile: svg_data::SpecSnapshotId,
     settings: &HoverSettings,
 ) -> Option<String> {
     if !settings.shows(Section::PathSketch) {
         return None;
     }
-    attribute_owner_element_name(node, source)?;
+    let element_name = attribute_owner_element_name(node, source)?;
     let attribute = find_ancestor_any(node, &["d_attribute"])?;
+    // The grammar keys `d_attribute` off the spelling alone, so `d` on a shape
+    // that has no path data, or `path` outside `animateMotion`, would otherwise
+    // be sketched as if it drew something. Sketch only where the active profile
+    // says the attribute applies to this element.
+    let attribute_name = path_preview::attribute_name(attribute, source)?;
+    if !svg_data::attributes_for_with_profile(profile, &element_name)
+        .iter()
+        .any(|applicable| applicable.name == attribute_name)
+    {
+        return None;
+    }
     let sketch = path_preview::sketch_for_attribute(attribute, source)?;
     Some(format_path_sketch(&sketch))
 }
