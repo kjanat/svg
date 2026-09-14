@@ -204,6 +204,12 @@ struct Pen {
     /// but `M1e308 0 l1e308 1` overflows from finite operands), or a bare
     /// coordinate pair continues a command that cannot take one.
     invalid: bool,
+    /// The absolute point the first coordinate named, subtracted from every
+    /// absolute coordinate after it. Curve and arc arithmetic then happens
+    /// near zero, where a coordinate carries its full precision, instead of
+    /// at whatever magnitude the artwork happens to sit at. Only differences
+    /// leave this module, so the shift is invisible from outside.
+    origin: Option<Point>,
 }
 
 impl Pen {
@@ -307,9 +313,16 @@ impl Pen {
             };
             let target = match (axis, relative) {
                 (Axis::Horizontal, true) => self.cursor.shifted(value, 0.0),
-                (Axis::Horizontal, false) => Point::new(value, self.cursor.y),
                 (Axis::Vertical, true) => self.cursor.shifted(0.0, value),
-                (Axis::Vertical, false) => Point::new(self.cursor.x, value),
+                // One axis is absolute and the other holds, so only the named
+                // coordinate crosses into the local frame; localizing the pair
+                // would shift the held axis a second time.
+                (Axis::Horizontal, false) => {
+                    Point::new(self.localize(Point::new(value, 0.0)).x, self.cursor.y)
+                }
+                (Axis::Vertical, false) => {
+                    Point::new(self.cursor.x, self.localize(Point::new(0.0, value)).y)
+                }
             };
             self.line_to(target);
             self.commands += 1;
@@ -557,12 +570,25 @@ impl Pen {
         self.quadratic_reflection = None;
     }
 
-    const fn resolve(&self, pair: Point, relative: bool) -> Point {
+    fn resolve(&mut self, pair: Point, relative: bool) -> Point {
         if relative {
+            // The cursor already sits in the local frame, so a displacement
+            // needs no shift. A path opening with `m` starts from the implied
+            // origin, which is exactly the zero this frame measures from.
+            self.origin.get_or_insert_with(Point::default);
             self.cursor.shifted(pair.x, pair.y)
         } else {
-            pair
+            self.localize(pair)
         }
+    }
+
+    /// Move an absolute coordinate into the local frame, fixing that frame on
+    /// the first coordinate the path names. Subtracting two nearby doubles is
+    /// exact, so a shape keeps every digit it had relative to its own origin;
+    /// all it loses is the offset it shares with every other point.
+    fn localize(&mut self, absolute: Point) -> Point {
+        let origin = *self.origin.get_or_insert(absolute);
+        Point::new(absolute.x - origin.x, absolute.y - origin.y)
     }
 
     /// A moveto paints nothing on its own, so it only moves the cursor. The
@@ -1211,19 +1237,51 @@ mod tests {
 
     #[test]
     fn coordinate_overflow_is_rejected() {
-        // Every literal here is finite; the relative arithmetic is what leaves
-        // the range, so the parse-time check alone does not catch these.
+        // Every literal here is finite; the arithmetic is what leaves the
+        // range, so the parse-time check alone does not catch these. What
+        // overflows is the geometry's own extent, which the local frame
+        // cannot bring back: the shape is genuinely wider than a double.
         for path_data in [
-            "M1e308 0 l1e308 1",
             "M0 0 L1e308 0 l1e308 0",
-            "M1e308 0 c0 0 0 0 1e308 1",
-            "M1e308 1e308 a1 1 0 0 1 1e308 1e308",
+            "M0 0 l1e308 0 l1e308 0",
+            "M-1e308 0 L1e308 0",
         ] {
             assert!(
                 sketch(path_data).is_none(),
                 "overflowing arithmetic should not sketch: {path_data}"
             );
         }
+    }
+
+    #[test]
+    fn distant_origins_keep_their_detail() -> TestResult {
+        // A 100-unit heart drawn 1e16 units from the origin. Every coordinate
+        // there lands on a multiple of 2, so accumulating the shape in place
+        // quantises it; in a frame fixed on its own first point the arithmetic
+        // is identical to drawing it at the origin.
+        const TAIL: &str = concat!(
+            " c-25 -25 -45 -40 -45 -60 a25 25 0 0 1 45 -15",
+            " a25 25 0 0 1 45 15 c0 20 -20 35 -45 60 z"
+        );
+        assert_eq!(
+            art(&format!("M50 90{TAIL}"))?,
+            art(&format!("M1e16 1e16{TAIL}"))?
+        );
+        assert_eq!(
+            art(&format!("M50 90{TAIL}"))?,
+            art(&format!("M1e17 -1e17{TAIL}"))?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_far_flung_shape_is_still_measured_where_it_lies() -> TestResult {
+        // The frame moves the arithmetic, not the reported geometry: a shape
+        // is as wide as its own coordinates say, wherever it sits.
+        let near = sketch("M0 0 h100 v50 h-100 z").ok_or("near")?;
+        let far = sketch("M1e16 1e16 h100 v50 h-100 z").ok_or("far")?;
+        assert_eq!((near.width, near.height), (far.width, far.height));
+        Ok(())
     }
 
     /// Build well-formed path data of roughly `bytes` length.
