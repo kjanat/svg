@@ -504,20 +504,31 @@ impl Pen {
         // survives even where the half does not: `A1 1 0 1 1 5e-324 0` names
         // two distinct endpoints whose midpoint offset is not representable.
         // Divide through the smaller radius rather than each one's own, so
-        // neither component can overflow before their quotient — the direction
-        // — is taken. `A5e-324 5e-324 0 0 1 1 0` names radii a whole unit of
-        // separation apart: each raw ratio is infinite, and the direction
-        // between two infinities is NaN, though the arc the spec corrects
-        // those radii into is an ordinary half circle.
+        // neither component can overflow before the magnitude is taken.
         let smaller = rx.min(ry);
         let shaped = Point::new(local.x * (smaller / rx), local.y * (smaller / ry));
         let magnitude = shaped.x.hypot(shaped.y);
-        if magnitude <= 0.0 {
-            // The endpoints differ by less than the radii can express at all.
+
+        // Take the direction by multiplying rather than dividing. The ray
+        // through `(dx/rx, dy/ry)` is the ray through `(dx*ry, dy*rx)`, and
+        // from a unit vector those products cannot leave the range for any
+        // positive finite radii — where the quotients can leave it at both
+        // ends. `A5e-324 5e-324 0 0 1 1 0` sends each quotient to infinity,
+        // and the direction between two infinities is NaN; `A1e200 1` with
+        // endpoints 1e-200 apart sends both to zero, which is a direction
+        // that does not exist. Neither arc is degenerate — the first is an
+        // ordinary half circle once the radii are corrected, the second a
+        // near-complete ellipse 2e200 across.
+        let extent = local.x.hypot(local.y);
+        if extent <= 0.0 {
+            // Distinct endpoints always differ by something, so this is only
+            // reachable if the difference itself left the range.
             self.line_to(end);
             return;
         }
-        let toward = Point::new(shaped.x / magnitude, shaped.y / magnitude);
+        let bearing = Point::new(local.x / extent * ry, local.y / extent * rx);
+        let length = bearing.x.hypot(bearing.y);
+        let toward = Point::new(bearing.x / length, bearing.y / length);
 
         // Grow radii too small to join the endpoints. SVG 2 B.2.5 scales both
         // by the factor that puts the endpoints on the ellipse, which is this
@@ -1533,6 +1544,42 @@ mod tests {
             sketch.height > 1.0e160,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn radii_far_above_their_separation_still_carry_a_direction() -> TestResult {
+        // Endpoints 1e-200 apart on a 1e200 radius. Both endpoint-to-radius
+        // quotients underflow to zero, which is a direction that does not
+        // exist, yet the large-arc flag describes a near-complete ellipse
+        // 2e200 across. The magnitude is genuinely zero here; the bearing is
+        // not, and it is the bearing the centre needs.
+        let wide = sketch("M0 0 A1e200 1 0 1 1 1e-200 0").ok_or("wide arc")?;
+        assert!(
+            wide.width > 1.0e200 && (wide.height - 2.0).abs() < 1.0e-9,
+            "should span a diameter by a diameter, got {} x {}",
+            wide.width,
+            wide.height
+        );
+
+        // The same arc with its radii transposed turns the ellipse on its side.
+        let tall = sketch("M0 0 A1 1e200 0 1 1 0 1e-200").ok_or("tall arc")?;
+        assert!(
+            tall.height > 1.0e200 && (tall.width - 2.0).abs() < 1.0e-9,
+            "the transposed arc should stand up, got {} x {}",
+            tall.width,
+            tall.height
+        );
+
+        // Without the large-arc flag the shorter way round over an offset that
+        // small really is the chord, so this must not inflate too.
+        let short = sketch("M0 0 A1e200 1 0 0 1 1e-200 0").ok_or("short arc")?;
+        assert!(
+            short.width < 1.0e-100 && short.height == 0.0,
+            "the small arc should stay its chord, got {} x {}",
+            short.width,
+            short.height
         );
         Ok(())
     }
