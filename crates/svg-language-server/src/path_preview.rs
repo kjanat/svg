@@ -494,24 +494,25 @@ impl Pen {
             (-sin_phi).mul_add(delta.x, cos_phi * delta.y),
         );
 
-        // Measure the whole endpoint difference in radii. This is SVG 2 B.2.4
-        // divided through by rx*ry, which keeps every quantity below bounded
-        // by one and so removes the squares the raw form needs. Those squares
-        // are where extreme magnitudes break: `A5e-201 5e-201` underflows them
-        // to zero and vanishes into a zero denominator, and an aspect ratio
-        // like `A1e-200 1` overflows them to infinity and poisons the rest in
-        // NaN. The difference is halved only afterwards, so the direction
-        // survives even where the half does not: `A1 1 0 1 1 5e-324 0` names
-        // two distinct endpoints whose midpoint offset is not representable.
-        // Divide through the smaller radius rather than each one's own, so
-        // neither component can overflow before the magnitude is taken.
-        let smaller = rx.min(ry);
-        let shaped = Point::new(local.x * (smaller / rx), local.y * (smaller / ry));
-        let magnitude = shaped.x.hypot(shaped.y);
+        // Reduce the difference against its own largest component before any
+        // norm is taken. `A1e308 1e308 0 0 1 1.3e308 1.3e308` is a shallow arc
+        // on radii that need no correction at all, but the hypotenuse of its
+        // endpoints is 1.8e308 and leaves the range, and everything derived
+        // from it then does too. Measured this way nothing can overflow, and
+        // one component stays exactly ±1 so nothing can underflow to a
+        // direction that does not exist either.
+        let scale = local.x.abs().max(local.y.abs());
+        if scale <= 0.0 {
+            // Distinct endpoints always differ by something, so this is only
+            // reachable if the difference itself left the range.
+            self.line_to(end);
+            return;
+        }
+        let unit = Point::new(local.x / scale, local.y / scale);
 
         // Take the direction by multiplying rather than dividing. The ray
         // through `(dx/rx, dy/ry)` is the ray through `(dx*ry, dy*rx)`, and
-        // from a unit vector those products cannot leave the range for any
+        // from a bounded vector those products cannot leave the range for any
         // positive finite radii — where the quotients can leave it at both
         // ends. `A5e-324 5e-324 0 0 1 1 0` sends each quotient to infinity,
         // and the direction between two infinities is NaN; `A1e200 1` with
@@ -519,16 +520,23 @@ impl Pen {
         // that does not exist. Neither arc is degenerate — the first is an
         // ordinary half circle once the radii are corrected, the second a
         // near-complete ellipse 2e200 across.
-        let extent = local.x.hypot(local.y);
-        if extent <= 0.0 {
-            // Distinct endpoints always differ by something, so this is only
-            // reachable if the difference itself left the range.
-            self.line_to(end);
-            return;
-        }
-        let bearing = Point::new(local.x / extent * ry, local.y / extent * rx);
-        let length = bearing.x.hypot(bearing.y);
-        let toward = Point::new(bearing.x / length, bearing.y / length);
+        let bearing = Point::new(unit.x * ry, unit.y * rx);
+        let along = bearing.x.abs().max(bearing.y.abs());
+        let aligned = Point::new(bearing.x / along, bearing.y / along);
+        let length = aligned.x.hypot(aligned.y);
+        let toward = Point::new(aligned.x / length, aligned.y / length);
+
+        // Measure the difference in radii. This is SVG 2 B.2.4 divided through
+        // by rx*ry, which keeps every quantity below bounded by one and so
+        // removes the squares the raw form needs. Those squares are where
+        // extreme magnitudes break: `A5e-201 5e-201` underflows them to zero
+        // and vanishes into a zero denominator, and an aspect ratio like
+        // `A1e-200 1` overflows them to infinity and poisons the rest in NaN.
+        // Dividing through the smaller radius rather than each one's own keeps
+        // this norm bounded whatever the aspect ratio.
+        let smaller = rx.min(ry);
+        let shaped = Point::new(unit.x * (smaller / rx), unit.y * (smaller / ry));
+        let magnitude = shaped.x.hypot(shaped.y);
 
         // Grow radii too small to join the endpoints. SVG 2 B.2.5 scales both
         // by the factor that puts the endpoints on the ellipse, which is this
@@ -536,14 +544,16 @@ impl Pen {
         // one radius from the centre, whatever the factor was. Scaling each
         // radius through `smaller` rather than multiplying it by that factor
         // keeps the product finite where the factor itself is not, and a
-        // common factor leaves the direction alone either way.
-        let offset = if magnitude / smaller / 2.0 > 1.0 {
-            let half_span = magnitude / 2.0;
+        // common factor leaves the direction alone either way. Dividing by
+        // `smaller` before restoring the difference's own scale keeps the
+        // comparison itself in range when no correction is needed at all.
+        let offset = if (scale / smaller) * magnitude / 2.0 > 1.0 {
+            let half_span = scale * magnitude / 2.0;
             rx = (rx / smaller) * half_span;
             ry = (ry / smaller) * half_span;
             toward
         } else {
-            Point::new(shaped.x / smaller / 2.0, shaped.y / smaller / 2.0)
+            Point::new(unit.x * (scale / rx) / 2.0, unit.y * (scale / ry) / 2.0)
         };
 
         // At most one now, and zero only where halving the difference
@@ -1544,6 +1554,27 @@ mod tests {
             sketch.height > 1.0e160,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn arcs_spanning_the_top_of_the_range_still_draw() -> TestResult {
+        // Endpoints 1.3e308 apart on each axis: their hypotenuse is 1.8e308
+        // and leaves the range, though the arc itself needs no correction —
+        // the half-span in radii is about 0.919 — and every point on it is
+        // representable. The same arc an order of magnitude down is the same
+        // picture, and the render normalises, so they must rasterise alike.
+        assert_eq!(
+            art("M0 0 A1e308 1e308 0 0 1 1.3e308 1.3e308")?,
+            art("M0 0 A1e307 1e307 0 0 1 1.3e307 1.3e307")?
+        );
+        let vast = sketch("M0 0 A1e308 1e308 0 0 1 1.3e308 1.3e308").ok_or("vast arc")?;
+        assert!(
+            vast.width > 1.0e308 && vast.height > 1.0e308,
+            "the arc should span its endpoints, got {} x {}",
+            vast.width,
+            vast.height
         );
         Ok(())
     }
