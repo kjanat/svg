@@ -135,6 +135,17 @@ catalog and runtime records. Diagnostics keep their existing four-browser
 policy, and completion documentation keeps its default presentation. Templates
 and user-supplied HTML are outside this settings contract.
 
+## Markup format
+
+Hover and completion documentation are returned in the format the client
+advertises at initialization — `textDocument.hover.contentFormat` and
+`textDocument.completion.completionItem.documentationFormat`. A client that
+advertises `markdown` gets Markdown. One that advertises neither is promised
+only plain text by the protocol, so it gets plain text: emphasis and code
+delimiters are dropped, a link keeps its text and gains its target in
+parentheses, and an image becomes the alt text that describes it. The two are
+negotiated independently, so a client may have one and not the other.
+
 ## Understanding compatibility
 
 Baseline is imported from Web Features. Newly Available means a feature has

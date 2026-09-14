@@ -1436,8 +1436,149 @@ fn format_browser_support_line(
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
+/// Render hover Markdown as readable plain text.
+///
+/// A client that does not advertise `markdown` in `textDocument.hover.
+/// contentFormat` is only promised plain text, and handing it Markdown leaves
+/// the syntax on screen: `**Baseline**`, backticks around every attribute
+/// name, and a data URI where a badge should be. The hovers here use four
+/// constructs, so this handles those four rather than pretending to be a
+/// Markdown renderer — emphasis and code fences drop their delimiters, a link
+/// keeps its text and gains its target in parentheses, and an image becomes
+/// the alt text that describes it.
+pub fn to_plain_text(markdown: &str) -> String {
+    let mut out = String::with_capacity(markdown.len());
+    let bytes = markdown.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'!' if bytes.get(at + 1) == Some(&b'[') => {
+                if let Some((alt, _, next)) = read_link(markdown, at + 1) {
+                    out.push_str(alt);
+                    at = next;
+                    continue;
+                }
+            }
+            b'[' => {
+                if let Some((text, target, next)) = read_link(markdown, at) {
+                    out.push_str(text);
+                    if !target.is_empty() {
+                        out.push_str(" (");
+                        out.push_str(target);
+                        out.push(')');
+                    }
+                    at = next;
+                    continue;
+                }
+            }
+            b'*' if bytes.get(at + 1) == Some(&b'*') => {
+                at += 2;
+                continue;
+            }
+            b'`' => {
+                at += 1;
+                continue;
+            }
+            _ => {}
+        }
+        // `at` only ever lands on a character boundary: every branch above
+        // matches ASCII, and the fallback advances by one whole character.
+        let next = markdown[at..].chars().next().unwrap_or('\u{fffd}');
+        out.push(next);
+        at += next.len_utf8();
+    }
+    out
+}
+
+/// Split `[text](target)` starting at the `[`, into its text, its target, and
+/// the offset just past the closing parenthesis. Nested parentheses in the
+/// target are counted, since a `data:` URI can carry them.
+fn read_link(source: &str, open: usize) -> Option<(&str, &str, usize)> {
+    let bytes = source.as_bytes();
+    let text_end = (open + 1..bytes.len()).find(|&at| bytes[at] == b']')?;
+    if bytes.get(text_end + 1) != Some(&b'(') {
+        return None;
+    }
+    let mut depth = 1usize;
+    let mut at = text_end + 2;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((
+                        &source[open + 1..text_end],
+                        &source[text_end + 2..at],
+                        at + 1,
+                    ));
+                }
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn plain_text_drops_markdown_syntax_but_keeps_the_words() {
+        assert_eq!(
+            super::to_plain_text("**Baseline** `stroke-width` is fine"),
+            "Baseline stroke-width is fine"
+        );
+    }
+
+    #[test]
+    fn plain_text_keeps_a_link_and_where_it_goes() {
+        assert_eq!(
+            super::to_plain_text("See [the spec](https://www.w3.org/TR/SVG2/) for more"),
+            "See the spec (https://www.w3.org/TR/SVG2/) for more"
+        );
+    }
+
+    #[test]
+    fn plain_text_reduces_an_image_to_what_it_describes() {
+        // The Baseline badges are images, and their target is a long data or
+        // shields URI that says nothing to a reader. The alt text is the part
+        // that carries the meaning.
+        assert_eq!(
+            super::to_plain_text("![Baseline Widely available](https://example.invalid/b.svg)"),
+            "Baseline Widely available"
+        );
+    }
+
+    #[test]
+    fn plain_text_counts_parentheses_inside_a_target() {
+        // A data URI can carry parentheses, so the closing one has to be the
+        // matching one rather than the first.
+        assert_eq!(
+            super::to_plain_text("[swatch](data:image/svg+xml,%3Csvg%20fill%3Drgb(1,2,3)%3E)"),
+            "swatch (data:image/svg+xml,%3Csvg%20fill%3Drgb(1,2,3)%3E)"
+        );
+    }
+
+    #[test]
+    fn plain_text_leaves_unpaired_brackets_alone() {
+        // A bracket that opens nothing is just a bracket, and dropping it
+        // would lose a character the document actually contains.
+        assert_eq!(
+            super::to_plain_text("an [unclosed link"),
+            "an [unclosed link"
+        );
+        assert_eq!(super::to_plain_text("array[0] of them"), "array[0] of them");
+    }
+
+    #[test]
+    fn plain_text_passes_multi_byte_characters_through() {
+        assert_eq!(
+            super::to_plain_text("**élan** — `stroke` ✓"),
+            "élan — stroke ✓"
+        );
+    }
     #[test]
     fn baseline_containers_embed_exact_official_assets_at_icon_size()
     -> Result<(), Box<dyn std::error::Error>> {

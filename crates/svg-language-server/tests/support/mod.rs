@@ -102,6 +102,25 @@ pub struct TestServer {
     pub notification_buf: VecDeque<Value>,
 }
 
+/// What a client that renders Markdown advertises, which is every editor the
+/// server is actually used from. The harness used to send an empty capability
+/// set, which promises only plain text — a fixture no real client sends, and
+/// one that would have hidden the hover content these tests are about.
+#[allow(
+    dead_code,
+    reason = "shared test scaffolding; only the hover binary names these explicitly"
+)]
+pub fn markdown_capabilities() -> Value {
+    json!({
+        "textDocument": {
+            "hover": { "contentFormat": ["markdown", "plaintext"] },
+            "completion": {
+                "completionItem": { "documentationFormat": ["markdown", "plaintext"] }
+            }
+        }
+    })
+}
+
 impl TestServer {
     #[allow(
         dead_code,
@@ -112,6 +131,18 @@ impl TestServer {
     }
 
     pub fn start_with_initialize_options(initialization_options: &Value) -> TestResult<Self> {
+        Self::start_with(initialization_options, &markdown_capabilities())
+    }
+
+    #[allow(
+        dead_code,
+        reason = "shared test scaffolding; only the hover binary negotiates markup kinds"
+    )]
+    pub fn start_with_capabilities(capabilities: &Value) -> TestResult<Self> {
+        Self::start_with(&Value::Null, capabilities)
+    }
+
+    fn start_with(initialization_options: &Value, capabilities: &Value) -> TestResult<Self> {
         let mut child = Command::new(server_binary()?)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -147,7 +178,7 @@ impl TestServer {
             &json!({
                 "processId": null,
                 "rootUri": null,
-                "capabilities": {},
+                "capabilities": capabilities.clone(),
                 "initializationOptions": initialization_options.clone()
             }),
         )?;

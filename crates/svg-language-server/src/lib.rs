@@ -15,15 +15,16 @@ use tower_lsp_server::{
     Client, LanguageServer, LspService, Server,
     jsonrpc::Result,
     ls_types::{
-        CodeActionParams, CodeActionProviderCapability, CodeActionResponse, Color,
-        ColorInformation, ColorPresentation, ColorPresentationParams, ColorProviderCapability,
-        CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
-        DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-        DidOpenTextDocumentParams, DocumentColorParams, DocumentFormattingParams,
-        ExecuteCommandOptions, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse,
-        Hover, HoverContents, HoverParams, HoverProviderCapability, InitializeParams,
-        InitializeResult, MarkupContent, MarkupKind, MessageType, OneOf, Position, Range,
-        ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
+        ClientCapabilities, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
+        Color, ColorInformation, ColorPresentation, ColorPresentationParams,
+        ColorProviderCapability, CompletionItem, CompletionOptions, CompletionParams,
+        CompletionResponse, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentColorParams,
+        DocumentFormattingParams, Documentation, ExecuteCommandOptions, ExecuteCommandParams,
+        GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
+        HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent, MarkupKind,
+        MessageType, OneOf, Position, Range, ServerCapabilities, TextDocumentSyncCapability,
+        TextDocumentSyncKind, TextEdit, Uri,
     },
 };
 use url::Url;
@@ -493,12 +494,17 @@ fn server_capabilities() -> ServerCapabilities {
     }
 }
 
-const fn markdown_hover(value: String) -> Hover {
+/// Wrap hover text in the markup kind the client advertised.
+///
+/// The text is written as Markdown throughout; a client that did not offer
+/// Markdown gets it rendered down to plain text rather than shown the syntax.
+fn hover_in(kind: MarkupKind, value: String) -> Hover {
+    let value = match kind {
+        MarkupKind::Markdown => value,
+        MarkupKind::PlainText => hover::to_plain_text(&value),
+    };
     Hover {
-        contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value,
-        }),
+        contents: HoverContents::Markup(MarkupContent { kind, value }),
         range: None,
     }
 }
@@ -981,6 +987,49 @@ struct SvgLanguageServer {
     runtime_compat: Arc<RwLock<Option<RuntimeCompat>>>,
     profile_config: Arc<RwLock<ProfileConfig>>,
     hover_settings: Arc<RwLock<HoverSettings>>,
+    markup_support: Arc<RwLock<MarkupSupport>>,
+}
+
+/// Which markup kinds the client advertised at initialize.
+///
+/// LSP has the client list the formats it understands in
+/// `textDocument.hover.contentFormat` and
+/// `textDocument.completion.completionItem.documentationFormat`. A client that
+/// lists neither is only promised plain text, so that is what the defaults say:
+/// answering Markdown regardless leaves the syntax on screen, while answering
+/// plain text to a client that would have rendered Markdown only costs it the
+/// formatting.
+#[derive(Clone, Copy, Default)]
+struct MarkupSupport {
+    hover_markdown: bool,
+    completion_markdown: bool,
+}
+
+impl MarkupSupport {
+    fn from_capabilities(capabilities: &ClientCapabilities) -> Self {
+        let text_document = capabilities.text_document.as_ref();
+        let hover_markdown = text_document
+            .and_then(|document| document.hover.as_ref())
+            .and_then(|hover| hover.content_format.as_ref())
+            .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
+        let completion_markdown = text_document
+            .and_then(|document| document.completion.as_ref())
+            .and_then(|completion| completion.completion_item.as_ref())
+            .and_then(|item| item.documentation_format.as_ref())
+            .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
+        Self {
+            hover_markdown,
+            completion_markdown,
+        }
+    }
+
+    const fn hover_kind(self) -> MarkupKind {
+        if self.hover_markdown {
+            MarkupKind::Markdown
+        } else {
+            MarkupKind::PlainText
+        }
+    }
 }
 
 impl SvgLanguageServer {
@@ -1001,6 +1050,7 @@ impl SvgLanguageServer {
             runtime_compat: Arc::new(RwLock::new(None)),
             profile_config: Arc::new(RwLock::new(ProfileConfig::default())),
             hover_settings: Arc::new(RwLock::new(HoverSettings::default())),
+            markup_support: Arc::new(RwLock::new(MarkupSupport::default())),
         }
     }
 
@@ -1191,6 +1241,11 @@ impl SvgLanguageServer {
 impl LanguageServer for SvgLanguageServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("initialize");
+
+        // Record what the client said it can render before answering anything.
+        // This is the only point LSP offers it, and every hover and completion
+        // afterwards is shaped by it.
+        *self.markup_support.write().await = MarkupSupport::from_capabilities(&params.capabilities);
 
         let drift_check_enabled = params
             .initialization_options
@@ -1430,13 +1485,14 @@ impl LanguageServer for SvgLanguageServer {
             class_hover,
             property_hover,
         } = self.hover_context_for(uri, pos, &doc).await;
+        let kind = self.markup_support.read().await.hover_kind();
 
         if let Some(markdown) = element_markdown {
-            return Ok(Some(markdown_hover(markdown)));
+            return Ok(Some(hover_in(kind, markdown)));
         }
 
         if let Some(markdown) = attribute_markdown {
-            return Ok(Some(markdown_hover(markdown)));
+            return Ok(Some(hover_in(kind, markdown)));
         }
 
         let ClassHoverContext {
@@ -1472,10 +1528,10 @@ impl LanguageServer for SvgLanguageServer {
             definitions.extend(remote_definitions);
 
             if !definitions.is_empty() {
-                return Ok(Some(markdown_hover(format_class_hover(
-                    &target_class,
-                    &definitions,
-                ))));
+                return Ok(Some(hover_in(
+                    kind,
+                    format_class_hover(&target_class, &definitions),
+                )));
             }
         }
 
@@ -1512,10 +1568,10 @@ impl LanguageServer for SvgLanguageServer {
             definitions.extend(remote_definitions);
 
             if !definitions.is_empty() {
-                return Ok(Some(markdown_hover(format_custom_property_hover(
-                    &target_property,
-                    &definitions,
-                ))));
+                return Ok(Some(hover_in(
+                    kind,
+                    format_custom_property_hover(&target_property, &definitions),
+                )));
             }
         }
 
@@ -1680,7 +1736,39 @@ impl LanguageServer for SvgLanguageServer {
                 runtime.as_ref(),
             )
         };
+
+        // Completion documentation is written as Markdown wherever it is
+        // built, so it is rendered down here rather than at each of those
+        // places — one gate for every path that can put documentation on an
+        // item, including the ones that only borrow a hover's text.
+        let mut response = response;
+        if !self.markup_support.read().await.completion_markdown
+            && let Some(response) = response.as_mut()
+        {
+            for item in completion_items_of(response) {
+                plainify_documentation(item);
+            }
+        }
         Ok(response)
+    }
+}
+
+/// The items of a completion response, whichever shape the response took.
+fn completion_items_of(response: &mut CompletionResponse) -> &mut [CompletionItem] {
+    match response {
+        CompletionResponse::Array(items) => items,
+        CompletionResponse::List(list) => &mut list.items,
+    }
+}
+
+/// Render an item's Markdown documentation down to plain text in place.
+fn plainify_documentation(item: &mut CompletionItem) {
+    let Some(Documentation::MarkupContent(markup)) = item.documentation.as_mut() else {
+        return;
+    };
+    if markup.kind == MarkupKind::Markdown {
+        markup.value = hover::to_plain_text(&markup.value);
+        markup.kind = MarkupKind::PlainText;
     }
 }
 
