@@ -503,26 +503,37 @@ impl Pen {
         // NaN. The difference is halved only afterwards, so the direction
         // survives even where the half does not: `A1 1 0 1 1 5e-324 0` names
         // two distinct endpoints whose midpoint offset is not representable.
-        let whole = Point::new(local.x / rx, local.y / ry);
-        let reach = whole.x.hypot(whole.y);
-        if reach <= 0.0 {
+        // Divide through the smaller radius rather than each one's own, so
+        // neither component can overflow before their quotient — the direction
+        // — is taken. `A5e-324 5e-324 0 0 1 1 0` names radii a whole unit of
+        // separation apart: each raw ratio is infinite, and the direction
+        // between two infinities is NaN, though the arc the spec corrects
+        // those radii into is an ordinary half circle.
+        let smaller = rx.min(ry);
+        let shaped = Point::new(local.x * (smaller / rx), local.y * (smaller / ry));
+        let magnitude = shaped.x.hypot(shaped.y);
+        if magnitude <= 0.0 {
             // The endpoints differ by less than the radii can express at all.
             self.line_to(end);
             return;
         }
-        let toward = Point::new(whole.x / reach, whole.y / reach);
-        let mut offset = Point::new(whole.x / 2.0, whole.y / 2.0);
+        let toward = Point::new(shaped.x / magnitude, shaped.y / magnitude);
 
-        // Grow radii too small to join the endpoints. The spec's correction
-        // factor is the square root of that sum of squares, which is exactly
-        // the hypotenuse of the two ratios — finite even where the sum is not.
-        // Both radii scale together, so `toward` is unaffected.
-        let growth = offset.x.hypot(offset.y);
-        if growth > 1.0 {
-            rx *= growth;
-            ry *= growth;
-            offset = Point::new(offset.x / growth, offset.y / growth);
-        }
+        // Grow radii too small to join the endpoints. SVG 2 B.2.5 scales both
+        // by the factor that puts the endpoints on the ellipse, which is this
+        // half-difference measured in radii; the endpoints then sit exactly
+        // one radius from the centre, whatever the factor was. Scaling each
+        // radius through `smaller` rather than multiplying it by that factor
+        // keeps the product finite where the factor itself is not, and a
+        // common factor leaves the direction alone either way.
+        let offset = if magnitude / smaller / 2.0 > 1.0 {
+            let half_span = magnitude / 2.0;
+            rx = (rx / smaller) * half_span;
+            ry = (ry / smaller) * half_span;
+            toward
+        } else {
+            Point::new(shaped.x / smaller / 2.0, shaped.y / smaller / 2.0)
+        };
 
         // At most one now, and zero only where halving the difference
         // underflowed, which `toward` already covers.
@@ -1508,6 +1519,22 @@ mod tests {
         assert!(
             sketch.height > 1.0e160,
             "a near-complete circle should span about a diameter, got {}",
+            sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn radii_far_below_their_separation_are_grown_not_lost() -> TestResult {
+        // Radii of the smallest subnormal, a whole unit of separation apart.
+        // Each endpoint-to-radius ratio is infinite, and a direction between
+        // two infinities is NaN, but the spec grows radii that cannot reach
+        // until they do: these become 0.5, and the arc an ordinary half circle.
+        let sketch = sketch("M0 0 A5e-324 5e-324 0 0 1 1 0").ok_or("subnormal radii")?;
+        assert!(
+            (sketch.width - 1.0).abs() < 1.0e-9 && (sketch.height - 0.5).abs() < 1.0e-9,
+            "the corrected arc should span its chord by a radius, got {} x {}",
+            sketch.width,
             sketch.height
         );
         Ok(())
