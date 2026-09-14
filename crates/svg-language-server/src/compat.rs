@@ -457,6 +457,16 @@ mod tests {
     use serde_json::json;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+    /// The compatibility version this build bundles, which is what a failed or
+    /// disabled refresh falls back to. Read from the catalog rather than pinned
+    /// as a literal: the spec-data refresh bumps it on its own schedule, and a
+    /// literal turns the default branch red every time it does.
+    fn bundled_version(name: &str) -> Option<String> {
+        svg_data::compat_sources()
+            .iter()
+            .find(|(source, _, _)| *source == name)
+            .map(|(_, version, _)| (*version).to_owned())
+    }
     fn source(name: &'static str, data: Option<Value>) -> Source {
         Source {
             name,
@@ -616,7 +626,11 @@ mod tests {
         let record = failed.attribute("width", Some("rect")).ok_or("failed")?;
         assert_eq!(record.facts, baked);
         assert_eq!(record.sources[1].outcome, Outcome::Failed);
-        assert_eq!(record.sources[1].version.as_deref(), Some("3.36.0"));
+        assert_eq!(record.sources[1].version, bundled_version("web-features"));
+        assert!(
+            record.sources[1].version.is_some(),
+            "the fallback must name a version"
+        );
         assert!(hover(record, "rect")?.contains("bundled facts retained (stale)"));
         Ok(())
     }
@@ -631,7 +645,11 @@ mod tests {
         );
         assert_eq!(record.facts.baseline, baked.baseline);
         assert_eq!(record.sources[0].version.as_deref(), Some("fixture-2"));
-        assert_eq!(record.sources[1].version.as_deref(), Some("3.36.0"));
+        assert_eq!(record.sources[1].version, bundled_version("web-features"));
+        assert!(
+            record.sources[1].version.is_some(),
+            "the fallback must name a version"
+        );
         assert_eq!(record.sources[0].outcome, Outcome::Loaded);
         assert_eq!(record.sources[1].outcome, Outcome::Failed);
         let browser = record
