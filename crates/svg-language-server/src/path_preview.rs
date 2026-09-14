@@ -102,9 +102,23 @@ pub struct Sketch {
 }
 
 /// Sketch the path data owned by a `d_attribute` node, if it draws anything.
+///
+/// The value is taken whole from between its quotes and XML-decoded, rather
+/// than read off the `path_data_payload` token: that token excludes `&`, so a
+/// value carrying a character reference (`d="M0 0&#32;L10 10"`, which XML
+/// resolves to whitespace before SVG ever sees it) splits into a payload plus
+/// an error node, and reading the payload alone would sketch only the prefix.
 pub fn sketch_for_attribute(attribute: Node<'_>, source: &[u8]) -> Option<Sketch> {
-    let payload = descendant_of_kind(attribute, "path_data_payload")?;
-    sketch(payload.utf8_text(source).ok()?)
+    let quoted = descendant_of_kind_any(
+        attribute,
+        &["double_quoted_path_data", "single_quoted_path_data"],
+    )?;
+    let raw = quoted.utf8_text(source).ok()?;
+    let inner = raw
+        .strip_prefix(['"', '\''])
+        .and_then(|value| value.strip_suffix(['"', '\'']))?;
+    let decoded = quick_xml::escape::unescape(inner).ok()?;
+    sketch(&decoded)
 }
 
 /// Sketch raw path data, or return `None` when it does not parse or draws nothing.
@@ -437,8 +451,11 @@ impl Pen {
             return;
         }
         let (mut rx, mut ry) = (arc.radii.x.abs(), arc.radii.y.abs());
-        if close_enough(rx, 0.0) || close_enough(ry, 0.0) {
-            // A zero radius degrades to a straight line.
+        if rx <= 0.0 || ry <= 0.0 {
+            // Only an exactly zero radius degrades to a straight line (SVG 2
+            // 9.3.8). Merely small radii are scaled up to reach the endpoints
+            // by the correction below, and drawing those as a line would
+            // flatten a real curve.
             self.line_to(end);
             return;
         }
@@ -516,6 +533,9 @@ impl Pen {
         }
     }
 
+    /// A moveto paints nothing on its own, so it only moves the cursor. The
+    /// point enters the polyline when a drawing command seeds it in `push`,
+    /// which keeps an unused `M` out of both the raster and the bounds.
     fn begin_subpath(&mut self, at: Point) {
         if !self.accepts(at) {
             return;
@@ -523,8 +543,6 @@ impl Pen {
         self.flush();
         self.cursor = at;
         self.subpath_start = at;
-        self.current.push(at);
-        self.points += 1;
         self.cubic_reflection = None;
         self.quadratic_reflection = None;
     }
@@ -679,13 +697,13 @@ fn has_non_finite_number(node: Node<'_>, source: &[u8]) -> bool {
         .any(|child| has_non_finite_number(child, source))
 }
 
-fn descendant_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
-    if node.kind() == kind {
+fn descendant_of_kind_any<'a>(node: Node<'a>, kinds: &[&str]) -> Option<Node<'a>> {
+    if kinds.contains(&node.kind()) {
         return Some(node);
     }
     let mut cursor = node.walk();
     node.children(&mut cursor)
-        .find_map(|child| descendant_of_kind(child, kind))
+        .find_map(|child| descendant_of_kind_any(child, kinds))
 }
 
 /// Weighted sum of points, used to evaluate Bezier basis functions.
@@ -987,9 +1005,51 @@ mod tests {
     }
 
     #[test]
-    fn single_point_path_still_sketches_one_dot() -> TestResult {
-        let sketch = sketch("M5 5").ok_or("moveto should sketch")?;
-        assert_eq!(sketch.art, "\u{2801}");
+    fn move_only_subpaths_draw_nothing() -> TestResult {
+        // A moveto paints nothing in SVG, so it must not raster a phantom dot,
+        assert!(sketch("M5 5").is_none(), "a lone moveto draws nothing");
+        // nor stretch the bounds of the geometry that follows it.
+        assert_eq!(art("M10000 10000 M0 0 L10 0")?, art("M0 0 L10 0")?);
+        Ok(())
+    }
+
+    #[test]
+    fn small_arc_radii_are_scaled_rather_than_flattened() -> TestResult {
+        // Radii too small to span the endpoints are scaled up to reach them
+        // (SVG 2 B.2.5), so this is a semicircle, not the straight line an
+        // approximate zero test would draw.
+        let sketch = sketch("M0 0 A1e-13 1e-13 0 0 1 20 0").ok_or("tiny arc should sketch")?;
+        assert!(
+            sketch.height > 9.0,
+            "corrected radii should still bulge about one radius, got {}",
+            sketch.height
+        );
+        assert_eq!(
+            art("M0 0 A1e-13 1e-13 0 0 1 20 0")?,
+            art("M0 0 A10 10 0 0 1 20 0")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn character_references_in_the_attribute_value_are_decoded() -> TestResult {
+        // `&` cannot appear in a `path_data_payload`, so the host grammar splits
+        // such a value into a payload plus an error node.
+        let source = br#"<svg><path d="M0 0&#32;L10 10"/></svg>"#;
+        let mut parser = Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        let tree = parser.parse(source, None).ok_or("host parse")?;
+        let attribute =
+            descendant_of_kind_any(tree.root_node(), &["d_attribute"]).ok_or("d attribute node")?;
+
+        let decoded = sketch_for_attribute(attribute, source)
+            .ok_or("an entity-carrying value should still sketch")?;
+        let plain = sketch("M0 0 L10 10").ok_or("reference sketch")?;
+        assert_eq!(
+            decoded.art, plain.art,
+            "`&#32;` is whitespace, so the sketch should match the plain form"
+        );
+        assert_eq!(decoded.commands, plain.commands);
         Ok(())
     }
 
@@ -1002,7 +1062,8 @@ mod tests {
 
     /// One path per entry in `SEGMENT_KINDS`, keyed by the kind it must produce.
     const SEGMENT_SAMPLES: &[(&str, &str)] = &[
-        ("moveto_segment", "M0 0"),
+        // A moveto paints nothing alone, so its sample needs a drawing command.
+        ("moveto_segment", "M5 5 L6 6"),
         ("closepath_segment", "M0 0 L10 10 Z"),
         ("implicit_lineto_segment", "M0 0 10 10"),
         ("lineto_segment", "M0 0 L10 10"),
