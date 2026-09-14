@@ -39,6 +39,7 @@ mod diagnostics;
 mod hover;
 mod hover_settings;
 mod logging;
+mod path_preview;
 mod positions;
 mod stylesheets;
 mod svgwg_drift;
@@ -60,10 +61,10 @@ use diagnostics::publish_lint_diagnostics;
 use hover::{
     UnsupportedAttributeHoverProfile, external_attribute_hover,
     format_attribute_hover_with_profile_name, format_class_hover, format_custom_property_hover,
-    format_element_hover_with_profile, format_unsupported_attribute_hover_with_profile_name,
-    profile_lifecycle_hover_line,
+    format_element_hover_with_profile, format_path_sketch,
+    format_unsupported_attribute_hover_with_profile_name, profile_lifecycle_hover_line,
 };
-use hover_settings::HoverSettings;
+use hover_settings::{HoverSettings, Section};
 use logging::init_logging;
 use positions::{byte_col_to_utf16, byte_offset_for_position, end_position_utf16, u32_from_usize};
 use stylesheets::{
@@ -735,6 +736,7 @@ struct PropertyHoverContext {
 struct HoverContext {
     element_markdown: Option<String>,
     attribute_markdown: Option<String>,
+    path_sketch: Option<String>,
     class_hover: ClassHoverContext,
     property_hover: PropertyHoverContext,
 }
@@ -792,6 +794,7 @@ fn build_hover_context(
         native,
         settings,
     );
+    let path_sketch = build_path_sketch_markdown(node, source, settings);
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
     let stylesheet_hrefs = svg_references::extract_stylesheet_hrefs(source, &doc.tree);
@@ -850,9 +853,25 @@ fn build_hover_context(
     HoverContext {
         element_markdown,
         attribute_markdown,
+        path_sketch,
         class_hover,
         property_hover,
     }
+}
+
+/// Sketch the path data when the cursor is anywhere in a `d`/`path` attribute,
+/// whether on the attribute name or inside its value.
+fn build_path_sketch_markdown(
+    node: tree_sitter::Node<'_>,
+    source: &[u8],
+    settings: &HoverSettings,
+) -> Option<String> {
+    if !settings.shows(Section::PathSketch) {
+        return None;
+    }
+    let attribute = find_ancestor_any(node, &["d_attribute"])?;
+    let sketch = path_preview::sketch_for_attribute(attribute, source)?;
+    Some(format_path_sketch(&sketch))
 }
 
 fn build_element_hover_markdown(
@@ -1499,6 +1518,7 @@ impl LanguageServer for SvgLanguageServer {
         let HoverContext {
             element_markdown,
             attribute_markdown,
+            path_sketch,
             class_hover,
             property_hover,
         } = self.hover_context_for(uri, pos, &doc).await;
@@ -1508,8 +1528,16 @@ impl LanguageServer for SvgLanguageServer {
             return Ok(Some(hover_in(kind, markdown)));
         }
 
-        if let Some(markdown) = attribute_markdown {
-            return Ok(Some(hover_in(kind, markdown)));
+        match (path_sketch, attribute_markdown) {
+            (Some(sketch), Some(markdown)) => {
+                return Ok(Some(hover_in(kind, format!(
+                    "{sketch}\n\n---\n\n{markdown}"
+                ))));
+            }
+            (Some(markdown), None) | (None, Some(markdown)) => {
+                return Ok(Some(hover_in(kind, markdown)));
+            }
+            (None, None) => {}
         }
 
         let ClassHoverContext {
