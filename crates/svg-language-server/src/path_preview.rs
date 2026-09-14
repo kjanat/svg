@@ -488,23 +488,35 @@ impl Pen {
         // the remainder of a representable degree value is exact.
         let phi = (arc.rotation % 360.0).to_radians();
         let (sin_phi, cos_phi) = phi.sin_cos();
-        let half = Point::new((start.x - end.x) / 2.0, (start.y - end.y) / 2.0);
+        let delta = Point::new(start.x - end.x, start.y - end.y);
         let local = Point::new(
-            cos_phi.mul_add(half.x, sin_phi * half.y),
-            (-sin_phi).mul_add(half.x, cos_phi * half.y),
+            cos_phi.mul_add(delta.x, sin_phi * delta.y),
+            (-sin_phi).mul_add(delta.x, cos_phi * delta.y),
         );
 
-        // Measure the endpoint offset in radii. This is SVG 2 B.2.4 divided
-        // through by rx*ry, which keeps every quantity below bounded by one
-        // and so removes the squares the raw form needs. Those squares are
-        // where extreme magnitudes break: `A5e-201 5e-201` underflows them to
-        // zero and vanishes into a zero denominator, and an aspect ratio like
-        // `A1e-200 1` overflows them to infinity and poisons the rest in NaN.
-        let mut offset = Point::new(local.x / rx, local.y / ry);
+        // Measure the whole endpoint difference in radii. This is SVG 2 B.2.4
+        // divided through by rx*ry, which keeps every quantity below bounded
+        // by one and so removes the squares the raw form needs. Those squares
+        // are where extreme magnitudes break: `A5e-201 5e-201` underflows them
+        // to zero and vanishes into a zero denominator, and an aspect ratio
+        // like `A1e-200 1` overflows them to infinity and poisons the rest in
+        // NaN. The difference is halved only afterwards, so the direction
+        // survives even where the half does not: `A1 1 0 1 1 5e-324 0` names
+        // two distinct endpoints whose midpoint offset is not representable.
+        let whole = Point::new(local.x / rx, local.y / ry);
+        let reach = whole.x.hypot(whole.y);
+        if reach <= 0.0 {
+            // The endpoints differ by less than the radii can express at all.
+            self.line_to(end);
+            return;
+        }
+        let toward = Point::new(whole.x / reach, whole.y / reach);
+        let mut offset = Point::new(whole.x / 2.0, whole.y / 2.0);
 
         // Grow radii too small to join the endpoints. The spec's correction
         // factor is the square root of that sum of squares, which is exactly
         // the hypotenuse of the two ratios — finite even where the sum is not.
+        // Both radii scale together, so `toward` is unaffected.
         let growth = offset.x.hypot(offset.y);
         if growth > 1.0 {
             rx *= growth;
@@ -512,25 +524,27 @@ impl Pen {
             offset = Point::new(offset.x / growth, offset.y / growth);
         }
 
-        // At most one now, and zero only if the radii dwarf the offset so far
-        // that the arc is a straight line at this scale.
+        // At most one now, and zero only where halving the difference
+        // underflowed, which `toward` already covers.
         let span = offset.x.hypot(offset.y);
-        if span <= 0.0 {
+        if span <= 0.0 && !arc.large {
+            // A small arc over an offset below the representable range is
+            // shorter than the chord it subtends, and that chord is a line.
             self.line_to(end);
             return;
         }
         let sign = if arc.large == arc.sweep { -1.0 } else { 1.0 };
 
-        // Take the root before dividing by the span. Squaring the span first
-        // and dividing into that overflows for an offset as small as the
-        // `5e-161` radii of `A1e160 1e160 0 1 1 1 0`, whose factor is a
-        // perfectly representable `2e160`.
-        let factor = sign * span.mul_add(-span, 1.0).max(0.0).sqrt() / span;
-
-        // Scale the offset by the factor before the radius: the factor alone
-        // can be as large as the reciprocal of a subnormal span, while its
-        // product with the offset never exceeds one.
-        let local_center = Point::new(rx * (factor * offset.y), -(ry * (factor * offset.x)));
+        // How far the centre lies from the midpoint, along the perpendicular
+        // of `toward`, in radii. The spec's factor is this divided by `span`,
+        // and that quotient is what breaks: at a span of `5e-311` it is
+        // `2e310`, past the finite range, while every product it appears in
+        // stays within one. Keeping the two apart lets the arc survive a span
+        // the factor cannot express, and reduces to `sign * toward` where the
+        // span is zero, which is the limit of a chord shrinking to nothing.
+        let rise = sign * span.mul_add(-span, 1.0).max(0.0).sqrt();
+        let arm = Point::new(rise * toward.x, rise * toward.y);
+        let local_center = Point::new(rx * arm.y, -(ry * arm.x));
         let center = Point::new(
             cos_phi.mul_add(local_center.x, -(sin_phi * local_center.y))
                 + f64::midpoint(start.x, end.x),
@@ -540,20 +554,25 @@ impl Pen {
 
         // The sweep angles are radius-relative too, so they follow from the
         // same offsets instead of quotients of extreme numbers.
-        let from = Point::new(
-            factor.mul_add(-offset.y, offset.x),
-            factor.mul_add(offset.x, offset.y),
-        );
-        let to = Point::new(
-            factor.mul_add(-offset.y, -offset.x),
-            factor.mul_add(offset.x, -offset.y),
-        );
+        let from = Point::new(offset.x - arm.y, offset.y + arm.x);
+        let to = Point::new(-offset.x - arm.y, -offset.y + arm.x);
         let theta = angle_between(Point::new(1.0, 0.0), from);
         let mut sweep = angle_between(from, to);
         if !arc.sweep && sweep > 0.0 {
             sweep -= std::f64::consts::TAU;
         } else if arc.sweep && sweep < 0.0 {
             sweep += std::f64::consts::TAU;
+        }
+        if arc.large && sweep == 0.0 {
+            // The endpoints are closer than the radii can express, so the two
+            // ends of the sweep are the same point and the angle between them
+            // is zero either way. A large arc over an offset that small is a
+            // full turn; a zero sweep is never a large arc otherwise.
+            sweep = if arc.sweep {
+                std::f64::consts::TAU
+            } else {
+                -std::f64::consts::TAU
+            };
         }
 
         let steps = arc_steps(sweep);
@@ -1450,6 +1469,49 @@ mod tests {
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
         );
+        Ok(())
+    }
+
+    #[test]
+    fn arcs_over_subnormal_offsets_still_close_their_circle() -> TestResult {
+        // The same unit circle, its two endpoints pushed closer together than
+        // any dot could show. At 1e-310 the spec's centre factor is 2e310 and
+        // leaves the finite range; at 5e-324 halving the difference underflows
+        // to nothing. Both are the limit of the case above them, so all four
+        // draw the circle the large-arc flag asks for.
+        let expected = art("M0 0 A1 1 0 1 1 1e-300 0")?;
+        for endpoint in ["1e-307", "1e-310", "5e-324"] {
+            assert_eq!(
+                art(&format!("M0 0 A1 1 0 1 1 {endpoint} 0"))?,
+                expected,
+                "large arc to {endpoint}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn subnormal_offsets_do_not_inflate_a_small_arc() -> TestResult {
+        // The limit only applies to the large-arc flag. Without it the arc is
+        // the shorter way round, which over an offset this small is nothing.
+        let sketch = sketch("M0 0 A1 1 0 0 1 5e-324 0").ok_or("small arc")?;
+        assert_eq!(
+            (sketch.width, sketch.height),
+            (f64::from_bits(1), 0.0),
+            "the chord itself, not a unit circle"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_exact_semicircle_is_not_rounded_up_to_a_turn() -> TestResult {
+        // Where the chord is a diameter both flags describe the same half
+        // turn, and the sweep between the endpoints is a true pi rather than
+        // the zero that marks an underflow. It must stay a half circle.
+        for flags in ["1 1", "0 1", "1 0", "0 0"] {
+            let sketch = sketch(&format!("M0 0 A1 1 0 {flags} 2 0")).ok_or("semicircle")?;
+            assert_eq!((sketch.width, sketch.height), (2.0, 1.0), "flags {flags}");
+        }
         Ok(())
     }
 
