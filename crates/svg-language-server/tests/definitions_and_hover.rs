@@ -919,3 +919,33 @@ fn unparsable_path_data_hover_keeps_the_catalog_entry() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn foreign_namespace_path_attribute_is_not_sketched() -> TestResult {
+    // The host grammar keys `d_attribute` off the attribute spelling alone, so
+    // foreign markup carrying a `d` must not borrow the SVG path sketch.
+    let mut server = TestServer::start()?;
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><shape d="M0 0 H20 V20 Z"/></foreignObject></svg>"#;
+    let uri = "file:///foreign-path-sketch.svg";
+    server.open(uri, source)?;
+
+    for needle in [" d=", "H20"] {
+        let column = u32::try_from(source.find(needle).ok_or("attribute present")? + 1)?;
+        let response = server.request(
+            "textDocument/hover",
+            &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+        )?;
+        let rendered = response["result"]["contents"]["value"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(
+            !rendered
+                .chars()
+                .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+            "foreign content must not get an SVG path sketch at {needle}: {response}"
+        );
+    }
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}

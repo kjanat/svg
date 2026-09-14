@@ -855,6 +855,10 @@ fn build_hover_context(
 
 /// Sketch the path data when the cursor is anywhere in a `d`/`path` attribute,
 /// whether on the attribute name or inside its value.
+///
+/// The host grammar keys `d_attribute` off the attribute spelling alone, so the
+/// owner element still has to resolve to the SVG namespace — a `d` on foreign
+/// markup inside `<foreignObject>` belongs to that language's tooling.
 fn build_path_sketch_markdown(
     node: tree_sitter::Node<'_>,
     source: &[u8],
@@ -863,6 +867,7 @@ fn build_path_sketch_markdown(
     if !settings.shows(Section::PathSketch) {
         return None;
     }
+    attribute_owner_element_name(node, source)?;
     let attribute = find_ancestor_any(node, &["d_attribute"])?;
     let sketch = path_preview::sketch_for_attribute(attribute, source)?;
     Some(format_path_sketch(&sketch))

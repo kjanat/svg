@@ -34,7 +34,13 @@ const BRAILLE_BLANK: char = '\u{2800}';
 const DOT_BITS: [[u8; CELL_ROWS]; CELL_COLUMNS] =
     [[0x01, 0x02, 0x04, 0x40], [0x08, 0x10, 0x20, 0x80]];
 
-/// Segment node kinds produced by the `svg_path` grammar.
+/// Segment node kinds this module draws, mirroring the `svg_path` grammar's
+/// `path_segment` alternatives.
+///
+/// `segment_kinds_match_the_grammar` pins the list to the kinds the grammar
+/// actually declares, and `every_segment_kind_draws` proves each one reaches a
+/// dispatch arm, so a grammar addition or rename fails loudly here instead of
+/// silently dropping that segment from every sketch.
 const SEGMENT_KINDS: &[&str] = &[
     "moveto_segment",
     "closepath_segment",
@@ -118,7 +124,7 @@ fn flatten(path_data: &str) -> Option<Outline> {
         .ok()?;
     let tree = parser.parse(path_data.as_bytes(), None)?;
     let root = tree.root_node();
-    if root.has_error() {
+    if root.has_error() || has_non_finite_number(root, path_data.as_bytes()) {
         return None;
     }
 
@@ -198,23 +204,42 @@ impl Pen {
     }
 
     fn moveto(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        let mut pairs = coordinate_pairs(node, source).into_iter();
-        let Some(first) = pairs.next() else {
-            return;
-        };
-        let start = self.resolve(first, relative);
-        self.begin_subpath(start);
-        self.commands += 1;
-        // Trailing pairs after a moveto are implicit linetos (SVG 2 section 9.3.3).
-        for pair in pairs {
+        let mut started = false;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() != "path_coordinate_pair" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let Some(pair) = read_pair(child, source) else {
+                continue;
+            };
             let target = self.resolve(pair, relative);
-            self.line_to(target);
+            if started {
+                // Trailing pairs after a moveto are implicit linetos (SVG 2 9.3.3).
+                self.line_to(target);
+            } else {
+                self.begin_subpath(target);
+                started = true;
+            }
             self.commands += 1;
         }
     }
 
     fn line_pairs(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for pair in coordinate_pairs(node, source) {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() != "path_coordinate_pair" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let Some(pair) = read_pair(child, source) else {
+                continue;
+            };
             let target = self.resolve(pair, relative);
             self.line_to(target);
             self.commands += 1;
@@ -222,7 +247,17 @@ impl Pen {
     }
 
     fn axis_lines(&mut self, node: Node<'_>, source: &[u8], relative: bool, axis: Axis) {
-        for value in children_numbers(node, source, "path_coordinate") {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() != "path_coordinate" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let Some(value) = read_number(child, source) else {
+                continue;
+            };
             let target = match (axis, relative) {
                 (Axis::Horizontal, true) => self.cursor.shifted(value, 0.0),
                 (Axis::Horizontal, false) => Point::new(value, self.cursor.y),
@@ -235,9 +270,15 @@ impl Pen {
     }
 
     fn cubics(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for argument in children_of_kind(node, "curveto_argument") {
-            let pairs = coordinate_pairs(argument, source);
-            let [first, second, end] = pairs[..] else {
+        let mut cursor = node.walk();
+        for argument in node.children(&mut cursor) {
+            if argument.kind() != "curveto_argument" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let [first, second, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
             };
             // Every control point of a relative curve is relative to the same
@@ -251,9 +292,15 @@ impl Pen {
     }
 
     fn smooth_cubics(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for argument in children_of_kind(node, "smooth_curveto_argument") {
-            let pairs = coordinate_pairs(argument, source);
-            let [second, end] = pairs[..] else {
+        let mut cursor = node.walk();
+        for argument in node.children(&mut cursor) {
+            if argument.kind() != "smooth_curveto_argument" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let [second, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
             };
             let first = self
@@ -267,9 +314,15 @@ impl Pen {
     }
 
     fn quadratics(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for argument in children_of_kind(node, "quadratic_bezier_curveto_argument") {
-            let pairs = coordinate_pairs(argument, source);
-            let [control, end] = pairs[..] else {
+        let mut cursor = node.walk();
+        for argument in node.children(&mut cursor) {
+            if argument.kind() != "quadratic_bezier_curveto_argument" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let [control, end] = coordinate_pairs(argument, source)[..] else {
                 continue;
             };
             let control = self.resolve(control, relative);
@@ -280,7 +333,17 @@ impl Pen {
     }
 
     fn smooth_quadratics(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for pair in coordinate_pairs(node, source) {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() != "path_coordinate_pair" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
+            let Some(pair) = read_pair(child, source) else {
+                continue;
+            };
             let control = self
                 .quadratic_reflection
                 .map_or(self.cursor, |previous| previous.mirrored(self.cursor));
@@ -291,7 +354,14 @@ impl Pen {
     }
 
     fn arcs(&mut self, node: Node<'_>, source: &[u8], relative: bool) {
-        for argument in children_of_kind(node, "elliptical_arc_argument") {
+        let mut cursor = node.walk();
+        for argument in node.children(&mut cursor) {
+            if argument.kind() != "elliptical_arc_argument" {
+                continue;
+            }
+            if self.at_capacity() {
+                return;
+            }
             let Some(arc) = read_arc(argument, source) else {
                 continue;
             };
@@ -299,6 +369,10 @@ impl Pen {
             self.arc_to(&arc, end);
             self.commands += 1;
         }
+    }
+
+    const fn at_capacity(&self) -> bool {
+        self.points >= MAX_POINTS
     }
 
     fn cubic_to(&mut self, first: Point, second: Point, end: Point) {
@@ -338,6 +412,11 @@ impl Pen {
     /// in SVG 2 appendix B.2.4.
     fn arc_to(&mut self, arc: &ArcCommand, end: Point) {
         let start = self.cursor;
+        // The command still counts as an arc even where it draws nothing, so a
+        // following S/T must fall back to the current point rather than reflect
+        // the control point of whatever curve preceded this arc.
+        self.cubic_reflection = None;
+        self.quadratic_reflection = None;
         if close_enough(start.x, end.x) && close_enough(start.y, end.y) {
             // Coincident endpoints: the arc is omitted entirely.
             return;
@@ -487,27 +566,29 @@ struct ArcCommand {
 }
 
 fn read_arc(node: Node<'_>, source: &[u8]) -> Option<ArcCommand> {
-    let radii_node = children_of_kind(node, "elliptical_arc_radii")
-        .into_iter()
-        .next()?;
+    let radii_node = first_child_of_kind(node, "elliptical_arc_radii")?;
     let [rx, ry] = children_numbers(radii_node, source, "path_coordinate")[..] else {
         return None;
     };
-    let rotation = children_numbers(node, source, "path_rotation")
-        .first()
-        .copied()?;
+    let rotation_node = first_child_of_kind(node, "path_rotation")?;
     Some(ArcCommand {
         radii: Point::new(rx, ry),
-        rotation,
+        rotation: read_number(rotation_node, source)?,
         large: read_flag(node, source, "path_arc_flag")?,
         sweep: read_flag(node, source, "path_sweep_flag")?,
-        end: coordinate_pairs(node, source).into_iter().next()?,
+        end: read_pair(first_child_of_kind(node, "path_coordinate_pair")?, source)?,
     })
 }
 
 fn read_flag(node: Node<'_>, source: &[u8], kind: &str) -> Option<bool> {
-    let flag = children_of_kind(node, kind).into_iter().next()?;
+    let flag = first_child_of_kind(node, kind)?;
     Some(flag.utf8_text(source).ok()?.trim() == "1")
+}
+
+fn first_child_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    let mut cursor = node.walk();
+    node.children(&mut cursor)
+        .find(|child| child.kind() == kind)
 }
 
 fn command_letter(node: Node<'_>, source: &[u8]) -> Option<u8> {
@@ -515,34 +596,52 @@ fn command_letter(node: Node<'_>, source: &[u8]) -> Option<u8> {
     command.utf8_text(source).ok()?.trim().bytes().next()
 }
 
-fn children_of_kind<'a>(node: Node<'a>, kind: &str) -> Vec<Node<'a>> {
+/// Numbers held directly by `node`. Only ever called on fixed-arity argument
+/// nodes, so the result stays small regardless of how long the path data is.
+fn children_numbers(node: Node<'_>, source: &[u8], kind: &str) -> Vec<f64> {
     let mut cursor = node.walk();
     node.children(&mut cursor)
         .filter(|child| child.kind() == kind)
-        .collect()
-}
-
-fn children_numbers(node: Node<'_>, source: &[u8], kind: &str) -> Vec<f64> {
-    children_of_kind(node, kind)
-        .into_iter()
         .filter_map(|child| read_number(child, source))
         .collect()
 }
 
+/// Coordinate pairs held directly by `node`, under the same arity caveat.
 fn coordinate_pairs(node: Node<'_>, source: &[u8]) -> Vec<Point> {
-    children_of_kind(node, "path_coordinate_pair")
-        .into_iter()
-        .filter_map(|pair| {
-            let [x, y] = children_numbers(pair, source, "path_coordinate")[..] else {
-                return None;
-            };
-            Some(Point::new(x, y))
-        })
+    let mut cursor = node.walk();
+    node.children(&mut cursor)
+        .filter(|child| child.kind() == "path_coordinate_pair")
+        .filter_map(|pair| read_pair(pair, source))
         .collect()
 }
 
+fn read_pair(node: Node<'_>, source: &[u8]) -> Option<Point> {
+    let [x, y] = children_numbers(node, source, "path_coordinate")[..] else {
+        return None;
+    };
+    Some(Point::new(x, y))
+}
+
 fn read_number(node: Node<'_>, source: &[u8]) -> Option<f64> {
-    node.utf8_text(source).ok()?.trim().parse().ok()
+    node.utf8_text(source)
+        .ok()?
+        .trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite())
+}
+
+/// Path number syntax permits exponents that overflow `f64` (`1e999` parses to
+/// infinity), which would poison the bounds and scale into `NaN` and report an
+/// extent of `inf` units. Such a value invalidates the whole sketch rather than
+/// silently dropping one segment, matching how a parse error is handled.
+fn has_non_finite_number(node: Node<'_>, source: &[u8]) -> bool {
+    if node.kind() == "path_number" {
+        return read_number(node, source).is_none();
+    }
+    let mut cursor = node.walk();
+    node.children(&mut cursor)
+        .any(|child| has_non_finite_number(child, source))
 }
 
 fn descendant_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
@@ -863,6 +962,124 @@ mod tests {
     fn sketch_is_cropped_to_the_drawn_cells() -> TestResult {
         let art = art("M0 0 H10")?;
         assert_eq!(art.lines().count(), 1, "a flat line needs one row: {art}");
+        Ok(())
+    }
+
+    /// One path per entry in `SEGMENT_KINDS`, keyed by the kind it must produce.
+    const SEGMENT_SAMPLES: &[(&str, &str)] = &[
+        ("moveto_segment", "M0 0"),
+        ("closepath_segment", "M0 0 L10 10 Z"),
+        ("implicit_lineto_segment", "M0 0 10 10"),
+        ("lineto_segment", "M0 0 L10 10"),
+        ("horizontal_lineto_segment", "M0 0 H10"),
+        ("vertical_lineto_segment", "M0 0 V10"),
+        ("curveto_segment", "M0 0 C2 0 8 0 10 10"),
+        ("smooth_curveto_segment", "M0 0 C2 0 8 0 10 10 S18 20 20 20"),
+        ("quadratic_bezier_curveto_segment", "M0 0 Q5 10 10 0"),
+        (
+            "smooth_quadratic_bezier_curveto_segment",
+            "M0 0 Q5 10 10 0 T20 0",
+        ),
+        ("elliptical_arc_segment", "M0 0 A10 10 0 0 1 20 0"),
+    ];
+
+    fn parse(path_data: &str) -> Option<tree_sitter::Tree> {
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_svg_path::LANGUAGE.into())
+            .ok()?;
+        parser.parse(path_data.as_bytes(), None)
+    }
+
+    fn contains_kind(node: Node<'_>, kind: &str) -> bool {
+        node.kind() == kind || {
+            let mut cursor = node.walk();
+            node.children(&mut cursor)
+                .any(|child| contains_kind(child, kind))
+        }
+    }
+
+    #[test]
+    fn segment_kinds_match_the_grammar() {
+        let language: tree_sitter::Language = tree_sitter_svg_path::LANGUAGE.into();
+        let mut declared: Vec<&str> = (0..language.node_kind_count())
+            .filter_map(|id| {
+                let id = u16::try_from(id).ok()?;
+                let kind = language.node_kind_for_id(id)?;
+                // `path_segment` is the choice wrapper over the concrete
+                // segments, not a segment that carries coordinates itself.
+                let concrete = kind.ends_with("_segment") && kind != "path_segment";
+                (language.node_kind_is_named(id) && concrete).then_some(kind)
+            })
+            .collect();
+        declared.sort_unstable();
+        declared.dedup();
+
+        let mut handled = SEGMENT_KINDS.to_vec();
+        handled.sort_unstable();
+        assert_eq!(
+            handled, declared,
+            "SEGMENT_KINDS drifted from the svg_path grammar; a segment kind missing here is \
+             silently skipped by every sketch"
+        );
+    }
+
+    #[test]
+    fn every_segment_kind_draws() -> TestResult {
+        let mut sampled: Vec<&str> = SEGMENT_SAMPLES.iter().map(|(kind, _)| *kind).collect();
+        sampled.sort_unstable();
+        let mut handled = SEGMENT_KINDS.to_vec();
+        handled.sort_unstable();
+        assert_eq!(handled, sampled, "every segment kind needs a sample path");
+
+        for (kind, path_data) in SEGMENT_SAMPLES {
+            let tree = parse(path_data).ok_or("sample should parse")?;
+            assert!(
+                contains_kind(tree.root_node(), kind),
+                "{path_data} should produce a {kind} node"
+            );
+            let sketch = sketch(path_data).ok_or("sample should sketch")?;
+            assert!(
+                !sketch.art.is_empty(),
+                "{kind} reached no dispatch arm: {path_data}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn non_finite_coordinates_are_rejected() {
+        // `1e999` parses to f64::INFINITY, which would poison bounds and scale.
+        assert!(sketch("M0 0 L1e999 1").is_none(), "infinite coordinate");
+        assert!(sketch("M0 0 H1e400").is_none(), "infinite axis coordinate");
+    }
+
+    #[test]
+    fn omitted_arc_still_resets_smooth_curve_reflection() -> TestResult {
+        // The zero-length arc draws nothing, but it is still the command before
+        // `S`, so the S control point is the current point, not a reflection of
+        // the earlier cubic's second control point.
+        assert_eq!(
+            art("M0 0 C2 0 8 0 10 10 A10 10 0 0 1 10 10 S18 20 20 20")?,
+            art("M0 0 C2 0 8 0 10 10 C10 10 18 20 20 20")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn repeated_arguments_stay_within_the_point_cap() -> TestResult {
+        // One curveto command carrying far more argument groups than the cap
+        // allows: flattening must stop instead of running the whole list.
+        let mut path_data = String::from("M0 0");
+        for _ in 0..20_000 {
+            path_data.push_str(" C1 1 2 2 3 3 4 4 5 5 6 6");
+        }
+        let outline = flatten(&path_data).ok_or("generated path should parse")?;
+        let points: usize = outline.polylines.iter().map(Vec::len).sum();
+        assert!(
+            points <= MAX_POINTS + usize::try_from(CURVE_STEPS)? + 1,
+            "flattening overran the cap: {points} points"
+        );
         Ok(())
     }
 }
