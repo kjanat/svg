@@ -125,10 +125,14 @@ row uses BCD.
 `path_sketch` draws the geometry of a `d` (or `animateMotion` `path`) value as a
 braille-dot outline, above the catalog entry, whether the cursor sits on the
 attribute name or inside its value. The sketch is text rather than an image, so
-it also appears in clients that cannot render images in a hover. Path data that
-does not parse is not sketched, so a half-typed path shows nothing rather than a
-guess. It needs a font with Unicode braille patterns (U+2800–U+28FF); drop
-`path_sketch` from `sections` if yours lacks them.
+it also appears in clients that cannot render images in a hover. It needs a font
+with Unicode braille patterns (U+2800–U+28FF); drop `path_sketch` from
+`sections` if yours lacks them.
+
+Nothing is sketched for path data that does not parse, so a half-typed path
+shows nothing rather than a guess, nor for coordinates that overflow the finite
+range, nor for values over 32 KiB — sketching parses the value on the request
+path, and artwork that large reduces to an unreadable silhouette anyway.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
