@@ -467,7 +467,11 @@ impl Pen {
             return;
         }
 
-        let phi = arc.rotation.to_radians();
+        // Reduce before converting: past a few degrees of magnitude the
+        // radian value's own ulp exceeds a full turn, so `sin_cos` can no
+        // longer recover the orientation. SVG angles are modulo a turn, and
+        // the remainder of a representable degree value is exact.
+        let phi = (arc.rotation % 360.0).to_radians();
         let (sin_phi, cos_phi) = phi.sin_cos();
         let half = Point::new((start.x - end.x) / 2.0, (start.y - end.y) / 2.0);
         let local = Point::new(
@@ -1361,6 +1365,17 @@ mod tests {
             sketch.height > 1.0e8,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn huge_arc_rotations_reduce_to_their_equivalent() -> TestResult {
+        // 1e20 degrees is 280 degrees, but converting it to radians first
+        // leaves a value whose ulp is larger than a full turn.
+        assert_eq!(
+            art("M0 0 A100 20 1e20 0 1 100 0")?,
+            art("M0 0 A100 20 280 0 1 100 0")?
         );
         Ok(())
     }
