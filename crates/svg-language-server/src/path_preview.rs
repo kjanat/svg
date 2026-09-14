@@ -544,13 +544,6 @@ impl Pen {
         // span is zero, which is the limit of a chord shrinking to nothing.
         let rise = sign * span.mul_add(-span, 1.0).max(0.0).sqrt();
         let arm = Point::new(rise * toward.x, rise * toward.y);
-        let local_center = Point::new(rx * arm.y, -(ry * arm.x));
-        let center = Point::new(
-            cos_phi.mul_add(local_center.x, -(sin_phi * local_center.y))
-                + f64::midpoint(start.x, end.x),
-            sin_phi.mul_add(local_center.x, cos_phi * local_center.y)
-                + f64::midpoint(start.y, end.y),
-        );
 
         // The sweep angles are radius-relative too, so they follow from the
         // same offsets instead of quotients of extreme numbers.
@@ -575,13 +568,26 @@ impl Pen {
             };
         }
 
+        // Walk out from the start rather than out from the centre. A point on
+        // the arc is the centre plus a radius, and for radii far larger than
+        // the arc itself those two nearly cancel: `A1e160 1e160 0 0 1 1 0`
+        // sweeps about 1e-160, which vanishes when added to an angle near
+        // -pi/2, and what survives is the error in that angle's own cosine,
+        // magnified by 1e160 into a sample at 6e143. Measured from the start,
+        // the same step is the difference of two cosines, which the half-angle
+        // identity states as a product: the tiny sweep stays a factor instead
+        // of being added to something large, and the radius multiplies a
+        // quantity that is small precisely because the sweep is.
         let steps = arc_steps(sweep);
         for step in 1..=steps {
             let at = f64::from(step) / f64::from(steps);
-            let (sin_t, cos_t) = sweep.mul_add(at, theta).sin_cos();
+            let half = sweep * at / 2.0;
+            let chord = 2.0 * half.sin();
+            let (sin_mid, cos_mid) = (theta + half).sin_cos();
+            let local = Point::new(-(rx * (chord * sin_mid)), ry * (chord * cos_mid));
             self.push(Point::new(
-                (cos_phi * rx).mul_add(cos_t, -(sin_phi * ry * sin_t)) + center.x,
-                (sin_phi * rx).mul_add(cos_t, cos_phi * ry * sin_t) + center.y,
+                cos_phi.mul_add(local.x, -(sin_phi * local.y)) + start.x,
+                sin_phi.mul_add(local.x, cos_phi * local.y) + start.y,
             ));
         }
         self.cursor = end;
@@ -590,11 +596,22 @@ impl Pen {
     }
 
     fn resolve(&mut self, pair: Point, relative: bool) -> Point {
+        if self.origin.is_none() {
+            // The first coordinate fixes the frame, in whichever form names
+            // it. A path opening with `m` displaces from the implied origin,
+            // and it is where that displacement lands — not the zero it
+            // started from — that the rest of the path is drawn around.
+            let anchor = if relative {
+                self.cursor.shifted(pair.x, pair.y)
+            } else {
+                pair
+            };
+            self.origin = Some(anchor);
+            return Point::default();
+        }
         if relative {
             // The cursor already sits in the local frame, so a displacement
-            // needs no shift. A path opening with `m` starts from the implied
-            // origin, which is exactly the zero this frame measures from.
-            self.origin.get_or_insert_with(Point::default);
+            // needs no shift.
             self.cursor.shifted(pair.x, pair.y)
         } else {
             self.localize(pair)
@@ -759,18 +776,26 @@ fn read_pair(node: Node<'_>, source: &[u8]) -> Option<Point> {
 }
 
 fn read_number(node: Node<'_>, source: &[u8]) -> Option<f64> {
-    node.utf8_text(source)
-        .ok()?
-        .trim()
-        .parse::<f64>()
-        .ok()
-        .filter(|value| value.is_finite())
+    let text = node.utf8_text(source).ok()?.trim();
+    let value = text.parse::<f64>().ok().filter(|value| value.is_finite())?;
+    // The exponent runs off the bottom of the range as readily as off the top,
+    // and `1e-999` collapsing to zero misreports the geometry just as surely
+    // as `1e999` reaching infinity does. Only the digits before the exponent
+    // decide whether the number was written as a zero: `0e5` is one, and
+    // `1e-999` is not.
+    let written_zero = text
+        .split(['e', 'E'])
+        .next()
+        .is_none_or(|mantissa| !mantissa.bytes().any(|digit| matches!(digit, b'1'..=b'9')));
+    (value != 0.0 || written_zero).then_some(value)
 }
 
-/// Path number syntax permits exponents that overflow `f64` (`1e999` parses to
-/// infinity), which would poison the bounds and scale into `NaN` and report an
-/// extent of `inf` units. Such a value invalidates the whole sketch rather than
-/// silently dropping one segment, matching how a parse error is handled.
+/// Path number syntax permits exponents that leave the `f64` range at either
+/// end: `1e999` parses to infinity, which would poison the bounds and scale
+/// into `NaN` and report an extent of `inf` units, and `1e-999` parses to a
+/// zero that would draw a distinct endpoint as a dot. Such a value invalidates
+/// the whole sketch rather than silently dropping one segment, matching how a
+/// parse error is handled.
 fn has_non_finite_number(node: Node<'_>, source: &[u8]) -> bool {
     if node.kind() == "path_number" {
         return read_number(node, source).is_none();
@@ -1294,6 +1319,22 @@ mod tests {
     }
 
     #[test]
+    fn a_relative_opening_moveto_anchors_the_frame_where_it_lands() -> TestResult {
+        // `m` displaces from the implied origin, so the shape begins where it
+        // lands, not at the zero it counted from. Anchoring the frame at that
+        // zero would leave the cursor in absolute coordinates and lose exactly
+        // what the frame exists to keep: this line measures 96 units instead
+        // of 100, and curves at the same offset visibly distort.
+        assert_eq!(
+            art("m1e17 1e17 l100 0 l0 50 l-100 0 z")?,
+            art("M1e17 1e17 l100 0 l0 50 l-100 0 z")?
+        );
+        let relative = sketch("m1e17 1e17 l100 0").ok_or("relative opening")?;
+        assert_eq!((relative.width, relative.height), (100.0, 0.0));
+        Ok(())
+    }
+
+    #[test]
     fn a_far_flung_shape_is_still_measured_where_it_lies() -> TestResult {
         // The frame moves the arithmetic, not the reported geometry: a shape
         // is as wide as its own coordinates say, wherever it sits.
@@ -1473,6 +1514,22 @@ mod tests {
     }
 
     #[test]
+    fn a_shallow_arc_on_vast_radii_stays_beside_its_chord() -> TestResult {
+        // One unit of arc on a 1e160 radius: a line, to any eye. Sampled from
+        // the centre, the sweep of about 1e-160 disappears into an angle near
+        // -pi/2 and the radius magnifies that angle's own rounding into a
+        // sample at 6e143, reported as an enormous line pointing nowhere.
+        let sketch = sketch("M0 0 A1e160 1e160 0 0 1 1 0").ok_or("shallow vast arc")?;
+        assert!(
+            (sketch.width - 1.0).abs() < 1.0e-9 && sketch.height < 1.0e-9,
+            "the arc should hug its one-unit chord, got {} x {}",
+            sketch.width,
+            sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
     fn arcs_over_subnormal_offsets_still_close_their_circle() -> TestResult {
         // The same unit circle, its two endpoints pushed closer together than
         // any dot could show. At 1e-310 the spec's centre factor is 2e310 and
@@ -1510,7 +1567,12 @@ mod tests {
         // the zero that marks an underflow. It must stay a half circle.
         for flags in ["1 1", "0 1", "1 0", "0 0"] {
             let sketch = sketch(&format!("M0 0 A1 1 0 {flags} 2 0")).ok_or("semicircle")?;
-            assert_eq!((sketch.width, sketch.height), (2.0, 1.0), "flags {flags}");
+            assert!(
+                (sketch.width - 2.0).abs() < 1.0e-9 && (sketch.height - 1.0).abs() < 1.0e-9,
+                "flags {flags} should span a diameter by a radius, got {} x {}",
+                sketch.width,
+                sketch.height
+            );
         }
         Ok(())
     }
@@ -1538,6 +1600,20 @@ mod tests {
             art("M0 0 A100 20 280 0 1 100 0")?
         );
         Ok(())
+    }
+
+    #[test]
+    fn numbers_that_underflow_to_zero_are_rejected() {
+        // `1e-999` is a distinct endpoint written down, not the origin; a
+        // sketch of it would be a dot standing for geometry that is somewhere
+        // else. A zero that was written as one is still a zero.
+        assert!(sketch("M0 0 L1e-999 0").is_none(), "underflowing lineto");
+        assert!(sketch("M0 0 H1e-999").is_none(), "underflowing coordinate");
+        assert!(sketch("M0 0 L5e-324 0").is_some(), "the smallest subnormal");
+        assert!(
+            sketch("M0 0 L0e5 0 L1 1").is_some(),
+            "a zero written as one"
+        );
     }
 
     #[test]
