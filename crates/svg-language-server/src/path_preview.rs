@@ -451,7 +451,13 @@ impl Pen {
             // units, where the whole path is narrower than the tolerance.
             return;
         }
-        let (mut rx, mut ry) = (arc.radii.x.abs(), arc.radii.y.abs());
+        if arc.radii.x < 0.0 || arc.radii.y < 0.0 {
+            // SVG 2 9.3.8 calls a negative radius an error. Taking its absolute
+            // value would quietly turn invalid data into a plausible curve.
+            self.invalid = true;
+            return;
+        }
+        let (mut rx, mut ry) = (arc.radii.x, arc.radii.y);
         if rx <= 0.0 || ry <= 0.0 {
             // Only an exactly zero radius degrades to a straight line (SVG 2
             // 9.3.8). Merely small radii are scaled up to reach the endpoints
@@ -733,18 +739,15 @@ fn blend(terms: &[(f64, Point)]) -> Point {
 }
 
 /// Signed angle from `from` to `to`, as SVG 2 appendix B.2.4 defines it.
+///
+/// Taken as `atan2(cross, dot)` rather than a signed `acos` of the normalized
+/// dot product: for a shallow sweep the cosine rounds to exactly one and `acos`
+/// collapses the angle to zero, which would flatten an arc whose ends are close
+/// together — the near-complete circle of `A1e8 1e8 0 1 1 1 0` among them.
 fn angle_between(from: Point, to: Point) -> f64 {
-    let magnitude = from.x.hypot(from.y) * to.x.hypot(to.y);
-    if magnitude <= 0.0 {
-        return 0.0;
-    }
-    let cosine = (from.x.mul_add(to.x, from.y * to.y) / magnitude).clamp(-1.0, 1.0);
-    let sign = if from.x.mul_add(to.y, -(from.y * to.x)) < 0.0 {
-        -1.0
-    } else {
-        1.0
-    };
-    sign * cosine.acos()
+    let cross = from.x.mul_add(to.y, -(from.y * to.x));
+    let dot = from.x.mul_add(to.x, from.y * to.y);
+    cross.atan2(dot)
 }
 
 /// Numeric equality, spelled through `partial_cmp` so it reads as deliberate
@@ -1335,6 +1338,28 @@ mod tests {
         assert!(
             sketch.height > 0.0,
             "the corrected arc should bulge off its chord, got {}",
+            sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn negative_arc_radii_are_invalid() {
+        // A negative radius is an error, not something to correct into a curve.
+        assert!(sketch("M0 0 A-10 10 0 0 1 20 0").is_none(), "negative rx");
+        assert!(sketch("M0 0 A10 -10 0 0 1 20 0").is_none(), "negative ry");
+        assert!(sketch("M0 0 A10 10 0 0 1 20 0").is_some(), "positive radii");
+    }
+
+    #[test]
+    fn shallow_arcs_keep_their_sweep() -> TestResult {
+        // The endpoints are 1 unit apart on a 1e8 radius, so the normalized
+        // vectors differ by ~1e-8 radians and their cosine rounds to exactly
+        // one. With the large-arc flag set this is very nearly a full circle.
+        let sketch = sketch("M0 0 A100000000 100000000 0 1 1 1 0").ok_or("shallow arc")?;
+        assert!(
+            sketch.height > 1.0e8,
+            "a near-complete circle should span about a diameter, got {}",
             sketch.height
         );
         Ok(())
