@@ -130,9 +130,9 @@ with Unicode braille patterns (U+2800–U+28FF); drop `path_sketch` from
 `sections` if yours lacks them.
 
 Nothing is sketched for path data that does not parse, so a half-typed path
-shows nothing rather than a guess, nor for coordinates that overflow the finite
-range, nor for values over 32 KiB — sketching parses the value on the request
-path, and artwork that large reduces to an unreadable silhouette anyway.
+shows nothing rather than a guess, nor for geometry whose extent overflows the
+finite range, nor for values over 32 KiB — sketching parses the value on the
+request path, and artwork that large reduces to an unreadable silhouette anyway.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
