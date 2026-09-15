@@ -28,6 +28,10 @@ When bumping the workspace version after a catalog refresh:
 - Show what an element may contain in its hover, as a `Children:` line under
   the same `values` section that carries an attribute's grammar, filtered to
   the active profile as completion already is.
+- Sketch the geometry of a `d` or `animateMotion` `path` value in hover, as a
+  braille-dot outline above the catalog entry, alongside its command and
+  subpath counts and its extent. Opt out with `path_sketch` in
+  `svg.hover.sections`.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
