@@ -75,7 +75,7 @@ fn class_definition_and_hover() -> TestResult {
         "class hover should include the CSS definition snippet: {hover_resp}"
     );
     assert!(
-        hover_text.contains("[class-test.svg:1](file:///class-test.svg#L1)"),
+        hover_text.contains(r"[class\-test\.svg\:1](file:///class-test.svg#L1)"),
         "class hover should provide a clickable source link: {hover_resp}"
     );
 
@@ -220,7 +220,7 @@ fn custom_property_definition_and_hover() -> TestResult {
         "custom property hover should render the declaration as CSS markdown: {var_hover_resp}"
     );
     assert!(
-        var_hover_text.contains("[vars-test.svg:1](file:///vars-test.svg#L1)"),
+        var_hover_text.contains(r"[vars\-test\.svg\:1](file:///vars-test.svg#L1)"),
         "custom property hover should provide a clickable source link: {var_hover_resp}"
     );
 
