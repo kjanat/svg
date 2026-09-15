@@ -1588,7 +1588,9 @@ fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
     // underscore on it, even one whose partner is the very next byte.
     (open + 2..bytes.len())
         .take_while(|&at| bytes[at] != b'\n')
-        .find(|&at| bytes[at] == b'_' && solid(Some(&bytes[at - 1])))
+        // An escaped underscore is a character, so it cannot close emphasis
+        // any more than it can open it.
+        .find(|&at| bytes[at] == b'_' && bytes[at - 1] != b'\\' && solid(Some(&bytes[at - 1])))
 }
 
 /// What a scan for `[text](target)` found.
@@ -1713,6 +1715,16 @@ mod tests {
             super::to_plain_text("Chrome 1\\. See note\\_1\\."),
             "Chrome 1. See note_1."
         );
+    }
+
+    #[test]
+    fn an_escaped_delimiter_neither_opens_nor_closes() {
+        // The escape is unwrapped before anything reads the character, and the
+        // scan for a partner skips escaped candidates, so emphasis cannot
+        // close on one and leave the real closer stranded.
+        assert_eq!(super::to_plain_text(r"_foo\_bar_"), "foo_bar");
+        assert_eq!(super::to_plain_text(r"\_notemphasis\_"), "_notemphasis_");
+        assert_eq!(super::to_plain_text(r"\*not bold\*"), "*not bold*");
     }
 
     #[test]
