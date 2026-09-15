@@ -912,10 +912,23 @@ fn de_casteljau(points: &[Point], t: f64) -> Point {
 /// The point `t` of the way from `from` to `to`, written so that `t` of zero
 /// and one land exactly on the endpoints and coincident inputs stay put.
 fn interpolate(from: Point, to: Point, t: f64) -> Point {
-    Point::new(
-        t.mul_add(to.x - from.x, from.x),
-        t.mul_add(to.y - from.y, from.y),
-    )
+    Point::new(between(from.x, to.x, t), between(from.y, to.y, t))
+}
+
+/// `t` of the way from `from` to `to`, along one axis.
+///
+/// Written as a weighted sum of the two rather than a step along their
+/// difference: that difference can leave the range where the result cannot,
+/// as the controls of `C1e308 0 -1e308 0` do, and a curve that is finite
+/// everywhere would then draw nothing. Neither weight exceeds one and neither
+/// endpoint is exceeded, so the sum cannot overflow either. Coincident points
+/// short-circuit, because two roundings of the same value need not add back up
+/// to it — which is how a stationary curve drew as a line before.
+fn between(from: f64, to: f64, t: f64) -> f64 {
+    if identical(from, to) {
+        return from;
+    }
+    (1.0 - t).mul_add(from, t * to)
 }
 
 /// Exact sine and cosine for a rotation that is a whole number of quarter
@@ -1684,6 +1697,22 @@ mod tests {
             sketch.height > 1.0e160,
             "a near-complete circle should span about a diameter, got {}",
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_curve_between_opposite_extremes_still_draws() -> TestResult {
+        // The controls are at either end of the range, so the step between
+        // them is not representable — but no point on the curve leaves it,
+        // and the same curve an order of magnitude down draws fine.
+        let extreme = sketch("M0 0 C1e308 0 -1e308 0 0 0").ok_or("extreme controls")?;
+        let smaller = sketch("M0 0 C1e307 0 -1e307 0 0 0").ok_or("smaller controls")?;
+        assert!(
+            (extreme.width / smaller.width - 10.0).abs() < 1.0e-9,
+            "ten times the controls should be ten times the curve, got {} and {}",
+            extreme.width,
+            smaller.width
         );
         Ok(())
     }

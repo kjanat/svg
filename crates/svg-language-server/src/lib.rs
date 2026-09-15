@@ -101,6 +101,12 @@ type ColorKindCache = Arc<RwLock<HashMap<ColorPositionKey, svg_color::ColorKind>
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct SketchKey {
     uri: Uri,
+    /// The document version the sketch was drawn from. Clearing the URI's
+    /// entries on every ingest is not enough on its own: a slow hover holds
+    /// the state it started with, so one that finishes after the edit would
+    /// otherwise insert its picture of the old text under a key the new text
+    /// reads. The version makes that insertion unreachable instead.
+    version: i32,
     attribute_start: usize,
 }
 
@@ -118,6 +124,7 @@ type SketchCache = Arc<StdRwLock<HashMap<SketchKey, Option<String>>>>;
 #[derive(Clone, Copy)]
 struct SketchStore<'a> {
     uri: &'a Uri,
+    version: i32,
     drawn: &'a SketchCache,
 }
 pub(crate) type StylesheetCache =
@@ -914,6 +921,7 @@ fn build_path_sketch_markdown(
     // this, so a hit can only be a value that has not changed.
     let key = SketchKey {
         uri: sketches.uri.clone(),
+        version: sketches.version,
         attribute_start: attribute.start_byte(),
     };
     if let Ok(drawn) = sketches.drawn.read()
@@ -1180,6 +1188,7 @@ impl SvgLanguageServer {
         build_hover_context(
             SketchStore {
                 uri,
+                version: doc.version,
                 drawn: &self.path_sketches,
             },
             pos,
