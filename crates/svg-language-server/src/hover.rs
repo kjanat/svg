@@ -8,7 +8,7 @@ use url::Url;
 
 use crate::{
     clipboard::svg_data_uri,
-    compat::{CompatOverride, Outcome},
+    compat::CompatOverride,
     hover_settings::{BrowserDetail, HoverSettings, Section, browser_label},
     positions::byte_offset_for_row_col,
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
@@ -377,11 +377,71 @@ impl CompatMarkdownBuilder {
 /// Build the `[MDN Reference](…) · [Spec](…)` link list. Keeps both call
 /// sites from duplicating the tiny `spec_url` fallback.
 fn hover_link_list(mdn_url: &str, spec_url: Option<&str>) -> Vec<String> {
-    let mut links = vec![format!("[MDN Reference]({mdn_url})")];
-    if let Some(spec_url) = spec_url {
+    // A link with an empty destination is not a link. Most attributes carry no
+    // MDN page, and `[MDN Reference]()` was written for every one of them.
+    let mut links = Vec::new();
+    if !mdn_url.is_empty() {
+        links.push(format!("[MDN Reference]({mdn_url})"));
+    }
+    if let Some(spec_url) = spec_url.filter(|url| !url.is_empty()) {
         links.push(format!("[Spec]({spec_url})"));
     }
     links
+}
+
+/// Render an element's content model as one line, in the shape the attribute
+/// hover uses for a value grammar.
+///
+/// The catalog has carried `content_model` since the elements were ingested,
+/// but only `completion.rs` ever read it, so an element hover said nothing
+/// about what may go inside the element.
+fn content_model_line(model: &svg_data::ContentModel) -> Option<String> {
+    let names = |elements: &[&str]| {
+        elements
+            .iter()
+            .map(|name| format!("`{name}`"))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    };
+    let body = match model {
+        svg_data::ContentModel::Children {
+            categories,
+            elements,
+        } => {
+            let mut parts = categories
+                .iter()
+                .map(|category| category_label(*category).to_owned())
+                .collect::<Vec<_>>();
+            if !elements.is_empty() {
+                parts.push(names(elements));
+            }
+            if parts.is_empty() {
+                return None;
+            }
+            parts.join(" | ")
+        }
+        svg_data::ContentModel::ChildrenSet(elements) if !elements.is_empty() => names(elements),
+        svg_data::ContentModel::ChildrenSet(_) | svg_data::ContentModel::Void => "empty".to_owned(),
+        svg_data::ContentModel::AnySvg => "any SVG element".to_owned(),
+        svg_data::ContentModel::Foreign => "foreign namespace".to_owned(),
+        svg_data::ContentModel::Text => "character data".to_owned(),
+    };
+    Some(format!("Children: {body}"))
+}
+
+const fn category_label(category: svg_data::ElementCategory) -> &'static str {
+    match category {
+        svg_data::ElementCategory::Animation => "animation",
+        svg_data::ElementCategory::Descriptive => "descriptive",
+        svg_data::ElementCategory::Shape => "shape",
+        svg_data::ElementCategory::Structural => "structural",
+        svg_data::ElementCategory::PaintServer => "paint server",
+        svg_data::ElementCategory::Gradient => "gradient",
+        svg_data::ElementCategory::Container => "container",
+        svg_data::ElementCategory::FilterPrimitive => "filter primitive",
+        svg_data::ElementCategory::LightSource => "light source",
+        svg_data::ElementCategory::TextContentChild => "text content child",
+    }
 }
 
 /// Render the attribute value-constraint block as zero, one, or two lines
@@ -442,7 +502,9 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
                 lines.push(format!("Keywords: `{}`", keywords.join("` | `")));
             }
             let types = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Type);
-            if !types.is_empty() {
+            // A grammar that is a single type reference lists that same type,
+            // so `<number-optional-number>` was printed twice in a row.
+            if !types.is_empty() && types.as_slice() != [grammar.to_owned()] {
                 lines.push(format!("Types: `{}`", types.join("` | `")));
             }
             let functions = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Function);
@@ -501,6 +563,12 @@ pub fn format_element_hover_with_profile(
     }
     if settings.shows(Section::Description) {
         builder.description(el.description.to_owned());
+    }
+
+    if settings.shows(Section::Values)
+        && let Some(line) = content_model_line(&el.content_model)
+    {
+        builder.value_constraints(vec![line]);
     }
 
     if settings.shows(Section::Status)
@@ -1013,18 +1081,6 @@ fn format_baseline<T>(baseline: &svg_data::compat_model::Baseline<&str, T>) -> S
             line.push_str(" (upstream status missing)");
         }
     }
-    for (label, date) in [
-        ("Newly Available", baseline.low_date),
-        ("Widely Available", baseline.high_date),
-    ] {
-        if let Some(date) = date {
-            let text = date.date.map_or_else(
-                || format!("date not recognized (raw: {})", escape_metadata(date.raw)),
-                |parsed| format!("{}{parsed}", format_baseline_qualifier(date.qualifier)),
-            );
-            let _ = write!(line, "\n\n{label} date: {text}");
-        }
-    }
     line
 }
 
@@ -1119,8 +1175,16 @@ fn append_compat_details(
         builder.baseline(format_baseline(&baseline.as_ref()));
     }
     if settings.shows(Section::Browsers)
-        && let Some(line) = format_browser_support_line(facts.browser_support.as_ref(), settings)
+        && let Some(mut line) =
+            format_browser_support_line(facts.browser_support.as_ref(), settings)
     {
+        // The versions are the ones this build shipped with rather than a fresh
+        // fetch. Which source fell back, and whether it failed or was switched
+        // off, is a diagnostic; what a reader needs from a hover is the one
+        // word that qualifies the numbers next to it.
+        if settings.shows(Section::Sources) && rt.is_some_and(CompatOverride::is_offline) {
+            line.push_str(" (offline)");
+        }
         builder.browser_chips(line);
     }
     if settings.shows(Section::BrowserDetails)
@@ -1147,9 +1211,6 @@ fn append_compat_details(
         if !lines.is_empty() {
             builder.baseline(format!("Web Features support: {}", lines.join(" · ")));
         }
-    }
-    if settings.shows(Section::Sources) {
-        append_provenance(builder, rt);
     }
 }
 
@@ -1366,25 +1427,6 @@ fn reconciled_status(
         }
         (Some(status), _) => Some(status),
         (None, profile) => profile,
-    }
-}
-fn append_provenance(builder: &mut CompatMarkdownBuilder, runtime: Option<&CompatOverride>) {
-    let Some(runtime) = runtime else { return };
-    for source in &runtime.sources {
-        let state = match source.outcome {
-            Outcome::Loaded => "loaded",
-            Outcome::Absent => "no data",
-            Outcome::Unknown => "unknown status",
-            Outcome::Failed => "refresh failed; bundled facts retained (stale)",
-            Outcome::Disabled => "refresh disabled; bundled facts",
-        };
-        builder.status(format!(
-            "{} {}: {state}. Context: `{}`. Source: <{}>",
-            source.source,
-            source.version.as_deref().unwrap_or("(version unavailable)"),
-            source.key,
-            source.url
-        ));
     }
 }
 
@@ -2421,8 +2463,9 @@ mod tests {
             }
             if case["name"] == "both-milestones" {
                 assert!(hover.contains("Widely Available since 2022"));
-                assert!(hover.contains("Newly Available date: 2020-01-15"));
-                assert!(hover.contains("Widely Available date: 2022-07-15"));
+                // The year on the Baseline line is the whole date story; the
+                // two dated paragraphs that used to follow it restated it.
+                assert!(!hover.contains("Available date:"), "{hover}");
                 assert!(!hover.contains("Widely Available since 2020"));
             }
             if case["name"] == "newly-undated" {
@@ -2430,7 +2473,7 @@ mod tests {
             }
             if case["name"] == "malformed-dates" {
                 assert!(hover.contains("_Widely Available_"));
-                assert!(hover.contains("date not recognized"));
+                assert!(!hover.contains("date not recognized"), "{hover}");
             }
         }
         Ok(())
@@ -2475,6 +2518,7 @@ mod tests {
     use svg_data::ProfileLookup;
 
     use super::*;
+    use crate::compat::Outcome;
 
     fn bv_unknown() -> BrowserVersion {
         BrowserVersion {
@@ -2642,13 +2686,135 @@ mod tests {
         Ok(())
     }
 
+    fn element_facts(el: &svg_data::ElementDef) -> Facts {
+        Facts::from(svg_data::CompatFacts {
+            deprecated: el.deprecated,
+            experimental: el.experimental,
+            standard_track: el.standard_track,
+            baseline: el.baseline,
+            discouraged: el.discouraged,
+            browser_support: el.browser_support,
+        })
+    }
+
+    fn element_hover(name: &str, rt: Option<&CompatOverride>, settings: &HoverSettings) -> String {
+        let Some(element) = svg_data::element(name) else {
+            panic!("missing {name} element");
+        };
+        format_element_hover_with_profile(element, SpecSnapshotId::LATEST, None, rt, None, settings)
+    }
+
+    fn attribute_hover(name: &str) -> String {
+        let Some(attribute) = svg_data::attribute(name) else {
+            panic!("missing {name} attribute");
+        };
+        format_attribute_hover_with_profile_name(
+            attribute,
+            name,
+            crate::hover::AttributeHoverContext {
+                element_name: None,
+                profile: SpecSnapshotId::LATEST,
+                profile_lifecycle: None,
+                rt: None,
+                native: None,
+                settings: &HoverSettings::default(),
+            },
+        )
+    }
+
+    #[test]
+    fn a_refresh_that_did_not_happen_is_one_word_on_the_browser_line()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let element = svg_data::element("feGaussianBlur").ok_or("feGaussianBlur")?;
+        let settings = HoverSettings::default();
+        let mut runtime = test_override(element_facts(element));
+
+        let fresh = element_hover("feGaussianBlur", Some(&runtime), &settings);
+        assert!(!fresh.contains("(offline)"), "{fresh}");
+        // The provenance block that used to follow the browser line is gone
+        // in the fresh case too: "loaded" said nothing, the key restated the
+        // element under the cursor, and the URL had no label.
+        for gone in ["loaded", "Context:", "Source:", "unpkg.com"] {
+            assert!(!fresh.contains(gone), "{gone}: {fresh}");
+        }
+
+        for outcome in [Outcome::Failed, Outcome::Disabled] {
+            runtime.sources[1].outcome = outcome.clone();
+            let offline = element_hover("feGaussianBlur", Some(&runtime), &settings);
+            let browsers = offline
+                .lines()
+                .find(|line| line.starts_with("Chrome "))
+                .ok_or("browser line")?;
+            assert!(browsers.ends_with(" (offline)"), "{outcome:?}: {offline}");
+            assert_eq!(offline.matches("(offline)").count(), 1, "{offline}");
+        }
+
+        // Dropping the sources section drops the marker with it.
+        let mut quiet = HoverSettings::default();
+        quiet
+            .sections
+            .retain(|section| *section != Section::Sources);
+        let silent = element_hover("feGaussianBlur", Some(&runtime), &quiet);
+        assert!(!silent.contains("(offline)"), "{silent}");
+        Ok(())
+    }
+
+    #[test]
+    fn a_link_with_no_destination_is_not_written() {
+        // stdDeviation has no MDN page; every such attribute was handed
+        // `[MDN Reference]()`, a link to nowhere.
+        let attribute = attribute_hover("stdDeviation");
+        assert!(!attribute.contains("[MDN Reference]"), "{attribute}");
+        assert!(attribute.contains("[Spec](https://"), "{attribute}");
+        // One that has a page keeps it.
+        let element = element_hover("feGaussianBlur", None, &HoverSettings::default());
+        assert!(element.contains("[MDN Reference](https://"), "{element}");
+    }
+
+    #[test]
+    fn types_are_not_listed_when_they_are_the_grammar() {
+        // A grammar that is a single type reference lists that same type,
+        // which printed `<number-optional-number>` twice in a row.
+        let repeated = attribute_hover("baseFrequency");
+        assert!(
+            repeated.contains("Grammar: `<number-optional-number>`"),
+            "{repeated}"
+        );
+        assert!(!repeated.contains("Types:"), "{repeated}");
+        // Where the type list adds something, it stays.
+        let distinct = attribute_hover("alignment-baseline");
+        assert!(
+            distinct.contains("Types: `<baseline-metric>`"),
+            "{distinct}"
+        );
+    }
+
+    #[test]
+    fn element_hover_names_what_may_go_inside() {
+        let settings = HoverSettings::default();
+        for (name, expected) in [
+            ("feGaussianBlur", "Children: `animate` | `script` | `set`"),
+            ("a", "Children: any SVG element"),
+            ("foreignObject", "Children: foreign namespace"),
+            ("script", "Children: character data"),
+        ] {
+            let hover = element_hover(name, None, &settings);
+            assert!(hover.contains(expected), "{name}: {hover}");
+        }
+        let mut without = HoverSettings::default();
+        without
+            .sections
+            .retain(|section| *section != Section::Values);
+        let hover = element_hover("feGaussianBlur", None, &without);
+        assert!(!hover.contains("Children:"), "{hover}");
+    }
+
     fn test_override(facts: Facts) -> CompatOverride {
         CompatOverride {
             facts,
             sources: std::array::from_fn(|_| crate::compat::Provenance {
                 source: "fixture",
                 version: Some("1".to_owned()),
-                url: "https://example.com/data".to_owned(),
                 key: "fixture".to_owned(),
                 outcome: Outcome::Loaded,
             }),

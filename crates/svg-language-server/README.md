@@ -117,9 +117,12 @@ For example, show mobile browser support with selected details:
 
 Available sections: `description`, `status`, `values`, `baseline`,
 `discouraged`, `browsers`, `browser_details`, `web_features_support`, `sources`,
-and `links`. When both are enabled, discouragement takes the place of the
-Baseline badge. `web_features_support` shows that package's independently
-resolved browser versions; the normal browser row uses BCD.
+and `links`. `values` is the attribute's value grammar, and on an element the
+children it permits. When both are enabled, discouragement takes the place of
+the Baseline badge. `web_features_support` shows that package's independently
+resolved browser versions; the normal browser row uses BCD. `sources` adds
+`(offline)` to the browser row when a refresh failed or is disabled, and nothing
+otherwise.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
@@ -161,10 +164,9 @@ other products. The Status line identifies svg's assessment: Caution/Avoid is
 project advice, separate from upstream Baseline and specification validity.
 
 Startup refresh is enabled by default. `svg.runtime_compat: false` keeps the
-bundled snapshot. A failed source refresh retains its bundled facts and labels
-them stale; a successful source load with no facts clears that source's old
-values. The `sources` hover section identifies versions, contexts, and outcomes
-for BCD and Web Features independently. The server refreshes once per session.
+bundled snapshot. A failed source refresh retains its bundled facts, and the
+hover's browser row says `(offline)`; a successful source load with no facts
+clears that source's old values. The server refreshes once per session.
 
 See the
 [compatibility guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)
