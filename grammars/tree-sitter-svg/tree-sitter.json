@@ -6,7 +6,8 @@
 		"description": "SVG grammar for Tree-sitter",
 		"authors": [{ "name": "Kaj Kowalski", "email": "info@kajkowalski.nl", "url": "https://github.com/kjanat" }],
 		"links": {
-			"repository": "https://github.com/kjanat/svg"
+			"repository": "https://github.com/kjanat/svg",
+			"funding": "https://github.com/sponsors/kjanat"
 		}
 	},
 	"grammars": [{

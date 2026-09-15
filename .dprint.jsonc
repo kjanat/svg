@@ -1,6 +1,5 @@
 {
 	"$schema": "https://dprint.dev/schemas/v0.json",
-	// update: git ls-remote "https://github.com/kjanat/kjanat.git" HEAD | awk '{print substr($1, 1, 8)}' | xargs -r -I{} sed -i -E 's#(raw\.githubusercontent\.com/kjanat/kjanat/)[0-9a-zA-Z]{4,40}(/configs/dprint\.remote\.json)#\1{}\2#g' .dprint.jsonc
 	"extends": "https://cdn.jsdelivr.net/gh/kjanat/kjanat@master/configs/dprint.remote.json",
 	"useTabs": true,
 	"jsonSchemaSort": { "associations": ["**/schema.json", "**/*.schema.json"] },
@@ -25,7 +24,7 @@
 				"setupCommand": "node -e \"try { require('child_process').execSync('tombi --version', {stdio:'ignore'}); } catch { require('child_process').execSync('npm i -g tombi', {stdio:'inherit'}); }\"",
 			},
 			{
-				"command": "rustfmt --emit stdout",
+				"command": "rustfmt",
 				"exts": ["rs"],
 				"cacheKeyFiles": ["rustfmt.toml", ".cargo/config.toml", "rust-toolchain.toml"],
 				"setupCommand": "node -e \"try { require('child_process').execSync('rustfmt --version', {stdio:'ignore'}); } catch { require('child_process').execSync('rustup component add rustfmt', {stdio:'inherit'}); }\"",

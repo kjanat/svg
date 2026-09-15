@@ -54,7 +54,7 @@ dir_for() {
 # or already-published packages, and exits on integrity or policy failures.
 publish_allowed() {
 	local dir="$1" expected_name="$2" required="$3"
-	local actual_name version published
+	local actual_name version published package_manifest tarball
 
 	if [[ ! -d "${dir}" ]]; then
 		if [[ "${required}" == "true" ]]; then
@@ -68,6 +68,12 @@ publish_allowed() {
 		echo "error: ${dir}/package.json missing" >&2
 		exit 1
 	fi
+	if [[ ! -f "${dir}.tgz" ]]; then
+		echo "error: Bun-packed tarball ${dir}.tgz missing" >&2
+		exit 1
+	fi
+	tarball=$(realpath "${dir}.tgz")
+	package_manifest=$(tar -xOf "${tarball}" package/package.json)
 
 	# Reject per-package registry overrides. A malicious build could
 	# drop a .npmrc or set publishConfig in package.json to redirect
@@ -80,19 +86,19 @@ publish_allowed() {
 		echo "error: ${dir}/.npmrc is forbidden (could redirect publish)" >&2
 		exit 1
 	fi
-	if jq -e 'has("publishConfig")' "${dir}/package.json" >/dev/null; then
-		echo "error: ${dir}/package.json has publishConfig (could redirect publish)" >&2
+	if jq -e 'has("publishConfig")' <<<"${package_manifest}" >/dev/null; then
+		echo "error: ${tarball} has publishConfig (could redirect publish)" >&2
 		exit 1
 	fi
 
-	actual_name=$(jq -r .name "${dir}/package.json")
+	actual_name=$(jq -r .name <<<"${package_manifest}")
 	if [[ "${actual_name}" != "${expected_name}" ]]; then
-		echo "error: ${dir}/package.json declares name '${actual_name}', expected '${expected_name}'" >&2
+		echo "error: ${tarball} declares name '${actual_name}', expected '${expected_name}'" >&2
 		exit 1
 	fi
-	version=$(jq -r .version "${dir}/package.json")
+	version=$(jq -r .version <<<"${package_manifest}")
 	if [[ "${version}" != "${EXPECTED_VERSION}" ]]; then
-		echo "error: ${dir}/package.json declares version '${version}', expected '${EXPECTED_VERSION}' (from tag ${RELEASE_TAG})" >&2
+		echo "error: ${tarball} declares version '${version}', expected '${EXPECTED_VERSION}' (from tag ${RELEASE_TAG})" >&2
 		exit 1
 	fi
 
@@ -103,7 +109,7 @@ publish_allowed() {
 	# neither — a tampered package could otherwise smuggle attacker-
 	# controlled deps that npm would happily install transitively.
 	if [[ -n "${BUNDLE_NAME}" && "${expected_name}" == "${BUNDLE_NAME}" ]]; then
-		if jq -e '(.optionalDependencies // {}) | length > 0' "${dir}/package.json" >/dev/null; then
+		if jq -e '(.optionalDependencies // {}) | length > 0' <<<"${package_manifest}" >/dev/null; then
 			echo "error: bundle ${expected_name} has optionalDependencies; only facades may declare any" >&2
 			exit 1
 		fi
@@ -113,12 +119,12 @@ publish_allowed() {
 			(.dependencies // {}) as $deps
 			| ($deps | to_entries | all(.value == $v)) and
 			  (($deps | keys | sort) == ([input.facades[] | .shim // .name] | sort))
-		' "${dir}/package.json" "${TARGETS_JSON}" >/dev/null; then
+		' <(printf '%s\n' "${package_manifest}") "${TARGETS_JSON}" >/dev/null; then
 			echo "error: bundle dependencies must be exactly the facade shim/primary names pinned to ${EXPECTED_VERSION}" >&2
 			exit 1
 		fi
 	elif [[ " ${SHIMS[*]} " == *" ${expected_name} "* ]]; then
-		if jq -e '(.optionalDependencies // {}) | length > 0' "${dir}/package.json" >/dev/null; then
+		if jq -e '(.optionalDependencies // {}) | length > 0' <<<"${package_manifest}" >/dev/null; then
 			echo "error: shim ${expected_name} has optionalDependencies; only facades may declare any" >&2
 			exit 1
 		fi
@@ -127,7 +133,7 @@ publish_allowed() {
 			(.dependencies // {}) as $deps
 			| ($deps | to_entries | all(.value == $v)) and
 			  (($deps | keys) == [input.facades[] | select(.shim == $n) | .name])
-		' "${dir}/package.json" "${TARGETS_JSON}" >/dev/null; then
+		' <(printf '%s\n' "${package_manifest}") "${TARGETS_JSON}" >/dev/null; then
 			echo "error: shim ${expected_name} must depend on exactly its canonical facade pinned to ${EXPECTED_VERSION}" >&2
 			exit 1
 		fi
@@ -143,7 +149,7 @@ publish_allowed() {
 		fi
 
 		local dep_name dep_version platform dep_entries expected_dep_set=" ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} "
-		dep_entries=$(jq -r '(.optionalDependencies // {}) | to_entries[] | "\(.key)\t\(.value)"' "${dir}/package.json")
+		dep_entries=$(jq -r '(.optionalDependencies // {}) | to_entries[] | "\(.key)\t\(.value)"' <<<"${package_manifest}")
 		while IFS=$'\t' read -r dep_name dep_version; do
 			[[ -z "${dep_name}" ]] && continue
 			if [[ "${dep_name}" != "${SCOPE}/${facade_pkg}-"* ]]; then
@@ -164,14 +170,14 @@ publish_allowed() {
 		# This facade's required platforms must all be referenced.
 		for platform in "${REQUIRED_PLATFORMS[@]}"; do
 			[[ "${platform}" == "${facade_pkg}-"* ]] || continue
-			if ! jq -e --arg dep "${SCOPE}/${platform}" '(.optionalDependencies // {}) | has($dep)' "${dir}/package.json" >/dev/null; then
+			if ! jq -e --arg dep "${SCOPE}/${platform}" '(.optionalDependencies // {}) | has($dep)' <<<"${package_manifest}" >/dev/null; then
 				echo "error: facade optionalDependencies missing required package '${SCOPE}/${platform}'" >&2
 				exit 1
 			fi
 		done
 	else
-		if jq -e '(.optionalDependencies // {}) | length > 0' "${dir}/package.json" >/dev/null; then
-			echo "error: ${dir}/package.json has optionalDependencies; only facades may declare any" >&2
+		if jq -e '(.optionalDependencies // {}) | length > 0' <<<"${package_manifest}" >/dev/null; then
+			echo "error: ${tarball} has optionalDependencies; only facades may declare any" >&2
 			exit 1
 		fi
 	fi
@@ -199,7 +205,7 @@ publish_allowed() {
 	fi
 
 	# npm@11 pinned: npm@12 currently fails any publish with provenance.
-	local args=(publish --registry "${REGISTRY}" --access public --tag "${DIST_TAG}" --ignore-scripts --provenance)
+	local args=(publish "${tarball}" --registry "${REGISTRY}" --access public --tag "${DIST_TAG}" --ignore-scripts --provenance)
 	if [[ "${DRY_RUN}" == "true" ]]; then args+=(--dry-run); fi
 	echo "+ npx -y npm@11 ${args[*]}  (cwd: ${dir})"
 	# Tolerate the TOCTOU race between the npm view check above and

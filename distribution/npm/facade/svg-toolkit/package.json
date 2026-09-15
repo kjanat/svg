@@ -11,6 +11,10 @@
 		"cli"
 	],
 	"repository": "kjanat/svg",
+	"funding": [{
+		"type": "github",
+		"url": "https://github.com/sponsors/kjanat"
+	}],
 	"type": "module",
 	"exports": {
 		"./package.json": "./package.json"

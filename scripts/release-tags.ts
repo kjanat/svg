@@ -115,11 +115,48 @@ if (published.length === 0) {
 	exit(1);
 }
 
+// --api: create the tags as lightweight refs through the GitHub REST API —
+// the release workflow's path. They inherit the pointed-to commit's verified
+// signature, satisfying the required_signatures tag rule, and one ref per
+// call stays under any push ref limit. Default (local) mode creates signed
+// tags and leaves pushing to the caller.
+const apiMode = argv.includes('--api');
+const repo = Bun.env.GITHUB_REPOSITORY ?? 'kjanat/svg';
+const token = Bun.env.GITHUB_TOKEN;
+if (apiMode && !token && !dryRun) {
+	error('--api requires GITHUB_TOKEN');
+	exit(1);
+}
+
+async function apiTagExists(tag: string): Promise<boolean> {
+	const res = await fetch(`https://api.github.com/repos/${repo}/git/ref/${encodeURIComponent(`tags/${tag}`)}`, {
+		headers: token ? { authorization: `Bearer ${token}` } : {},
+	});
+	return res.ok;
+}
+
+async function apiCreateTag(tag: string): Promise<void> {
+	const res = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+		method: 'POST',
+		headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ ref: `refs/tags/${tag}`, sha: commit }),
+	});
+	if (res.status === 422 && (await res.text()).includes('already exists')) {
+		log(`exists (race): ${tag}`);
+		return;
+	}
+	if (!res.ok) {
+		throw new Error(`creating ${tag} failed: ${res.status} ${await res.text()}`);
+	}
+}
+
 const created: string[] = [];
 for (const name of published) {
 	const tag = tagNameFor(name);
-	const existing = await Bun.$`git rev-parse --verify refs/tags/${tag}`.nothrow().quiet();
-	if (existing.exitCode === 0) {
+	const exists = apiMode
+		? await apiTagExists(tag)
+		: (await Bun.$`git rev-parse --verify refs/tags/${tag}`.nothrow().quiet()).exitCode === 0;
+	if (exists) {
 		log(`exists: ${tag}`);
 		continue;
 	}
@@ -127,12 +164,16 @@ for (const name of published) {
 		log(`would tag: ${tag} -> ${commit.slice(0, 9)}`);
 		continue;
 	}
-	await Bun.$`git tag -s ${tag} -m ${tag} ${commit}`;
+	if (apiMode) {
+		await apiCreateTag(tag);
+	} else {
+		await Bun.$`git tag -s ${tag} -m ${tag} ${commit}`;
+	}
 	log(`tagged: ${tag} -> ${commit.slice(0, 9)}`);
 	created.push(tag);
 }
 
-if (!dryRun && created.length > 0) {
+if (!dryRun && !apiMode && created.length > 0) {
 	log(`\n${created.length} tags created; push with:`);
 	log(`git push origin ${created.map((t) => `refs/tags/${t}`).join(' ')}`);
 }

@@ -18,6 +18,10 @@
 		"url": "git+https://github.com/kjanat/svg.git",
 		"directory": "grammars/tree-sitter-svg-path"
 	},
+	"funding": [{
+		"type": "github",
+		"url": "https://github.com/sponsors/kjanat"
+	}],
 	"license": "MIT OR Apache-2.0",
 	"author": "Kaj Kowalski <info@kajkowalski.nl> (https://github.com/kjanat)",
 	"type": "module",
@@ -86,7 +90,6 @@
 			"optional": true
 		}
 	},
-	"packageManager": "bun@1.3.14",
 	"volta": {
 		"extends": "../../package.json"
 	}

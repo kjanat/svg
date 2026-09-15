@@ -47,18 +47,17 @@ function bins(pkg) {
 	return Object.entries(map);
 }
 
-function pack(name, directory) {
+function packedPackage(name, directory) {
 	if (packed.has(name)) return packed.get(name);
 	const source = join(root, 'dist', directory);
 	const pkg = readJson(join(source, 'package.json'));
 	assert.equal(pkg.name, name);
 	assert.equal(pkg.version, version);
 	for (const [, file] of bins(pkg)) assertExecutable(join(source, file));
-	const output = JSON.parse(runCommand('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', scratch], { cwd: source }));
-	assert.equal(output.length, 1);
-	assert.equal(output[0].name, name);
-	assert.equal(output[0].version, version);
-	const archive = join(scratch, output[0].filename);
+	const archive = join(root, 'dist', `${directory}.tgz`);
+	const packedManifest = JSON.parse(run('tar', ['-xOf', archive, 'package/package.json']));
+	assert.equal(packedManifest.name, name);
+	assert.equal(packedManifest.version, version);
 	packed.set(name, archive);
 	return archive;
 }
@@ -120,17 +119,17 @@ try {
 		for (const [, file] of bins(pkg)) {
 			assert.equal(digest(join(root, 'dist', directory, file)), digest(originals.get(facade.bin)), 'Dist binary differs from release archive');
 		}
-		platforms.set(facade.pkg, pack(name, directory));
-		for (const publishedName of [facade.name, ...(facade.alsoPublishAs ?? [])]) pack(publishedName, packageDirectory(publishedName));
-		if (facade.shim) pack(facade.shim, packageDirectory(facade.shim));
+		platforms.set(facade.pkg, packedPackage(name, directory));
+		for (const publishedName of [facade.name, ...(facade.alsoPublishAs ?? [])]) packedPackage(publishedName, packageDirectory(publishedName));
+		if (facade.shim) packedPackage(facade.shim, packageDirectory(facade.shim));
 	}
-	if (manifest.bundle) pack(manifest.bundle.name, packageDirectory(manifest.bundle.name));
+	if (manifest.bundle) packedPackage(manifest.bundle.name, packageDirectory(manifest.bundle.name));
 	evidence.packaged = 'verified';
 	activeStage = 'installed';
 	const packages = {};
 	for (const entry of readdirSync(join(root, 'dist'), { withFileTypes: true })) {
 		if (!entry.isDirectory()) continue;
-		const pkg = readJson(join(root, 'dist', entry.name, 'package.json'));
+		const pkg = JSON.parse(run('tar', ['-xOf', join(root, 'dist', `${entry.name}.tgz`), 'package/package.json']));
 		packages[pkg.name] = pkg;
 	}
 	registry = new Worker(new URL('./registry.mjs', import.meta.url), {

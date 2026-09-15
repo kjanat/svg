@@ -3,6 +3,10 @@
 	"version": "0.0.0",
 	"private": true,
 	"description": "Bun workspace for the tree-sitter SVG grammar and its injected sub-grammars",
+	"funding": [{
+		"type": "github",
+		"url": "https://github.com/sponsors/kjanat"
+	}],
 	"license": "MIT OR Apache-2.0",
 	"author": "Kaj Kowalski <info@kajkowalski.nl> (https://github.com/kjanat)",
 	"imports": {
@@ -38,24 +42,27 @@
 		"tree-sitter": "catalog:",
 		"web-features": "catalog:deno"
 	},
-	"packageManager": "bun@1.3.14",
+	"packageManager": "bun@1.4.2",
 	"volta": {
 		"node": "26.4.0",
 		"npm": "11.17.0"
 	},
 	"catalog": {
-		"@biomejs/biome": "^2.5.9",
-		"@types/bun": "^1.3",
-		"@types/deno": "^2.7.0",
-		"@types/node": "^26.2.0",
-		"dprint": "^0.55.2",
-		"node-addon-api": "^8.9.2",
-		"node-gyp": "^13.0.1",
-		"node-gyp-build": "^4.8",
+		"@biomejs/biome": "^2.5",
+		"@types/bun": "^1.4",
+		"@types/node": "^26",
+		"@kjanat/dreamcli": "^4",
+		"@types/deno": "^2",
+		"dprint": "^0.57",
+		"ansispeck": "^0.4",
+		"tar": "^7.5",
+		"node-addon-api": "^8.9",
+		"node-gyp": "^13",
+		"node-gyp-build": "^4",
 		"prebuildify": "^6",
-		"runner-run": "^0.25.1",
-		"tree-sitter": "^0.25.0",
-		"tree-sitter-cli": "^0.26.12",
+		"runner-run": "^0.26",
+		"tree-sitter": "^0.25",
+		"tree-sitter-cli": "^0.26",
 		"typescript": "^7"
 	},
 	"catalogs": {

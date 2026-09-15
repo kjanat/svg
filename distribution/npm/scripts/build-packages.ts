@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
- * Builds npm package trees in `distribution/npm/dist/` for:
+ * Builds npm package trees and Bun-packed tarballs in `distribution/npm/dist/` for:
  *
  * - every facade package listed in `distribution/npm/targets.json` (one per binary)
  * - every per-platform package listed in `distribution/npm/targets.json`
@@ -24,7 +24,7 @@ import { cli, command, flag } from '@kjanat/dreamcli';
 import { blue, green, italic, magenta, underline } from 'ansispeck';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, posix, resolve } from 'node:path';
 import { env, stdout } from 'node:process';
 import { Parser, type ReadEntry } from 'tar';
@@ -90,11 +90,12 @@ function readCargoManifest(): CargoManifest {
 }
 
 /**
- * npm package fields shared by every facade and platform package, derived
- * from the Cargo manifest so Cargo stays the single source of truth.
+ * Shared npm package fields from Cargo, plus funding from the root package.json.
  */
 function packageMetadata(manifest: CargoManifest): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
+	const { funding } = JSON.parse(readFileSync(join(repoDir, 'package.json'), 'utf8')) as { funding?: unknown };
+	if (funding) out.funding = funding;
 	if (manifest.license) out.license = manifest.license;
 	if (manifest.authors[0]) out.author = manifest.authors[0];
 	if (manifest.homepage) out.homepage = manifest.homepage;
@@ -240,6 +241,27 @@ if (!firstPackageName) {
 async function cleanDist(): Promise<void> {
 	await rm(distDir, { recursive: true, force: true });
 	await mkdir(distDir, { recursive: true });
+}
+
+async function packPackages(): Promise<void> {
+	for (const entry of await readdir(distDir, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const directory = join(distDir, entry.name);
+		// Generated packages are outside the workspace globs. Bun needs the
+		// workspace lockfile here to resolve catalog references while packing.
+		const lockfile = join(directory, 'bun.lock');
+		await cp(join(repoDir, 'bun.lock'), lockfile);
+		try {
+			const result = spawnSync('bun', ['pm', 'pack', '--ignore-scripts', '--quiet', '--filename', join(distDir, `${entry.name}.tgz`)], {
+				cwd: directory,
+				stdio: 'inherit',
+			});
+			if (result.error) throw result.error;
+			if (result.status !== 0) throw new Error(`bun pm pack failed for ${entry.name}`);
+		} finally {
+			await rm(lockfile);
+		}
+	}
 }
 
 /**
@@ -720,6 +742,8 @@ async function build(opts: BuildOptions): Promise<void> {
 		const bundle = matrix.bundle;
 		await withLogGroup(bundle.name, () => buildBundle(matrix, bundle, opts.version, meta));
 	}
+
+	await packPackages();
 }
 
 export const buildPackages = command('build-packages')

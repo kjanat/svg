@@ -10,6 +10,10 @@
 		"ansispeck"
 	],
 	"repository": "kjanat/svg",
+	"funding": [{
+		"type": "github",
+		"url": "https://github.com/sponsors/kjanat"
+	}],
 	"type": "module",
 	"imports": {
 		"#launch": "./lib/launch.mjs",
@@ -32,7 +36,7 @@
 		"LICENSE"
 	],
 	"dependencies": {
-		"ansispeck": "^0.4.1"
+		"ansispeck": "catalog:"
 	},
 	"optionalDependencies": {}
 }

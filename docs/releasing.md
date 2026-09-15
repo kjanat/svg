@@ -41,7 +41,8 @@
   logic (asset packaging/verification, archive download, npm smoke/derive/
   publish, matrix generation).
 - `distribution/npm/scripts/build-packages.ts` — builds the npm package trees
-  from release tarballs.
+  from release tarballs and packs each with `bun pm pack`. Bun resolves
+  workspace catalog references using `bun.lock`.
 - `distribution/npm/facade/<name>/` — checked-in facade templates;
   `distribution/npm/facade/lib/` holds the shared binary-resolver used by every
   facade.
@@ -71,9 +72,10 @@ a runtime object creates a required gate. Experimental targets cannot declare
 one under this policy. There is no emulated architecture coverage implied by a
 successful cross-build.
 
-The `dist` artifact contains a tarred `dist/` and `downloads/`: the exact npm
-trees and original release archives with checksums. Runtime jobs download and
-extract this artifact. They do not rebuild from a checkout. Checks verify:
+The `dist` artifact contains a tarred `dist/` and `downloads/`: the npm package
+trees, Bun-packed `.tgz` files, and original release archives with checksums.
+Runtime jobs install these `.tgz` files, and publication uploads the same files.
+Checks verify:
 
 - The actual runtime OS, Node architecture, and detected libc match the selected
   manifest entry. The existing #19 resolver regressions run in Alpine too.
