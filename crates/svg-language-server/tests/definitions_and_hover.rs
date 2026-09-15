@@ -987,3 +987,66 @@ fn path_attribute_is_only_sketched_where_it_applies() -> TestResult {
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+/// The sketch is cached per document and `d` value, so the danger is a stale
+/// one: editing the path must change the picture, and a second hover inside
+/// the same unchanged value must give the same one.
+#[test]
+fn path_sketch_cache_survives_the_cursor_and_not_an_edit() -> TestResult {
+    let mut server = TestServer::start()?;
+    let square = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 h50 v50 h-50 z"/></svg>"#;
+    server.open("file:///sketch-cache.svg", square)?;
+
+    let sketch_at =
+        |server: &mut TestServer, character: u64| -> Result<String, Box<dyn std::error::Error>> {
+            let response = server.request(
+                "textDocument/hover",
+                &json!({
+                    "textDocument": { "uri": "file:///sketch-cache.svg" },
+                    "position": { "line": 0, "character": character }
+                }),
+            )?;
+            Ok(response["result"]["contents"]["value"]
+                .as_str()
+                .ok_or("hover value")?
+                .to_owned())
+        };
+
+    // Two positions inside the same value: the attribute name and the data.
+    let on_name = sketch_at(&mut server, 46)?;
+    let in_value = sketch_at(&mut server, 55)?;
+    assert!(
+        on_name.contains('\u{2800}') || on_name.contains('\u{28ff}') || on_name.contains('⠀'),
+        "the attribute-name hover should carry a sketch: {on_name}"
+    );
+    // Only the dots: the two hovers carry different surrounding prose, and it
+    // is the picture that has to match.
+    let braille_of = |text: &str| -> String {
+        text.chars()
+            .filter(|glyph| ('\u{2800}'..='\u{28ff}').contains(glyph))
+            .collect()
+    };
+    assert_eq!(
+        braille_of(&on_name),
+        braille_of(&in_value),
+        "the same value should draw the same picture wherever the cursor sits"
+    );
+
+    // Now change the geometry; the cached picture must not survive it.
+    let tall = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 h10 v90 h-10 z"/></svg>"#;
+    server.notify(
+        "textDocument/didChange",
+        &json!({
+            "textDocument": { "uri": "file:///sketch-cache.svg", "version": 2 },
+            "contentChanges": [{ "text": tall }]
+        }),
+    )?;
+
+    let after_edit = sketch_at(&mut server, 55)?;
+    assert_ne!(
+        braille_of(&in_value),
+        braille_of(&after_edit),
+        "editing the path must redraw it, not serve the cached picture"
+    );
+    server.shutdown_and_exit()
+}

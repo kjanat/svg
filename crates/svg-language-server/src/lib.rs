@@ -95,6 +95,31 @@ struct ColorPositionKey {
 }
 
 type ColorKindCache = Arc<RwLock<HashMap<ColorPositionKey, svg_color::ColorKind>>>;
+
+/// Identifies one `d` value in one document, so every hover inside it shares
+/// the sketch rather than re-deriving it.
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+struct SketchKey {
+    uri: Uri,
+    attribute_start: usize,
+}
+
+/// Sketches already drawn for the open documents, cleared with them.
+///
+/// Sketching a `d` value means parsing it with the sibling path grammar and
+/// flattening every segment, which runs to 150ms at the 32 KiB cap and is
+/// linear in the value's length. Without this, moving the cursor one column
+/// inside a long path pays that again on the request executor, for a picture
+/// that cannot have changed.
+type SketchCache = Arc<StdRwLock<HashMap<SketchKey, Option<String>>>>;
+
+/// A document's identity together with the sketches drawn for it. The two are
+/// only ever useful to each other, since the identity is half of every key.
+#[derive(Clone, Copy)]
+struct SketchStore<'a> {
+    uri: &'a Uri,
+    drawn: &'a SketchCache,
+}
 pub(crate) type StylesheetCache =
     Arc<StdRwLock<HashMap<String, Arc<OnceLock<Option<CachedStylesheet>>>>>>;
 const COPY_DATA_URI_COMMAND: &str = "svg.copyDataUri";
@@ -752,7 +777,7 @@ const fn empty_property_hover_context() -> PropertyHoverContext {
 }
 
 fn build_hover_context(
-    uri: &Uri,
+    sketches: SketchStore<'_>,
     pos: Position,
     doc: &DocumentState,
     profile: svg_data::SpecSnapshotId,
@@ -760,6 +785,7 @@ fn build_hover_context(
     native: Option<&'static svg_data::profile::SvgNative>,
     settings: &HoverSettings,
 ) -> HoverContext {
+    let uri = sketches.uri;
     let source = doc.source.as_bytes();
     let byte_offset = byte_offset_for_position(source, pos);
     let raw_node = deepest_node_at(&doc.tree, byte_offset);
@@ -788,7 +814,7 @@ fn build_hover_context(
         native,
         settings,
     );
-    let path_sketch = build_path_sketch_markdown(node, source, profile, settings);
+    let path_sketch = build_path_sketch_markdown(node, source, profile, settings, sketches);
 
     let definition_target = svg_references::definition_target_at(source, &doc.tree, byte_offset);
     let stylesheet_hrefs = svg_references::extract_stylesheet_hrefs(source, &doc.tree);
@@ -864,6 +890,7 @@ fn build_path_sketch_markdown(
     source: &[u8],
     profile: svg_data::SpecSnapshotId,
     settings: &HoverSettings,
+    sketches: SketchStore<'_>,
 ) -> Option<String> {
     if !settings.shows(Section::PathSketch) {
         return None;
@@ -881,8 +908,25 @@ fn build_path_sketch_markdown(
     {
         return None;
     }
-    let sketch = path_preview::sketch_for_attribute(attribute, source)?;
-    Some(format_path_sketch(&sketch))
+    // Every hover inside the same value asks for the same picture, and drawing
+    // it means parsing the value with the sibling path grammar and flattening
+    // every segment — 150ms at the byte cap. The document's own edits clear
+    // this, so a hit can only be a value that has not changed.
+    let key = SketchKey {
+        uri: sketches.uri.clone(),
+        attribute_start: attribute.start_byte(),
+    };
+    if let Ok(drawn) = sketches.drawn.read()
+        && let Some(cached) = drawn.get(&key)
+    {
+        return cached.clone();
+    }
+    let drawn = path_preview::sketch_for_attribute(attribute, source)
+        .map(|sketch| format_path_sketch(&sketch));
+    if let Ok(mut cache) = sketches.drawn.write() {
+        cache.insert(key, drawn.clone());
+    }
+    drawn
 }
 
 fn build_element_hover_markdown(
@@ -1017,6 +1061,7 @@ struct SvgLanguageServer {
     runtime_compat: Arc<RwLock<Option<RuntimeCompat>>>,
     profile_config: Arc<RwLock<ProfileConfig>>,
     hover_settings: Arc<RwLock<HoverSettings>>,
+    path_sketches: SketchCache,
 }
 
 impl SvgLanguageServer {
@@ -1037,6 +1082,7 @@ impl SvgLanguageServer {
             runtime_compat: Arc::new(RwLock::new(None)),
             profile_config: Arc::new(RwLock::new(ProfileConfig::default())),
             hover_settings: Arc::new(RwLock::new(HoverSettings::default())),
+            path_sketches: Arc::new(StdRwLock::new(HashMap::new())),
         }
     }
 
@@ -1131,7 +1177,18 @@ impl SvgLanguageServer {
         };
         let runtime = self.runtime_compat.read().await;
         let settings = self.hover_settings.read().await;
-        build_hover_context(uri, pos, doc, profile, runtime.as_ref(), native, &settings)
+        build_hover_context(
+            SketchStore {
+                uri,
+                drawn: &self.path_sketches,
+            },
+            pos,
+            doc,
+            profile,
+            runtime.as_ref(),
+            native,
+            &settings,
+        )
     }
 
     async fn apply_profile_config(&self, config: &Value) {
@@ -1195,6 +1252,9 @@ impl SvgLanguageServer {
             .write()
             .await
             .retain(|key, _| key.uri != uri);
+        if let Ok(mut sketches) = self.path_sketches.write() {
+            sketches.retain(|key, _| key.uri != uri);
+        }
 
         publish_lint_diagnostics(&self.client, uri, source_bytes, lint_diags, Some(version)).await;
     }
@@ -1343,6 +1403,9 @@ impl LanguageServer for SvgLanguageServer {
             .write()
             .await
             .retain(|key, _| key.uri != params.text_document.uri);
+        if let Ok(mut sketches) = self.path_sketches.write() {
+            sketches.retain(|key, _| key.uri != params.text_document.uri);
+        }
         self.client
             .publish_diagnostics(params.text_document.uri, vec![], None)
             .await;
