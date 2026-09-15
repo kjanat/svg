@@ -34,13 +34,14 @@ tree-sitter.workspace        = true
 ureq.workspace               = true
 url.workspace                = true
 
-svg-color.workspace       = true
-svg-data.workspace        = true
-svg-format.workspace      = true
-svg-lint.workspace        = true
-svg-references.workspace  = true
-svg-tree.workspace        = true
-tree-sitter-svg.workspace = true
+svg-color.workspace            = true
+svg-data.workspace             = true
+svg-format.workspace           = true
+svg-lint.workspace             = true
+svg-references.workspace       = true
+svg-tree.workspace             = true
+tree-sitter-svg.workspace      = true
+tree-sitter-svg-path.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
