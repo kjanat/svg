@@ -68,6 +68,25 @@ fn longest_backtick_run(text: &str) -> usize {
     longest
 }
 
+/// Make a link label safe to write between brackets.
+///
+/// A path may contain either bracket, and one of them ends the label early —
+/// leaving the whole construct visible in a Markdown client as much as here.
+fn escape_link_label(label: &str) -> String {
+    if label.contains(['[', ']', '\\']) {
+        let mut escaped = String::with_capacity(label.len() + 2);
+        for character in label.chars() {
+            if matches!(character, '[' | ']' | '\\') {
+                escaped.push('\\');
+            }
+            escaped.push(character);
+        }
+        escaped
+    } else {
+        label.to_owned()
+    }
+}
+
 /// Make a link destination safe to write between parentheses.
 ///
 /// Parentheses are legal in a path and in a URI, and an unpaired one closes
@@ -103,7 +122,7 @@ fn format_definition_hover(
                 section.push_str(&fence);
             }
             section.push_str("\nDefined in [");
-            section.push_str(&source.label);
+            section.push_str(&escape_link_label(&source.label));
             section.push_str("](");
             section.push_str(&escape_link_target(&source.target));
             section.push(')');
@@ -1514,15 +1533,20 @@ pub fn to_plain_text(markdown: &str) -> String {
                 at += 2;
                 continue;
             }
-            b'`' if bytes[at..].starts_with(b"```") => {
+            // A fence is a block: three or more backticks starting a line.
+            // The same run in the middle of one opens a code span instead,
+            // which is how a flag value containing backticks is written.
+            b'`' if opens_fence(bytes, at) => {
                 at = copy_fenced_block(markdown, at, &mut out);
                 continue;
             }
             b'`' if code_can_close => {
-                if let Some(close) = (at + 1..bytes.len()).find(|&index| bytes[index] == b'`') {
-                    // A code span has no inline markup inside it.
-                    out.push_str(&markdown[at + 1..close]);
-                    at = close + 1;
+                let width = backtick_run(bytes, at);
+                if let Some(close) = closing_run(bytes, at + width, width) {
+                    // A code span has no inline markup inside it, and carries
+                    // one space in from each end when it has both.
+                    out.push_str(trim_code_span(&markdown[at + width..close]));
+                    at = close + width;
                     continue;
                 }
                 code_can_close = false;
@@ -1569,7 +1593,10 @@ pub fn to_plain_text(markdown: &str) -> String {
                             target,
                             after,
                         } => {
-                            out.push_str(text);
+                            // The label is escaped where it is written, so the
+                            // escapes come back off here rather than reaching
+                            // a reader who never saw the brackets.
+                            out.push_str(&unescape_punctuation(text));
                             if !image && !target.is_empty() {
                                 out.push_str(" (");
                                 out.push_str(target);
@@ -1620,6 +1647,51 @@ fn copy_fenced_block(source: &str, open: usize, out: &mut String) -> usize {
     // Unterminated: the rest of the text is content.
     out.push_str(&source[at..]);
     bytes.len()
+}
+
+/// Whether the backticks at `at` open a fenced block rather than a code span.
+///
+/// A fence begins a line with three or more, and `CommonMark` forbids its info
+/// string from carrying backticks — which is exactly what separates it from a
+/// long inline delimiter. `metadata_code` reaches for one of those whenever a
+/// browser flag value contains a backtick of its own, and on a line that
+/// starts with it the two are otherwise indistinguishable.
+fn opens_fence(bytes: &[u8], at: usize) -> bool {
+    let width = backtick_run(bytes, at);
+    at_line_start(bytes, at)
+        && width >= 3
+        && !bytes[at + width..line_end(bytes, at)].contains(&b'`')
+}
+
+/// Where the next run of exactly `width` backticks begins at or after `from`.
+///
+/// A code span closes on a run of its own length and no other, so a longer run
+/// inside it is content — which is the point of `metadata_code` choosing a
+/// delimiter longer than anything it wraps.
+fn closing_run(bytes: &[u8], from: usize, width: usize) -> Option<usize> {
+    let mut at = from;
+    while at < bytes.len() {
+        if bytes[at] == b'`' {
+            let run = backtick_run(bytes, at);
+            if run == width {
+                return Some(at);
+            }
+            at += run;
+        } else {
+            at += 1;
+        }
+    }
+    None
+}
+
+/// Drop the one space a code span carries in from each end, as `CommonMark`
+/// does, so `` ` a ` `` reads as `a` rather than as padded text.
+fn trim_code_span(content: &str) -> &str {
+    content
+        .strip_prefix(' ')
+        .and_then(|rest| rest.strip_suffix(' '))
+        .filter(|inner| !inner.trim().is_empty())
+        .unwrap_or(content)
 }
 
 /// How many backticks run from `at`.
@@ -1677,6 +1749,27 @@ fn intraword(bytes: &[u8], at: usize) -> bool {
     word(at.checked_sub(1).map(|before| &bytes[before])) && word(bytes.get(at + 1))
 }
 
+/// Drop backslashes that escape ASCII punctuation.
+fn unescape_punctuation(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains('\\') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character == '\\'
+            && let Some(escaped) = characters.clone().next()
+            && escaped.is_ascii_punctuation()
+        {
+            out.push(escaped);
+            characters.next();
+        } else {
+            out.push(character);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 /// Whether `at` begins a line.
 const fn at_line_start(bytes: &[u8], at: usize) -> bool {
     at == 0 || bytes[at - 1] == b'\n'
@@ -1699,7 +1792,9 @@ enum LinkScan<'a> {
 /// target are counted, since a `data:` URI can carry them.
 fn read_link(source: &str, open: usize) -> LinkScan<'_> {
     let bytes = source.as_bytes();
-    let Some(text_end) = (open + 1..bytes.len()).find(|&at| bytes[at] == b']') else {
+    let Some(text_end) =
+        (open + 1..bytes.len()).find(|&at| bytes[at] == b']' && bytes[at - 1] != b'\\')
+    else {
         return LinkScan::Unclosed;
     };
     if bytes.get(text_end + 1) != Some(&b'(') {
@@ -1869,6 +1964,49 @@ mod tests {
             plain.contains("``` a line of backticks inside a comment")
                 && plain.contains(".a { fill: red }"),
             "the whole rule should survive: {plain}"
+        );
+    }
+
+    #[test]
+    fn a_code_span_is_closed_by_a_run_of_its_own_length() {
+        // `metadata_code` wraps a value in a delimiter longer than anything
+        // inside it, so a flag value carrying backticks needs the whole run
+        // matched rather than the first backtick found.
+        let wrapped = super::metadata_code("a`b");
+        assert_eq!(super::to_plain_text(&wrapped), "a`b");
+        assert_eq!(super::to_plain_text(&super::metadata_code("a``b")), "a``b");
+
+        // Three backticks mid-line open a span, not a block; only a line that
+        // begins with them is a fence.
+        assert_eq!(
+            super::to_plain_text("value ```x``` and more"),
+            "value x and more"
+        );
+        assert_eq!(super::to_plain_text("plain `code` here"), "plain code here");
+    }
+
+    #[test]
+    fn a_link_label_carries_its_brackets() {
+        // A path may contain either bracket, and one of them would end the
+        // label early — leaving the whole construct visible.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "theme]dark.css:1".to_owned(),
+                    target: "file:///theme%5Ddark.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(
+            hover.contains(r"[theme\]dark.css:1]("),
+            "the label should be escaped where it is written: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.contains("theme]dark.css:1 (file:///theme%5Ddark.css)"),
+            "and read back with the bracket and without the escape: {plain}"
         );
     }
 
