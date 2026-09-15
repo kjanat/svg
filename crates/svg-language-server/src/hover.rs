@@ -53,6 +53,34 @@ pub fn format_custom_property_hover(
     )
 }
 
+/// Length of the longest run of backticks in `text`.
+fn longest_backtick_run(text: &str) -> usize {
+    let mut longest = 0;
+    let mut run = 0;
+    for byte in text.bytes() {
+        if byte == b'`' {
+            run += 1;
+            longest = longest.max(run);
+        } else {
+            run = 0;
+        }
+    }
+    longest
+}
+
+/// Make a link destination safe to write between parentheses.
+///
+/// Parentheses are legal in a path and in a URI, and an unpaired one closes
+/// the destination early — for a Markdown client as much as a plain-text one,
+/// which is why this belongs here rather than in the conversion.
+fn escape_link_target(target: &str) -> String {
+    if target.contains(['(', ')']) {
+        target.replace('(', "%28").replace(')', "%29")
+    } else {
+        target.to_owned()
+    }
+}
+
 fn format_definition_hover(
     definitions: impl Iterator<Item = (String, HoverSourceLink)>,
     fallback_label: &str,
@@ -64,14 +92,20 @@ fn format_definition_hover(
             if trimmed.is_empty() {
                 let _ = write!(section, "`{fallback_label}`");
             } else {
-                section.push_str("```css\n");
+                // The snippet is CSS the user wrote, and a comment in it may
+                // contain a run of backticks. A fence has to be longer than
+                // anything it wraps or the preview ends early, in any client.
+                let fence = "`".repeat(longest_backtick_run(trimmed).max(2) + 1);
+                section.push_str(&fence);
+                section.push_str("css\n");
                 section.push_str(trimmed);
-                section.push_str("\n```");
+                section.push('\n');
+                section.push_str(&fence);
             }
             section.push_str("\nDefined in [");
             section.push_str(&source.label);
             section.push_str("](");
-            section.push_str(&source.target);
+            section.push_str(&escape_link_target(&source.target));
             section.push(')');
             section
         })
@@ -1463,6 +1497,16 @@ pub fn to_plain_text(markdown: &str) -> String {
     let mut emphasis_close = None;
     while at < bytes.len() {
         match bytes[at] {
+            b'>' if at_line_start(bytes, at) => {
+                // Every verdict headline is generated as a block quote, so a
+                // plain-text client would read the marker as part of the
+                // sentence rather than as the shape it is.
+                at += 1;
+                if bytes.get(at) == Some(&b' ') {
+                    at += 1;
+                }
+                continue;
+            }
             b'\\' if bytes.get(at + 1).is_some_and(u8::is_ascii_punctuation) => {
                 // Metadata is escaped for Markdown before it ever gets here,
                 // so the backslash is markup and the character after it is not.
@@ -1497,14 +1541,22 @@ pub fn to_plain_text(markdown: &str) -> String {
                     at += 1;
                     continue;
                 }
-                if emphasis_close.is_none() && at >= emphasis_dead_until {
+                // Only a real opener is worth scanning for a partner, and
+                // only a scan that ran and found nothing says anything about
+                // the openers after it — one rejected for sitting inside a
+                // word tells us nothing at all.
+                if emphasis_close.is_none()
+                    && opens_emphasis(bytes, at)
+                    && at >= emphasis_dead_until
+                {
                     if let Some(close) = emphasis_span(bytes, at) {
                         emphasis_close = Some(close);
                         at += 1;
                         continue;
                     }
-                    // Nothing after this one can close either, so stop looking
-                    // until the next line begins.
+                    // The candidates ahead of any later opener are a subset of
+                    // the ones just rejected, so stop looking until the next
+                    // line begins.
                     emphasis_dead_until = line_end(bytes, at);
                 }
             }
@@ -1546,23 +1598,33 @@ pub fn to_plain_text(markdown: &str) -> String {
 /// language tag that rides on the opening one. Returns where to resume.
 fn copy_fenced_block(source: &str, open: usize, out: &mut String) -> usize {
     let bytes = source.as_bytes();
+    let width = backtick_run(bytes, open);
     // The opening fence owns the rest of its line: `css` is a tag, not content.
-    let mut at = line_end(bytes, open + 3);
+    let mut at = line_end(bytes, open + width);
     at += usize::from(at < bytes.len());
     let mut line = at;
     while line < bytes.len() {
-        if bytes[line..].starts_with(b"```") {
+        // Only a line that is nothing but backticks, at least as many as
+        // opened the block, closes it. A CSS comment carrying a run of them
+        // is content — which is the whole promise of a verbatim preview.
+        let run = backtick_run(bytes, line);
+        let ends = line_end(bytes, line);
+        if run >= width && source[line + run..ends].trim().is_empty() {
             // The content already ends with the newline before the fence, so
             // the one after the fence would be a second blank line.
             out.push_str(&source[at..line]);
-            let after = line_end(bytes, line + 3);
-            return after + usize::from(after < bytes.len());
+            return ends + usize::from(ends < bytes.len());
         }
-        line = line_end(bytes, line) + 1;
+        line = ends + 1;
     }
     // Unterminated: the rest of the text is content.
     out.push_str(&source[at..]);
     bytes.len()
+}
+
+/// How many backticks run from `at`.
+fn backtick_run(bytes: &[u8], at: usize) -> usize {
+    bytes[at..].iter().take_while(|&&byte| byte == b'`').count()
 }
 
 /// Index of the newline ending the line containing `from`, or the end.
@@ -1580,9 +1642,6 @@ fn line_end(bytes: &[u8], from: usize) -> usize {
 /// `._icon` intact: nothing there closes what they appear to open.
 fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
     let solid = |byte: Option<&u8>| byte.is_some_and(|byte| !byte.is_ascii_whitespace());
-    if !solid(bytes.get(open + 1)) {
-        return None;
-    }
     // Walk to the closer or the end of the line, whichever comes first.
     // Computing the line end up front would scan the whole line for every
     // underscore on it, even one whose partner is the very next byte.
@@ -1590,7 +1649,37 @@ fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
         .take_while(|&at| bytes[at] != b'\n')
         // An escaped underscore is a character, so it cannot close emphasis
         // any more than it can open it.
-        .find(|&at| bytes[at] == b'_' && bytes[at - 1] != b'\\' && solid(Some(&bytes[at - 1])))
+        .find(|&at| {
+            bytes[at] == b'_'
+                && bytes[at - 1] != b'\\'
+                && solid(Some(&bytes[at - 1]))
+                && !intraword(bytes, at)
+        })
+}
+
+/// Whether the `_` at `at` can open emphasis at all: it must be followed by
+/// something other than space, and must not sit inside a word.
+fn opens_emphasis(bytes: &[u8], at: usize) -> bool {
+    bytes
+        .get(at + 1)
+        .is_some_and(|byte| !byte.is_ascii_whitespace())
+        && !intraword(bytes, at)
+}
+
+/// Whether the delimiter at `at` sits inside a word, where `CommonMark` says
+/// an underscore is neither an opener nor a closer.
+///
+/// This is what keeps prose intact: the catalog describes `media_query_list`,
+/// and treating its underscores as emphasis leaves a plain-text reader with
+/// `mediaquerylist`.
+fn intraword(bytes: &[u8], at: usize) -> bool {
+    let word = |byte: Option<&u8>| byte.is_some_and(u8::is_ascii_alphanumeric);
+    word(at.checked_sub(1).map(|before| &bytes[before])) && word(bytes.get(at + 1))
+}
+
+/// Whether `at` begins a line.
+const fn at_line_start(bytes: &[u8], at: usize) -> bool {
+    at == 0 || bytes[at - 1] == b'\n'
 }
 
 /// What a scan for `[text](target)` found.
@@ -1725,6 +1814,87 @@ mod tests {
         assert_eq!(super::to_plain_text(r"_foo\_bar_"), "foo_bar");
         assert_eq!(super::to_plain_text(r"\_notemphasis\_"), "_notemphasis_");
         assert_eq!(super::to_plain_text(r"\*not bold\*"), "*not bold*");
+    }
+
+    #[test]
+    fn plain_text_keeps_words_that_contain_underscores() {
+        // The catalog describes `media_query_list`, and an underscore inside a
+        // word is neither an opener nor a closer in CommonMark. Reading them
+        // as emphasis leaves a plain-text reader with `mediaquerylist`.
+        assert_eq!(
+            super::to_plain_text("A media_query_list value"),
+            "A media_query_list value"
+        );
+        assert_eq!(
+            super::to_plain_text("_emphasis_ around media_query_list text"),
+            "emphasis around media_query_list text"
+        );
+        // This one needs the opener check specifically: without it the word's
+        // first underscore opens, and the closer of the real emphasis later in
+        // the line closes it, swallowing everything between.
+        assert_eq!(
+            super::to_plain_text("media_query_list and _real_ emphasis"),
+            "media_query_list and real emphasis"
+        );
+    }
+
+    #[test]
+    fn plain_text_drops_the_blockquote_marker() {
+        // Every verdict headline is generated as a block quote, so this is on
+        // the common path rather than an edge of it.
+        assert_eq!(
+            super::to_plain_text("> \u{2713} `rect` — safe to use"),
+            "\u{2713} rect — safe to use"
+        );
+        // A `>` that is not a marker is a character like any other.
+        assert_eq!(super::to_plain_text("a > b"), "a > b");
+    }
+
+    #[test]
+    fn a_fence_is_closed_only_by_a_line_of_backticks() {
+        // A CSS comment may carry a run of backticks. It is content, and the
+        // preview promises it verbatim.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                "/*\n``` a line of backticks inside a comment\n*/\n.a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "sheet.css".to_owned(),
+                    target: "file:///sheet.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.contains("``` a line of backticks inside a comment")
+                && plain.contains(".a { fill: red }"),
+            "the whole rule should survive: {plain}"
+        );
+    }
+
+    #[test]
+    fn a_link_target_carries_its_parentheses() {
+        // Parentheses are legal in a path, and an unpaired one would close the
+        // destination early — in a Markdown client as much as here.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "sheet.css".to_owned(),
+                    target: "file:///themes/dark(2)/sheet.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(
+            hover.contains("file:///themes/dark%282%29/sheet.css"),
+            "the destination should be escaped where it is written: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.ends_with("file:///themes/dark%282%29/sheet.css)"),
+            "and survive the conversion whole: {plain}"
+        );
     }
 
     #[test]
