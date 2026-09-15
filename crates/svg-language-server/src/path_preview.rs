@@ -705,15 +705,26 @@ impl Pen {
         }
         self.flush();
 
-        // A moveto that nothing has drawn before it can still move the frame.
-        // `M0 0 M1e17 0 l8 100` anchors on the first one otherwise, which puts
-        // the second cursor at 1e17 in a frame measured from zero — and the
-        // eight units that follow round away, drawing a vertical line and
-        // reporting no width at all. The geometry begins where it begins.
+        // A moveto that nothing has drawn before it can still move the frame,
+        // and for a long move it has to: `m0 0 m1e17 0 l8 100` leaves the
+        // cursor 1e17 out from a frame at zero otherwise, and the eight units
+        // that follow round away there, drawing a vertical line and reporting
+        // no width at all.
+        //
+        // But only where folding it in costs nothing. `m1e17 0 m8 0` stands
+        // eight units from its frame, and `1e17 + 8` stands eight units from
+        // nothing — moving the frame to preserve the displacement is the very
+        // step that would round it away. So the fold happens where the sum is
+        // exact, and the offset stays local where it is not.
         let at = if self.polylines.is_empty() {
             let origin = self.origin.unwrap_or_default();
-            self.origin = Some(Point::new(origin.x + at.x, origin.y + at.y));
-            Point::default()
+            let moved = Point::new(origin.x + at.x, origin.y + at.y);
+            if identical(moved.x - origin.x, at.x) && identical(moved.y - origin.y, at.y) {
+                self.origin = Some(moved);
+                Point::default()
+            } else {
+                at
+            }
         } else {
             at
         };
@@ -1017,7 +1028,7 @@ impl ArcShape {
 fn cubic_extrema(points: &[Point; 4]) -> Vec<f64> {
     let mut turns = Vec::new();
     for axis in [Axis::Horizontal, Axis::Vertical] {
-        let [p0, p1, p2, p3] = points.map(|point| axis.of(point));
+        let [p0, p1, p2, p3] = scaled_to_range(points.map(|point| axis.of(point)));
         // The derivative of a cubic, divided through by three.
         let a = 3.0f64.mul_add(p1 - p2, p3 - p0);
         let b = 2.0f64.mul_add(-p1, p0 + p2) * 2.0;
@@ -1031,7 +1042,7 @@ fn cubic_extrema(points: &[Point; 4]) -> Vec<f64> {
 fn quadratic_extrema(points: &[Point; 3]) -> Vec<f64> {
     let mut turns = Vec::new();
     for axis in [Axis::Horizontal, Axis::Vertical] {
-        let [p0, p1, p2] = points.map(|point| axis.of(point));
+        let [p0, p1, p2] = scaled_to_range(points.map(|point| axis.of(point)));
         // The derivative is linear: (p1 - p0) + t * (p2 - 2p1 + p0).
         let slope = 2.0f64.mul_add(-p1, p2 + p0);
         let start = p1 - p0;
@@ -1053,6 +1064,39 @@ fn quadratic_roots(a: f64, b: f64, c: f64) -> Vec<f64> {
     }
     let root = discriminant.sqrt();
     vec![(-b + root) / (2.0 * a), (-b - root) / (2.0 * a)]
+}
+
+/// Divide a curve's control values by a power of two near the largest of them.
+///
+/// Where a curve turns does not depend on how large it is, so scaling every
+/// control value leaves the parameters untouched — and an exact power of two
+/// leaves the arithmetic untouched too, since each product below scales by a
+/// power of two and the square root by half of one, so the quotients come out
+/// bit for bit the same.
+///
+/// What it changes is the range the derivative coefficients live in. Those
+/// coefficients are sums of the controls times small integers, so controls at
+/// the top of the range overflow them on the way to roots the curve really
+/// has: `C1e308 0 -1e308 0` overflows the leading coefficient outright, and
+/// `C1e200 0 -1e200 0` gets it through only for `b * b - 4 * a * c` to come
+/// out `inf - inf`. Either way the roots are discarded, and the extent falls
+/// back to whatever the flattening samples happened to catch.
+///
+/// The exponent is clamped so the factor itself stays normal, which keeps the
+/// scaling exact at both ends of the range.
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "log2 of a normal f64 lies in -1022..=1023, well inside i32"
+)]
+fn scaled_to_range<const N: usize>(values: [f64; N]) -> [f64; N] {
+    let largest = values
+        .iter()
+        .fold(0.0f64, |seen, value| seen.max(value.abs()));
+    if !largest.is_normal() {
+        return values;
+    }
+    let factor = 2.0f64.powi(-(largest.log2().floor() as i32).clamp(-1000, 1000));
+    values.map(|value| value * factor)
 }
 
 /// Keep the finite parameters strictly inside the span, in rising order.
@@ -1719,6 +1763,18 @@ mod tests {
             );
         }
 
+        // A move the frame cannot absorb stays in the local component. Eight
+        // units from 1e17 is not a coordinate a double holds — the ulp there
+        // is sixteen — so folding it into the frame rounds it away, which is
+        // the displacement the local frame exists to keep. The line here runs
+        // from 1e17 + 8 to 1e17 + 16, and is eight units long.
+        let sub_ulp = sketch("m1e17 0 m8 0 L100000000000000016 0").ok_or("sub-ulp move")?;
+        assert_eq!((sub_ulp.width, sub_ulp.height), (8.0, 0.0));
+
+        // The same move after an absolute one that did fix the frame.
+        let after_anchor = sketch("M0 0 M1e17 0 m8 0 l8 100").ok_or("after anchor")?;
+        assert_eq!((after_anchor.width, after_anchor.height), (8.0, 100.0));
+
         // Two undrawn absolute movetos can be further apart than a double
         // reaches. Measuring the second against the first before the frame
         // moves would take the geometry with it, and `M-1e308 0 l1 0` on its
@@ -1922,15 +1978,31 @@ mod tests {
     #[test]
     fn a_curve_between_opposite_extremes_still_draws() -> TestResult {
         // The controls are at either end of the range, so the step between
-        // them is not representable — but no point on the curve leaves it,
-        // and the same curve an order of magnitude down draws fine.
-        let extreme = sketch("M0 0 C1e308 0 -1e308 0 0 0").ok_or("extreme controls")?;
-        let smaller = sketch("M0 0 C1e307 0 -1e307 0 0 0").ok_or("smaller controls")?;
+        // them is not representable — but no point on the curve leaves it.
+        // `C k 0 -k 0` turns at `(3 ± √3) / 6` and spans `k / √3` between
+        // those two, whatever `k` is.
+        //
+        // An earlier version of this test asserted only that ten times the
+        // controls gave ten times the curve. That held while the derivative
+        // coefficients were overflowing, because both sides then fell back to
+        // the flattening samples and were wrong by the same factor.
+        for exponent in [200, 307, 308] {
+            let curve = sketch(&format!("M0 0 C1e{exponent} 0 -1e{exponent} 0 0 0"))
+                .ok_or("extreme controls")?;
+            let expected = 10.0f64.powi(exponent) / 3.0f64.sqrt();
+            assert!(
+                (curve.width / expected - 1.0).abs() < 1.0e-12,
+                "1e{exponent} controls should span {expected:e}, got {:e}",
+                curve.width
+            );
+        }
+        // A quadratic's derivative is formed the same way and overflows the
+        // same way: `Q k 0 0 0` peaks at half of `k`.
+        let quadratic = sketch("M0 0 Q1e308 0 0 0").ok_or("extreme control")?;
         assert!(
-            (extreme.width / smaller.width - 10.0).abs() < 1.0e-9,
-            "ten times the controls should be ten times the curve, got {} and {}",
-            extreme.width,
-            smaller.width
+            (quadratic.width / 5.0e307 - 1.0).abs() < 1.0e-12,
+            "got {:e}",
+            quadratic.width
         );
         Ok(())
     }
