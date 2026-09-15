@@ -1442,35 +1442,46 @@ fn format_browser_support_line(
 /// contentFormat` is only promised plain text, and handing it Markdown leaves
 /// the syntax on screen. This is not a Markdown renderer; it handles the
 /// constructs these hovers actually emit, which were read off generated hover
-/// output rather than guessed at: emphasis, strikethrough and code delimiters
-/// drop away, a fenced block loses its fence and its language tag, a link
-/// keeps its text and gains its target in parentheses, and an image becomes
-/// the alt text that describes it. The Baseline badges are images whose target
-/// is a two-kilobyte data URI, so keeping the alt text rather than the target
-/// is the whole point of handling them.
+/// output rather than guessed at.
+///
+/// Two rules keep it from rewriting the thing the hover is about. A code span
+/// or fenced block carries its content through literally, as Markdown itself
+/// does, so a CSS rule the user wrote is never reinterpreted as markup. And a
+/// delimiter is only markup when it is actually paired: `--_accent` keeps its
+/// underscore because nothing closes it, while `_Widely Available_` loses both
+/// of its.
 pub fn to_plain_text(markdown: &str) -> String {
-    let mut out = String::with_capacity(markdown.len());
     let bytes = markdown.as_bytes();
+    let mut out = String::with_capacity(markdown.len());
     let mut at = 0;
-    // A `[` with no `]` anywhere after it cannot open a link, and neither can
-    // any `[` that follows it. Without this the scan restarts at every one of
-    // them, which is quadratic in a CSS definition the user controls.
+    // Each of these records that a delimiter can no longer close anywhere
+    // ahead. Without them the scan restarts at every candidate, which is
+    // quadratic in a CSS definition whose size and shape the user controls.
     let mut brackets_can_close = true;
+    let mut code_can_close = true;
+    let mut emphasis_dead_until = 0;
+    let mut emphasis_close = None;
     while at < bytes.len() {
         match bytes[at] {
-            b'`' if bytes[at..].starts_with(b"```") => {
-                // A fence carries a language tag on its own line. Dropping the
-                // backticks alone would leave that tag behind as a stray word.
-                at += 3;
-                while at < bytes.len() && bytes[at] != b'\n' {
-                    at += 1;
-                }
-                at += usize::from(at < bytes.len());
+            b'\\' if bytes.get(at + 1).is_some_and(u8::is_ascii_punctuation) => {
+                // Metadata is escaped for Markdown before it ever gets here,
+                // so the backslash is markup and the character after it is not.
+                out.push(char::from(bytes[at + 1]));
+                at += 2;
                 continue;
             }
-            b'`' => {
-                at += 1;
+            b'`' if bytes[at..].starts_with(b"```") => {
+                at = copy_fenced_block(markdown, at, &mut out);
                 continue;
+            }
+            b'`' if code_can_close => {
+                if let Some(close) = (at + 1..bytes.len()).find(|&index| bytes[index] == b'`') {
+                    // A code span has no inline markup inside it.
+                    out.push_str(&markdown[at + 1..close]);
+                    at = close + 1;
+                    continue;
+                }
+                code_can_close = false;
             }
             b'~' if bytes[at..].starts_with(b"~~") => {
                 at += 2;
@@ -1480,9 +1491,22 @@ pub fn to_plain_text(markdown: &str) -> String {
                 at += 2;
                 continue;
             }
-            b'_' if is_emphasis_underscore(bytes, at) => {
-                at += 1;
-                continue;
+            b'_' => {
+                if emphasis_close == Some(at) {
+                    emphasis_close = None;
+                    at += 1;
+                    continue;
+                }
+                if emphasis_close.is_none() && at >= emphasis_dead_until {
+                    if let Some(close) = emphasis_span(bytes, at) {
+                        emphasis_close = Some(close);
+                        at += 1;
+                        continue;
+                    }
+                    // Nothing after this one can close either, so stop looking
+                    // until the next line begins.
+                    emphasis_dead_until = line_end(bytes, at);
+                }
             }
             b'!' | b'[' if brackets_can_close => {
                 let image = bytes[at] == b'!';
@@ -1518,14 +1542,53 @@ pub fn to_plain_text(markdown: &str) -> String {
     out
 }
 
-/// Whether the `_` at `at` delimits emphasis rather than sitting inside a word.
+/// Copy a fenced block's content verbatim, dropping the fences and the
+/// language tag that rides on the opening one. Returns where to resume.
+fn copy_fenced_block(source: &str, open: usize, out: &mut String) -> usize {
+    let bytes = source.as_bytes();
+    // The opening fence owns the rest of its line: `css` is a tag, not content.
+    let mut at = line_end(bytes, open + 3);
+    at += usize::from(at < bytes.len());
+    let mut line = at;
+    while line < bytes.len() {
+        if bytes[line..].starts_with(b"```") {
+            // The content already ends with the newline before the fence, so
+            // the one after the fence would be a second blank line.
+            out.push_str(&source[at..line]);
+            let after = line_end(bytes, line + 3);
+            return after + usize::from(after < bytes.len());
+        }
+        line = line_end(bytes, line) + 1;
+    }
+    // Unterminated: the rest of the text is content.
+    out.push_str(&source[at..]);
+    bytes.len()
+}
+
+/// Index of the newline ending the line containing `from`, or the end.
+fn line_end(bytes: &[u8], from: usize) -> usize {
+    (from..bytes.len())
+        .find(|&at| bytes[at] == b'\n')
+        .unwrap_or(bytes.len())
+}
+
+/// Where the emphasis opened by the `_` at `open` closes, if it closes at all
+/// on this line.
 ///
-/// `CommonMark` does not treat an intraword underscore as emphasis, and neither
-/// does this: a custom property named `--brand_accent` keeps its underscore
-/// where `_Widely Available_` loses both of its.
-fn is_emphasis_underscore(bytes: &[u8], at: usize) -> bool {
-    let word = |byte: Option<&u8>| byte.is_some_and(u8::is_ascii_alphanumeric);
-    !(word(at.checked_sub(1).map(|before| &bytes[before])) && word(bytes.get(at + 1)))
+/// `CommonMark` asks that an opener be followed by something other than space
+/// and a closer preceded by the same, which is what keeps `--_accent` and
+/// `._icon` intact: nothing there closes what they appear to open.
+fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
+    let solid = |byte: Option<&u8>| byte.is_some_and(|byte| !byte.is_ascii_whitespace());
+    if !solid(bytes.get(open + 1)) {
+        return None;
+    }
+    // Walk to the closer or the end of the line, whichever comes first.
+    // Computing the line end up front would scan the whole line for every
+    // underscore on it, even one whose partner is the very next byte.
+    (open + 2..bytes.len())
+        .take_while(|&at| bytes[at] != b'\n')
+        .find(|&at| bytes[at] == b'_' && solid(Some(&bytes[at - 1])))
 }
 
 /// What a scan for `[text](target)` found.
@@ -1615,6 +1678,65 @@ mod tests {
             super::to_plain_text("~~Use `stroke-width` instead~~"),
             "Use stroke-width instead"
         );
+    }
+
+    #[test]
+    fn plain_text_never_renames_a_css_identifier() {
+        // Class and custom-property hovers quote CSS the user wrote. An
+        // identifier that opens with an underscore closes nothing, and
+        // dropping it would name a different symbol than the one hovered.
+        assert_eq!(
+            super::to_plain_text("`--_accent` is defined here"),
+            "--_accent is defined here"
+        );
+        assert_eq!(
+            super::to_plain_text("Defined as:\n```css\n._icon { fill: red }\n```\n"),
+            "Defined as:\n._icon { fill: red }\n"
+        );
+        assert_eq!(
+            super::to_plain_text("`.trailing_` and `._leading`"),
+            ".trailing_ and ._leading"
+        );
+        // A code span carries its content through as written, so markup
+        // characters inside one are content rather than syntax.
+        assert_eq!(
+            super::to_plain_text("`a **b** _c_ ~~d~~`"),
+            "a **b** _c_ ~~d~~"
+        );
+    }
+
+    #[test]
+    fn plain_text_unwraps_markdown_escapes() {
+        // Metadata is escaped for Markdown before it reaches the converter, so
+        // a plain-text client would otherwise read the backslashes as prose.
+        assert_eq!(
+            super::to_plain_text("Chrome 1\\. See note\\_1\\."),
+            "Chrome 1. See note_1."
+        );
+    }
+
+    #[test]
+    fn plain_text_stays_linear_against_hostile_delimiters() {
+        // Every delimiter that has to search for a partner gets the same
+        // treatment as the bracket: a failed scan settles it for what follows
+        // rather than restarting at each candidate. These inputs collapse to
+        // little or nothing — a run of backticks is a run of empty code spans,
+        // and `_ _` pairs are empty emphasis — so what is under test is the
+        // time, not the text.
+        for hostile in [
+            "`".repeat(200_000),
+            "_".repeat(200_000),
+            format!("{}tail", "_ ".repeat(100_000)),
+            format!("`{}", "x".repeat(200_000)),
+        ] {
+            let started = std::time::Instant::now();
+            let _ = super::to_plain_text(&hostile);
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(2),
+                "conversion should stay linear, took {:?}",
+                started.elapsed()
+            );
+        }
     }
 
     #[test]
