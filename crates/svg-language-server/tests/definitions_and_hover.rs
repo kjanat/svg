@@ -481,8 +481,10 @@ fn hover_renders_baseline_qualifier_for_fegaussianblur() -> TestResult {
         hover_value.contains("Widely Available since ≤2021"),
         "hover should surface the ≤ qualifier on feGaussianBlur: {hover_resp}"
     );
-    assert!(hover_value.contains("Newly Available date: ≤2018-10-02"));
-    assert!(hover_value.contains("Widely Available date: ≤2021-04-02"));
+    assert!(
+        !hover_value.contains("Available date:"),
+        "the dated paragraphs restated the Baseline line: {hover_value}"
+    );
 
     server.shutdown_and_exit()?;
     Ok(())

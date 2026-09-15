@@ -16,6 +16,8 @@ When bumping the workspace version after a catalog refresh:
 
 ### Added
 
+- Show what an element may contain in its hover, as a `Children:` line under
+  the same `values` section that carries an attribute's grammar.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
@@ -26,6 +28,13 @@ When bumping the workspace version after a catalog refresh:
 - Answer hovers and completion documentation in the markup kind the client
   advertised, in the order it advertised, rather than always Markdown. A client
   promising only plain text now receives text rather than the syntax around it.
+- Trim the compatibility hover. The provenance block — source, version, a
+  `loaded` status, the key of the element under the cursor and a bare URL — is
+  replaced by `(offline)` on the browser row when a refresh did not happen, and
+  by nothing when it did. The `Newly Available date` and `Widely Available
+  date` paragraphs, which restated the Baseline line above them, are gone.
+- Omit `[MDN Reference]()` from attributes that have no MDN page, and stop
+  printing a value grammar twice when its type list is the grammar itself.
 - Keep spec-obsolete features flagged after browser data refreshes, and align
   lifecycle annotations in lint and completion across historical profiles.
 - Treat retained `xlink:href` as deprecated in SVG 2, preserve SVG 1.1 usage,

@@ -22,8 +22,10 @@ pub enum Outcome {
 #[derive(Clone, Debug)]
 pub struct Provenance {
     pub source: &'static str,
+    /// Recorded for diagnostics; the hover shows only whether a refresh happened.
+    #[allow(dead_code, reason = "read by tests, not by presentation")]
     pub version: Option<String>,
-    pub url: String,
+    #[allow(dead_code, reason = "read by tests, not by presentation")]
     pub key: String,
     pub outcome: Outcome,
 }
@@ -36,6 +38,16 @@ pub struct CompatOverride {
 }
 
 impl CompatOverride {
+    /// Whether any source fell back to the bundled data instead of refreshing.
+    ///
+    /// A failed refresh and a disabled one differ in cause and not in effect:
+    /// either way the facts on screen are the ones this build shipped with.
+    pub fn is_offline(&self) -> bool {
+        self.sources
+            .iter()
+            .any(|source| matches!(source.outcome, Outcome::Failed | Outcome::Disabled))
+    }
+
     /// Whether BCD successfully replaced the bundled lifecycle flags.
     pub fn has_refreshed_bcd(&self) -> bool {
         self.sources.iter().any(|source| {
@@ -53,7 +65,6 @@ struct Source {
     name: &'static str,
     disabled: bool,
     version: Option<String>,
-    url: String,
     data: Option<Value>,
 }
 
@@ -68,7 +79,6 @@ impl Source {
             version: bundled
                 .map(|(_, version, _)| (*version).to_owned())
                 .or_else(|| self.version.clone()),
-            url: bundled.map_or_else(|| self.url.clone(), |(_, _, url)| (*url).to_owned()),
             key: key.to_owned(),
             outcome,
         }
@@ -89,7 +99,6 @@ impl RuntimeCompat {
             name,
             disabled: true,
             version: None,
-            url: String::new(),
             data: None,
         };
         build_runtime(&source("@mdn/browser-compat-data"), &source("web-features"))
@@ -181,7 +190,6 @@ fn fetch_source(name: &'static str, required: &str) -> Source {
         name,
         disabled: false,
         version,
-        url,
         data,
     }
 }
@@ -472,7 +480,6 @@ mod tests {
             name,
             disabled: false,
             version: Some("fixture-2".to_owned()),
-            url: "https://example.com/fixture-2".to_owned(),
             data,
         }
     }
@@ -631,7 +638,14 @@ mod tests {
             record.sources[1].version.is_some(),
             "the fallback must name a version"
         );
-        assert!(hover(record, "rect")?.contains("bundled facts retained (stale)"));
+        // A failed refresh is one word on the browser line, not a sentence
+        // about which source failed and what it fell back to.
+        let text = hover(record, "rect")?;
+        assert!(text.contains(" (offline)"), "{text}");
+        assert!(
+            !text.contains("stale") && !text.contains("Source:"),
+            "{text}"
+        );
         Ok(())
     }
     #[test]
