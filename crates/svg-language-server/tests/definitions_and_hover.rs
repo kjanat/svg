@@ -1013,8 +1013,12 @@ fn path_sketch_cache_survives_the_cursor_and_not_an_edit() -> TestResult {
         };
 
     // Two positions inside the same value: the attribute name and the data.
-    let on_name = sketch_at(&mut server, 46)?;
-    let in_value = sketch_at(&mut server, 55)?;
+    // Read from the fixture rather than counted, so an edit to the prologue
+    // cannot move the cursor off the constructs this test is about.
+    let on_name = u64::try_from(square.find(" d=").ok_or("the d attribute")? + 1)?;
+    let in_value = u64::try_from(square.find("h50").ok_or("the path data")?)?;
+    let on_name = sketch_at(&mut server, on_name)?;
+    let in_value = sketch_at(&mut server, in_value)?;
     assert!(
         on_name.contains('\u{2800}') || on_name.contains('\u{28ff}') || on_name.contains('⠀'),
         "the attribute-name hover should carry a sketch: {on_name}"
@@ -1042,7 +1046,8 @@ fn path_sketch_cache_survives_the_cursor_and_not_an_edit() -> TestResult {
         }),
     )?;
 
-    let after_edit = sketch_at(&mut server, 55)?;
+    let in_tall_value = u64::try_from(tall.find("h10").ok_or("the edited path data")?)?;
+    let after_edit = sketch_at(&mut server, in_tall_value)?;
     assert_ne!(
         braille_of(&in_value),
         braille_of(&after_edit),
