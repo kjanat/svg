@@ -18,8 +18,8 @@ When bumping the workspace version after a catalog refresh:
 
 - Sketch the geometry of a `d` or `animateMotion` `path` value in hover, as a
   braille-dot outline above the catalog entry, alongside its command and
-  subpath counts and its extent. Opt out with `path_sketch` in
-  `svg.hover.sections`.
+  subpath counts and its extent. Opt out by dropping `path_sketch` from
+  `svg.hover.sections`, which is an allowlist.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
