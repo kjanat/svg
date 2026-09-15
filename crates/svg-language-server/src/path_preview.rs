@@ -184,6 +184,15 @@ enum Axis {
     Vertical,
 }
 
+impl Axis {
+    const fn of(self, point: Point) -> f64 {
+        match self {
+            Self::Horizontal => point.x,
+            Self::Vertical => point.y,
+        }
+    }
+}
+
 /// Walks path segments, tracking the state the SVG path grammar is defined against.
 #[derive(Default)]
 struct Pen {
@@ -429,10 +438,8 @@ impl Pen {
 
     fn cubic_to(&mut self, first: Point, second: Point, end: Point) {
         let start = self.cursor;
-        for step in 1..=CURVE_STEPS {
-            let t = f64::from(step) / f64::from(CURVE_STEPS);
-            self.push(de_casteljau(&[start, first, second, end], t));
-        }
+        let points = [start, first, second, end];
+        self.sample_curve(&points, &cubic_extrema(&points));
         self.cursor = end;
         self.cubic_reflection = Some(second);
         self.quadratic_reflection = None;
@@ -440,10 +447,8 @@ impl Pen {
 
     fn quadratic_to(&mut self, control: Point, end: Point) {
         let start = self.cursor;
-        for step in 1..=CURVE_STEPS {
-            let t = f64::from(step) / f64::from(CURVE_STEPS);
-            self.push(de_casteljau(&[start, control, end], t));
-        }
+        let points = [start, control, end];
+        self.sample_curve(&points, &quadratic_extrema(&points));
         self.cursor = end;
         self.quadratic_reflection = Some(control);
         self.cubic_reflection = None;
@@ -470,6 +475,12 @@ impl Pen {
             // SVG 2 9.3.8 omits the arc only when the endpoints are identical.
             // A tolerance here would discard real geometry expressed in small
             // units, where the whole path is narrower than the tolerance.
+            //
+            // Omitting what it draws does not omit the command: after a close
+            // it still begins a subpath, which `Sketch::subpaths` counts
+            // whether or not anything is drawn in it, exactly as a lineto
+            // there would.
+            self.reopen_subpath();
             return;
         }
         let (mut rx, mut ry) = (arc.radii.x, arc.radii.y);
@@ -619,27 +630,34 @@ impl Pen {
         // round trip rounds to the 6e-17 residual of `cos(-pi/2)`, and `ry`
         // then magnifies that into a reported height of 6e83 for an arc whose
         // sagitta is an eighth of a unit.
+        //
+        // The turning points of the ellipse, as fractions of the sweep. They
+        // are what the reported extent needs: a semicircle whose widest point
+        // falls between two even steps is otherwise reported narrower than it
+        // is. The samples come from the same formula either way, so this only
+        // chooses where to stand, never how to compute.
+        let shape = ArcShape {
+            from,
+            start,
+            sweep,
+            rx,
+            ry,
+            sin_phi,
+            cos_phi,
+        };
+        let turns = shape.turning_points();
+        let mut turn = 0;
+
         let steps = arc_steps(sweep);
         for step in 1..=steps {
             let at = f64::from(step) / f64::from(steps);
-            let half = sweep * at / 2.0;
-            let chord = 2.0 * half.sin();
-            let (sin_half, cos_half) = half.sin_cos();
-            let sin_mid = from.y.mul_add(cos_half, from.x * sin_half);
-            let cos_mid = from.x.mul_add(cos_half, -(from.y * sin_half));
-            // Rotate the step before the radius scales it, not after. The
-            // ellipse's own frame can hold the point further out than the
-            // document does: `A1e308 1e308 45 …` reaches 1.838 radii along
-            // the ellipse's x axis, which is 1.84e308 and past the range,
-            // while the rotation folds it back to a representable 1.3e308.
-            // Each radius multiplying an already-rotated factor never makes
-            // an intermediate larger than the result it contributes to.
-            let along = -(chord * sin_mid);
-            let across = chord * cos_mid;
-            self.push(Point::new(
-                f64::mul_add(ry, -(sin_phi * across), rx * (cos_phi * along)) + start.x,
-                f64::mul_add(ry, cos_phi * across, rx * (sin_phi * along)) + start.y,
-            ));
+            while turn < turns.len() && turns[turn] < at {
+                let point = shape.sample(turns[turn]);
+                self.push(point);
+                turn += 1;
+            }
+            let point = shape.sample(at);
+            self.push(point);
         }
         self.cursor = end;
         self.cubic_reflection = None;
@@ -734,14 +752,40 @@ impl Pen {
             return;
         }
         if self.current.is_empty() {
-            if !self.subpath_open {
-                self.subpaths += 1;
-                self.subpath_open = true;
-            }
+            self.reopen_subpath();
             self.current.push(self.cursor);
         }
         self.current.push(to);
         self.cursor = to;
+    }
+
+    /// Walk a curve at even steps, and at the parameters where it turns.
+    ///
+    /// The even steps are what the raster needs; the turning points are what
+    /// the reported extent needs. Without them the bounds come from whatever
+    /// the sampling happened to catch, and a semicircle whose widest point
+    /// falls between two steps is reported narrower than it is.
+    fn sample_curve(&mut self, points: &[Point], turns: &[f64]) {
+        let mut at = 1;
+        for step in 1..=CURVE_STEPS {
+            let t = f64::from(step) / f64::from(CURVE_STEPS);
+            while at <= turns.len() && turns[at - 1] < t {
+                self.push(de_casteljau(points, turns[at - 1]));
+                at += 1;
+            }
+            self.push(de_casteljau(points, t));
+        }
+    }
+
+    /// Begin a subpath where a close ended the last one, counting it.
+    ///
+    /// A drawing command after `Z` starts a subpath even when it draws
+    /// nothing, and the count promises to include those.
+    const fn reopen_subpath(&mut self) {
+        if !self.subpath_open {
+            self.subpaths += 1;
+            self.subpath_open = true;
+        }
     }
 
     /// Every point that reaches a polyline passes through here, so overflow
@@ -887,6 +931,136 @@ fn descendant_of_kind_any<'a>(node: Node<'a>, kinds: &[&str]) -> Option<Node<'a>
     let mut cursor = node.walk();
     node.children(&mut cursor)
         .find_map(|child| descendant_of_kind_any(child, kinds))
+}
+
+/// One arc, in the terms its samples are computed from.
+struct ArcShape {
+    /// Unit vector from the centre to the start: the start angle's cosine and
+    /// sine, kept as the vector rather than as an angle.
+    from: Point,
+    start: Point,
+    sweep: f64,
+    rx: f64,
+    ry: f64,
+    sin_phi: f64,
+    cos_phi: f64,
+}
+
+impl ArcShape {
+    /// The point `at` of the way along the sweep.
+    ///
+    /// Measured from the start rather than from the centre, and rotated before
+    /// the radii scale it — see `arc_to` for why each of those matters.
+    fn sample(&self, at: f64) -> Point {
+        let half = self.sweep * at / 2.0;
+        let chord = 2.0 * half.sin();
+        let (sin_half, cos_half) = half.sin_cos();
+        let sin_mid = self.from.y.mul_add(cos_half, self.from.x * sin_half);
+        let cos_mid = self.from.x.mul_add(cos_half, -(self.from.y * sin_half));
+        let along = -(chord * sin_mid);
+        let across = chord * cos_mid;
+        Point::new(
+            f64::mul_add(
+                self.ry,
+                -(self.sin_phi * across),
+                self.rx * (self.cos_phi * along),
+            ) + self.start.x,
+            f64::mul_add(
+                self.ry,
+                self.cos_phi * across,
+                self.rx * (self.sin_phi * along),
+            ) + self.start.y,
+        )
+    }
+
+    /// Where the ellipse turns back on itself, as fractions of the sweep, in
+    /// rising order.
+    ///
+    /// The horizontal extent turns where `rx cos(phi) sin(t)` balances
+    /// `ry sin(phi) cos(t)`, and the vertical extent likewise; each gives an
+    /// angle and its opposite. A fraction that is not finite, or that falls
+    /// outside the sweep, is dropped — this refines the bounds and must never
+    /// be able to move the curve.
+    fn turning_points(&self) -> Vec<f64> {
+        let opening = self.from.y.atan2(self.from.x);
+        let mut turns = Vec::new();
+        for angle in [
+            (-(self.ry * self.sin_phi)).atan2(self.rx * self.cos_phi),
+            (self.ry * self.cos_phi).atan2(self.rx * self.sin_phi),
+        ] {
+            for turn in [angle, angle + std::f64::consts::PI] {
+                // Bring the angle into one turn's worth of the swept
+                // direction before dividing. Nudging it by whole turns until
+                // the sign agrees is not enough: an angle already on the right
+                // side can still be more than a turn away, which is how the
+                // 270 degree point of `A5 5 0 0 1 6 8` came out as 2.2 sweeps
+                // and was dropped as outside one.
+                let travelled = if self.sweep > 0.0 {
+                    (turn - opening).rem_euclid(std::f64::consts::TAU)
+                } else {
+                    -((opening - turn).rem_euclid(std::f64::consts::TAU))
+                };
+                turns.push(travelled / self.sweep);
+            }
+        }
+        sorted_inside_unit(turns)
+    }
+}
+
+/// Where a cubic turns back on itself, in rising order.
+///
+/// Its derivative is a quadratic per axis, and a root inside the span is an
+/// extremum of the curve's extent. A root that is not finite is dropped rather
+/// than sampled: the coefficients are differences of control points, which can
+/// leave the range for a curve that does not, and this is a refinement of the
+/// bounds rather than something the curve needs to be drawn.
+fn cubic_extrema(points: &[Point; 4]) -> Vec<f64> {
+    let mut turns = Vec::new();
+    for axis in [Axis::Horizontal, Axis::Vertical] {
+        let [p0, p1, p2, p3] = points.map(|point| axis.of(point));
+        // The derivative of a cubic, divided through by three.
+        let a = 3.0f64.mul_add(p1 - p2, p3 - p0);
+        let b = 2.0f64.mul_add(-p1, p0 + p2) * 2.0;
+        let c = p1 - p0;
+        turns.extend(quadratic_roots(a, b, c));
+    }
+    sorted_inside_unit(turns)
+}
+
+/// Where a quadratic turns back on itself, in rising order.
+fn quadratic_extrema(points: &[Point; 3]) -> Vec<f64> {
+    let mut turns = Vec::new();
+    for axis in [Axis::Horizontal, Axis::Vertical] {
+        let [p0, p1, p2] = points.map(|point| axis.of(point));
+        // The derivative is linear: (p1 - p0) + t * (p2 - 2p1 + p0).
+        let slope = 2.0f64.mul_add(-p1, p2 + p0);
+        let start = p1 - p0;
+        if slope != 0.0 {
+            turns.push(-start / slope);
+        }
+    }
+    sorted_inside_unit(turns)
+}
+
+/// Real roots of `a t^2 + b t + c`.
+fn quadratic_roots(a: f64, b: f64, c: f64) -> Vec<f64> {
+    if a == 0.0 {
+        return if b == 0.0 { Vec::new() } else { vec![-c / b] };
+    }
+    let discriminant = b.mul_add(b, -(4.0 * a * c));
+    if discriminant < 0.0 {
+        return Vec::new();
+    }
+    let root = discriminant.sqrt();
+    vec![(-b + root) / (2.0 * a), (-b - root) / (2.0 * a)]
+}
+
+/// Keep the finite parameters strictly inside the span, in rising order.
+fn sorted_inside_unit(mut values: Vec<f64>) -> Vec<f64> {
+    values.retain(|value| value.is_finite() && *value > 0.0 && *value < 1.0);
+    values.sort_by(f64::total_cmp);
+    values.dedup();
+    values
 }
 
 /// Evaluate a Bezier curve at `t` by repeated linear interpolation.
@@ -1242,6 +1416,50 @@ mod tests {
         let sketch = sketch("M0 0 H10 Z M0 20 H10 Z").ok_or("path should sketch")?;
         assert_eq!(sketch.subpaths, 2);
         assert_eq!(sketch.commands, 6);
+        Ok(())
+    }
+
+    #[test]
+    fn the_extent_is_measured_where_the_curve_turns() -> TestResult {
+        // A semicircle of radius 5 between these endpoints spans 8 by 9, and
+        // both extremes fall between the even sampling steps. Measuring only
+        // what the raster happened to catch reported 7.95 by 8.95 and
+        // presented it as the path's size.
+        for flags in ["0 1", "0 0"] {
+            let arc = sketch(&format!("M0 0 A5 5 0 {flags} 6 8")).ok_or("semicircle")?;
+            assert!(
+                (arc.width - 8.0).abs() < 1.0e-9 && (arc.height - 9.0).abs() < 1.0e-9,
+                "flags {flags} should span 8 by 9, got {} x {}",
+                arc.width,
+                arc.height
+            );
+        }
+
+        // A cubic turns where its derivative vanishes, which is 7.5 here, and
+        // a quadratic likewise at 5.
+        let cubic = sketch("M0 0 C0 10 10 10 10 0").ok_or("cubic")?;
+        assert!((cubic.height - 7.5).abs() < 1.0e-9, "got {}", cubic.height);
+        let quadratic = sketch("M0 0 Q5 10 10 0").ok_or("quadratic")?;
+        assert!(
+            (quadratic.height - 5.0).abs() < 1.0e-9,
+            "got {}",
+            quadratic.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_omitted_arc_after_a_close_still_begins_a_subpath() -> TestResult {
+        // The command draws nothing, but it is still the command that reopens
+        // after `Z`, and the count promises to include subpaths that draw
+        // nothing. A lineto in the same place has always counted.
+        let omitted = sketch("M0 0 L10 0 Z A1 1 0 0 1 0 0").ok_or("omitted arc")?;
+        let drawn = sketch("M0 0 L10 0 Z L5 5").ok_or("lineto")?;
+        assert_eq!(
+            omitted.subpaths, drawn.subpaths,
+            "both reopen after the close"
+        );
+        assert_eq!(omitted.subpaths, 2);
         Ok(())
     }
 

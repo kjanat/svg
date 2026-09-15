@@ -83,9 +83,20 @@ use svg_tree::{
 #[derive(Clone)]
 pub(crate) struct DocumentState {
     pub(crate) version: i32,
+    /// Distinguishes this parse from every other the server has made.
+    ///
+    /// A client's version numbering belongs to one open document: close a
+    /// file and reopen it and the count may validly start again at one, so
+    /// two different texts can share a version. Anything cached against a
+    /// parse needs an identity the client cannot reuse.
+    pub(crate) generation: u64,
     pub(crate) source: String,
     pub(crate) tree: tree_sitter::Tree,
 }
+
+/// Hands out [`DocumentState::generation`] values, one per parse, for the life
+/// of the process.
+static PARSE_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Position key for color kind cache lookups.
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
@@ -102,12 +113,15 @@ type ColorKindCache = Arc<RwLock<HashMap<ColorPositionKey, svg_color::ColorKind>
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct SketchKey {
     uri: Uri,
-    /// The document version the sketch was drawn from. Clearing the URI's
-    /// entries on every ingest is not enough on its own: a slow hover holds
-    /// the state it started with, so one that finishes after the edit would
-    /// otherwise insert its picture of the old text under a key the new text
-    /// reads. The version makes that insertion unreachable instead.
-    version: i32,
+    /// The parse the sketch was drawn from. Clearing the URI's entries on
+    /// every ingest is not enough on its own: a slow hover holds the state it
+    /// started with, so one that finishes after the edit would otherwise
+    /// insert its picture of the old text under a key the new text reads.
+    ///
+    /// The client's version number is not enough either — a document closed
+    /// and reopened may start counting again — so this is the server's own
+    /// per-parse identity, which nothing can reuse.
+    generation: u64,
     attribute_start: usize,
 }
 
@@ -125,7 +139,7 @@ type SketchCache = Arc<StdRwLock<HashMap<SketchKey, Option<String>>>>;
 #[derive(Clone, Copy)]
 struct SketchStore<'a> {
     uri: &'a Uri,
-    version: i32,
+    generation: u64,
     drawn: &'a SketchCache,
 }
 pub(crate) type StylesheetCache =
@@ -927,7 +941,7 @@ fn build_path_sketch_markdown(
     // this, so a hit can only be a value that has not changed.
     let key = SketchKey {
         uri: sketches.uri.clone(),
-        version: sketches.version,
+        generation: sketches.generation,
         attribute_start: attribute.start_byte(),
     };
     if let Ok(drawn) = sketches.drawn.read()
@@ -1255,7 +1269,7 @@ impl SvgLanguageServer {
         build_hover_context(
             SketchStore {
                 uri,
-                version: doc.version,
+                generation: doc.generation,
                 drawn: &self.path_sketches,
             },
             pos,
@@ -1306,6 +1320,7 @@ impl SvgLanguageServer {
         };
 
         let state = Arc::new(DocumentState {
+            generation: PARSE_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             version,
             source,
             tree,
