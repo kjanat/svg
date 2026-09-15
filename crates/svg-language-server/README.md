@@ -156,7 +156,8 @@ reached WebDX's core browser set; Widely Available adds upstream criteria for
 longer-established availability. Limited means non-Baseline, including
 discouraged features. Missing or unrecognized status stays unknown, without a
 badge. Both milestone dates are optional: Newly in 2020 and Widely in 2022
-describe different events. Hover details label each date separately.
+describe different events. The hover shows the year of the milestone the feature
+has reached, on the Baseline line; the other date is in the data, not the hover.
 
 Browser rows use MDN BCD and default to four desktop products. The wider
 Baseline set includes mobile browsers; change `svg.hover.browsers` to inspect
