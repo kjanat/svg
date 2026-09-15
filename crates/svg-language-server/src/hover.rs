@@ -1511,11 +1511,27 @@ pub fn to_plain_text(markdown: &str) -> String {
     // ahead. Without them the scan restarts at every candidate, which is
     // quadratic in a CSS definition whose size and shape the user controls.
     let mut brackets_can_close = true;
+    let mut autolinks_can_close = true;
     let mut code_can_close = true;
     let mut emphasis_dead_until = 0;
     let mut emphasis_close = None;
     while at < bytes.len() {
         match bytes[at] {
+            b'<' if autolinks_can_close => {
+                // `metadata_link` writes a URL as an autolink, which is the
+                // right thing and which this has to undo rather than read
+                // through: a destination is literal, so `…/_draft_` keeps its
+                // underscores instead of losing them to emphasis.
+                match autolink_end(bytes, at) {
+                    Some(close) => {
+                        out.push_str(&markdown[at + 1..close]);
+                        at = close + 1;
+                        continue;
+                    }
+                    None if !bytes[at..].contains(&b'>') => autolinks_can_close = false,
+                    None => {}
+                }
+            }
             b'>' if at_line_start(bytes, at) => {
                 // Every verdict headline is generated as a block quote, so a
                 // plain-text client would read the marker as part of the
@@ -1584,32 +1600,14 @@ pub fn to_plain_text(markdown: &str) -> String {
                     emphasis_dead_until = line_end(bytes, at);
                 }
             }
-            b'!' | b'[' if brackets_can_close => {
-                let image = bytes[at] == b'!';
-                if !image || bytes.get(at + 1) == Some(&b'[') {
-                    match read_link(markdown, at + usize::from(image)) {
-                        LinkScan::Found {
-                            text,
-                            target,
-                            after,
-                        } => {
-                            // The label is escaped where it is written, so the
-                            // escapes come back off here rather than reaching
-                            // a reader who never saw the brackets.
-                            out.push_str(&unescape_punctuation(text));
-                            if !image && !target.is_empty() {
-                                out.push_str(" (");
-                                out.push_str(target);
-                                out.push(')');
-                            }
-                            at = after;
-                            continue;
-                        }
-                        LinkScan::Unclosed => brackets_can_close = false,
-                        LinkScan::NotALink => {}
-                    }
+            b'!' | b'[' if brackets_can_close => match copy_link(markdown, at, &mut out) {
+                LinkScan::Found { after, .. } => {
+                    at = after;
+                    continue;
                 }
-            }
+                LinkScan::Unclosed => brackets_can_close = false,
+                LinkScan::NotALink => {}
+            },
             _ => {}
         }
         // `at` only ever lands on a character boundary: every branch above
@@ -1729,6 +1727,36 @@ fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
         })
 }
 
+/// Where the autolink opened at `at` closes, if it is one.
+///
+/// `CommonMark` asks for a scheme, then anything but a space or another angle
+/// bracket, then `>`. Anything else beginning with `<` is just a character —
+/// `a < b` is arithmetic, not markup.
+fn autolink_end(bytes: &[u8], open: usize) -> Option<usize> {
+    let scheme_start = open + 1;
+    if !bytes.get(scheme_start).is_some_and(u8::is_ascii_alphabetic) {
+        return None;
+    }
+    let mut at = scheme_start + 1;
+    while bytes
+        .get(at)
+        .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
+    {
+        at += 1;
+    }
+    if bytes.get(at) != Some(&b':') || at == scheme_start + 1 {
+        return None;
+    }
+    while at < bytes.len() {
+        match bytes[at] {
+            b'>' => return Some(at),
+            byte if byte.is_ascii_whitespace() || byte == b'<' => return None,
+            _ => at += 1,
+        }
+    }
+    None
+}
+
 /// Whether the `_` at `at` can open emphasis at all: it must be followed by
 /// something other than space, and must not sit inside a word.
 fn opens_emphasis(bytes: &[u8], at: usize) -> bool {
@@ -1786,6 +1814,31 @@ enum LinkScan<'a> {
     NotALink,
     /// No `]` appears anywhere after the `[`, so nothing later can be one.
     Unclosed,
+}
+
+/// Copy the link or image beginning at `at`, if there is one, and report how
+/// the scan went so the caller can stop looking when nothing ahead can close.
+///
+/// An image becomes the alt text that describes it — the Baseline badges carry
+/// a two-kilobyte data URI — while a link keeps its text and gains its target.
+fn copy_link<'a>(source: &'a str, at: usize, out: &mut String) -> LinkScan<'a> {
+    let bytes = source.as_bytes();
+    let image = bytes[at] == b'!';
+    if image && bytes.get(at + 1) != Some(&b'[') {
+        return LinkScan::NotALink;
+    }
+    let scan = read_link(source, at + usize::from(image));
+    if let LinkScan::Found { text, target, .. } = scan {
+        // The label is escaped where it is written, so the escapes come back
+        // off here rather than reaching a reader who never saw the brackets.
+        out.push_str(&unescape_punctuation(text));
+        if !image && !target.is_empty() {
+            out.push_str(" (");
+            out.push_str(target);
+            out.push(')');
+        }
+    }
+    scan
 }
 
 /// Split `[text](target)` starting at the `[`. Nested parentheses in the
@@ -1964,6 +2017,37 @@ mod tests {
             plain.contains("``` a line of backticks inside a comment")
                 && plain.contains(".a { fill: red }"),
             "the whole rule should survive: {plain}"
+        );
+    }
+
+    #[test]
+    fn an_autolink_gives_up_its_brackets_and_keeps_its_url() {
+        // `metadata_link` writes http and https targets this way, and a
+        // discouraged feature carries one by default, so this is the common
+        // path rather than an edge of it.
+        assert_eq!(
+            super::to_plain_text(&super::metadata_link("https://example.com/retirement")),
+            "https://example.com/retirement"
+        );
+
+        // A destination is literal. Reading through it loses the underscores
+        // and hands the reader a URL that does not resolve.
+        assert_eq!(
+            super::to_plain_text("<https://example.com/_draft_>"),
+            "https://example.com/_draft_"
+        );
+
+        assert_eq!(
+            super::to_plain_text("see <https://a.example/x> and <https://b.example/y>"),
+            "see https://a.example/x and https://b.example/y"
+        );
+
+        // An angle bracket that opens no link is a character like any other.
+        assert_eq!(super::to_plain_text("a < b and c > d"), "a < b and c > d");
+        assert_eq!(super::to_plain_text("<not a url>"), "<not a url>");
+        assert_eq!(
+            super::to_plain_text("<https://unclosed"),
+            "<https://unclosed"
         );
     }
 
