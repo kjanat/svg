@@ -1542,6 +1542,15 @@ pub fn to_plain_text(markdown: &str) -> String {
                 }
                 continue;
             }
+            b'-' if at_line_start(bytes, at) => {
+                // `format_definition_hover` separates multiple definitions with
+                // a thematic break. The blank lines around it already do that
+                // job in plain text; the rule itself is only markup.
+                if let Some(after) = thematic_break_end(bytes, at) {
+                    at = after;
+                    continue;
+                }
+            }
             b'\\' if bytes.get(at + 1).is_some_and(u8::is_ascii_punctuation) => {
                 // Metadata is escaped for Markdown before it ever gets here,
                 // so the backslash is markup and the character after it is not.
@@ -1799,6 +1808,32 @@ fn unescape_punctuation(text: &str) -> std::borrow::Cow<'_, str> {
 }
 
 /// Whether `at` begins a line.
+/// Where a thematic break starting at `at` ends, if that whole line is one.
+///
+/// Only a run of `-` counts. `*` and `_` runs would collide with the emphasis
+/// delimiters, and the one thematic break these hovers write is the `---` that
+/// joins definitions. A dash in prose cannot reach here: `escape_metadata`
+/// backslashes it, and CSS rides through its fence literally.
+fn thematic_break_end(bytes: &[u8], at: usize) -> Option<usize> {
+    let end = line_end(bytes, at);
+    let mut dashes = 0usize;
+    for &byte in &bytes[at..end] {
+        match byte {
+            b'-' => dashes += 1,
+            b' ' | b'\t' => {}
+            _ => return None,
+        }
+    }
+    if dashes < 3 {
+        return None;
+    }
+    // The break came with a blank line on each side. One of them is already
+    // written, and the other would leave a gap where the rule used to be.
+    let mut after = end + usize::from(end < bytes.len());
+    after += usize::from(bytes.get(after) == Some(&b'\n'));
+    Some(after)
+}
+
 const fn at_line_start(bytes: &[u8], at: usize) -> bool {
     at == 0 || bytes[at - 1] == b'\n'
 }
@@ -2017,6 +2052,45 @@ mod tests {
             plain.contains("``` a line of backticks inside a comment")
                 && plain.contains(".a { fill: red }"),
             "the whole rule should survive: {plain}"
+        );
+    }
+
+    #[test]
+    fn two_definitions_are_separated_without_a_visible_rule() {
+        // `format_definition_hover` joins definitions with a thematic break,
+        // so any class defined in two sheets carries one.
+        let link = |name: &str| super::HoverSourceLink {
+            label: format!("{name}.css"),
+            target: format!("file:///{name}.css"),
+        };
+        let hover = super::format_definition_hover(
+            [
+                (".a { fill: red }".to_owned(), link("base")),
+                (".a { fill: blue }".to_owned(), link("theme")),
+            ]
+            .into_iter(),
+            ".a",
+        );
+        assert!(
+            hover.contains("\n---\n"),
+            "the Markdown carries the rule: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            !plain.contains("---"),
+            "the rule is markup and should not survive: {plain}"
+        );
+        // Both definitions do, still told apart by a blank line.
+        assert!(
+            plain.contains(".a { fill: red }")
+                && plain.contains(".a { fill: blue }")
+                && plain.contains("base.css")
+                && plain.contains("theme.css"),
+            "both definitions should survive: {plain}"
+        );
+        assert!(
+            !plain.contains("\n\n\n"),
+            "dropping the rule should not leave a gap: {plain}"
         );
     }
 
