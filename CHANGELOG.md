@@ -23,6 +23,9 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Answer hovers and completion documentation in the markup kind the client
+  advertised, in the order it advertised, rather than always Markdown. A client
+  promising only plain text now receives text rather than the syntax around it.
 - Keep spec-obsolete features flagged after browser data refreshes, and align
   lifecycle annotations in lint and completion across historical profiles.
 - Treat retained `xlink:href` as deprecated in SVG 2, preserve SVG 1.1 usage,

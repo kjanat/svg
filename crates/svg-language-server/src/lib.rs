@@ -990,46 +990,63 @@ struct SvgLanguageServer {
     markup_support: Arc<RwLock<MarkupSupport>>,
 }
 
-/// Which markup kinds the client advertised at initialize.
+/// Which markup kind the client asked for, per request type.
 ///
 /// LSP has the client list the formats it understands in
 /// `textDocument.hover.contentFormat` and
-/// `textDocument.completion.completionItem.documentationFormat`. A client that
-/// lists neither is only promised plain text, so that is what the defaults say:
-/// answering Markdown regardless leaves the syntax on screen, while answering
-/// plain text to a client that would have rendered Markdown only costs it the
-/// formatting.
-#[derive(Clone, Copy, Default)]
+/// `textDocument.completion.completionItem.documentationFormat`, **in order of
+/// preference**. A client that lists `["plaintext", "markdown"]` understands
+/// both and would rather have plain text, so membership is the wrong question
+/// to ask of the list — the first entry the server can produce is.
+///
+/// A client that lists neither is only promised plain text, so that is what
+/// the defaults say: answering Markdown regardless leaves the syntax on
+/// screen, while answering plain text to a client that would have rendered
+/// Markdown only costs it the formatting.
+#[derive(Clone)]
 struct MarkupSupport {
-    hover_markdown: bool,
-    completion_markdown: bool,
+    hover: MarkupKind,
+    completion: MarkupKind,
+}
+
+impl Default for MarkupSupport {
+    fn default() -> Self {
+        Self {
+            hover: MarkupKind::PlainText,
+            completion: MarkupKind::PlainText,
+        }
+    }
 }
 
 impl MarkupSupport {
     fn from_capabilities(capabilities: &ClientCapabilities) -> Self {
         let text_document = capabilities.text_document.as_ref();
-        let hover_markdown = text_document
-            .and_then(|document| document.hover.as_ref())
-            .and_then(|hover| hover.content_format.as_ref())
-            .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
-        let completion_markdown = text_document
-            .and_then(|document| document.completion.as_ref())
-            .and_then(|completion| completion.completion_item.as_ref())
-            .and_then(|item| item.documentation_format.as_ref())
-            .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
-        Self {
-            hover_markdown,
-            completion_markdown,
-        }
+        let hover = preferred_markup(
+            text_document
+                .and_then(|document| document.hover.as_ref())
+                .and_then(|hover| hover.content_format.as_deref()),
+        );
+        let completion = preferred_markup(
+            text_document
+                .and_then(|document| document.completion.as_ref())
+                .and_then(|completion| completion.completion_item.as_ref())
+                .and_then(|item| item.documentation_format.as_deref()),
+        );
+        Self { hover, completion }
     }
+}
 
-    const fn hover_kind(self) -> MarkupKind {
-        if self.hover_markdown {
-            MarkupKind::Markdown
-        } else {
-            MarkupKind::PlainText
-        }
-    }
+/// The first advertised format this server can produce, or plain text when the
+/// client advertised nothing it can.
+fn preferred_markup(advertised: Option<&[MarkupKind]>) -> MarkupKind {
+    advertised
+        .and_then(|formats| {
+            formats
+                .iter()
+                .find(|format| matches!(format, MarkupKind::Markdown | MarkupKind::PlainText))
+                .cloned()
+        })
+        .unwrap_or(MarkupKind::PlainText)
 }
 
 impl SvgLanguageServer {
@@ -1485,7 +1502,7 @@ impl LanguageServer for SvgLanguageServer {
             class_hover,
             property_hover,
         } = self.hover_context_for(uri, pos, &doc).await;
-        let kind = self.markup_support.read().await.hover_kind();
+        let kind = self.markup_support.read().await.hover.clone();
 
         if let Some(markdown) = element_markdown {
             return Ok(Some(hover_in(kind, markdown)));
@@ -1742,7 +1759,7 @@ impl LanguageServer for SvgLanguageServer {
         // places — one gate for every path that can put documentation on an
         // item, including the ones that only borrow a hover's text.
         let mut response = response;
-        if !self.markup_support.read().await.completion_markdown
+        if self.markup_support.read().await.completion != MarkupKind::Markdown
             && let Some(response) = response.as_mut()
         {
             for item in completion_items_of(response) {
@@ -1795,6 +1812,25 @@ pub async fn run_stdio_server() {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn advertised_order_decides_the_markup_kind() {
+        use super::{MarkupKind, preferred_markup};
+        // Listed in preference order, so the first one the server can produce
+        // wins rather than the first one it happens to look for.
+        assert_eq!(
+            preferred_markup(Some(&[MarkupKind::Markdown, MarkupKind::PlainText])),
+            MarkupKind::Markdown
+        );
+        assert_eq!(
+            preferred_markup(Some(&[MarkupKind::PlainText, MarkupKind::Markdown])),
+            MarkupKind::PlainText,
+            "a client that prefers plain text and merely tolerates markdown should be given plain \
+             text"
+        );
+        assert_eq!(preferred_markup(Some(&[])), MarkupKind::PlainText);
+        assert_eq!(preferred_markup(None), MarkupKind::PlainText);
+    }
     use tower_lsp_server::ls_types::CodeActionOrCommand;
 
     use super::*;

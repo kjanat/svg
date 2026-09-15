@@ -928,3 +928,30 @@ fn completion_documentation_follows_its_own_advertised_format() -> TestResult {
     );
     server.shutdown_and_exit()
 }
+
+/// `contentFormat` is ordered by preference, so a client that understands
+/// Markdown but would rather have plain text must be given plain text.
+#[test]
+fn hover_follows_the_advertised_preference_order() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&json!({
+        "textDocument": { "hover": { "contentFormat": ["plaintext", "markdown"] } }
+    }))?;
+    server.open(
+        "file:///order-test.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="10"/></svg>"#,
+    )?;
+
+    let response = server.request(
+        "textDocument/hover",
+        &json!({
+            "textDocument": { "uri": "file:///order-test.svg" },
+            "position": { "line": 0, "character": 43 }
+        }),
+    )?;
+    assert_eq!(
+        response["result"]["contents"]["kind"].as_str(),
+        Some("plaintext"),
+        "listing plaintext first means preferring it: {response}"
+    );
+    server.shutdown_and_exit()
+}
