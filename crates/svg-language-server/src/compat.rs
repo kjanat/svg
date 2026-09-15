@@ -38,14 +38,16 @@ pub struct CompatOverride {
 }
 
 impl CompatOverride {
-    /// Whether any source fell back to the bundled data instead of refreshing.
+    /// Whether the browser versions on screen are the bundled ones.
     ///
-    /// A failed refresh and a disabled one differ in cause and not in effect:
-    /// either way the facts on screen are the ones this build shipped with.
+    /// Only BCD supplies `browser_support`, so only BCD's refresh decides
+    /// this; Web Features feeds Baseline and refreshes on its own. A failed
+    /// refresh and a disabled one differ in cause and not in effect.
     pub fn is_offline(&self) -> bool {
-        self.sources
-            .iter()
-            .any(|source| matches!(source.outcome, Outcome::Failed | Outcome::Disabled))
+        self.sources.iter().any(|source| {
+            source.source == "@mdn/browser-compat-data"
+                && matches!(source.outcome, Outcome::Failed | Outcome::Disabled)
+        })
     }
 
     /// Whether BCD successfully replaced the bundled lifecycle flags.

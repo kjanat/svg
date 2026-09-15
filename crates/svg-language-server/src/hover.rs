@@ -70,21 +70,13 @@ fn longest_backtick_run(text: &str) -> usize {
 
 /// Make a link label safe to write between brackets.
 ///
-/// A path may contain either bracket, and one of them ends the label early —
-/// leaving the whole construct visible in a Markdown client as much as here.
+/// A path is prose to Markdown, not a name: a bracket ends the label early
+/// and a paired `*` or `_` turns `theme*dark*.css` into `themedark.css`.
+/// Backslash-escaping every ASCII punctuation character is always legal and
+/// always renders the character itself, which is all a filename needs; the
+/// plain-text path unwraps the same escapes when it copies a label.
 fn escape_link_label(label: &str) -> String {
-    if label.contains(['[', ']', '\\']) {
-        let mut escaped = String::with_capacity(label.len() + 2);
-        for character in label.chars() {
-            if matches!(character, '[' | ']' | '\\') {
-                escaped.push('\\');
-            }
-            escaped.push(character);
-        }
-        escaped
-    } else {
-        label.to_owned()
-    }
+    escape_metadata(label)
 }
 
 /// Make a link destination safe to write between parentheses.
@@ -395,33 +387,42 @@ fn hover_link_list(mdn_url: &str, spec_url: Option<&str>) -> Vec<String> {
 /// The catalog has carried `content_model` since the elements were ingested,
 /// but only `completion.rs` ever read it, so an element hover said nothing
 /// about what may go inside the element.
-fn content_model_line(model: &svg_data::ContentModel) -> Option<String> {
-    let names = |elements: &[&str]| {
-        elements
+fn content_model_line(el: &svg_data::ElementDef, profile: SpecSnapshotId) -> Option<String> {
+    // The catalog's model is the union across editions. Completion already
+    // asks `allowed_children_with_profile` for the ones this profile has, and
+    // the hover must not name a child the same document would then reject:
+    // `<filter>` has no `feDropShadow` in SVG 1.1.
+    let allowed = || {
+        svg_data::allowed_children_with_profile(profile, el.name)
             .iter()
-            .map(|name| format!("`{name}`"))
+            .map(|child| format!("`{}`", child.element.name))
             .collect::<Vec<_>>()
             .join(" | ")
     };
-    let body = match model {
-        svg_data::ContentModel::Children {
-            categories,
-            elements,
-        } => {
+    let body = match &el.content_model {
+        svg_data::ContentModel::Children { categories, .. } => {
             let mut parts = categories
                 .iter()
                 .map(|category| category_label(*category).to_owned())
                 .collect::<Vec<_>>();
-            if !elements.is_empty() {
-                parts.push(names(elements));
+            let named = allowed();
+            if !named.is_empty() {
+                parts.push(named);
             }
             if parts.is_empty() {
                 return None;
             }
             parts.join(" | ")
         }
-        svg_data::ContentModel::ChildrenSet(elements) if !elements.is_empty() => names(elements),
-        svg_data::ContentModel::ChildrenSet(_) | svg_data::ContentModel::Void => "empty".to_owned(),
+        svg_data::ContentModel::ChildrenSet(_) => {
+            let named = allowed();
+            if named.is_empty() {
+                "empty".to_owned()
+            } else {
+                named
+            }
+        }
+        svg_data::ContentModel::Void => "empty".to_owned(),
         svg_data::ContentModel::AnySvg => "any SVG element".to_owned(),
         svg_data::ContentModel::Foreign => "foreign namespace".to_owned(),
         svg_data::ContentModel::Text => "character data".to_owned(),
@@ -566,7 +567,7 @@ pub fn format_element_hover_with_profile(
     }
 
     if settings.shows(Section::Values)
-        && let Some(line) = content_model_line(&el.content_model)
+        && let Some(line) = content_model_line(el, profile)
     {
         builder.value_constraints(vec![line]);
     }
@@ -1592,6 +1593,13 @@ pub fn to_plain_text(markdown: &str) -> String {
                     at = after;
                     continue;
                 }
+                // Every browser note is written as a list item, and the marker
+                // is the same kind of thing as the block quote's `>`: shape, not
+                // text. A `-` not followed by a space is a character.
+                if bytes.get(at + 1) == Some(&b' ') {
+                    at += 2;
+                    continue;
+                }
             }
             b'\\' if bytes.get(at + 1).is_some_and(u8::is_ascii_punctuation) => {
                 // Metadata is escaped for Markdown before it ever gets here,
@@ -2200,7 +2208,7 @@ mod tests {
             ".a",
         );
         assert!(
-            hover.contains(r"[theme\]dark.css:1]("),
+            hover.contains(r"[theme\]dark\.css\:1]("),
             "the label should be escaped where it is written: {hover}"
         );
         let plain = super::to_plain_text(&hover);
@@ -2698,10 +2706,28 @@ mod tests {
     }
 
     fn element_hover(name: &str, rt: Option<&CompatOverride>, settings: &HoverSettings) -> String {
+        element_hover_in(name, SpecSnapshotId::LATEST, rt, settings)
+    }
+
+    fn element_hover_in(
+        name: &str,
+        profile: SpecSnapshotId,
+        rt: Option<&CompatOverride>,
+        settings: &HoverSettings,
+    ) -> String {
         let Some(element) = svg_data::element(name) else {
             panic!("missing {name} element");
         };
-        format_element_hover_with_profile(element, SpecSnapshotId::LATEST, None, rt, None, settings)
+        format_element_hover_with_profile(element, profile, None, rt, None, settings)
+    }
+
+    /// An override whose two sources carry their real names, so a test can
+    /// fail one and not the other.
+    fn named_override(facts: Facts) -> CompatOverride {
+        let mut runtime = test_override(facts);
+        runtime.sources[0].source = "@mdn/browser-compat-data";
+        runtime.sources[1].source = "web-features";
+        runtime
     }
 
     fn attribute_hover(name: &str) -> String {
@@ -2727,10 +2753,18 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let element = svg_data::element("feGaussianBlur").ok_or("feGaussianBlur")?;
         let settings = HoverSettings::default();
-        let mut runtime = test_override(element_facts(element));
+        let mut runtime = named_override(element_facts(element));
 
         let fresh = element_hover("feGaussianBlur", Some(&runtime), &settings);
         assert!(!fresh.contains("(offline)"), "{fresh}");
+
+        // The marker sits on the browser row, and that row is BCD's. A failed
+        // Web Features refresh leaves the browser versions exactly as fresh as
+        // they were, so it must not qualify them.
+        runtime.sources[1].outcome = Outcome::Failed;
+        let baseline_stale = element_hover("feGaussianBlur", Some(&runtime), &settings);
+        assert!(!baseline_stale.contains("(offline)"), "{baseline_stale}");
+        runtime.sources[1].outcome = Outcome::Loaded;
         // The provenance block that used to follow the browser line is gone
         // in the fresh case too: "loaded" said nothing, the key restated the
         // element under the cursor, and the URL had no label.
@@ -2739,7 +2773,7 @@ mod tests {
         }
 
         for outcome in [Outcome::Failed, Outcome::Disabled] {
-            runtime.sources[1].outcome = outcome.clone();
+            runtime.sources[0].outcome = outcome.clone();
             let offline = element_hover("feGaussianBlur", Some(&runtime), &settings);
             let browsers = offline
                 .lines()
@@ -2807,6 +2841,53 @@ mod tests {
             .retain(|section| *section != Section::Values);
         let hover = element_hover("feGaussianBlur", None, &without);
         assert!(!hover.contains("Children:"), "{hover}");
+
+        // The list is the active profile's, not the union's: SVG 1.1 has no
+        // `feDropShadow`, and completion in that profile does not offer it.
+        let latest = element_hover_in("filter", SpecSnapshotId::LATEST, None, &settings);
+        assert!(latest.contains("`feDropShadow`"), "{latest}");
+        let svg11 = element_hover_in("filter", SpecSnapshotId::Svg11Rec20110816, None, &settings);
+        assert!(!svg11.contains("feDropShadow"), "{svg11}");
+        assert!(svg11.contains("`feGaussianBlur`"), "{svg11}");
+    }
+
+    #[test]
+    fn a_label_is_escaped_whole() {
+        // Asterisks pair as emphasis, and a Markdown client would show the
+        // stylesheet as `themedark.css`. Every punctuation character is
+        // escaped where the label is written; the plain-text path takes the
+        // escapes back off.
+        let hover = format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                HoverSourceLink {
+                    label: "theme*dark*.css:1".to_owned(),
+                    target: "file:///theme*dark*.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(hover.contains("[theme\\*dark\\*\\.css\\:1]("), "{hover}");
+        let plain = to_plain_text(&hover);
+        assert!(plain.contains("theme*dark*.css:1"), "{plain}");
+        assert!(!plain.contains("themedark"), "{plain}");
+    }
+
+    #[test]
+    fn a_list_marker_is_shape_not_text() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(to_plain_text("- Edge: note"), "Edge: note");
+        assert_eq!(to_plain_text("a - b"), "a - b");
+        assert_eq!(to_plain_text("-x"), "-x");
+        // Every browser note is emitted as a list item.
+        let element = svg_data::element("feTurbulence").ok_or("feTurbulence")?;
+        let facts = element_facts(element);
+        let support = facts.browser_support.as_ref().ok_or("support")?;
+        let notes = format_browser_notes_list(Some(support), &HoverSettings::default())
+            .ok_or("feTurbulence has an Edge note")?;
+        assert!(notes.iter().all(|line| line.starts_with("- ")), "{notes:?}");
+        let plain = to_plain_text(&notes.join("\n"));
+        assert!(plain.lines().all(|line| !line.starts_with("- ")), "{plain}");
+        Ok(())
     }
 
     fn test_override(facts: Facts) -> CompatOverride {
