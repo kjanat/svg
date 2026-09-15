@@ -675,6 +675,20 @@ impl Pen {
             return;
         }
         self.flush();
+
+        // A moveto that nothing has drawn before it can still move the frame.
+        // `M0 0 M1e17 0 l8 100` anchors on the first one otherwise, which puts
+        // the second cursor at 1e17 in a frame measured from zero — and the
+        // eight units that follow round away, drawing a vertical line and
+        // reporting no width at all. The geometry begins where it begins.
+        let at = if self.polylines.is_empty() {
+            let origin = self.origin.unwrap_or_default();
+            self.origin = Some(Point::new(origin.x + at.x, origin.y + at.y));
+            Point::default()
+        } else {
+            at
+        };
+
         self.cursor = at;
         self.subpath_start = at;
         self.subpaths += 1;
@@ -1436,6 +1450,41 @@ mod tests {
         );
         let relative = sketch("m1e17 1e17 l100 0").ok_or("relative opening")?;
         assert_eq!((relative.width, relative.height), (100.0, 0.0));
+        Ok(())
+    }
+
+    #[test]
+    fn a_moveto_that_draws_nothing_does_not_fix_the_frame() -> TestResult {
+        // The frame belongs to the geometry, and a moveto before any of it has
+        // no geometry to speak for. Anchoring on the first one puts the second
+        // cursor 1e17 from the origin, where eight units round away entirely.
+        let rebased = sketch("M0 0 M1e17 0 l8 100").ok_or("rebased")?;
+        assert_eq!((rebased.width, rebased.height), (8.0, 100.0));
+        assert_eq!(rebased.subpaths, 2, "the empty subpath still counts");
+
+        // However many of them there are, and whether or not a close came
+        // between.
+        for path_data in [
+            "M0 0 M1e17 0 M2e17 0 l8 100",
+            "M0 0 Z M1e17 0 l8 100",
+            "m0 0 m1e17 0 l8 100",
+        ] {
+            let sketch = sketch(path_data).ok_or("rebased")?;
+            assert_eq!(
+                (sketch.width, sketch.height),
+                (8.0, 100.0),
+                "for {path_data}"
+            );
+        }
+
+        // Once a subpath has drawn, the frame is its own and must not move:
+        // here the distance really is part of the picture.
+        let spanning = sketch("M0 0 l1 1 M1e17 0 l8 100").ok_or("spanning")?;
+        assert!(
+            spanning.width > 1.0e16,
+            "a drawn subpath makes the distance real geometry, got {}",
+            spanning.width
+        );
         Ok(())
     }
 
