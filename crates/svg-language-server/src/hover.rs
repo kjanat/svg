@@ -1440,44 +1440,72 @@ fn format_browser_support_line(
 ///
 /// A client that does not advertise `markdown` in `textDocument.hover.
 /// contentFormat` is only promised plain text, and handing it Markdown leaves
-/// the syntax on screen: `**Baseline**`, backticks around every attribute
-/// name, and a data URI where a badge should be. The hovers here use four
-/// constructs, so this handles those four rather than pretending to be a
-/// Markdown renderer — emphasis and code fences drop their delimiters, a link
+/// the syntax on screen. This is not a Markdown renderer; it handles the
+/// constructs these hovers actually emit, which were read off generated hover
+/// output rather than guessed at: emphasis, strikethrough and code delimiters
+/// drop away, a fenced block loses its fence and its language tag, a link
 /// keeps its text and gains its target in parentheses, and an image becomes
-/// the alt text that describes it.
+/// the alt text that describes it. The Baseline badges are images whose target
+/// is a two-kilobyte data URI, so keeping the alt text rather than the target
+/// is the whole point of handling them.
 pub fn to_plain_text(markdown: &str) -> String {
     let mut out = String::with_capacity(markdown.len());
     let bytes = markdown.as_bytes();
     let mut at = 0;
+    // A `[` with no `]` anywhere after it cannot open a link, and neither can
+    // any `[` that follows it. Without this the scan restarts at every one of
+    // them, which is quadratic in a CSS definition the user controls.
+    let mut brackets_can_close = true;
     while at < bytes.len() {
         match bytes[at] {
-            b'!' if bytes.get(at + 1) == Some(&b'[') => {
-                if let Some((alt, _, next)) = read_link(markdown, at + 1) {
-                    out.push_str(alt);
-                    at = next;
-                    continue;
+            b'`' if bytes[at..].starts_with(b"```") => {
+                // A fence carries a language tag on its own line. Dropping the
+                // backticks alone would leave that tag behind as a stray word.
+                at += 3;
+                while at < bytes.len() && bytes[at] != b'\n' {
+                    at += 1;
                 }
-            }
-            b'[' => {
-                if let Some((text, target, next)) = read_link(markdown, at) {
-                    out.push_str(text);
-                    if !target.is_empty() {
-                        out.push_str(" (");
-                        out.push_str(target);
-                        out.push(')');
-                    }
-                    at = next;
-                    continue;
-                }
-            }
-            b'*' if bytes.get(at + 1) == Some(&b'*') => {
-                at += 2;
+                at += usize::from(at < bytes.len());
                 continue;
             }
             b'`' => {
                 at += 1;
                 continue;
+            }
+            b'~' if bytes[at..].starts_with(b"~~") => {
+                at += 2;
+                continue;
+            }
+            b'*' if bytes[at..].starts_with(b"**") => {
+                at += 2;
+                continue;
+            }
+            b'_' if is_emphasis_underscore(bytes, at) => {
+                at += 1;
+                continue;
+            }
+            b'!' | b'[' if brackets_can_close => {
+                let image = bytes[at] == b'!';
+                if !image || bytes.get(at + 1) == Some(&b'[') {
+                    match read_link(markdown, at + usize::from(image)) {
+                        LinkScan::Found {
+                            text,
+                            target,
+                            after,
+                        } => {
+                            out.push_str(text);
+                            if !image && !target.is_empty() {
+                                out.push_str(" (");
+                                out.push_str(target);
+                                out.push(')');
+                            }
+                            at = after;
+                            continue;
+                        }
+                        LinkScan::Unclosed => brackets_can_close = false,
+                        LinkScan::NotALink => {}
+                    }
+                }
             }
             _ => {}
         }
@@ -1490,14 +1518,38 @@ pub fn to_plain_text(markdown: &str) -> String {
     out
 }
 
-/// Split `[text](target)` starting at the `[`, into its text, its target, and
-/// the offset just past the closing parenthesis. Nested parentheses in the
+/// Whether the `_` at `at` delimits emphasis rather than sitting inside a word.
+///
+/// `CommonMark` does not treat an intraword underscore as emphasis, and neither
+/// does this: a custom property named `--brand_accent` keeps its underscore
+/// where `_Widely Available_` loses both of its.
+fn is_emphasis_underscore(bytes: &[u8], at: usize) -> bool {
+    let word = |byte: Option<&u8>| byte.is_some_and(u8::is_ascii_alphanumeric);
+    !(word(at.checked_sub(1).map(|before| &bytes[before])) && word(bytes.get(at + 1)))
+}
+
+/// What a scan for `[text](target)` found.
+enum LinkScan<'a> {
+    Found {
+        text: &'a str,
+        target: &'a str,
+        after: usize,
+    },
+    /// A `]` closed the text but no `(` followed, so this is not a link.
+    NotALink,
+    /// No `]` appears anywhere after the `[`, so nothing later can be one.
+    Unclosed,
+}
+
+/// Split `[text](target)` starting at the `[`. Nested parentheses in the
 /// target are counted, since a `data:` URI can carry them.
-fn read_link(source: &str, open: usize) -> Option<(&str, &str, usize)> {
+fn read_link(source: &str, open: usize) -> LinkScan<'_> {
     let bytes = source.as_bytes();
-    let text_end = (open + 1..bytes.len()).find(|&at| bytes[at] == b']')?;
+    let Some(text_end) = (open + 1..bytes.len()).find(|&at| bytes[at] == b']') else {
+        return LinkScan::Unclosed;
+    };
     if bytes.get(text_end + 1) != Some(&b'(') {
-        return None;
+        return LinkScan::NotALink;
     }
     let mut depth = 1usize;
     let mut at = text_end + 2;
@@ -1507,18 +1559,18 @@ fn read_link(source: &str, open: usize) -> Option<(&str, &str, usize)> {
             b')' => {
                 depth -= 1;
                 if depth == 0 {
-                    return Some((
-                        &source[open + 1..text_end],
-                        &source[text_end + 2..at],
-                        at + 1,
-                    ));
+                    return LinkScan::Found {
+                        text: &source[open + 1..text_end],
+                        target: &source[text_end + 2..at],
+                        after: at + 1,
+                    };
                 }
             }
             _ => {}
         }
         at += 1;
     }
-    None
+    LinkScan::NotALink
 }
 
 #[cfg(test)]
@@ -1548,6 +1600,56 @@ mod tests {
         assert_eq!(
             super::to_plain_text("![Baseline Widely available](https://example.invalid/b.svg)"),
             "Baseline Widely available"
+        );
+    }
+
+    #[test]
+    fn plain_text_drops_italics_and_strikethrough() {
+        // Baseline lines are italic and deprecated descriptions are struck
+        // through; both were left on screen by the first version of this.
+        assert_eq!(
+            super::to_plain_text("![Baseline icon](data:x) _Widely Available since 2018_"),
+            "Baseline icon Widely Available since 2018"
+        );
+        assert_eq!(
+            super::to_plain_text("~~Use `stroke-width` instead~~"),
+            "Use stroke-width instead"
+        );
+    }
+
+    #[test]
+    fn plain_text_keeps_an_underscore_that_is_part_of_a_word() {
+        // A custom property may be named with one, and dropping it would
+        // rename the thing the hover is about.
+        assert_eq!(
+            super::to_plain_text("`--brand_accent` is defined here"),
+            "--brand_accent is defined here"
+        );
+    }
+
+    #[test]
+    fn plain_text_unwraps_a_fenced_block_without_leaving_its_language() {
+        // Dropping the backticks alone leaves `css` behind as a stray word on
+        // its own line, which reads as part of the definition.
+        assert_eq!(
+            super::to_plain_text("Defined as:\n```css\n.a { fill: red }\n```\n"),
+            "Defined as:\n.a { fill: red }\n"
+        );
+    }
+
+    #[test]
+    fn plain_text_does_not_rescan_for_every_unclosed_bracket() {
+        // A CSS definition the user controls can carry many `[` and no `]`.
+        // Restarting the search at each one is quadratic; the whole point is
+        // that the first failed scan settles it for the rest.
+        let hostile = "[".repeat(200_000);
+        let started = std::time::Instant::now();
+        let out = super::to_plain_text(&hostile);
+        assert_eq!(out, hostile, "unpaired brackets are just characters");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "conversion should stay linear, took {:?}",
+            started.elapsed()
         );
     }
 
