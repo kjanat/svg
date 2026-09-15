@@ -275,7 +275,18 @@ impl Pen {
             let Some(pair) = read_pair(child, source) else {
                 continue;
             };
-            let target = self.resolve(pair, relative);
+            let drawn = !self.polylines.is_empty() || !self.current.is_empty();
+            let target = if started || relative || drawn {
+                self.resolve(pair, relative)
+            } else {
+                // An absolute moveto with nothing drawn before it is about to
+                // become the frame, so measuring it against the old one first
+                // is both pointless and lossy: the two can be further apart
+                // than a double reaches, as `M1e308 0 M-1e308 0` are, and the
+                // difference would take the geometry that follows with it.
+                self.origin = Some(pair);
+                Point::default()
+            };
             if started {
                 // Trailing pairs after a moveto are implicit linetos (SVG 2 9.3.3).
                 self.line_to(target);
@@ -1476,6 +1487,16 @@ mod tests {
                 "for {path_data}"
             );
         }
+
+        // Two undrawn absolute movetos can be further apart than a double
+        // reaches. Measuring the second against the first before the frame
+        // moves would take the geometry with it, and `M-1e308 0 l1 0` on its
+        // own draws perfectly well.
+        let across_the_range = sketch("M1e308 0 M-1e308 0 l1 0").ok_or("across the range")?;
+        assert_eq!(
+            (across_the_range.width, across_the_range.height),
+            (1.0, 0.0)
+        );
 
         // Once a subpath has drawn, the frame is its own and must not move:
         // here the distance really is part of the picture.
