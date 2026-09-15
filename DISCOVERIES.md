@@ -52,6 +52,37 @@
   (UTF-16 code units, 0-based lines) requires explicit `byte_col_to_utf16()` /
   `utf16_to_byte_col()` helpers
 
+- `textDocument.hover.contentFormat` and
+  `textDocument.completion.completionItem.documentationFormat` are **ordered by
+  client preference**, not sets. A client advertising `["plaintext",
+  "markdown"]` understands both and would rather have text, so asking whether
+  Markdown is a member picks the wrong one. Take the first advertised format the
+  server can produce, and negotiate the two independently — a client may prefer
+  different kinds for hover and for completion docs.
+
+- Hover text is generated Markdown whose escaping is deliberate, and a consumer
+  that renders it down must undo the generator's choice rather than guess from
+  appearance: `escape_metadata` backslashes **every** ASCII punctuation
+  character, `metadata_code` wraps its content in a backtick run longer than any
+  inside it, `metadata_link` and `format_discouraged` write CommonMark autolinks
+  (`<https://...>`), the definition preview opens a fence longer than any
+  backtick run in the CSS it wraps, and `format_verdict_headline` emits a block
+  quote. Reading the output as text instead of as the generator's intent is how
+  a hover ends up naming a different symbol than the one under the cursor.
+
+- A line-initial run of three or more backticks opens a fenced block only when
+  the rest of that line carries no backtick — CommonMark forbids backticks in a
+  backtick fence's info string. Without that rule a long inline code span at the
+  start of a line is indistinguishable from a fence opener.
+
+- Anything that walks hover text runs on the request path over user-authored CSS
+  from the open document, so per-character scans that restart must be bounded.
+  Memoising "nothing ahead can close this" is only sound for a scan that
+  actually ran to the end and found nothing; a candidate rejected for another
+  reason (an emphasis delimiter sitting inside a word) says nothing about the
+  candidates after it, and folding the two together silently disables the
+  feature for the rest of the input.
+
 ## Toolchain
 
 - Floating `channel = "nightly"` in `rust-toolchain.toml` broke CI: nightly
