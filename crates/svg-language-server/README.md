@@ -117,9 +117,12 @@ For example, show mobile browser support with selected details:
 
 Available sections: `description`, `status`, `values`, `baseline`,
 `discouraged`, `browsers`, `browser_details`, `web_features_support`, `sources`,
-and `links`. When both are enabled, discouragement takes the place of the
-Baseline badge. `web_features_support` shows that package's independently
-resolved browser versions; the normal browser row uses BCD.
+and `links`. `values` is the attribute's value grammar, and on an element the
+children it permits. When both are enabled, discouragement takes the place of
+the Baseline badge. `web_features_support` shows that package's independently
+resolved browser versions; the normal browser row uses BCD. `sources` adds
+`(offline)` to the browser row when a refresh failed or is disabled, and nothing
+otherwise.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
@@ -135,6 +138,17 @@ catalog and runtime records. Diagnostics keep their existing four-browser
 policy, and completion documentation keeps its default presentation. Templates
 and user-supplied HTML are outside this settings contract.
 
+## Markup format
+
+Hover and completion documentation are returned in the format the client
+advertises at initialization — `textDocument.hover.contentFormat` and
+`textDocument.completion.completionItem.documentationFormat`. A client that
+advertises `markdown` gets Markdown. One that advertises neither is promised
+only plain text by the protocol, so it gets plain text: emphasis and code
+delimiters are dropped, a link keeps its text and gains its target in
+parentheses, and an image becomes the alt text that describes it. The two are
+negotiated independently, so a client may have one and not the other.
+
 ## Understanding compatibility
 
 Baseline is imported from Web Features. Newly Available means a feature has
@@ -142,7 +156,8 @@ reached WebDX's core browser set; Widely Available adds upstream criteria for
 longer-established availability. Limited means non-Baseline, including
 discouraged features. Missing or unrecognized status stays unknown, without a
 badge. Both milestone dates are optional: Newly in 2020 and Widely in 2022
-describe different events. Hover details label each date separately.
+describe different events. The hover shows the year of the milestone the feature
+has reached, on the Baseline line; the other date is in the data, not the hover.
 
 Browser rows use MDN BCD and default to four desktop products. The wider
 Baseline set includes mobile browsers; change `svg.hover.browsers` to inspect
@@ -150,10 +165,9 @@ other products. The Status line identifies svg's assessment: Caution/Avoid is
 project advice, separate from upstream Baseline and specification validity.
 
 Startup refresh is enabled by default. `svg.runtime_compat: false` keeps the
-bundled snapshot. A failed source refresh retains its bundled facts and labels
-them stale; a successful source load with no facts clears that source's old
-values. The `sources` hover section identifies versions, contexts, and outcomes
-for BCD and Web Features independently. The server refreshes once per session.
+bundled snapshot. A failed source refresh retains its bundled facts, and the
+hover's browser row says `(offline)`; a successful source load with no facts
+clears that source's old values. The server refreshes once per session.
 
 See the
 [compatibility guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)
