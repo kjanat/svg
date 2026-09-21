@@ -27,6 +27,10 @@ When bumping the workspace version after a catalog refresh:
   lifecycle annotations in lint and completion across historical profiles.
 - Treat retained `xlink:href` as deprecated in SVG 2, preserve SVG 1.1 usage,
   and restrict the obsolete `type` warning to `<style>` in the editor's draft.
+- Sync `grammars/tree-sitter-svg/grammar.json` to the regenerated catalog
+  (`@webref/css` 8.7.4, svgwg `1ecc835`) and regenerate the parser, including
+  its ABI metadata version, so Tree-sitter SVG CI stays green after the
+  `#59` catalog refresh and the `0.3.0` packaging bump left both stale.
 
 ## [0.3.0] - 2026-09-09
 
