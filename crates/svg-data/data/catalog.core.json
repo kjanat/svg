@@ -16261,7 +16261,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "auto | <box-size>",
+        "grammar": "auto | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -16283,6 +16283,16 @@
               "id": 3,
               "kind": "type",
               "text": "<box-size>"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "type",
+              "text": "<anchor-size()>"
             }
           ],
           "edges": [
@@ -16309,6 +16319,26 @@
             {
               "from": 2,
               "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
               "kind": "next"
             }
           ]
@@ -24599,6 +24629,7 @@
     },
     {
       "name": "dx",
+      "description": "If a single <length> is provided, this value represents the new relative X (Y) coordinate for the current text position for rendering the glyphs corresponding to the first character within this element or any of its descendants. The current text position is shifted along the x-axis (y-axis) of the current user coordinate system by <length> before the first character's glyphs are rendered.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDXAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -25458,6 +25489,7 @@
     },
     {
       "name": "dy",
+      "description": "If a single <length> is provided, this value represents the new relative X (Y) coordinate for the current text position for rendering the glyphs corresponding to the first character within this element or any of its descendants. The current text position is shifted along the x-axis (y-axis) of the current user coordinate system by <length> before the first character's glyphs are rendered.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDYAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -49885,6 +49917,7 @@
     },
     {
       "name": "lengthAdjust",
+      "description": "The user agent is required to achieve correct start and end positions for the text strings, but the locations of intermediate glyphs are not predictable because user agents might employ advanced algorithms to stretch or compress text strings in order to balance correct start and end positioning with optimal typography.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementLengthAdjustAttribute",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -54684,7 +54717,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "none | <box-size> | <anchor-size()> | contain | fit-content(<length-percentage>)",
+        "grammar": "none | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -54716,26 +54749,6 @@
               "id": 5,
               "kind": "type",
               "text": "<anchor-size()>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 7,
-              "kind": "keyword",
-              "text": "contain"
-            },
-            {
-              "id": 8,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 9,
-              "kind": "function",
-              "text": "fit-content"
             }
           ],
           "edges": [
@@ -54782,46 +54795,6 @@
             {
               "from": 4,
               "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 5,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 6,
-              "to": 7,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 8,
-              "kind": "contains"
-            },
-            {
-              "from": 7,
-              "to": 8,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 9,
-              "kind": "contains"
-            },
-            {
-              "from": 8,
-              "to": 9,
               "kind": "next"
             }
           ]
@@ -55319,7 +55292,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "auto | <box-size> | <anchor-size()> | contain | fit-content(<length-percentage>)",
+        "grammar": "auto | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -55351,26 +55324,6 @@
               "id": 5,
               "kind": "type",
               "text": "<anchor-size()>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 7,
-              "kind": "keyword",
-              "text": "contain"
-            },
-            {
-              "id": 8,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 9,
-              "kind": "function",
-              "text": "fit-content"
             }
           ],
           "edges": [
@@ -55417,46 +55370,6 @@
             {
               "from": 4,
               "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 5,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 6,
-              "to": 7,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 8,
-              "kind": "contains"
-            },
-            {
-              "from": 7,
-              "to": 8,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 9,
-              "kind": "contains"
-            },
-            {
-              "from": 8,
-              "to": 9,
               "kind": "next"
             }
           ]
@@ -71531,6 +71444,7 @@
     },
     {
       "name": "rotate",
+      "description": "The supplemental rotation, in degrees, about the current text position that will be applied to all of the glyphs corresponding to each character within this element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementRotateAttribute",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -88087,6 +88001,7 @@
     },
     {
       "name": "textLength",
+      "description": "The author's computation of the total sum of all of the advance values that correspond to character data within this element, including the advance value on the glyph (horizontal or vertical), the effect of properties 'letter-spacing' and 'word-spacing' and adjustments due to attributes 'dx' and 'dy' on this 'text' or 'tspan' element or any descendants. This value is used to calibrate the user agent's own calculations with that of the author.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementTextLengthAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -98630,6 +98545,114 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "length"
       },
@@ -103034,6 +103057,114 @@
                 "notes": []
               }
             ]
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
           }
         }
       ],
