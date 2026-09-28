@@ -3,14 +3,14 @@
   "sources": {
     "webref_css": {
       "name": "@webref/css",
-      "version": "8.7.4",
-      "url": "https://unpkg.com/@webref/css@8.7.4/css.json"
+      "version": "8.7.5",
+      "url": "https://unpkg.com/@webref/css@8.7.5/css.json"
     },
     "css_unit_pages": [
       "https://drafts.csswg.org/css-values-4/"
     ],
     "svg_clock_value_syntax": "https://svgwg.org/specs/animations/",
-    "paths_html": "https://raw.githubusercontent.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/paths.html"
+    "paths_html": "https://raw.githubusercontent.com/w3c/svgwg/513eb752b75f4250ce68edf28e7817d66726c840/master/paths.html"
   },
   "attribute_buckets": {
     "keyword": [
@@ -125,7 +125,6 @@
     ],
     "length": [
       "baseline-shift",
-      "block-size",
       "cx",
       "cy",
       "font-size-adjust",
@@ -156,17 +155,17 @@
       "transform-origin",
       "width",
       "word-spacing",
-      "x",
       "x1",
       "x2",
-      "y",
       "y1",
       "y2"
     ],
     "length_list": [
       "dx",
       "dy",
-      "font-feature-settings"
+      "font-feature-settings",
+      "x",
+      "y"
     ],
     "length_list_or_none": [
       "stroke-dasharray"
@@ -279,6 +278,7 @@
       "attributeName",
       "autofocus",
       "begin",
+      "block-size",
       "color-profile",
       "defer",
       "download",
