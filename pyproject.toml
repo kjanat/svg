@@ -6,7 +6,7 @@ dev   = [
   { include-group = "lint" },
   { include-group = "ts" },
 ]
-build = ["setuptools>=77.0.0", "typing_extensions>=4.12", "wheel"]
+build = ["setuptools>=84.1.0", "typing_extensions>=4.12", "wheel"]
 lint  = ["basedpyright", "ruff", "ty"]
 ts    = ["tree-sitter~=0.25"]
 
