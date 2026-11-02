@@ -11,7 +11,7 @@ committed files into static Rust data. Normal Cargo builds do not fetch specs.
 just regen
 
 # Reprocess a specific SVGWG commit while retaining recorded npm versions.
-cargo run -p svg-data-regen -- <svgwg-commit> --recorded-packages
+cargo run -p svg-data-regen -- SVGWG_COMMIT --recorded-packages
 
 # Reparse only compatibility data at the recorded package versions.
 cargo run -p svg-data-regen -- --refresh-compat

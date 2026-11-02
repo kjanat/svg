@@ -10,10 +10,10 @@
 ## Quick start
 
 ```sh
-just build     # build all crates
-just test      # run all tests
-just lint      # run clippy
-just ci        # full preflight (lint + test + format check + dist check)
+just build # build all crates
+just test  # run all tests
+just lint  # run clippy
+just ci    # full preflight (lint + test + format check + dist check)
 ```
 
 For the compatibility dashboard, run `deno task check:deploy` from the

@@ -21,9 +21,9 @@ LSP server for SVG: diagnostics, completions, hover, formatting, and references.
 </picture>
 
 ```sh
-npm install -g svg-language-server                 # unscoped alias
-npm install -g @svg-toolkit/svg-language-server    # canonical package
-svg-language-server --version                      # `svg-ls` works too
+npm install -g svg-language-server              # unscoped alias
+npm install -g @svg-toolkit/svg-language-server # canonical package
+svg-language-server --version                   # `svg-ls` works too
 ```
 
 `@svg-toolkit/svg-language-server` is the canonical package; unscoped

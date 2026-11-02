@@ -37,9 +37,9 @@ trailing separator parses without the host's closing quote.
 ## Development
 
 ```sh
-tree-sitter generate      # regenerate src/parser.c from grammar.js
-tree-sitter test          # corpus + tag/highlight tests
-bun run test              # node binding + drift-guard tests
+tree-sitter generate # regenerate src/parser.c from grammar.js
+tree-sitter test     # corpus + tag/highlight tests
+bun run test         # node binding + drift-guard tests
 ```
 
 `constants.js` exports the color-space/hue-interpolation token sets;

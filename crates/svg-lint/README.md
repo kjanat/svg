@@ -24,8 +24,8 @@ usage, and ID uniqueness against the SVG spec.
 ## Install
 
 ```sh
-cargo install svg-lint                       # from crates.io
-npm install --global @svg-toolkit/svg-lint   # prebuilt binary via npm
+cargo install svg-lint                     # from crates.io
+npm install --global @svg-toolkit/svg-lint # prebuilt binary via npm
 ```
 
 npm refuses the unscoped name `svg-lint` ("too similar" to the unrelated

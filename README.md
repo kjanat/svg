@@ -47,7 +47,7 @@ cargo install svg-format
 From npm (prebuilt binaries, no Rust toolchain needed):
 
 ```sh
-npm install --global @kjanat/svg-toolkit   # everything at once
+npm install --global @kjanat/svg-toolkit # everything at once
 # or per tool — unscoped names are aliases of the canonical @svg-toolkit/ ones
 npm install --global svg-language-server svg-format @svg-toolkit/svg-lint
 ```
@@ -185,10 +185,10 @@ just install-svg-format
 ### Install Published Binaries With npm
 
 ```sh
-npm install --global @kjanat/svg-toolkit     # all three tools (incl. `svg-ls` alias)
-npm install --global svg-language-server     # or @svg-toolkit/svg-language-server
-npm install --global @svg-toolkit/svg-lint   # unscoped name blocked by npm
-npm install --global svg-format              # or @svg-toolkit/svg-format
+npm install --global @kjanat/svg-toolkit   # all three tools (incl. `svg-ls` alias)
+npm install --global svg-language-server   # or @svg-toolkit/svg-language-server
+npm install --global @svg-toolkit/svg-lint # unscoped name blocked by npm
+npm install --global svg-format            # or @svg-toolkit/svg-format
 ```
 
 Each package resolves a prebuilt binary for the current OS/architecture through

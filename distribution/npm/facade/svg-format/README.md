@@ -5,8 +5,8 @@
 Structural formatter for SVG documents.
 
 ```sh
-npm install -g svg-format                 # unscoped alias
-npm install -g @svg-toolkit/svg-format    # canonical package
+npm install -g svg-format              # unscoped alias
+npm install -g @svg-toolkit/svg-format # canonical package
 svg-format icon.svg
 npx svg-format icon.svg
 ```
