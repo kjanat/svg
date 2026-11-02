@@ -265,7 +265,7 @@ mod tests {
         assert_eq!(trim_wsp("\u{A0}1"), "\u{A0}1");
     }
 
-    // Claim: "comma_wsp::= (wsp+ "," ? wsp*) | ("," wsp*)"
+    // Claim: "comma_wsp::= (wsp+ ","? wsp*) | ("," wsp*)"
     // https://svgwg.org/svg2-draft/paths.html#PathDataBNF
     #[test]
     fn comma_wsp_production() {
@@ -291,7 +291,7 @@ mod tests {
         assert_eq!(strip_trailing_comma_wsp("1"), "1");
     }
 
-    // Claim: "comma_wsp::= (wsp+ "," ? wsp*) | ("," wsp*)" as the separator of
+    // Claim: "comma_wsp::= (wsp+ ","? wsp*) | ("," wsp*)" as the separator of
     // sequences such as "coordinate_sequence::= coordinate | (coordinate
     // comma_wsp? coordinate_sequence)"
     // https://svgwg.org/svg2-draft/paths.html#PathDataBNF

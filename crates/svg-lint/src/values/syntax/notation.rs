@@ -50,6 +50,22 @@ pub fn is_arbitrary_substitution_function(name: &str) -> bool {
             .any(|known| known.eq_ignore_ascii_case(name))
 }
 
+/// The `<whole-value>` notations of CSS Values 5, in ASCII lowercase.
+pub const WHOLE_VALUE_FUNCTIONS: &[&str] = &[];
+
+/// Whether `name` (a function name without its `(`) is a `<whole-value>`
+/// notation.
+#[must_use]
+pub const fn is_whole_value_function(_name: &str) -> bool {
+    false
+}
+
+/// Whether `values` are a `<whole-value>`.
+#[must_use]
+pub const fn is_whole_value(_values: &[ComponentValue<'_>]) -> bool {
+    false
+}
+
 /// Whether an arbitrary substitution function appears anywhere in
 /// `values`, including inside functions and blocks.
 #[must_use]
@@ -107,10 +123,94 @@ mod tests {
         ] {
             assert!(is_math_function(name), "{name}");
         }
-        assert_eq!(MATH_FUNCTIONS.len(), 21);
         for name in ["rgb", "url", "var", "calcx", "", "-calc"] {
             assert!(!is_math_function(name), "{name}");
         }
+    }
+
+    // Claim: "The progress() functional notation represents the proportional
+    // distance of a given value (the progress value) from one value (the
+    // progress start value) to another value (the progress end value), each
+    // represented as a calculation. It is a math function"
+    // https://drafts.csswg.org/css-values-5/#progress
+    // Claim: "The calc-mix() mix notation represents a weighted average of
+    // numeric or dimensional value. Like calc(), it is a math function"
+    // https://drafts.csswg.org/css-values-5/#calc-mix
+    // Claim: "The calc-interpolate() interpolation notation represents an
+    // interpolated numeric or dimensional value. Like calc(), it is a math
+    // function" https://drafts.csswg.org/css-values-5/#calc-interpolate
+    // Claim: "The random() function is a math function"
+    // https://drafts.csswg.org/css-values-5/#random
+    #[test]
+    fn values_5_math_function_names() {
+        for name in [
+            "progress",
+            "calc-mix",
+            "calc-interpolate",
+            "random",
+            "PROGRESS",
+            "Random",
+            "Calc-Mix",
+        ] {
+            assert!(is_math_function(name), "{name}");
+        }
+        assert_eq!(MATH_FUNCTIONS.len(), 25);
+        for name in ["random-item", "interpolate", "mix", "progressx", "calc-"] {
+            assert!(!is_math_function(name), "{name}");
+        }
+    }
+
+    fn whole(input: &str) -> bool {
+        is_whole_value(&parse_component_values(input).values)
+    }
+
+    // Claim: "All properties implicitly accept a <whole-value> as their entire
+    // value, just as they accept the CSS-wide keywords as their entire value."
+    // https://drafts.csswg.org/css-values-5/#whole-value
+    // Claim: "The interpolate() notation is a <whole-value>."
+    // https://drafts.csswg.org/css-values-5/#mix
+    // Claim: "first-valid() is a <whole-value>."
+    // https://drafts.csswg.org/css-values-5/#first-valid
+    // Claim: "The cycle() notation is a <whole-value>."
+    // https://drafts.csswg.org/css-values-5/#cycle-notation
+    // Claim: "Like keywords, function names are ASCII case-insensitive."
+    // https://drafts.csswg.org/css-values-4/#functional-notations
+    #[test]
+    fn whole_value_notations() {
+        for name in [
+            "cycle",
+            "first-valid",
+            "interpolate",
+            "CYCLE",
+            "First-Valid",
+        ] {
+            assert!(is_whole_value_function(name), "{name}");
+        }
+        assert_eq!(WHOLE_VALUE_FUNCTIONS.len(), 3);
+        for name in ["calc", "cycles", "first", "random-item", "var", ""] {
+            assert!(!is_whole_value_function(name), "{name}");
+        }
+        assert!(whole("first-valid(round)"));
+        assert!(whole(" cycle(round, square) "));
+        assert!(whole("INTERPOLATE(50%, 0: butt, 1: round)"));
+        assert!(whole("/* c */cycle(a)"));
+        assert!(whole("first-valid(round"));
+    }
+
+    // Claim: "Several functions defined in this specification can only be
+    // used as the "whole value" of a property. For example,
+    // background-position: cycle(50px 50px, center); is valid, but
+    // background-position: cycle(50px, center) 50px; is not."
+    // https://drafts.csswg.org/css-values-5/#whole-value
+    #[test]
+    fn whole_value_is_the_entire_value() {
+        assert!(!whole("cycle(50px, center) 50px"));
+        assert!(!whole("50px cycle(50px)"));
+        assert!(!whole("[cycle(a)]"));
+        assert!(!whole("calc(1px)"));
+        assert!(!whole("round"));
+        assert!(!whole("'cycle(a)'"));
+        assert!(!whole(""));
     }
 
     // Claim: "The var() function is an arbitrary substitution function"

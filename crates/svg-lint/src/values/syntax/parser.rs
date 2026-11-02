@@ -401,6 +401,8 @@ mod tests {
         );
     }
 
+    // Helper test, not a spec claim: the `significant`, `ident` and
+    // `is_whitespace` accessors.
     #[test]
     fn component_value_accessors() {
         let list = parse_component_values(" a ");

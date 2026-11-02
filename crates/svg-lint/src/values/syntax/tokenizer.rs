@@ -1185,14 +1185,31 @@ mod tests {
         );
         assert_eq!(toks("!*"), [Token::Delim('!'), Token::Delim('*')]);
         assert_eq!(toks("\\"), [ident("\u{FFFD}")]);
+        assert_eq!(toks("\\a"), [ident("\n")]);
+        assert_eq!(toks("\\\n"), [Token::Delim('\\'), Token::Whitespace]);
+        assert_eq!(toks("\\\r\n"), [Token::Delim('\\'), Token::Whitespace]);
+        assert_eq!(
+            toks("\\\x0Ca"),
+            [Token::Delim('\\'), Token::Whitespace, ident("a")]
+        );
     }
 
+    // Helper test, not a spec claim: `Tokenizer::offset` reports how much
+    // input the tokens returned so far consumed.
     #[test]
     fn offset_tracks_consumed_input() {
         let mut tokens = tokenize("ab cd");
         assert_eq!(tokens.offset(), 0);
         assert_eq!(tokens.next(), Some(ident("ab")));
         assert_eq!(tokens.offset(), 2);
+    }
+
+    // Claim: "<number-token> and <dimension-token> additionally have a type
+    // flag set to either "integer" or "number". The type flag defaults to
+    // "integer" if not otherwise set."
+    // https://drafts.csswg.org/css-syntax-3/#tokenization
+    #[test]
+    fn number_type_flag() {
         assert!(
             Number {
                 value: 1.0,
@@ -1202,5 +1219,13 @@ mod tests {
             .is_integer()
         );
         assert!(!num(1.0, None).is_integer());
+        assert!(matches!(
+            toks("2px").as_slice(),
+            [Token::Dimension { number, .. }] if number.is_integer()
+        ));
+        assert!(matches!(
+            toks("2.0px").as_slice(),
+            [Token::Dimension { number, .. }] if !number.is_integer()
+        ));
     }
 }

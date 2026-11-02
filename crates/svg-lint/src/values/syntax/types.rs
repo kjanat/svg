@@ -223,6 +223,8 @@ mod tests {
     use NumericType as T;
     use UnitlessMode::{Css, PresentationAttribute as Pres};
 
+    // Helper test, not a spec claim: the `Match::or` and `Match::is_no`
+    // combinators the checks use to merge alternatives.
     #[test]
     fn match_combinators() {
         assert_eq!(Yes.or(No), Yes);
@@ -434,11 +436,35 @@ mod tests {
         assert_eq!(css("url(x)", T::Length), No);
     }
 
+    // Claim: "When written literally, a dimension is a number immediately
+    // followed by a unit identifier, which is an identifier. It corresponds
+    // to the <dimension-token> production in the CSS Syntax Module
+    // [CSS-SYNTAX-3]." https://drafts.csswg.org/css-values-4/#dimensions
+    // Claim: "When written literally, a percentage consists of a number
+    // immediately followed by a percent sign %. It corresponds to the
+    // <percentage-token> production in the CSS Syntax Module [CSS-SYNTAX-3]."
+    // https://drafts.csswg.org/css-values-4/#percentages
+    // (with the <number-token> claim of `numbers` above: a block, comma,
+    // hash, string or ident is none of these tokens)
     #[test]
     fn non_numeric_component_values_do_not_match() {
         let list = parse_component_values("[1px] , #1 'a' a");
         for value in list.significant() {
             assert_eq!(match_numeric(value, T::Length, Pres), No, "{value:?}");
         }
+    }
+
+    // Claim: "All properties implicitly accept a <whole-value> as their entire
+    // value, just as they accept the CSS-wide keywords as their entire value."
+    // https://drafts.csswg.org/css-values-5/#whole-value
+    // Claim: "background-position: cycle(50px, center) 50px; is not."
+    // https://drafts.csswg.org/css-values-5/#whole-value
+    #[test]
+    fn whole_value_is_unknown() {
+        assert_eq!(css("first-valid(1px)", T::Length), Unknown);
+        assert_eq!(attr(" cycle(1, 2) ", T::Length), Unknown);
+        assert_eq!(css("interpolate(50%, 0: 1, 1: 2)", T::Number), Unknown);
+        assert_eq!(css("cycle(50px, center) 50px", T::Length), No);
+        assert_eq!(css("50px first-valid(1px)", T::Length), No);
     }
 }
