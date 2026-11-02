@@ -1,19 +1,7 @@
-[install]
-pms = ["cargo", "bun", "uv"]
+#:schema https://kjanat.github.io/runner/schemas/runner.toml.schema.json
 
-[pm]
-node = "bun"
+[output]
+groups = true
 
-[github]
-group_parallel = true
-group_output   = true
-
-[parallel]
-grouped = true
-
-[resolution]
-fallback    = "error"
-on_mismatch = "error"
-
-[tasks.overrides]
-lint = "cargo"
+[tasks.lint]
+source = "cargo"

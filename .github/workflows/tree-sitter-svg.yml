@@ -33,7 +33,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
       - run: |
-          runner install --frozen --keep-going \
+          runner --pm bun install --frozen --keep-going \
             typecheck \
             test:corpus \
             test:fuzz \
