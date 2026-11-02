@@ -21,7 +21,7 @@
 
 use super::{
     cascade::is_css_wide_keyword_value,
-    notation::contains_arbitrary_substitution,
+    notation::{contains_arbitrary_substitution, is_whole_value},
     parser::{ComponentValue, parse_component_values},
     tokenizer::{Number, Token},
     units::{UnitCategory, unit_category},
@@ -178,14 +178,16 @@ impl NumericType {
 /// Whether a whole value, parsed as CSS component values, is a single
 /// literal of `ty` with only whitespace and comments around it.
 ///
-/// A CSS-wide keyword, an arbitrary substitution function anywhere in the
-/// value, or a nesting limit makes the answer [`Match::Unknown`]; so does a
-/// function, as in [`match_numeric`].
+/// A CSS-wide keyword, a `<whole-value>` notation as the entire value, an
+/// arbitrary substitution function anywhere in the value, or a nesting limit
+/// makes the answer [`Match::Unknown`]; so does a function, as in
+/// [`match_numeric`].
 #[must_use]
 pub fn match_value(value: &str, ty: NumericType, mode: UnitlessMode) -> Match {
     let list = parse_component_values(value);
     if list.depth_limited
         || contains_arbitrary_substitution(&list.values)
+        || is_whole_value(&list.values)
         || is_css_wide_keyword_value(value)
     {
         return Match::Unknown;

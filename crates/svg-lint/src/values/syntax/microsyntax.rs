@@ -2,10 +2,16 @@
 //!
 //! - XML 1.0 production `[3] S` (<https://www.w3.org/TR/xml/#NT-S>).
 //! - The SVG 2 path data grammar (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>),
-//!   where SVG 2 defines `wsp`, `comma_wsp`, `number`, `coordinate` and
-//!   `flag` for every EBNF microsyntax. Its `wsp` includes U+000C FORM FEED,
-//!   unlike XML `S`. The number scanners are greedy, as the grammar's
-//!   processing rule requires, and return the unconsumed rest.
+//!   which defines `wsp`, `comma_wsp`, `number`, `coordinate` and `flag`.
+//!   SVG 2 moved `wsp` and `comma_wsp` there "since that's the only EBNF
+//!   grammar in the spec" (<https://svgwg.org/svg2-draft/changes.html#types>).
+//!   Most other list-valued attributes (`viewBox`, `points`, ...) are written
+//!   in CSS value definition syntax, so their numbers and separators follow
+//!   CSS tokenization ([`super::tokenizer`]), not these scanners; use them
+//!   for path data and for attributes whose definition names these
+//!   productions. Its `wsp` includes U+000C FORM FEED, unlike XML `S`. The
+//!   number scanners are greedy, as the grammar's processing rule requires,
+//!   and return the unconsumed rest.
 //! - Infra string operations (<https://infra.spec.whatwg.org/#strings>) that
 //!   HTML microsyntaxes are written in: ASCII whitespace, ASCII
 //!   case-insensitive matching, stripping, and splitting on ASCII whitespace

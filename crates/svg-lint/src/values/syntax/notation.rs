@@ -1,9 +1,18 @@
 //! Functional notations that change how a value is validated.
 //!
 //! - Math functions (CSS Values 4 §10.8,
-//!   <https://drafts.csswg.org/css-values-4/#calc-syntax>) stand in for a
-//!   numeric value; their result type is only known after type checking, so
-//!   the numeric classification treats them as unknown.
+//!   <https://drafts.csswg.org/css-values-4/#calc-syntax>, and the CSS
+//!   Values 5 `progress()`, `calc-mix()`, `calc-interpolate()` and
+//!   `random()`) stand in for a numeric value; their result type is only
+//!   known after type checking, so the numeric classification treats them as
+//!   unknown. Other functions can stand in for numeric values too (CSS
+//!   Values 4 §9.1 and later levels), so [`is_math_function`] returning
+//!   `false` is never a reason to reject a value.
+//! - `<whole-value>` notations (CSS Values 5 §8.1,
+//!   <https://drafts.csswg.org/css-values-5/#whole-value>): "All properties
+//!   implicitly accept a <whole-value> as their entire value, just as they
+//!   accept the CSS-wide keywords as their entire value."
+//!   [`is_whole_value`] finds a value that is one of them.
 //! - Arbitrary substitution functions (CSS Values 5 Appendix A,
 //!   <https://drafts.csswg.org/css-values-5/#arbitrary-substitution>): when a
 //!   value contains one, "the entire value’s grammar must be assumed to be
@@ -14,10 +23,36 @@
 
 use super::parser::ComponentValue;
 
-/// The math functions of CSS Values 4 §10.8, in ASCII lowercase.
+/// The math functions of CSS Values 4 §10.8 and CSS Values 5 §5, §6.3, §7.4
+/// and §9.1, in ASCII lowercase.
 pub const MATH_FUNCTIONS: &[&str] = &[
-    "calc", "min", "max", "clamp", "round", "mod", "rem", "sin", "cos", "tan", "asin", "acos",
-    "atan", "atan2", "pow", "sqrt", "hypot", "log", "exp", "abs", "sign",
+    // CSS Values 4
+    "calc",
+    "min",
+    "max",
+    "clamp",
+    "round",
+    "mod",
+    "rem",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "atan2",
+    "pow",
+    "sqrt",
+    "hypot",
+    "log",
+    "exp",
+    "abs",
+    "sign",
+    // CSS Values 5
+    "progress",
+    "calc-mix",
+    "calc-interpolate",
+    "random",
 ];
 
 /// The named arbitrary substitution functions, in ASCII lowercase. Any
@@ -33,6 +68,10 @@ pub const ARBITRARY_SUBSTITUTION_FUNCTIONS: &[&str] = &[
 ];
 
 /// Whether `name` (a function name without its `(`) is a math function.
+///
+/// A `false` answer does not make a value invalid: a check that rejects
+/// functions must first rule out every functional notation the value's
+/// grammar can contain.
 #[must_use]
 pub fn is_math_function(name: &str) -> bool {
     MATH_FUNCTIONS
@@ -50,20 +89,31 @@ pub fn is_arbitrary_substitution_function(name: &str) -> bool {
             .any(|known| known.eq_ignore_ascii_case(name))
 }
 
-/// The `<whole-value>` notations of CSS Values 5, in ASCII lowercase.
-pub const WHOLE_VALUE_FUNCTIONS: &[&str] = &[];
+/// The `<whole-value>` notations of CSS Values 5 §7.7, §8.2 and §8.4, in
+/// ASCII lowercase.
+pub const WHOLE_VALUE_FUNCTIONS: &[&str] = &["cycle", "first-valid", "interpolate"];
 
 /// Whether `name` (a function name without its `(`) is a `<whole-value>`
 /// notation.
 #[must_use]
-pub const fn is_whole_value_function(_name: &str) -> bool {
-    false
+pub fn is_whole_value_function(name: &str) -> bool {
+    WHOLE_VALUE_FUNCTIONS
+        .iter()
+        .any(|known| known.eq_ignore_ascii_case(name))
 }
 
-/// Whether `values` are a `<whole-value>`.
+/// Whether `values` (a whole parsed value) are a single `<whole-value>`
+/// notation with only whitespace and comments around it. Every property
+/// accepts such a value, as it accepts a CSS-wide keyword; its arguments are
+/// not checked.
 #[must_use]
-pub const fn is_whole_value(_values: &[ComponentValue<'_>]) -> bool {
-    false
+pub fn is_whole_value(values: &[ComponentValue<'_>]) -> bool {
+    let mut significant = values.iter().filter(|value| !value.is_whitespace());
+    matches!(
+        (significant.next(), significant.next()),
+        (Some(ComponentValue::Function(function)), None)
+            if is_whole_value_function(&function.name)
+    )
 }
 
 /// Whether an arbitrary substitution function appears anywhere in

@@ -18,13 +18,16 @@
 //!   rule that admits unitless lengths and angles
 //!   (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>)
 //!   as an explicit mode.
-//! - [`notation`]: the math functions of CSS Values 4 §10.8 and the
+//! - [`notation`]: the math functions of CSS Values 4 §10.8 and CSS Values
+//!   5, the `<whole-value>` notations of CSS Values 5 §8.1, and the
 //!   arbitrary substitution functions of CSS Values 5 Appendix A, CSS
 //!   Variables 1, CSS Environment Variables 1 and CSS Mixins 1.
 //! - [`cascade`]: the CSS-wide keywords of CSS Cascade 5 §7.3.
 //! - [`microsyntax`]: XML 1.0 `S`, the SVG 2 path data `wsp`, `comma_wsp`,
 //!   `number`, `coordinate` and `flag` productions
-//!   (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>), and the
+//!   (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>; for path data
+//!   and the attributes that still refer to them, not for values written in
+//!   CSS value definition syntax), and the
 //!   Infra string operations HTML microsyntaxes use (ASCII whitespace,
 //!   ASCII case-insensitive matching, splitting on whitespace and commas).
 //!
