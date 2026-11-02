@@ -737,10 +737,10 @@ Element fePointLight (typed attributes)
     (element
       (self_closing_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
@@ -803,10 +803,10 @@ Element feSpotLight (typed attributes)
           name: (number_attribute_name)
           value: (number_attribute_value
             (number)))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))))

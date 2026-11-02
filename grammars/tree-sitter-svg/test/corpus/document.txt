@@ -85,17 +85,17 @@ XML declaration + doctype + svg root
       (element
         (start_tag
           name: (name)
-          (length_attribute
-            name: (length_attribute_name)
-            value: (length_attribute_value
-              (length_or_percentage_or_auto
+          (length_list_attribute
+            name: (length_list_attribute_name)
+            value: (length_list_attribute_value
+              (length_list
                 (length_or_percentage
                   (length
                     (number))))))
-          (length_attribute
-            name: (length_attribute_name)
-            value: (length_attribute_value
-              (length_or_percentage_or_auto
+          (length_list_attribute
+            name: (length_list_attribute_name)
+            value: (length_list_attribute_value
+              (length_list
                 (length_or_percentage
                   (length
                     (number)))))))
@@ -157,17 +157,17 @@ Namespaced svg root and nested svg
       (element
         (start_tag
           name: (name)
-          (length_attribute
-            name: (length_attribute_name)
-            value: (length_attribute_value
-              (length_or_percentage_or_auto
+          (length_list_attribute
+            name: (length_list_attribute_name)
+            value: (length_list_attribute_value
+              (length_list
                 (length_or_percentage
                   (length
                     (number))))))
-          (length_attribute
-            name: (length_attribute_name)
-            value: (length_attribute_value
-              (length_or_percentage_or_auto
+          (length_list_attribute
+            name: (length_list_attribute_name)
+            value: (length_list_attribute_value
+              (length_list
                 (length_or_percentage
                   (length
                     (number))))))
@@ -189,17 +189,17 @@ Namespaced svg root and nested svg
         (element
           (self_closing_tag
             name: (name)
-            (length_attribute
-              name: (length_attribute_name)
-              value: (length_attribute_value
-                (length_or_percentage_or_auto
+            (length_list_attribute
+              name: (length_list_attribute_name)
+              value: (length_list_attribute_value
+                (length_list
                   (length_or_percentage
                     (length
                       (number))))))
-            (length_attribute
-              name: (length_attribute_name)
-              value: (length_attribute_value
-                (length_or_percentage_or_auto
+            (length_list_attribute
+              name: (length_list_attribute_name)
+              value: (length_list_attribute_value
+                (length_list
                   (length_or_percentage
                     (length
                       (number))))))

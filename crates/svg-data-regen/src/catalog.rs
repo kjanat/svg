@@ -1580,9 +1580,10 @@ fn build_attributes(
 /// * The SMIL animation `fill` (`freeze | remove`) is defined on `animate` but
 ///   applies identically to `animateMotion`/`animateTransform`/`set`; the other
 ///   animation elements would otherwise inherit the paint `fill`.
-/// * The text-positioning list forms of `dx`/`dy`/`rotate` are scoped to `text`
-///   but apply identically to `tspan`, which would otherwise inherit the
-///   filter-primitive `<number>`.
+/// * The text-positioning list forms of `x`/`y`/`dx`/`dy`/`rotate` are scoped
+///   to `text` but apply identically to `tspan` (`definitions.xml` gives both
+///   the same attributes), which would otherwise inherit the single
+///   `<length>` (`x`/`y`) or the filter-primitive `<number>` (`dx`/`dy`).
 ///
 /// Each `(attribute, source, targets)` copies `source`'s element-scoped value to
 /// every `target` that bears the attribute and lacks its own scoped value.
@@ -1592,6 +1593,8 @@ const SHARED_ELEMENT_VALUE_FACTS: &[(&str, &str, &[&str])] = &[
         "animate",
         &["animateMotion", "animateTransform", "set"],
     ),
+    ("x", "text", &["tspan"]),
+    ("y", "text", &["tspan"]),
     ("dx", "text", &["tspan"]),
     ("dy", "text", &["tspan"]),
     ("rotate", "text", &["tspan"]),

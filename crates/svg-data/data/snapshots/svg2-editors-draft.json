@@ -3360,6 +3360,7 @@
           "path-length",
           "pointer-events",
           "preserveAspectRatio",
+          "referrerpolicy",
           "requiredExtensions",
           "role",
           "shape-rendering",
@@ -5202,6 +5203,7 @@
           "onvolumechange",
           "onwaiting",
           "onwheel",
+          "referrerpolicy",
           "style",
           "tabindex",
           "type",
@@ -7619,7 +7621,7 @@
         ],
         "declaration": {
           "status": "removed",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/text.html#GlyphOrientationHorizontalProperty"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationHorizontalProperty"
         }
       },
       {
@@ -7634,7 +7636,7 @@
         ],
         "declaration": {
           "status": "obsolete",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/text.html#GlyphOrientationVerticalProperty"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/text.html#GlyphOrientationVerticalProperty"
         }
       },
       {
@@ -7647,7 +7649,7 @@
         ],
         "declaration": {
           "status": "removed",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/text.html#KerningProperty"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/text.html#KerningProperty"
         }
       },
       {
@@ -7775,7 +7777,7 @@
         ],
         "declaration": {
           "status": "obsolete",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/styling.html#StyleElementTypeAttribute"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementTypeAttribute"
         }
       },
       {
@@ -7809,7 +7811,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/linking.html#XLinkRefAttrs"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/linking.html#XLinkRefAttrs"
         }
       },
       {
@@ -7833,7 +7835,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/linking.html#XLinkRefAttrs"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/linking.html#XLinkRefAttrs"
         }
       },
       {
@@ -7856,7 +7858,7 @@
         ],
         "declaration": {
           "status": "deprecated",
-          "source": "https://raw.githack.com/w3c/svgwg/1ecc83537a872592a01ac1e02930555066e56ace/master/struct.html#XMLSpaceAttribute"
+          "source": "https://w3c.github.io/svgwg/svg2-draft/struct.html#XMLSpaceAttribute"
         }
       },
       {

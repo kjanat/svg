@@ -3530,10 +3530,6 @@
           },
           {
             "type": "STRING",
-            "value": "block-size"
-          },
-          {
-            "type": "STRING",
             "value": "cx"
           },
           {
@@ -3654,19 +3650,11 @@
           },
           {
             "type": "STRING",
-            "value": "x"
-          },
-          {
-            "type": "STRING",
             "value": "x1"
           },
           {
             "type": "STRING",
             "value": "x2"
-          },
-          {
-            "type": "STRING",
-            "value": "y"
           },
           {
             "type": "STRING",
@@ -4339,6 +4327,14 @@
           {
             "type": "STRING",
             "value": "font-feature-settings"
+          },
+          {
+            "type": "STRING",
+            "value": "x"
+          },
+          {
+            "type": "STRING",
+            "value": "y"
           }
         ]
       }
@@ -4357,8 +4353,17 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "length_list"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "length_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "keyword_value"
+                    }
+                  ]
                 },
                 {
                   "type": "BLANK"
@@ -4382,8 +4387,17 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "length_list"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "length_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "keyword_value"
+                    }
+                  ]
                 },
                 {
                   "type": "BLANK"
@@ -5306,6 +5320,10 @@
           {
             "type": "STRING",
             "value": "begin"
+          },
+          {
+            "type": "STRING",
+            "value": "block-size"
           },
           {
             "type": "STRING",

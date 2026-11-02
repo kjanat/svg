@@ -732,6 +732,16 @@
       "name": "flood-opacity"
     },
     {
+      "id": "attribute:focusgroup",
+      "kind": "attribute",
+      "name": "focusgroup"
+    },
+    {
+      "id": "attribute:focusgroupstart",
+      "kind": "attribute",
+      "name": "focusgroupstart"
+    },
+    {
       "id": "attribute:font",
       "kind": "attribute",
       "name": "font"
@@ -1957,6 +1967,11 @@
       "name": "surfaceScale"
     },
     {
+      "id": "attribute:svgView",
+      "kind": "attribute",
+      "name": "svgView"
+    },
+    {
       "id": "attribute:systemLanguage",
       "kind": "attribute",
       "name": "systemLanguage"
@@ -2445,6 +2460,11 @@
       "id": "compat:svg.elements.use.xlink_href",
       "kind": "compat_feature",
       "name": "svg.elements.use.xlink_href"
+    },
+    {
+      "id": "compat:svg.elements.view.svgView",
+      "kind": "compat_feature",
+      "name": "svg.elements.view.svgView"
     },
     {
       "id": "css-property:accumulate",
@@ -4860,6 +4880,16 @@
       "id": "value:flood-opacity",
       "kind": "value_grammar",
       "name": "flood-opacity (number_or_percentage)"
+    },
+    {
+      "id": "value:focusgroup",
+      "kind": "value_grammar",
+      "name": "focusgroup (unresolved)"
+    },
+    {
+      "id": "value:focusgroupstart",
+      "kind": "value_grammar",
+      "name": "focusgroupstart (unresolved)"
     },
     {
       "id": "value:font",
@@ -19206,6 +19236,646 @@
     {
       "from": "attribute:flood-opacity",
       "to": "value:flood-opacity",
+      "kind": "has_value_grammar"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:a",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:animate",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:animateMotion",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:animateTransform",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:circle",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:clipPath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:defs",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:desc",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:ellipse",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feBlend",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feColorMatrix",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feComponentTransfer",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feComposite",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feConvolveMatrix",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feDiffuseLighting",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feDisplacementMap",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feDistantLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feDropShadow",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feFlood",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feFuncA",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feFuncB",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feFuncG",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feFuncR",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feGaussianBlur",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feImage",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feMerge",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feMergeNode",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feMorphology",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feOffset",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:fePointLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feSpecularLighting",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feSpotLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feTile",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:feTurbulence",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:filter",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:foreignObject",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:g",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:image",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:line",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:linearGradient",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:marker",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:mask",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:metadata",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:mpath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:path",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:pattern",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:polygon",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:polyline",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:radialGradient",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:rect",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:script",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:set",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:stop",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:style",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:svg",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:switch",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:symbol",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:text",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:textPath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:title",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:tspan",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:use",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "element:view",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroup",
+      "to": "value:focusgroup",
+      "kind": "has_value_grammar"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:a",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:animate",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:animateMotion",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:animateTransform",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:circle",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:clipPath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:defs",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:desc",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:ellipse",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feBlend",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feColorMatrix",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feComponentTransfer",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feComposite",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feConvolveMatrix",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feDiffuseLighting",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feDisplacementMap",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feDistantLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feDropShadow",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feFlood",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feFuncA",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feFuncB",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feFuncG",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feFuncR",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feGaussianBlur",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feImage",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feMerge",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feMergeNode",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feMorphology",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feOffset",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:fePointLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feSpecularLighting",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feSpotLight",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feTile",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:feTurbulence",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:filter",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:foreignObject",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:g",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:image",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:line",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:linearGradient",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:marker",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:mask",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:metadata",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:mpath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:path",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:pattern",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:polygon",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:polyline",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:radialGradient",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:rect",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:script",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:set",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:stop",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:style",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:svg",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:switch",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:symbol",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:text",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:textPath",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:title",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:tspan",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:use",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "element:view",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:focusgroupstart",
+      "to": "value:focusgroupstart",
       "kind": "has_value_grammar"
     },
     {
@@ -40960,6 +41630,16 @@
     },
     {
       "from": "attribute:referrerpolicy",
+      "to": "element:image",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:referrerpolicy",
+      "to": "element:script",
+      "kind": "applies_to"
+    },
+    {
+      "from": "attribute:referrerpolicy",
       "to": "profile:Svg2Cr20181004",
       "kind": "present_in"
     },
@@ -50899,6 +51579,16 @@
       "kind": "describes"
     },
     {
+      "from": "compat:svg.elements.view.svgView",
+      "to": "attribute:svgView",
+      "kind": "describes"
+    },
+    {
+      "from": "compat:svg.elements.view.svgView",
+      "to": "element:view",
+      "kind": "describes"
+    },
+    {
       "from": "element:a",
       "to": "attribute-category:global",
       "kind": "accepts_global_attributes"
@@ -54280,6 +54970,11 @@
     },
     {
       "from": "element:image",
+      "to": "attribute:referrerpolicy",
+      "kind": "has_attribute"
+    },
+    {
+      "from": "element:image",
       "to": "attribute:width",
       "kind": "has_attribute"
     },
@@ -56181,6 +56876,11 @@
     {
       "from": "element:script",
       "to": "attribute:href",
+      "kind": "has_attribute"
+    },
+    {
+      "from": "element:script",
+      "to": "attribute:referrerpolicy",
       "kind": "has_attribute"
     },
     {
