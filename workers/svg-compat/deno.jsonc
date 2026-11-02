@@ -42,7 +42,7 @@
 		"org": "kjanat",
 		"app": "svg-compat",
 		"install": "DENO_NO_PACKAGE_JSON=1 deno install",
-		"build": "DENO_NO_PACKAGE_JSON=1 deno task check:deploy",
+		"build": "DENO_NO_PACKAGE_JSON=1 deno run --allow-read ../../scripts/baseline-icons.ts --check",
 		"runtime": { "entrypoint": "main.ts", "cwd": "src" }
 	},
 	"test": {

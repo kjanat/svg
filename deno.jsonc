@@ -14,15 +14,16 @@
 			"description": "Format the codebase using dprint.",
 		},
 	},
-	// DENO_NO_PACKAGE_JSON: the Bun workspace's package.json lists ~300 MB of dev
-	// tooling (Biome, dprint, tree-sitter, ...) the worker never imports, and
-	// installing it pushed the build past Deploy's 1024 MiB limit. The worker
-	// resolves its npm packages through import_map.json.
+	// Deploy's build machine has 1024 MiB. Its build only verifies the assets;
+	// the worker tests (`deno task check:deploy`) run in GitHub CI, because they
+	// exceed that limit there. DENO_NO_PACKAGE_JSON keeps the Bun workspace's
+	// dev tooling (~300 MB: Biome, dprint, tree-sitter, ...) out of the install:
+	// the worker resolves its npm packages through import_map.json.
 	"deploy": {
 		"org": "kjanat",
 		"app": "svg-compat",
 		"install": "DENO_NO_PACKAGE_JSON=1 deno install",
-		"build": "DENO_NO_PACKAGE_JSON=1 deno task check:deploy",
+		"build": "DENO_NO_PACKAGE_JSON=1 deno run --allow-read scripts/baseline-icons.ts --check",
 		"runtime": { "entrypoint": "main.ts", "cwd": "workers/svg-compat/src" },
 	},
 	"exclude": ["./target", "./grammars"],

@@ -17,10 +17,11 @@ just ci    # full preflight (lint + test + format check + dist check)
 ```
 
 For the compatibility dashboard, run `deno task check:deploy` from the
-repository root. GitHub CI and Deno Deploy use this same check: verify the
-canonical assets, run the worker tests, and exercise HTTP responses with
-production caching enabled. A failed check stops the Deno build before it
-receives traffic.
+repository root. GitHub CI runs this same check on every pull request: verify
+the canonical assets, run the worker tests, and exercise HTTP responses with
+production caching enabled. The Deno Deploy build only verifies the canonical
+assets, because the tests exceed its 1024 MiB build memory; a failed asset check
+stops the build before it receives traffic.
 
 Static asset URLs revalidate in browsers and are cached by Deno for up to an
 hour. Deno invalidates that shared cache on deployment. Local development uses
