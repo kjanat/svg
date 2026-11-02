@@ -3,45 +3,357 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! - Path data (`path` on `animateMotion` and `textPath`) follows the SVG 2
+//!   EBNF "The grammar for path data"
+//!   (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>). Rendering up
+//!   to the first error (`#PathDataErrorHandling`) is recovery, not validity.
+//! - `keyTimes` and `keyPoints` are `<number> [; <number>]* ;?` in CSS value
+//!   definition syntax, parsed as CSS
+//!   (<https://svgwg.org/svg2-draft/types.html#attribute-css-value>), with
+//!   every number in `[0, 1]`.
+//! - `from`, `to`, `by` and `values` on `animateMotion` are coordinate pairs
+//!   of lengths separated by a comma and/or whitespace
+//!   (<https://w3c.github.io/svgwg/specs/animations/#AnimateMotionElement>).
+
+use super::syntax::{
+    microsyntax::{
+        scan_coordinate, scan_flag, skip_comma_wsp, skip_wsp, strip_comma_wsp, trim_wsp,
+    },
+    notation::contains_arbitrary_substitution,
+    parser::{ComponentValue, parse_component_values},
+    tokenizer::Token,
+    types::{Match, NumericType, UnitlessMode, match_numeric},
+};
 
 /// `PathData`: SVG path data.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
 pub fn check_path_data(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let mut parser = PathParser {
+        source: value,
+        rest: value,
+    };
+    parser.svg_path().err().map(|error| error.describe(value))
+}
+
+/// Where path data stops matching the grammar, and what it needed there.
+struct PathError {
+    /// Byte offset of the first character that does not fit.
+    offset: usize,
+    /// The production expected at `offset`.
+    expected: &'static str,
+}
+
+impl PathError {
+    fn describe(&self, source: &str) -> String {
+        let rest = &source[self.offset..];
+        let position = source[..self.offset].chars().count() + 1;
+        rest.chars().next().map_or_else(
+            || {
+                format!(
+                    "path data ends early: expected {} at character {position}",
+                    self.expected
+                )
+            },
+            |found| {
+                format!(
+                    "path data error at character {position}: expected {}, found {found:?}",
+                    self.expected
+                )
+            },
+        )
+    }
+}
+
+type PathResult = Result<(), PathError>;
+
+/// A greedy recursive-descent matcher for the `svg_path` production.
+///
+/// The grammar's processing rule ("consume as much of a given EBNF
+/// production as possible") makes every choice deterministic: a sequence
+/// continues exactly when the next character can start a number.
+struct PathParser<'a> {
+    source: &'a str,
+    rest: &'a str,
+}
+
+impl PathParser<'_> {
+    const fn offset(&self) -> usize {
+        self.source.len() - self.rest.len()
+    }
+
+    const fn error(&self, expected: &'static str) -> PathError {
+        PathError {
+            offset: self.offset(),
+            expected,
+        }
+    }
+
+    fn skip_wsp(&mut self) {
+        self.rest = skip_wsp(self.rest);
+    }
+
+    fn skip_comma_wsp(&mut self) {
+        self.rest = skip_comma_wsp(self.rest);
+    }
+
+    /// `svg_path::= wsp* (moveto (wsp* drawto_command)*)? wsp*`
+    fn svg_path(&mut self) -> PathResult {
+        self.skip_wsp();
+        if self.rest.is_empty() {
+            return Ok(());
+        }
+        if !self.rest.starts_with(['M', 'm']) {
+            return Err(self.error("a moveto command (M or m)"));
+        }
+        loop {
+            self.command()?;
+            self.skip_wsp();
+            if self.rest.is_empty() {
+                return Ok(());
+            }
+        }
+    }
+
+    /// One `drawto_command` (or the initial `moveto`): its letter, `wsp*`
+    /// and its argument sequence.
+    fn command(&mut self) -> PathResult {
+        let Some(letter) = self.rest.chars().next() else {
+            return Err(self.error("a path command"));
+        };
+        let arguments: fn(&mut Self) -> PathResult = match letter.to_ascii_lowercase() {
+            'z' => {
+                self.rest = &self.rest[1..];
+                return Ok(());
+            }
+            'm' | 'l' | 't' => Self::coordinate_pair,
+            'h' | 'v' => Self::coordinate,
+            'c' => Self::coordinate_pair_triplet,
+            's' | 'q' => Self::coordinate_pair_double,
+            'a' => Self::elliptical_arc_argument,
+            _ => return Err(self.error("a path command letter (MZLHVCSQTA, any case)")),
+        };
+        self.rest = &self.rest[1..];
+        self.skip_wsp();
+        self.sequence(arguments)
+    }
+
+    /// `x | (x comma_wsp? sequence)` for one argument group `x`.
+    fn sequence(&mut self, arguments: fn(&mut Self) -> PathResult) -> PathResult {
+        arguments(self)?;
+        loop {
+            let before_separator = self.rest;
+            self.skip_comma_wsp();
+            if !self
+                .rest
+                .starts_with(|c: char| c.is_ascii_digit() || matches!(c, '.' | '+' | '-'))
+            {
+                // Not another group: the separator belongs to what follows,
+                // and `wsp* drawto_command` does not admit a comma.
+                self.rest = before_separator;
+                return Ok(());
+            }
+            arguments(self)?;
+        }
+    }
+
+    /// `coordinate::= sign? number`
+    fn coordinate(&mut self) -> PathResult {
+        let (_, rest) = scan_coordinate(self.rest).ok_or_else(|| self.error("a number"))?;
+        self.rest = rest;
+        Ok(())
+    }
+
+    /// `coordinate_pair::= coordinate comma_wsp? coordinate`
+    fn coordinate_pair(&mut self) -> PathResult {
+        self.coordinate()?;
+        self.skip_comma_wsp();
+        self.coordinate()
+    }
+
+    /// `coordinate_pair_double::= coordinate_pair comma_wsp? coordinate_pair`
+    fn coordinate_pair_double(&mut self) -> PathResult {
+        self.coordinate_pair()?;
+        self.skip_comma_wsp();
+        self.coordinate_pair()
+    }
+
+    /// `coordinate_pair_triplet::= coordinate_pair comma_wsp? coordinate_pair
+    /// comma_wsp? coordinate_pair`
+    fn coordinate_pair_triplet(&mut self) -> PathResult {
+        self.coordinate_pair_double()?;
+        self.skip_comma_wsp();
+        self.coordinate_pair()
+    }
+
+    /// `elliptical_arc_argument::= number comma_wsp? number comma_wsp? number
+    /// comma_wsp flag comma_wsp? flag comma_wsp? coordinate_pair`
+    ///
+    /// The three leading values are read as `coordinate` (signed): "Arbitrary
+    /// numerical values are permitted for all elliptical arc parameters
+    /// (other than the boolean flags)" (`#ArcOutOfRangeParameters`), and SVG 1.1
+    /// wrote the rotation as a signed `number`.
+    fn elliptical_arc_argument(&mut self) -> PathResult {
+        self.coordinate()?;
+        self.skip_comma_wsp();
+        self.coordinate()?;
+        self.skip_comma_wsp();
+        self.coordinate()?;
+        self.rest = strip_comma_wsp(self.rest)
+            .ok_or_else(|| self.error("a comma or whitespace before the arc flags"))?;
+        self.flag()?;
+        self.skip_comma_wsp();
+        self.flag()?;
+        self.skip_comma_wsp();
+        self.coordinate_pair()
+    }
+
+    /// `flag::= ("0" | "1")`
+    fn flag(&mut self) -> PathResult {
+        let (_, rest) = scan_flag(self.rest).ok_or_else(|| self.error("an arc flag (0 or 1)"))?;
+        self.rest = rest;
+        Ok(())
+    }
 }
 
 /// `SemicolonNumberList`: semicolon-separated numbers.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// `keyTimes` and `keyPoints` are `<number> [; <number>]* ;?`, each number a
+/// "floating point value between 0 and 1 (inclusive)". The value is parsed
+/// as CSS, so comments, escapes and functions are allowed; a function's
+/// result is not checked.
 pub fn check_semicolon_number_list(value: &str) -> Option<String> {
-    let _ = value;
+    let list = parse_component_values(value);
+    if list.depth_limited || contains_arbitrary_substitution(&list.values) {
+        return None;
+    }
+    let mut items: Vec<Vec<&ComponentValue<'_>>> = vec![Vec::new()];
+    for component in list.significant() {
+        if matches!(component, ComponentValue::Token(Token::Semicolon)) {
+            items.push(Vec::new());
+        } else if let Some(item) = items.last_mut() {
+            item.push(component);
+        }
+    }
+    // `;?`: a single trailing semicolon (and the whitespace after it) is
+    // ignored.
+    if items.len() > 1 && items.last().is_some_and(Vec::is_empty) {
+        items.pop();
+    }
+    let count = items.len();
+    for (index, item) in items.iter().enumerate() {
+        let ordinal = index + 1;
+        let component = match item.as_slice() {
+            [] if count == 1 => {
+                return Some("expected a semicolon-separated list of numbers".into());
+            }
+            [] => return Some(format!("item {ordinal} of {count} is empty")),
+            [component] => *component,
+            _ => {
+                return Some(format!(
+                    "item {ordinal} of {count} is not a single number (separate numbers with \
+                     semicolons)"
+                ));
+            }
+        };
+        match match_numeric(component, NumericType::Number, UnitlessMode::Css) {
+            Match::No => return Some(format!("item {ordinal} of {count} is not a number")),
+            Match::Unknown => {}
+            Match::Yes => {
+                if let ComponentValue::Token(Token::Number(number)) = component
+                    && !(0.0..=1.0).contains(&number.value)
+                {
+                    return Some(format!(
+                        "item {ordinal} of {count} ({}) is outside the range 0 to 1",
+                        number.value
+                    ));
+                }
+            }
+        }
+    }
     None
 }
 
 /// `CoordinatePair`: one coordinate pair.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// `from`, `to` and `by` on `animateMotion`: two lengths separated by a
+/// comma and/or whitespace; surrounding whitespace is ignored.
 pub fn check_coordinate_pair(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    coordinate_pair_reason(value)
 }
 
 /// `CoordinatePairList`: semicolon-separated coordinate pairs.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// `values` on `animateMotion`, split at each semicolon with each item
+/// stripped of white space and a final empty item dropped.
 pub fn check_coordinate_pair_list(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let mut items: Vec<&str> = value.split(';').map(trim_wsp).collect();
+    if items.last().is_some_and(|last| last.is_empty()) {
+        items.pop();
+    }
+    let count = items.len();
+    items.iter().enumerate().find_map(|(index, item)| {
+        let ordinal = index + 1;
+        if item.is_empty() {
+            Some(format!("item {ordinal} of {count} is empty"))
+        } else {
+            coordinate_pair_reason(item)
+                .map(|reason| format!("item {ordinal} of {count}: {reason}"))
+        }
+    })
+}
+
+/// Why `value` is not one `coordinate comma-wsp coordinate` pair of lengths.
+fn coordinate_pair_reason(value: &str) -> Option<String> {
+    let list = parse_component_values(value);
+    if list.depth_limited || contains_arbitrary_substitution(&list.values) {
+        return None;
+    }
+    let mut coordinates: Vec<&ComponentValue<'_>> = Vec::new();
+    // What separates the previous coordinate from the next one.
+    let mut whitespace = false;
+    let mut commas = 0_usize;
+    for component in &list.values {
+        match component {
+            ComponentValue::Token(Token::Whitespace) => whitespace = true,
+            ComponentValue::Token(Token::Comma) => {
+                if coordinates.is_empty() {
+                    return Some("a comma before the first coordinate".into());
+                }
+                commas += 1;
+                if commas > 1 {
+                    return Some("more than one comma between coordinates".into());
+                }
+            }
+            _ => {
+                if !coordinates.is_empty() && !whitespace && commas == 0 {
+                    return Some("coordinates must be separated by a comma or whitespace".into());
+                }
+                coordinates.push(component);
+                whitespace = false;
+                commas = 0;
+            }
+        }
+    }
+    if commas > 0 {
+        return Some("a comma after the last coordinate".into());
+    }
+    let [x, y] = coordinates.as_slice() else {
+        return Some(format!(
+            "expected an x, y coordinate pair, found {} value(s)",
+            coordinates.len()
+        ));
+    };
+    [("x", x), ("y", y)]
+        .into_iter()
+        .find_map(|(axis, coordinate)| {
+            match_numeric(
+                coordinate,
+                NumericType::LengthPercentage,
+                UnitlessMode::PresentationAttribute,
+            )
+            .is_no()
+            .then(|| format!("the {axis} coordinate is not a length"))
+        })
 }
 
 #[cfg(test)]
