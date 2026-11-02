@@ -13,7 +13,11 @@
 //! (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>:
 //! the CSS `transform` grammar `none | <transform-list>`, comma-separated
 //! arguments, units, with a bare `<number>` admitted for lengths and angles).
-//! A value is accepted when either definition accepts it.
+//! The SVG 1.1 grammar
+//! (<https://www.w3.org/TR/SVG11/coords.html#TransformAttribute>) still
+//! applies to SVG 1.1 documents and allows more: several separators between
+//! functions and numbers that end in a dot (`1.`). A value is accepted when
+//! any of these definitions accepts it.
 //!
 //! `preserveAspectRatio` follows SVG 2's `<align> <meetOrSlice>?`
 //! (<https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute>),
@@ -21,6 +25,7 @@
 //! so keywords match ASCII case-insensitively and comments are allowed.
 
 use super::syntax::cascade::is_css_wide_keyword_value;
+use super::syntax::microsyntax::{is_svg_wsp, skip_comma_wsp, skip_wsp, trim_wsp};
 use super::syntax::notation::{contains_arbitrary_substitution, is_whole_value};
 use super::syntax::parser::{BlockKind, ComponentValue, parse_component_values};
 use super::syntax::tokenizer::Token;
@@ -197,6 +202,9 @@ const TRANSFORM_FUNCTIONS: &[CssFunction] = &[
 /// `functions` is the catalog's list of the functions the attribute allows;
 /// an empty list allows every transform function.
 pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
+    if matches_legacy_list(value, functions) {
+        return None;
+    }
     let list = parse_component_values(value);
     if list.depth_limited
         || contains_arbitrary_substitution(&list.values)
@@ -256,6 +264,89 @@ pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
         after_comma = false;
     }
     after_comma.then(|| "a transform list cannot end with a comma".to_owned())
+}
+
+/// Whether `value` is a whole transform list in the legacy SVG grammars:
+/// CSS Transforms 1 §6.2 and SVG 1.1 §7.6 together, so `wsp* transforms?
+/// wsp*` with any run of whitespace and commas (none included) between two
+/// functions, and `comma-wsp?` between numbers.
+fn matches_legacy_list(value: &str, functions: &[&str]) -> bool {
+    let mut rest = trim_wsp(value);
+    if rest.is_empty() {
+        return true;
+    }
+    loop {
+        let Some(after) = legacy_function(rest, functions) else {
+            return false;
+        };
+        if after.is_empty() {
+            return true;
+        }
+        let next = after.trim_start_matches(|c: char| is_svg_wsp(c) || c == ',');
+        // Only separators left: the list ends with a comma.
+        if next.is_empty() {
+            return false;
+        }
+        rest = next;
+    }
+}
+
+/// One legacy transform function at the start of `s`, returning the rest:
+/// `name wsp* "(" wsp* number ( comma-wsp? number )* wsp* ")"` with one of
+/// the function's legacy argument counts.
+fn legacy_function<'s>(s: &'s str, functions: &[&str]) -> Option<&'s str> {
+    let name_end = s
+        .find(|c: char| !c.is_ascii_alphabetic())
+        .unwrap_or(s.len());
+    let (name, rest) = s.split_at(name_end);
+    let known = TRANSFORM_FUNCTIONS
+        .iter()
+        .find(|known| !known.svg_counts.is_empty() && known.name.eq_ignore_ascii_case(name))?;
+    if !functions.is_empty() && !contains_keyword(functions, known.name) {
+        return None;
+    }
+    let mut rest = skip_wsp(skip_wsp(rest).strip_prefix('(')?);
+    let mut count = 0;
+    while let Some(after) = scan_svg11_number(rest) {
+        count += 1;
+        let separated = skip_comma_wsp(after);
+        if scan_svg11_number(separated).is_some() {
+            rest = separated;
+        } else {
+            rest = after;
+            break;
+        }
+    }
+    let rest = skip_wsp(rest).strip_prefix(')')?;
+    known.svg_counts.contains(&count).then_some(rest)
+}
+
+/// An SVG 1.1 `number` at the start of `s`, returning the rest: `sign?
+/// (digit-sequence ("." digit-sequence?)? | "." digit-sequence) exponent?`.
+/// It also covers every CSS Transforms 1 `<number-token>`.
+fn scan_svg11_number(s: &str) -> Option<&str> {
+    let digits = |s: &str| s.len() - s.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+    let rest = s.strip_prefix(['+', '-']).unwrap_or(s);
+    let integer = digits(rest);
+    let mut rest = &rest[integer..];
+    let mut fraction = 0;
+    if let Some(after_dot) = rest.strip_prefix('.') {
+        fraction = digits(after_dot);
+        if integer > 0 || fraction > 0 {
+            rest = &after_dot[fraction..];
+        }
+    }
+    if integer == 0 && fraction == 0 {
+        return None;
+    }
+    if let Some(after_e) = rest.strip_prefix(['e', 'E']) {
+        let after_sign = after_e.strip_prefix(['+', '-']).unwrap_or(after_e);
+        let exponent = digits(after_sign);
+        if exponent > 0 {
+            rest = &after_sign[exponent..];
+        }
+    }
+    Some(rest)
 }
 
 /// Check one transform function. `function_token` is false for the legacy
