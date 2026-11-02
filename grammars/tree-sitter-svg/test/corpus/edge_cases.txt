@@ -40,17 +40,17 @@ Single-quoted typed attribute values
     (element
       (self_closing_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
@@ -210,46 +210,18 @@ Length units variety
     (element
       (self_closing_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number)
                   (length_unit))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
-              (length_or_percentage
-                (length
-                  (number)
-                  (length_unit))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
-              (length_or_percentage
-                (length
-                  (number)
-                  (length_unit))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
-              (length_or_percentage
-                (length
-                  (number)
-                  (length_unit))))))))
-    (text)
-    (element
-      (self_closing_tag
-        name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number)
@@ -278,6 +250,34 @@ Length units variety
           name: (length_attribute_name)
           value: (length_attribute_value
             (length_or_percentage_or_auto
+              (length_or_percentage
+                (length
+                  (number)
+                  (length_unit))))))
+        (length_attribute
+          name: (length_attribute_name)
+          value: (length_attribute_value
+            (length_or_percentage_or_auto
+              (length_or_percentage
+                (length
+                  (number)
+                  (length_unit))))))
+        (length_attribute
+          name: (length_attribute_name)
+          value: (length_attribute_value
+            (length_or_percentage_or_auto
+              (length_or_percentage
+                (length
+                  (number)
+                  (length_unit))))))))
+    (text)
+    (element
+      (self_closing_tag
+        name: (name)
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number)
@@ -325,17 +325,17 @@ Negative numbers in viewBox and coordinates
     (element
       (self_closing_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
@@ -2007,17 +2007,17 @@ ForeignObject handled as generic element with nested HTML-like content
     (element
       (start_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))

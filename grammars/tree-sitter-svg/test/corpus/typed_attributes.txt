@@ -13,17 +13,17 @@ Geometry length and percentage attributes
   root: (svg_root_element
     (start_tag
       name: (name)
-      (length_attribute
-        name: (length_attribute_name)
-        value: (length_attribute_value
-          (length_or_percentage_or_auto
+      (length_list_attribute
+        name: (length_list_attribute_name)
+        value: (length_list_attribute_value
+          (length_list
             (length_or_percentage
               (length
                 (number))))))
-      (length_attribute
-        name: (length_attribute_name)
-        value: (length_attribute_value
-          (length_or_percentage_or_auto
+      (length_list_attribute
+        name: (length_list_attribute_name)
+        value: (length_list_attribute_value
+          (length_list
             (length_or_percentage
               (length
                 (number))))))
@@ -46,17 +46,17 @@ Geometry length and percentage attributes
     (element
       (self_closing_tag
         name: (name)
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
-        (length_attribute
-          name: (length_attribute_name)
-          value: (length_attribute_value
-            (length_or_percentage_or_auto
+        (length_list_attribute
+          name: (length_list_attribute_name)
+          value: (length_list_attribute_value
+            (length_list
               (length_or_percentage
                 (length
                   (number))))))
@@ -762,6 +762,57 @@ Href with data URI
                   (mime_type))
                 (data_uri_encoding)
                 (data_uri_payload)))))))
+    (end_tag
+      (name)))
+  (text))
+
+================================================================================
+Text position lists on x and y
+================================================================================
+
+<svg><text x="10 20 30" y="5,15">abc</text></svg>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (text)
+  (svg_root_element
+    (start_tag
+      (name))
+    (element
+      (start_tag
+        (name)
+        (length_list_attribute
+          (length_list_attribute_name)
+          (length_list_attribute_value
+            (length_list
+              (length_or_percentage
+                (length
+                  (number)))
+              (comma_wsp
+                (wsp))
+              (length_or_percentage
+                (length
+                  (number)))
+              (comma_wsp
+                (wsp))
+              (length_or_percentage
+                (length
+                  (number))))))
+        (length_list_attribute
+          (length_list_attribute_name)
+          (length_list_attribute_value
+            (length_list
+              (length_or_percentage
+                (length
+                  (number)))
+              (comma_wsp)
+              (length_or_percentage
+                (length
+                  (number)))))))
+      (text)
+      (end_tag
+        (name)))
     (end_tag
       (name)))
   (text))
