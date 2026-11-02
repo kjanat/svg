@@ -1464,6 +1464,10 @@
       "required": false,
       "types": [
         {
+          "type": "keyword_value",
+          "named": true
+        },
+        {
           "type": "length_list",
           "named": true
         }

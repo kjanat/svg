@@ -4353,8 +4353,17 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "length_list"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "length_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "keyword_value"
+                    }
+                  ]
                 },
                 {
                   "type": "BLANK"
@@ -4378,8 +4387,17 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "length_list"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "length_list"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "keyword_value"
+                    }
+                  ]
                 },
                 {
                   "type": "BLANK"

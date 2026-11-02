@@ -816,3 +816,45 @@ Text position lists on x and y
     (end_tag
       (name)))
   (text))
+
+================================================================================
+CSS-wide keywords on x and y
+================================================================================
+
+<svg><rect x="inherit" y="initial" width="10" height="10"/></svg>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (text)
+  (svg_root_element
+    (start_tag
+      (name))
+    (element
+      (self_closing_tag
+        (name)
+        (length_list_attribute
+          (length_list_attribute_name)
+          (length_list_attribute_value
+            (keyword_value)))
+        (length_list_attribute
+          (length_list_attribute_name)
+          (length_list_attribute_value
+            (keyword_value)))
+        (length_attribute
+          (length_attribute_name)
+          (length_attribute_value
+            (length_or_percentage_or_auto
+              (length_or_percentage
+                (length
+                  (number))))))
+        (length_attribute
+          (length_attribute_name)
+          (length_attribute_value
+            (length_or_percentage_or_auto
+              (length_or_percentage
+                (length
+                  (number))))))))
+    (end_tag
+      (name)))
+  (text))
