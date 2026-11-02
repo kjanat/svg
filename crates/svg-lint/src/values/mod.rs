@@ -20,6 +20,7 @@ mod length;
 mod numeric;
 mod path;
 mod reference;
+mod syntax;
 mod text_kinds;
 mod tokens;
 
