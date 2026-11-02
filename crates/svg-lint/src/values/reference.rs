@@ -3,25 +3,383 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! SVG 2 parses an attribute defined as a URL with the URL Standard's URL
+//! parser against the document's URL
+//! (<https://svgwg.org/svg2-draft/types.html#attribute-url>), and says an
+//! invalid URL does not make a document non-conforming
+//! (<https://svgwg.org/svg2-draft/linking.html#linkRefAttrs>). So the only
+//! values reported are those the parser fails on whatever the document's URL
+//! is: a scheme-ful URL whose authority cannot be parsed. Validation errors
+//! that still parse (spaces, backslashes, unescaped code points) are accepted,
+//! as is anything whose outcome depends on the base URL.
 
-/// `Url`: a URL.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// `Url`: a URL, parsed by the URL Standard's URL parser.
 pub fn check_url(value: &str) -> Option<String> {
-    let _ = value;
+    url_parse_failure(value).map(|why| format!("the URL parser fails on it: {why}"))
+}
+
+/// `Iri`: an IRI reference. The URL parser takes any scalar value string,
+/// so this is the same check as [`check_url`].
+pub fn check_iri(value: &str) -> Option<String> {
+    check_url(value)
+}
+
+/// The special schemes that have a network host ("file" is special too, but
+/// its host is parsed by a separate state that is not modelled here).
+/// <https://url.spec.whatwg.org/#special-scheme>
+const SPECIAL_NETWORK_SCHEMES: &[&str] = &["ftp", "http", "https", "ws", "wss"];
+
+/// The scheme the URL parser reads from `input`, lowercased, when `input`
+/// starts with one (<https://url.spec.whatwg.org/#scheme-state>). Without a
+/// scheme the URL is relative and takes the base URL's scheme.
+pub(super) fn url_scheme(input: &str) -> Option<String> {
+    split_scheme(&preprocess(input)).map(|(scheme, _)| scheme)
+}
+
+/// Why the basic URL parser returns failure on `input` regardless of the base
+/// URL, or `None` when it does not (or when the outcome depends on the base).
+pub(super) fn url_parse_failure(input: &str) -> Option<&'static str> {
+    let input = preprocess(input);
+    let (scheme, rest) = split_scheme(&input)?;
+    if SPECIAL_NETWORK_SCHEMES.contains(&scheme.as_str()) {
+        // "special relative or authority state", "relative slash state" and
+        // "special authority slashes state" all reach the authority when two
+        // of `/` or `\` follow the scheme, whatever the base URL is; with
+        // fewer, a same-scheme base URL makes the value relative.
+        let mut leading = rest.chars();
+        if !matches!(
+            (leading.next(), leading.next()),
+            (Some('/' | '\\'), Some('/' | '\\'))
+        ) {
+            return None;
+        }
+        // "special authority ignore slashes state".
+        authority_failure(rest.trim_start_matches(['/', '\\']), true)
+    } else if scheme == "file" {
+        None
+    } else {
+        // "path or authority state": `scheme://` starts an authority.
+        authority_failure(rest.strip_prefix("//")?, false)
+    }
+}
+
+/// The input preprocessing of the basic URL parser: "Remove any leading and
+/// trailing C0 control or space from input." and "Remove all ASCII tab or
+/// newline from input."
+fn preprocess(input: &str) -> String {
+    input
+        .trim_matches(|c: char| c <= ' ')
+        .chars()
+        .filter(|c| !matches!(c, '\t' | '\n' | '\r'))
+        .collect()
+}
+
+/// Split off the scheme the "scheme start state" and "scheme state" read: an
+/// ASCII alpha, then ASCII alphanumerics, `+`, `-` or `.`, then `:`.
+fn split_scheme(input: &str) -> Option<(String, &str)> {
+    if !input.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return None;
+    }
+    let end = input.find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.')))?;
+    let rest = input[end..].strip_prefix(':')?;
+    Some((input[..end].to_ascii_lowercase(), rest))
+}
+
+/// The "authority state", "host state" and "port state" over `input`, which
+/// starts right after the authority's leading slashes.
+fn authority_failure(input: &str, special: bool) -> Option<&'static str> {
+    let end = input
+        .find(|c| matches!(c, '/' | '?' | '#') || (special && c == '\\'))
+        .unwrap_or(input.len());
+    let authority = &input[..end];
+    let host_and_port = match authority.rfind('@') {
+        Some(at) if at + 1 == authority.len() => {
+            return Some("host-missing: no host after the credentials");
+        }
+        Some(at) => &authority[at + 1..],
+        None => authority,
+    };
+    let mut inside_brackets = false;
+    let mut colon = None;
+    for (at, c) in host_and_port.char_indices() {
+        match c {
+            '[' => inside_brackets = true,
+            ']' => inside_brackets = false,
+            ':' if !inside_brackets => {
+                colon = Some(at);
+                break;
+            }
+            _ => {}
+        }
+    }
+    match colon {
+        Some(0) => Some("host-missing: no host before the port"),
+        Some(at) => host_failure(&host_and_port[..at], !special)
+            .or_else(|| port_failure(&host_and_port[at + 1..])),
+        None if special && host_and_port.is_empty() => {
+            Some("host-missing: a special-scheme URL needs a host")
+        }
+        None => host_failure(host_and_port, !special),
+    }
+}
+
+/// The "port state": ASCII digits forming a 16-bit unsigned integer.
+fn port_failure(port: &str) -> Option<&'static str> {
+    if !port.bytes().all(|b| b.is_ascii_digit()) {
+        return Some("port-invalid: the port is not a decimal number");
+    }
+    let value = port.bytes().fold(0_u32, |value, digit| {
+        value
+            .saturating_mul(10)
+            .saturating_add(u32::from(digit - b'0'))
+    });
+    (value > u32::from(u16::MAX)).then_some("port-out-of-range: the port is above 65535")
+}
+
+/// "A forbidden host code point".
+/// <https://url.spec.whatwg.org/#forbidden-host-code-point>
+const fn is_forbidden_host_code_point(c: char) -> bool {
+    matches!(
+        c,
+        '\0' | '\t'
+            | '\n'
+            | '\r'
+            | ' '
+            | '#'
+            | '/'
+            | ':'
+            | '<'
+            | '>'
+            | '?'
+            | '@'
+            | '['
+            | '\\'
+            | ']'
+            | '^'
+            | '|'
+    )
+}
+
+/// "A forbidden domain code point": a forbidden host code point, a C0
+/// control, `%` or DELETE.
+/// <https://url.spec.whatwg.org/#forbidden-domain-code-point>
+const fn is_forbidden_domain_code_point(c: char) -> bool {
+    is_forbidden_host_code_point(c) || c.is_ascii_control() || c == '%'
+}
+
+/// The "host parser" (<https://url.spec.whatwg.org/#concept-host-parser>).
+fn host_failure(input: &str, opaque: bool) -> Option<&'static str> {
+    if let Some(inner) = input.strip_prefix('[') {
+        let Some(address) = inner.strip_suffix(']') else {
+            return Some("IPv6-unclosed: the IPv6 address has no closing bracket");
+        };
+        return ipv6_failure(address);
+    }
+    if opaque {
+        return input
+            .contains(is_forbidden_host_code_point)
+            .then_some("host-invalid-code-point: the host has a forbidden code point");
+    }
+    let decoded = percent_decode(input);
+    let domain = String::from_utf8_lossy(&decoded);
+    if domain.contains(is_forbidden_domain_code_point) {
+        // ASCII input is only lowercased by the domain parser; non-ASCII
+        // input goes through UTS #46 ToASCII without the STD3 rules, which
+        // keeps these ASCII code points or fails.
+        return Some("domain-invalid-code-point: the host has a forbidden code point");
+    }
+    if !domain.is_ascii() {
+        // Whether UTS #46 accepts the rest is not modelled.
+        return None;
+    }
+    let ascii_domain = domain.to_ascii_lowercase();
+    if ends_in_a_number(&ascii_domain) {
+        return ipv4_failure(&ascii_domain);
+    }
     None
 }
 
-/// `Iri`: an IRI reference.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
-pub fn check_iri(value: &str) -> Option<String> {
-    let _ = value;
-    None
+/// "percent-decode" (<https://url.spec.whatwg.org/#percent-decode>).
+fn percent_decode(input: &str) -> Vec<u8> {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while let Some(&byte) = bytes.get(at) {
+        let hex = |offset: usize| {
+            bytes
+                .get(at + offset)
+                .and_then(|&digit| char::from(digit).to_digit(16))
+        };
+        if let (b'%', Some(high), Some(low)) = (byte, hex(1), hex(2)) {
+            // Two hex digits are at most 0xFF.
+            out.push(u8::try_from(high * 16 + low).unwrap_or(u8::MAX));
+            at += 3;
+        } else {
+            out.push(byte);
+            at += 1;
+        }
+    }
+    out
+}
+
+/// The "ends in a number checker".
+/// <https://url.spec.whatwg.org/#ends-in-a-number-checker>
+fn ends_in_a_number(input: &str) -> bool {
+    let mut parts: Vec<&str> = input.split('.').collect();
+    if parts.last().is_some_and(|last| last.is_empty()) {
+        parts.pop();
+    }
+    let Some(last) = parts.last() else {
+        return false;
+    };
+    (!last.is_empty() && last.bytes().all(|b| b.is_ascii_digit())) || ipv4_number(last).is_some()
+}
+
+/// The "IPv4 number parser", saturating at `u64::MAX` (any value that large
+/// fails the range checks anyway).
+/// <https://url.spec.whatwg.org/#ipv4-number-parser>
+fn ipv4_number(input: &str) -> Option<u64> {
+    if input.is_empty() {
+        return None;
+    }
+    let (digits, radix) =
+        if input.len() >= 2 && (input.starts_with("0x") || input.starts_with("0X")) {
+            (&input[2..], 16)
+        } else if input.len() >= 2 && input.starts_with('0') {
+            (&input[1..], 8)
+        } else {
+            (input, 10)
+        };
+    digits.chars().try_fold(0_u64, |value, c| {
+        c.to_digit(radix).map(|digit| {
+            value
+                .saturating_mul(u64::from(radix))
+                .saturating_add(u64::from(digit))
+        })
+    })
+}
+
+/// The "IPv4 parser" (<https://url.spec.whatwg.org/#concept-ipv4-parser>).
+fn ipv4_failure(input: &str) -> Option<&'static str> {
+    let mut parts: Vec<&str> = input.split('.').collect();
+    if parts.len() > 1 && parts.last().is_some_and(|last| last.is_empty()) {
+        parts.pop();
+    }
+    if parts.len() > 4 {
+        return Some("IPv4-too-many-parts: the IPv4 address has more than four parts");
+    }
+    let Some(numbers) = parts
+        .iter()
+        .map(|part| ipv4_number(part))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return Some("IPv4-non-numeric-part: the host ends in a number but is not an IPv4 address");
+    };
+    let (last, init) = numbers.split_last()?;
+    if init.iter().any(|&number| number > 255) {
+        return Some("IPv4-out-of-range-part: an IPv4 part is above 255");
+    }
+    // 256^(5 - size) for a size of 1 to 4.
+    let limit = 1_u64 << (8 * (5 - numbers.len()));
+    (*last >= limit).then_some("IPv4-out-of-range-part: the IPv4 address is out of range")
+}
+
+/// The "IPv6 parser" (<https://url.spec.whatwg.org/#concept-ipv6-parser>).
+fn ipv6_failure(input: &str) -> Option<&'static str> {
+    const INVALID: &str = "IPv6-invalid-code-point: the IPv6 address is malformed";
+    let chars: Vec<char> = input.chars().collect();
+    let at = |pointer: usize| chars.get(pointer).copied();
+    let leading_compression = at(0) == Some(':');
+    if leading_compression && at(1) != Some(':') {
+        return Some("IPv6-invalid-compression: the IPv6 address starts with one colon");
+    }
+    // A leading "::" is consumed up front and starts the compression.
+    let (mut pointer, mut piece_index, mut compress) = if leading_compression {
+        (2, 1, Some(1))
+    } else {
+        (0, 0, None)
+    };
+    while let Some(c) = at(pointer) {
+        if piece_index == 8 {
+            return Some("IPv6-too-many-pieces: the IPv6 address has more than eight pieces");
+        }
+        if c == ':' {
+            if compress.is_some() {
+                return Some("IPv6-multiple-compression: the IPv6 address has two '::'");
+            }
+            pointer += 1;
+            piece_index += 1;
+            compress = Some(piece_index);
+            continue;
+        }
+        let mut length = 0;
+        while length < 4 && at(pointer).is_some_and(|c| c.is_ascii_hexdigit()) {
+            pointer += 1;
+            length += 1;
+        }
+        match at(pointer) {
+            Some('.') => {
+                if length == 0 || piece_index > 6 {
+                    return Some(INVALID);
+                }
+                pointer -= length;
+                if let Some(failure) = ipv4_in_ipv6_failure(&chars[pointer..]) {
+                    return Some(failure);
+                }
+                // The four IPv4 numbers fill two pieces.
+                piece_index += 2;
+                break;
+            }
+            Some(':') => {
+                pointer += 1;
+                if at(pointer).is_none() {
+                    return Some(INVALID);
+                }
+            }
+            Some(_) => return Some(INVALID),
+            None => {}
+        }
+        piece_index += 1;
+    }
+    (compress.is_none() && piece_index != 8)
+        .then_some("IPv6-too-few-pieces: the IPv6 address has fewer than eight pieces")
+}
+
+/// The dotted IPv4 tail of the IPv6 parser, from its first digit to the end
+/// of the address; the caller has checked that it fits in the address.
+fn ipv4_in_ipv6_failure(chars: &[char]) -> Option<&'static str> {
+    const INVALID: &str = "IPv4-in-IPv6-invalid-code-point: the embedded IPv4 address is malformed";
+    let mut pointer = 0;
+    let mut numbers_seen = 0;
+    while let Some(&c) = chars.get(pointer) {
+        if numbers_seen > 0 {
+            if c == '.' && numbers_seen < 4 {
+                pointer += 1;
+            } else {
+                return Some(INVALID);
+            }
+        }
+        if !chars.get(pointer).is_some_and(char::is_ascii_digit) {
+            return Some(INVALID);
+        }
+        let mut piece: Option<u32> = None;
+        while let Some(digit) = chars.get(pointer).and_then(|c| c.to_digit(10)) {
+            piece = match piece {
+                None => Some(digit),
+                Some(0) => return Some(INVALID),
+                Some(value) => Some(value * 10 + digit),
+            };
+            if piece.is_some_and(|value| value > 255) {
+                return Some("IPv4-in-IPv6-out-of-range-part: an embedded IPv4 part is above 255");
+            }
+            pointer += 1;
+        }
+        numbers_seen += 1;
+    }
+    (numbers_seen != 4).then_some(
+        "IPv4-in-IPv6-too-few-parts: the embedded IPv4 address has fewer than four parts",
+    )
 }
 
 #[cfg(test)]
@@ -350,6 +708,7 @@ mod tests {
                 "http://[::1.2.3.256]/",
                 "http://[::01.2.3.4]/",
                 "http://[1:2:3:4:5:6:7:1.2.3.4]/",
+                "http://[1:2:1.2.3.4]/",
                 "foo://[x]/",
             ],
         );

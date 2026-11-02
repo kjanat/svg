@@ -3,65 +3,221 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! A check sees only the value, not the attribute it belongs to, so each one
+//! accepts the union of what its kind's attributes allow.
 
-/// `Boolean`: `true` or `false`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+use super::reference::{url_parse_failure, url_scheme};
+use super::syntax::microsyntax::{
+    eq_ascii_case_insensitive, find_ascii_case_insensitive, is_ascii_whitespace,
+    split_on_ascii_whitespace, strip_ascii_whitespace,
+};
+
+/// The values a `Boolean` attribute can have besides the empty string:
+/// the ARIA true/false states (and the `1` / `0` of the recommended XML
+/// Schema `boolean` mapping), and the canonical name of each HTML boolean
+/// attribute in the catalog.
+const BOOLEAN_VALUES: &[&str] = &["true", "false", "1", "0", "async", "autofocus", "defer"];
+
+/// `Boolean`: an ARIA true/false state
+/// (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_true-false>) or an HTML
+/// boolean attribute
+/// (<https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#boolean-attribute>).
+///
+/// The union of the two is accepted, ASCII case-insensitively and with
+/// surrounding whitespace (the XML Schema `boolean` mapping collapses it).
 pub fn check_boolean(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let value = strip_ascii_whitespace(value);
+    if value.is_empty() || find_ascii_case_insensitive(value, BOOLEAN_VALUES).is_some() {
+        return None;
+    }
+    Some(format!(
+        "\"{value}\" is neither \"true\" nor \"false\", nor empty or the attribute's own name"
+    ))
 }
 
-/// `Id`: an XML name / id token.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// Whether `value` is non-empty and only ASCII whitespace.
+fn is_only_whitespace(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(is_ascii_whitespace)
+}
+
+/// `Id`: the `id` attribute
+/// (<https://svgwg.org/svg2-draft/struct.html#IDAttribute>) or an ARIA ID
+/// reference (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref>).
+///
+/// ARIA allows a zero-length value for any state or property, and the current
+/// ARIA draft makes `aria-details` and `aria-errormessage` ID reference
+/// lists, so only a value of nothing but whitespace is reported.
 pub fn check_id(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    is_only_whitespace(value).then(|| "an ID cannot consist of whitespace only".to_owned())
 }
 
-/// `IdList`: whitespace-separated id references.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// `IdList`: an ARIA ID reference list, "a list of one or more ID references"
+/// (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref_list>). Repeated
+/// references are allowed, and so is a zero-length value.
 pub fn check_id_list(value: &str) -> Option<String> {
-    let _ = value;
+    is_only_whitespace(value)
+        .then(|| "an ID reference list needs at least one ID, not only whitespace".to_owned())
+}
+
+/// `TokenList`: a set of space-separated tokens
+/// (<https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#set-of-space-separated-tokens>).
+///
+/// Any string is such a set, and the kind is shared by `class` (any tokens,
+/// repeats allowed), `rel`, `role` and `requiredExtensions`, so nothing is
+/// reported: the per-attribute token rules need the attribute name.
+pub const fn check_token_list(_value: &str) -> Option<String> {
     None
 }
 
-/// `TokenList`: whitespace-separated tokens.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
-pub fn check_token_list(value: &str) -> Option<String> {
-    let _ = value;
-    None
-}
-
-/// `CommaTokenList`: comma-separated tokens.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// `CommaTokenList`: `systemLanguage`, a set of comma-separated tokens each of
+/// which is a BCP 47 Language-Tag
+/// (<https://svgwg.org/svg2-draft/struct.html#SystemLanguageAttribute>).
+///
+/// A value with no tokens at all (empty or whitespace) is accepted; once there
+/// is a comma, every token, including an empty one, must be a language tag.
 pub fn check_comma_token_list(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    if strip_ascii_whitespace(value).is_empty() {
+        return None;
+    }
+    value
+        .split(',')
+        .map(strip_ascii_whitespace)
+        .find_map(|tag| {
+            if tag.is_empty() {
+                Some("an empty token is not a BCP 47 language tag".to_owned())
+            } else if is_language_tag(tag) {
+                None
+            } else {
+                Some(format!(
+                    "\"{tag}\" is not a well-formed BCP 47 language tag"
+                ))
+            }
+        })
 }
 
-/// `UrlTokenList`: whitespace-separated URLs.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// `UrlTokenList`: `ping`, a set of space-separated tokens, "each of which
+/// must be a valid non-empty URL whose scheme is an HTTP(S) scheme"
+/// (<https://html.spec.whatwg.org/multipage/links.html#ping>).
+///
+/// A token is reported when the URL parser fails on it whatever the base URL
+/// is, or when it names a scheme other than `http` or `https`. A relative
+/// token takes the document's scheme and is accepted.
 pub fn check_url_token_list(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    split_on_ascii_whitespace(value).find_map(|token| {
+        if let Some(why) = url_parse_failure(token) {
+            return Some(format!("\"{token}\" is not a URL: {why}"));
+        }
+        url_scheme(token)
+            .filter(|scheme| scheme != "http" && scheme != "https")
+            .map(|scheme| {
+                format!(
+                    "\"{token}\" has the scheme \"{scheme}\", but a ping URL must be http or https"
+                )
+            })
+    })
+}
+
+/// The `irregular` grandfathered tags of RFC 5646, which do not match the
+/// `langtag` production. (The `regular` ones do.)
+/// <https://www.rfc-editor.org/rfc/rfc5646#section-2.1>
+const IRREGULAR_LANGUAGE_TAGS: &[&str] = &[
+    "en-GB-oed",
+    "i-ami",
+    "i-bnn",
+    "i-default",
+    "i-enochian",
+    "i-hak",
+    "i-klingon",
+    "i-lux",
+    "i-mingo",
+    "i-navajo",
+    "i-pwn",
+    "i-tao",
+    "i-tay",
+    "i-tsu",
+    "sgn-BE-FR",
+    "sgn-BE-NL",
+    "sgn-CH-DE",
+];
+
+/// Whether `tag` matches the RFC 5646 `Language-Tag` production
+/// (well-formedness; the registry is not consulted). Subtags are ASCII
+/// case-insensitive.
+fn is_language_tag(tag: &str) -> bool {
+    if find_ascii_case_insensitive(tag, IRREGULAR_LANGUAGE_TAGS).is_some() {
+        return true;
+    }
+    let subtags: Vec<&str> = tag.split('-').collect();
+    if !subtags.iter().all(|subtag| {
+        (1..=8).contains(&subtag.len()) && subtag.bytes().all(|b| b.is_ascii_alphanumeric())
+    }) {
+        return false;
+    }
+    match subtags.split_first() {
+        Some((first, rest)) if eq_ascii_case_insensitive(first, "x") => !rest.is_empty(),
+        Some(_) => is_langtag(&subtags),
+        None => false,
+    }
+}
+
+fn is_alpha(subtag: &str) -> bool {
+    subtag.bytes().all(|b| b.is_ascii_alphabetic())
+}
+
+fn is_digits(subtag: &str) -> bool {
+    subtag.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// The `langtag` production over subtags already known to be 1 to 8 ASCII
+/// alphanumerics.
+fn is_langtag(subtags: &[&str]) -> bool {
+    let at = |index: usize| subtags.get(index).copied();
+    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    let Some(language) = at(0).filter(|language| language.len() >= 2 && is_alpha(language)) else {
+        return false;
+    };
+    let mut index = 1;
+    if language.len() <= 3 {
+        // extlang = 3ALPHA *2("-" 3ALPHA)
+        while index <= 3 && at(index).is_some_and(|subtag| subtag.len() == 3 && is_alpha(subtag)) {
+            index += 1;
+        }
+    }
+    // script = 4ALPHA
+    if at(index).is_some_and(|subtag| subtag.len() == 4 && is_alpha(subtag)) {
+        index += 1;
+    }
+    // region = 2ALPHA / 3DIGIT
+    if at(index).is_some_and(|subtag| {
+        (subtag.len() == 2 && is_alpha(subtag)) || (subtag.len() == 3 && is_digits(subtag))
+    }) {
+        index += 1;
+    }
+    // variant = 5*8alphanum / (DIGIT 3alphanum)
+    while at(index).is_some_and(|subtag| {
+        subtag.len() >= 5 || (subtag.len() == 4 && subtag.starts_with(|c: char| c.is_ascii_digit()))
+    }) {
+        index += 1;
+    }
+    // extension = singleton 1*("-" (2*8alphanum))
+    while at(index)
+        .is_some_and(|subtag| subtag.len() == 1 && !eq_ascii_case_insensitive(subtag, "x"))
+    {
+        index += 1;
+        let start = index;
+        while at(index).is_some_and(|subtag| subtag.len() >= 2) {
+            index += 1;
+        }
+        if index == start {
+            return false;
+        }
+    }
+    // privateuse = "x" 1*("-" (1*8alphanum))
+    if at(index).is_some_and(|subtag| eq_ascii_case_insensitive(subtag, "x")) {
+        return index + 1 < subtags.len();
+    }
+    index == subtags.len()
 }
 
 #[cfg(test)]
@@ -133,7 +289,8 @@ mod tests {
     }
 
     // The Boolean kind is shared by every HTML boolean attribute in the
-    // catalog, so the canonical name of each one must be accepted.
+    // catalog (every Boolean attribute that is not an ARIA true/false state),
+    // so the canonical name of each one must be accepted.
     // Claim: "If the attribute is present, its value must either be the empty
     // string or a value that is an ASCII case-insensitive match for the
     // attribute's canonical name, with no leading or trailing whitespace."
@@ -142,7 +299,9 @@ mod tests {
     fn every_catalog_boolean_attribute_accepts_its_own_name() {
         let mut seen = 0;
         for def in svg_data::attributes() {
-            if value_spaces(def).any(|values| matches!(values, AttributeValues::Boolean)) {
+            if !def.name.starts_with("aria-")
+                && value_spaces(def).any(|values| matches!(values, AttributeValues::Boolean))
+            {
                 seen += 1;
                 let upper = def.name.to_ascii_uppercase();
                 accepts(check_boolean, &[def.name, &upper]);
