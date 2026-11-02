@@ -4,14 +4,31 @@
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
 
+use super::syntax::types::{NumericType, UnitlessMode, match_value};
+
 /// `Length`: a `<length-percentage>` (and the keywords SVG allows).
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The catalog uses this value space for `cx`, `cy`, `r`, `x`, `y`, `x1`,
+/// `y1`, `x2`, `y2`, `fx`, `fy` and `fr`. As geometry properties
+/// (<https://svgwg.org/svg2-draft/geometry.html>) their value is
+/// `<length-percentage>`, which a presentation attribute widens to
+/// `[<length-percentage> | <number>]`
+/// (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>).
+/// The gradient and filter attributes of the same names are `<length>`,
+/// `<length-percentage>` or `<number>`, all within that union, so one check
+/// serves every bearer. None of these grammars has a keyword, so `auto` is
+/// invalid (only `rx` and `ry` take it).
+///
+/// CSS-wide keywords, math functions and arbitrary substitution functions
+/// are accepted: the syntax layer reports them as undecidable.
 pub fn check_length(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    match_value(
+        value,
+        NumericType::LengthPercentage,
+        UnitlessMode::PresentationAttribute,
+    )
+    .is_no()
+    .then(|| "expected a length, percentage or number".to_owned())
 }
 
 #[cfg(test)]

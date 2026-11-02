@@ -4,14 +4,603 @@
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
 
+use svg_data::{AttributeDef, AttributeValues};
+
+use super::syntax::{
+    cascade::is_css_wide_keyword_value,
+    microsyntax::{
+        eq_ascii_case_insensitive, find_ascii_case_insensitive, is_xml_whitespace,
+        split_on_ascii_whitespace, strip_ascii_whitespace,
+    },
+    notation::contains_arbitrary_substitution,
+    parser::{ComponentValue, ComponentValueList, parse_component_values},
+    tokenizer::Token,
+    units::{UnitCategory, unit_category},
+};
+
 /// `Enum`: one of a fixed keyword set.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The keyword list alone does not say how the value is parsed, so the check
+/// finds the catalog attributes that use this list and applies each one's
+/// syntax; the value is invalid only when it is invalid for all of them:
+///
+/// - a CSS property (presentation attribute): the property's own grammar,
+///   which can be wider than the catalog list, parsed as CSS with CSS-wide
+///   keywords, comments, escapes and ASCII case-insensitive keywords;
+/// - another presentation attribute this module does not model: accepted;
+/// - an SVG attribute defined with the CSS Value Definition Syntax: exactly
+///   one keyword, parsed as CSS (case-insensitive, whitespace and comments
+///   allowed), but no CSS-wide keywords;
+/// - `attributeType` (SVG 1.1, "values are case-sensitive") and `xml:space`
+///   ("without white space"): the exact strings;
+/// - an ARIA token or token list: case-insensitive tokens, or the empty
+///   string;
+/// - an HTML enumerated attribute: a case-insensitive keyword with no
+///   surrounding whitespace, or the empty string where it has a state.
+///
+/// A list no catalog attribute uses is accepted.
 pub fn check_enum(value: &str, values: &[&str]) -> Option<String> {
-    let _ = (value, values);
-    None
+    // Stop at the first syntax that accepts the value; otherwise keep the
+    // first reason.
+    syntaxes(values)
+        .into_iter()
+        .try_fold(None, |first: Option<String>, syntax| {
+            let reason = syntax.check(value, values)?;
+            Some(first.or(Some(reason)))
+        })
+        .flatten()
+}
+
+/// How a keyword-valued attribute is parsed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Syntax {
+    /// A CSS property value with the given grammar.
+    Property(&'static Rule),
+    /// A presentation attribute whose grammar is not modelled here.
+    Unmodelled,
+    /// An SVG attribute in CSS Value Definition Syntax.
+    Svg,
+    /// The keyword exactly, with surrounding XML whitespace allowed.
+    CaseSensitive,
+    /// The keyword exactly.
+    Exact,
+    /// A WAI-ARIA token, or a token list.
+    Aria {
+        /// Whether the value is a token list.
+        list: bool,
+    },
+    /// An HTML enumerated attribute.
+    Html {
+        /// Whether the empty string is conforming (an empty value default).
+        empty: bool,
+    },
+}
+
+impl Syntax {
+    /// The syntax of `def`, for its element-scoped value space when `scoped`.
+    fn of(def: &AttributeDef, scoped: bool) -> Self {
+        let name = def.name;
+        if name == "xml:space" {
+            return Self::Exact;
+        }
+        if let Some(state) = name.strip_prefix("aria-") {
+            return Self::Aria {
+                list: ARIA_TOKEN_LISTS.contains(&state),
+            };
+        }
+        if !scoped {
+            if let Some(rule) = property_rule(name) {
+                return Self::Property(rule);
+            }
+            if def.presentation_attribute.is_some() {
+                return Self::Unmodelled;
+            }
+        }
+        match name {
+            "crossorigin" => Self::Html { empty: true },
+            "decoding" | "fetchpriority" => Self::Html { empty: false },
+            "attributeType" => Self::CaseSensitive,
+            _ => Self::Svg,
+        }
+    }
+
+    fn check(self, value: &str, keywords: &[&str]) -> Option<String> {
+        match self {
+            Self::Property(rule) => rule.check(value),
+            Self::Unmodelled => None,
+            Self::Svg => check_svg_keyword(value, keywords),
+            Self::CaseSensitive => {
+                let trimmed = value.trim_matches(is_xml_whitespace);
+                (!keywords.contains(&trimmed)).then(|| expected_exactly(keywords))
+            }
+            Self::Exact => (!keywords.contains(&value)).then(|| expected_exactly(keywords)),
+            Self::Aria { list } => check_aria(value, keywords, list),
+            Self::Html { empty } => check_html(value, keywords, empty),
+        }
+    }
+}
+
+/// The ARIA states and properties whose value is a token list
+/// (<https://www.w3.org/TR/wai-aria-1.2/#aria-relevant>,
+/// <https://www.w3.org/TR/wai-aria-1.2/#aria-dropeffect>).
+const ARIA_TOKEN_LISTS: &[&str] = &["relevant", "dropeffect"];
+
+/// The syntaxes of the catalog attributes whose value space is `keywords`.
+fn syntaxes(keywords: &[&str]) -> Vec<Syntax> {
+    let is_list = |values: &AttributeValues| matches!(values, AttributeValues::Enum(list) if list[..] == keywords[..]);
+    let mut found = Vec::new();
+    let mut add = |syntax: Syntax| {
+        if !found.contains(&syntax) {
+            found.push(syntax);
+        }
+    };
+    for def in svg_data::attributes() {
+        let unscoped = std::iter::once(&def.values)
+            .chain(def.value_overrides.iter().map(|(_, values)| values))
+            .any(is_list);
+        if unscoped {
+            add(Syntax::of(def, false));
+        }
+        if def
+            .element_values
+            .iter()
+            .any(|scoped| is_list(&scoped.values))
+        {
+            add(Syntax::of(def, true));
+        }
+    }
+    found
+}
+
+/// A CSS property value grammar, as far as this module checks it.
+#[derive(Debug, PartialEq, Eq)]
+enum Rule {
+    /// Exactly one of the keywords.
+    One(&'static [&'static str]),
+    /// One to `max` of the keywords, in any combination.
+    Several {
+        /// The keywords the grammar uses.
+        keywords: &'static [&'static str],
+        /// The most components a value can have.
+        max: usize,
+    },
+    /// `font-weight`.
+    FontWeight,
+    /// `font-stretch`.
+    FontStretch,
+    /// `font-style`.
+    FontStyle,
+    /// `glyph-orientation-vertical`.
+    GlyphOrientationVertical,
+}
+
+/// The property grammars, by presentation attribute name. Each list is the
+/// union of the SVG 2 and CSS definitions and the SVG 1.1 values still
+/// accepted for presentation attributes.
+static PROPERTIES: &[(&str, Rule)] = &[
+    (
+        "border-top-style",
+        Rule::One(&[
+            "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge", "inset",
+            "outset",
+        ]),
+    ),
+    ("clip-rule", Rule::One(&["nonzero", "evenodd"])),
+    ("fill-rule", Rule::One(&["nonzero", "evenodd"])),
+    (
+        "color-interpolation",
+        Rule::One(&["auto", "sRGB", "linearRGB"]),
+    ),
+    (
+        "color-interpolation-filters",
+        Rule::One(&["auto", "sRGB", "linearRGB"]),
+    ),
+    ("direction", Rule::One(&["ltr", "rtl"])),
+    (
+        "display",
+        Rule::Several {
+            keywords: DISPLAY,
+            max: 3,
+        },
+    ),
+    ("font-kerning", Rule::One(&["auto", "normal", "none"])),
+    ("font-stretch", Rule::FontStretch),
+    ("font-style", Rule::FontStyle),
+    ("font-weight", Rule::FontWeight),
+    ("glyph-orientation-vertical", Rule::GlyphOrientationVertical),
+    ("hyphens", Rule::One(&["none", "manual", "auto"])),
+    (
+        "image-rendering",
+        Rule::One(&[
+            "auto",
+            "smooth",
+            "high-quality",
+            "pixelated",
+            "crisp-edges",
+            "optimizeSpeed",
+            "optimizeQuality",
+        ]),
+    ),
+    ("isolation", Rule::One(&["auto", "isolate"])),
+    (
+        "line-break",
+        Rule::One(&["auto", "loose", "normal", "strict", "anywhere"]),
+    ),
+    ("mask-type", Rule::One(&["luminance", "alpha"])),
+    (
+        "overflow",
+        Rule::Several {
+            keywords: &["visible", "hidden", "clip", "scroll", "auto", "overlay"],
+            max: 2,
+        },
+    ),
+    (
+        "overflow-wrap",
+        Rule::One(&["normal", "break-word", "anywhere"]),
+    ),
+    (
+        "word-wrap",
+        Rule::One(&["normal", "break-word", "anywhere"]),
+    ),
+    (
+        "pointer-events",
+        Rule::One(&[
+            "auto",
+            "bounding-box",
+            "visiblePainted",
+            "visibleFill",
+            "visibleStroke",
+            "visible",
+            "painted",
+            "fill",
+            "stroke",
+            "all",
+            "none",
+        ]),
+    ),
+    (
+        "shape-rendering",
+        Rule::One(&["auto", "optimizeSpeed", "crispEdges", "geometricPrecision"]),
+    ),
+    ("stroke-linecap", Rule::One(&["butt", "round", "square"])),
+    (
+        "stroke-linejoin",
+        Rule::Several {
+            keywords: &[
+                "miter",
+                "miter-clip",
+                "round",
+                "bevel",
+                "arcs",
+                "crop",
+                "fallback",
+            ],
+            max: 2,
+        },
+    ),
+    (
+        "text-align-last",
+        Rule::One(&[
+            "auto",
+            "start",
+            "end",
+            "left",
+            "right",
+            "center",
+            "justify",
+            "match-parent",
+        ]),
+    ),
+    ("text-anchor", Rule::One(&["start", "middle", "end"])),
+    (
+        "text-decoration-style",
+        Rule::One(&["solid", "double", "dotted", "dashed", "wavy"]),
+    ),
+    (
+        "text-orientation",
+        Rule::One(&["mixed", "upright", "sideways", "sideways-right"]),
+    ),
+    (
+        "text-rendering",
+        Rule::One(&[
+            "auto",
+            "optimizeSpeed",
+            "optimizeLegibility",
+            "geometricPrecision",
+        ]),
+    ),
+    (
+        "transform-box",
+        Rule::One(&[
+            "content-box",
+            "border-box",
+            "fill-box",
+            "stroke-box",
+            "view-box",
+        ]),
+    ),
+    (
+        "unicode-bidi",
+        Rule::One(&[
+            "normal",
+            "embed",
+            "isolate",
+            "bidi-override",
+            "isolate-override",
+            "plaintext",
+        ]),
+    ),
+    (
+        "vector-effect",
+        Rule::One(&[
+            "none",
+            "non-scaling-stroke",
+            "non-scaling-size",
+            "non-rotation",
+            "fixed-position",
+        ]),
+    ),
+    (
+        "visibility",
+        Rule::One(&["visible", "hidden", "force-hidden", "collapse"]),
+    ),
+    (
+        "word-break",
+        Rule::One(&[
+            "normal",
+            "break-all",
+            "keep-all",
+            "manual",
+            "auto-phrase",
+            "break-word",
+        ]),
+    ),
+    (
+        "writing-mode",
+        Rule::One(&[
+            "horizontal-tb",
+            "vertical-rl",
+            "vertical-lr",
+            "sideways-rl",
+            "sideways-lr",
+            "lr",
+            "lr-tb",
+            "rl",
+            "rl-tb",
+            "tb",
+            "tb-rl",
+        ]),
+    ),
+];
+
+/// Every keyword of the `display` grammar (CSS Display 4 with the CSS Grid 3
+/// and `MathML` Core extensions) and the CSS 2 values SVG 1.1 lists.
+const DISPLAY: &[&str] = &[
+    "block",
+    "inline",
+    "run-in",
+    "flow",
+    "flow-root",
+    "table",
+    "flex",
+    "grid",
+    "ruby",
+    "list-item",
+    "table-row-group",
+    "table-header-group",
+    "table-footer-group",
+    "table-row",
+    "table-cell",
+    "table-column-group",
+    "table-column",
+    "table-caption",
+    "ruby-base",
+    "ruby-text",
+    "ruby-base-container",
+    "ruby-text-container",
+    "contents",
+    "none",
+    "inline-block",
+    "inline-table",
+    "inline-flex",
+    "inline-grid",
+    "grid-lanes",
+    "inline-grid-lanes",
+    "math",
+    "compact",
+    "marker",
+];
+
+const FONT_WEIGHT_KEYWORDS: &[&str] = &["normal", "bold", "bolder", "lighter"];
+
+const FONT_STRETCH_KEYWORDS: &[&str] = &[
+    "normal",
+    "ultra-condensed",
+    "extra-condensed",
+    "condensed",
+    "semi-condensed",
+    "semi-expanded",
+    "expanded",
+    "extra-expanded",
+    "ultra-expanded",
+    "narrower",
+    "wider",
+];
+
+const FONT_STYLE_KEYWORDS: &[&str] = &["normal", "italic", "oblique", "left", "right"];
+
+fn property_rule(name: &str) -> Option<&'static Rule> {
+    PROPERTIES
+        .iter()
+        .find_map(|(property, rule)| (*property == name).then_some(rule))
+}
+
+impl Rule {
+    /// Check `value` as a presentation attribute with this grammar.
+    fn check(&self, value: &str) -> Option<String> {
+        if is_css_wide_keyword_value(value) {
+            return None;
+        }
+        let list = parse_component_values(value);
+        if is_undecidable(&list) {
+            return None;
+        }
+        let parts: Vec<&ComponentValue<'_>> = list.significant().collect();
+        let valid = match (self, parts.as_slice()) {
+            (Self::One(keywords), [only]) => is_keyword(only, keywords),
+            (Self::Several { keywords, max }, parts) => {
+                (1..=*max).contains(&parts.len())
+                    && parts.iter().all(|part| is_keyword(part, keywords))
+            }
+            (Self::FontWeight, [only]) => {
+                is_keyword(only, FONT_WEIGHT_KEYWORDS)
+                    || number(only).is_some_and(|weight| (1.0..=1000.0).contains(&weight))
+            }
+            (Self::FontStretch, [only]) => {
+                is_keyword(only, FONT_STRETCH_KEYWORDS)
+                    || percentage(only).is_some_and(|width| width >= 0.0)
+            }
+            (Self::FontStyle, [only]) => is_keyword(only, FONT_STYLE_KEYWORDS),
+            (Self::FontStyle, [oblique, angle]) => {
+                is_keyword(oblique, &["oblique"]) && is_angle(angle)
+            }
+            (Self::GlyphOrientationVertical, [only]) => {
+                is_keyword(only, &["auto"]) || is_angle(only)
+            }
+            _ => false,
+        };
+        (!valid).then(|| self.expected())
+    }
+
+    fn expected(&self) -> String {
+        match self {
+            Self::One(keywords) => expected_one_of(keywords),
+            Self::Several { keywords, max } => {
+                format!("expected one to {max} of {}", keywords.join(", "))
+            }
+            Self::FontWeight => {
+                "expected normal, bold, bolder, lighter or a number from 1 to 1000".to_owned()
+            }
+            Self::FontStretch => format!(
+                "expected a non-negative percentage or one of {}",
+                FONT_STRETCH_KEYWORDS.join(", ")
+            ),
+            Self::FontStyle => {
+                "expected normal, italic, left, right, or oblique with an optional angle".to_owned()
+            }
+            Self::GlyphOrientationVertical => "expected auto or an angle".to_owned(),
+        }
+    }
+}
+
+/// Whether the syntax layer cannot decide `list`: a function (a math
+/// function or one this module does not model), an arbitrary substitution
+/// anywhere, or a nesting limit.
+fn is_undecidable(list: &ComponentValueList<'_>) -> bool {
+    list.depth_limited
+        || list
+            .values
+            .iter()
+            .any(|value| matches!(value, ComponentValue::Function(_)))
+        || contains_arbitrary_substitution(&list.values)
+}
+
+/// Whether `value` is an identifier matching one of `keywords` ASCII
+/// case-insensitively.
+fn is_keyword(value: &ComponentValue<'_>, keywords: &[&str]) -> bool {
+    value
+        .ident()
+        .is_some_and(|ident| find_ascii_case_insensitive(ident, keywords).is_some())
+}
+
+const fn number(value: &ComponentValue<'_>) -> Option<f64> {
+    match value {
+        ComponentValue::Token(Token::Number(number)) => Some(number.value),
+        _ => None,
+    }
+}
+
+const fn percentage(value: &ComponentValue<'_>) -> Option<f64> {
+    match value {
+        ComponentValue::Token(Token::Percentage(number)) => Some(number.value),
+        _ => None,
+    }
+}
+
+/// An `<angle>`, or the `<number>` a presentation attribute accepts for it.
+fn is_angle(value: &ComponentValue<'_>) -> bool {
+    match value {
+        ComponentValue::Token(Token::Number(_)) => true,
+        ComponentValue::Token(Token::Dimension { unit, .. }) => {
+            unit_category(unit) == Some(UnitCategory::Angle)
+        }
+        _ => false,
+    }
+}
+
+/// An SVG attribute defined in CSS Value Definition Syntax as a choice of
+/// keywords: one keyword, parsed as CSS.
+fn check_svg_keyword(value: &str, keywords: &[&str]) -> Option<String> {
+    let list = parse_component_values(value);
+    if is_undecidable(&list) {
+        return None;
+    }
+    let mut parts = list.significant();
+    match (parts.next(), parts.next()) {
+        (Some(only), None) if is_keyword(only, keywords) => None,
+        _ => Some(expected_one_of(keywords)),
+    }
+}
+
+/// A WAI-ARIA token (or token list): case-insensitive, surrounding
+/// whitespace and the empty string accepted.
+fn check_aria(value: &str, keywords: &[&str], list: bool) -> Option<String> {
+    let trimmed = strip_ascii_whitespace(value);
+    if trimmed.is_empty() {
+        return None;
+    }
+    let valid = if list {
+        split_on_ascii_whitespace(trimmed).all(|token| {
+            keywords
+                .iter()
+                .flat_map(|keyword| split_on_ascii_whitespace(keyword))
+                .any(|known| eq_ascii_case_insensitive(known, token))
+        })
+    } else {
+        find_ascii_case_insensitive(trimmed, keywords).is_some()
+    };
+    (!valid).then(|| {
+        if list {
+            format!("expected a list of {}", keywords.join(", "))
+        } else {
+            expected_one_of(keywords)
+        }
+    })
+}
+
+/// An HTML enumerated attribute: "An ASCII case-insensitive match for one of
+/// the conforming keywords for that attribute, with no leading or trailing
+/// whitespace", or the empty string when it has an empty value default.
+fn check_html(value: &str, keywords: &[&str], empty: bool) -> Option<String> {
+    if (empty && value.is_empty()) || find_ascii_case_insensitive(value, keywords).is_some() {
+        return None;
+    }
+    let trimmed = strip_ascii_whitespace(value);
+    if trimmed != value && find_ascii_case_insensitive(trimmed, keywords).is_some() {
+        return Some("leading or trailing whitespace is not allowed".to_owned());
+    }
+    Some(expected_one_of(keywords))
+}
+
+fn expected_one_of(keywords: &[&str]) -> String {
+    format!("expected one of {}", keywords.join(", "))
+}
+
+fn expected_exactly(keywords: &[&str]) -> String {
+    format!(
+        "expected exactly one of {} (case-sensitive)",
+        keywords.join(", ")
+    )
 }
 
 #[cfg(test)]
@@ -605,28 +1194,6 @@ mod tests {
     // "none | sum" https://svgwg.org/specs/animations/#AccumulateAttribute
     // "default" https://svgwg.org/specs/animations/#OriginAttribute
     // "rotate | scale | skewX | skewY | translate" https://svgwg.org/specs/animations/#AnimateTransformElementTypeAttribute
-    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-clippath-clippathunits
-    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-mask-maskunits
-    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-mask-maskcontentunits
-    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-filter-filterunits
-    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-filter-primitiveunits
-    // "matrix | saturate | hueRotate | luminanceToAlpha" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecolormatrix-type
-    // "identity | table | discrete | linear | gamma" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
-    // "over | in | out | atop | xor | lighter | arithmetic" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomposite-operator
-    // "erode | dilate" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-femorphology-operator
-    // "duplicate | wrap | mirror | none" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feconvolvematrix-edgemode
-    // "duplicate | wrap | mirror | none" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fegaussianblur-edgemode
-    // "false | true" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feconvolvematrix-preservealpha
-    // "R | G | B | A" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fedisplacementmap-xchannelselector
-    // "R | G | B | A" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fedisplacementmap-ychannelselector
-    // "stitch | noStitch" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feturbulence-stitchtiles
-    // "fractalNoise | turbulence" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feturbulence-type
-    // "If a value is supplied for a show attribute, it must be one of the
-    // values "new", "replace", "embed", "other", and "none"."
-    // https://www.w3.org/TR/xlink11/#show-att
-    // "If a value is supplied for an actuate attribute, it must be be one of
-    // the values "onLoad", "onRequest", "other", and "none"."
-    // https://www.w3.org/TR/xlink11/#actuate-att
     #[test]
     fn svg_attribute_keyword_grammars() {
         assert_attr(
@@ -688,6 +1255,34 @@ mod tests {
             &["rotate", "skewX", "translate"],
             &["matrix"],
         );
+    }
+
+    // Claims: the keyword grammars of the Filter Effects, CSS Masking and
+    // XLink attributes, quoted from each definition.
+    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-clippath-clippathunits
+    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-mask-maskunits
+    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/css-masking-1/#element-attrdef-mask-maskcontentunits
+    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-filter-filterunits
+    // "userSpaceOnUse | objectBoundingBox" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-filter-primitiveunits
+    // "matrix | saturate | hueRotate | luminanceToAlpha" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecolormatrix-type
+    // "identity | table | discrete | linear | gamma" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
+    // "over | in | out | atop | xor | lighter | arithmetic" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomposite-operator
+    // "erode | dilate" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-femorphology-operator
+    // "duplicate | wrap | mirror | none" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feconvolvematrix-edgemode
+    // "duplicate | wrap | mirror | none" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fegaussianblur-edgemode
+    // "false | true" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feconvolvematrix-preservealpha
+    // "R | G | B | A" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fedisplacementmap-xchannelselector
+    // "R | G | B | A" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fedisplacementmap-ychannelselector
+    // "stitch | noStitch" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feturbulence-stitchtiles
+    // "fractalNoise | turbulence" https://drafts.fxtf.org/filter-effects-1/#element-attrdef-feturbulence-type
+    // "If a value is supplied for a show attribute, it must be one of the
+    // values "new", "replace", "embed", "other", and "none"."
+    // https://www.w3.org/TR/xlink11/#show-att
+    // "If a value is supplied for an actuate attribute, it must be be one of
+    // the values "onLoad", "onRequest", "other", and "none"."
+    // https://www.w3.org/TR/xlink11/#actuate-att
+    #[test]
+    fn fx_and_xlink_attribute_keyword_grammars() {
         assert_attr("clipPathUnits", &["userSpaceOnUse"], &["strokeWidth"]);
         assert_on(
             "clipPathUnits",

@@ -4,34 +4,102 @@
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
 
+use super::syntax::{
+    microsyntax::{is_xml_whitespace, strip_ascii_whitespace},
+    parser::{ComponentValue, parse_component_values},
+    tokenizer::Token,
+    types::{NumericType, UnitlessMode, match_value},
+};
+
 /// `Number`: a `<number>`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The catalog uses this value space for the filter primitive numbers
+/// (`k1`, `amplitude`, `surfaceScale`, ...), `pathLength`, `version`,
+/// `stroke-miterlimit` and the ARIA numbers (`aria-valuenow`, ...). Without
+/// the attribute name the check accepts the union of their syntaxes:
+///
+/// - a CSS `<number>` (<https://drafts.csswg.org/css-values-4/#numbers>),
+///   parsed as CSS with whitespace and comments around it, including math
+///   functions, CSS-wide keywords and arbitrary substitution functions;
+/// - the zero-length string an ARIA attribute may have
+///   (<https://www.w3.org/TR/wai-aria-1.2/#state_property_processing>), and
+///   a whitespace-only value as its lenient reading;
+/// - an XML Schema `decimal` (`5.`), the recommended representation of an
+///   ARIA number in XML languages
+///   (<https://www.w3.org/TR/wai-aria-1.2/#typemapping>).
 pub fn check_number(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    if is_blank(value) || !match_value(value, NumericType::Number, UnitlessMode::Css).is_no() {
+        return None;
+    }
+    (!is_xsd_decimal(value)).then(|| "expected a number".to_owned())
 }
 
 /// `Integer`: an `<integer>`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The catalog uses this value space for `tabindex` (an HTML valid integer)
+/// and the ARIA integers (`aria-level`, ...). The check accepts the union of:
+///
+/// - a CSS `<integer>` (<https://drafts.csswg.org/css-values-4/#integers>),
+///   which covers the HTML valid integer and XML Schema `integer` forms, and
+///   anything the syntax layer cannot decide (math functions and the like);
+/// - a CSS `<number>` without a fractional component (`3.0`, `1e3`): ARIA
+///   defines an integer only as "A numerical value without a fractional
+///   component" (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_integer>);
+/// - the zero-length (or whitespace-only) string an ARIA attribute may have.
 pub fn check_integer(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    if is_blank(value)
+        || !match_value(value, NumericType::Integer, UnitlessMode::Css).is_no()
+        || is_integral_number(value)
+    {
+        return None;
+    }
+    Some("expected an integer".to_owned())
 }
 
 /// `NumberOrPercentage`: a `<number>` or `<percentage>`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The catalog uses this value space for the opacity properties, whose value
+/// is `<opacity-value> = <number> | <percentage>`
+/// (<https://drafts.csswg.org/css-color-4/#typedef-opacity-opacity-value>),
+/// and for `offset` on `<stop>`, `<number> | <percentage>`
+/// (<https://svgwg.org/svg2-draft/pservers.html#StopElementOffsetAttribute>).
+/// Out-of-range values are clamped, not invalid, so no range is checked.
 pub fn check_number_or_percentage(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let number = match_value(value, NumericType::Number, UnitlessMode::Css);
+    let percentage = match_value(value, NumericType::Percentage, UnitlessMode::Css);
+    number
+        .or(percentage)
+        .is_no()
+        .then(|| "expected a number or percentage".to_owned())
+}
+
+/// Whether `value` is empty or ASCII whitespace only.
+fn is_blank(value: &str) -> bool {
+    strip_ascii_whitespace(value).is_empty()
+}
+
+/// Whether `value` is one `<number-token>` with no fractional component.
+fn is_integral_number(value: &str) -> bool {
+    let list = parse_component_values(value);
+    let mut significant = list.significant();
+    matches!(
+        (significant.next(), significant.next()),
+        (Some(ComponentValue::Token(Token::Number(number))), None)
+            if number.value.is_finite() && number.value.fract() == 0.0
+    )
+}
+
+/// XML Schema 1.1 Part 2 `decimal` lexical space,
+/// `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)`, after the `collapse` whitespace
+/// facet strips leading and trailing whitespace
+/// (<https://www.w3.org/TR/xmlschema11-2/#decimal>).
+fn is_xsd_decimal(value: &str) -> bool {
+    let body = value.trim_matches(is_xml_whitespace);
+    let body = body.strip_prefix(['+', '-']).unwrap_or(body);
+    let (whole, fraction) = body.split_once('.').unwrap_or((body, ""));
+    let digits = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
+    let has_dot = body.contains('.');
+    digits(whole) && digits(fraction) && (!whole.is_empty() || (has_dot && !fraction.is_empty()))
 }
 
 #[cfg(test)]
