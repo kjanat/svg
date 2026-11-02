@@ -3,17 +3,792 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! [`check_css_grammar`] parses the catalog's grammar text as CSS Value
+//! Definition Syntax (<https://drafts.csswg.org/css-values-4/#value-defs>),
+//! parses the value as CSS component values ("parse something according to a
+//! CSS grammar", <https://drafts.csswg.org/css-syntax-3/#parse-grammar>) and
+//! matches the two with backtracking. The grammar graph in the catalog is a
+//! flat token list without precedence, so the grammar text is the source.
+//!
+//! The value is accepted whole, without matching, when:
+//!
+//! - the grammar references a type, property value range or notation this
+//!   module does not expand, or is not CSS value definition syntax at all
+//!   (`[EBNF]` references, quoted SMIL literals);
+//! - the value is a CSS-wide keyword, a `<whole-value>` notation, contains an
+//!   arbitrary substitution function, or has any top-level function (math
+//!   functions and the many other functional notations stand in for values
+//!   whose type is only known after evaluation).
+//!
+//! Presentation attributes are parsed with `<number>` admitted wherever the
+//! grammar has `<length>`, `<length-percentage>` or `<angle>`
+//! (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>).
+//! The check cannot tell a presentation attribute from another attribute, so
+//! it always does: that only accepts more.
+
+use std::collections::BTreeSet;
 
 use svg_data::CssGrammarGraph;
 
+use super::syntax::{
+    cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
+    notation::{contains_arbitrary_substitution, is_whole_value},
+    parser::{ComponentValue, parse_component_values},
+    tokenizer::Token,
+    types::{NumericType, UnitlessMode, match_numeric},
+};
+
 /// `CssGrammar`: a value matching this CSS value grammar.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
-pub fn check_css_grammar(value: &str, grammar: &str, graph: &CssGrammarGraph) -> Option<String> {
-    let _ = (value, grammar, graph);
-    None
+pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -> Option<String> {
+    if OPAQUE_GRAMMARS.contains(&grammar) {
+        return None;
+    }
+    let effective = WIDENED_GRAMMARS
+        .iter()
+        .find_map(|&(catalog, widened)| (catalog == grammar).then_some(widened))
+        .unwrap_or(grammar);
+    let root = parse_grammar(effective, 0)?;
+
+    let list = parse_component_values(value);
+    if list.depth_limited
+        || contains_arbitrary_substitution(&list.values)
+        || is_whole_value(&list.values)
+        || is_css_wide_keyword_value(value)
+    {
+        return None;
+    }
+    let values: Vec<&ComponentValue<'_>> = list.significant().collect();
+    if values
+        .iter()
+        .any(|value| matches!(value, ComponentValue::Function(_)))
+    {
+        return None;
+    }
+
+    let matches = |ranges: bool| {
+        Matcher {
+            values: &values,
+            ranges,
+        }
+        .ends(&root, 0, true)
+        .contains(&values.len())
+    };
+    if matches(true) {
+        None
+    } else if matches(false) {
+        Some(format!("a number is outside the range `{grammar}` allows"))
+    } else {
+        Some(format!("does not match `{grammar}`"))
+    }
+}
+
+/// Catalog grammars that are not checked here.
+///
+/// - `none | <string>` is the `d` property. Its presentation attribute holds
+///   path data, not a CSS `<string>`: "d will become a presentation attribute
+///   (no name change) with path data string as value"
+///   (<https://svgwg.org/svg2-draft/paths.html#TheDProperty>). Path data has
+///   its own check.
+/// - `<number>+` is how the catalog renders the Filter Effects number lists
+///   (`kernelMatrix`, `tableValues`, `feColorMatrix` `values`), which are
+///   "separated by whitespace and/or a comma" and, for `tableValues`, may be
+///   empty (<https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-tablevalues>).
+const OPAQUE_GRAMMARS: &[&str] = &["none | <string>", "<number>+"];
+
+/// Catalog grammars that a later definition of the same property or
+/// attribute widens, with the grammar matched in their place: the union of
+/// both, so a value either definition allows is accepted.
+const WIDENED_GRAMMARS: &[(&str, &str)] = &[
+    // width, height, inline-size: "auto | <box-size> | <anchor-size()>"
+    // (https://drafts.csswg.org/css-sizing-3/#propdef-width).
+    (
+        "auto | <length-percentage>",
+        "auto | <length-percentage> | <box-size> | <anchor-size()>",
+    ),
+    // letter-spacing, word-spacing: "normal | <length-percentage>"
+    // (https://drafts.csswg.org/css-text-4/#propdef-letter-spacing).
+    ("normal | <length>", "normal | <length-percentage>"),
+    // font-size-adjust (https://drafts.csswg.org/css-fonts-5/#propdef-font-size-adjust).
+    (
+        "none | <number>",
+        "none | <number> | [ ex-height | cap-height | ch-width | ic-width | ic-height ]? [ \
+         from-font | <number [0,∞]> ]",
+    ),
+    // stroke-width: "[ <length-percentage> | <line-width> ]#"
+    // (https://drafts.csswg.org/fill-stroke-3/#propdef-stroke-width). The
+    // other attributes with this grammar only gain values.
+    (
+        "<length-percentage> | <number>",
+        "[ <length-percentage> | <line-width> | <number> ]#",
+    ),
+    // symbol refX/refY are "Similar to the matching attributes on ‘marker’"
+    // (https://svgwg.org/svg2-draft/struct.html#SymbolElementRefXAttribute).
+    (
+        "<length> | left | center | right",
+        "<length-percentage> | <number> | left | center | right",
+    ),
+    (
+        "<length> | top | center | bottom",
+        "<length-percentage> | <number> | top | center | bottom",
+    ),
+];
+
+/// Non-terminals defined by a grammar of their own, expanded in place.
+const NAMED_TYPES: &[(&str, &str)] = &[
+    // https://drafts.csswg.org/css-sizing-4/#typedef-box-size
+    (
+        "box-size",
+        "<length-percentage [0,∞]> | stretch | contain | min-content | max-content | fit-content \
+         | stretch(<length-percentage [0,∞]>) | fit-content(<length-percentage [0,∞]>) | \
+         <calc-size()>",
+    ),
+    // https://drafts.csswg.org/css-borders-4/#typedef-line-width
+    (
+        "line-width",
+        "<length [0,∞]> | hairline | thin | medium | thick",
+    ),
+    // https://svgwg.org/svg2-draft/painting.html#DataTypeDasharray, with
+    // "If any value in the list is negative, the <dasharray> value is
+    // invalid." as the range.
+    (
+        "dasharray",
+        "[ [ <length-percentage [0,∞]> | <number [0,∞]> ]+ ]#",
+    ),
+    // https://svgwg.org/svg2-draft/painting.html#DataTypeMarkerRef
+    ("marker-ref", "<url>"),
+];
+
+/// Markers of attribute value syntaxes other than CSS value definition
+/// syntax (<https://svgwg.org/svg2-draft/types.html#syntax>).
+const FOREIGN_SYNTAX_MARKERS: &[&str] =
+    &["[EBNF]", "[ABNF]", "[URL]", "[HTML]", "(see below)", "\""];
+
+/// How deeply named types may expand into each other.
+const MAX_EXPANSION_DEPTH: usize = 8;
+
+/// The most operands a `&&` or `||` group may have.
+const MAX_INTERLEAVED: usize = 16;
+
+/// A grammar node.
+#[derive(Clone, Debug, PartialEq)]
+enum Node {
+    /// A keyword, matched ASCII case-insensitively.
+    Keyword(String),
+    /// A literal delimiter: `,` `/` `;` `:` or a quoted one.
+    Delim(char),
+    /// A basic data type, with an optional range restriction.
+    Type(Leaf, Range),
+    /// A functional notation, written literally or as `<name()>`. Only a
+    /// function of that name matches; its arguments are not checked.
+    Function(String),
+    /// Juxtaposition.
+    Seq(Vec<Self>),
+    /// `&&`.
+    AllOf(Vec<Self>),
+    /// `||`.
+    AnyOf(Vec<Self>),
+    /// `|`.
+    OneOf(Vec<Self>),
+    /// A multiplier: `min` to `max` repetitions, comma-separated for `#`.
+    Repeat {
+        node: Box<Self>,
+        min: usize,
+        max: Option<usize>,
+        comma: bool,
+    },
+    /// `!`: the group must produce at least one value.
+    Required(Box<Self>),
+}
+
+/// A basic data type the matcher implements.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Leaf {
+    Numeric(NumericType),
+    String,
+    Url,
+    CustomIdent,
+    DashedIdent,
+    Ident,
+}
+
+/// A closed range restriction. A bound that is unrestricted or cannot be
+/// compared is infinite.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Range {
+    min: f64,
+    max: f64,
+}
+
+impl Range {
+    /// No restriction: "If no range is indicated ... then [−∞,∞] is
+    /// assumed."
+    const UNRESTRICTED: Self = Self {
+        min: f64::NEG_INFINITY,
+        max: f64::INFINITY,
+    };
+
+    fn contains(self, value: f64) -> bool {
+        (self.min..=self.max).contains(&value)
+    }
+}
+
+/// One lexical unit of a grammar.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Lexeme<'g> {
+    Keyword(&'g str),
+    /// `name(`.
+    Function(&'g str),
+    /// The text between `<` and `>`.
+    Type(&'g str),
+    Delim(char),
+    OpenGroup,
+    CloseGroup,
+    CloseParen,
+    Bar,
+    DoubleBar,
+    DoubleAmpersand,
+    Star,
+    Plus,
+    Question,
+    Hash,
+    Bang,
+    Braces(usize, Option<usize>),
+}
+
+/// Split a grammar into lexemes, or `None` for text this module does not
+/// read as CSS value definition syntax.
+fn lex(grammar: &str) -> Option<Vec<Lexeme<'_>>> {
+    if FOREIGN_SYNTAX_MARKERS
+        .iter()
+        .any(|marker| grammar.contains(marker))
+    {
+        return None;
+    }
+    let mut lexemes = Vec::new();
+    let mut rest = grammar;
+    while let Some(c) = rest.chars().next() {
+        let (lexeme, len) = match c {
+            c if c.is_whitespace() => {
+                rest = &rest[c.len_utf8()..];
+                continue;
+            }
+            '[' => (Lexeme::OpenGroup, 1),
+            ']' => (Lexeme::CloseGroup, 1),
+            ')' => (Lexeme::CloseParen, 1),
+            '|' if rest.starts_with("||") => (Lexeme::DoubleBar, 2),
+            '|' => (Lexeme::Bar, 1),
+            '&' if rest.starts_with("&&") => (Lexeme::DoubleAmpersand, 2),
+            '*' => (Lexeme::Star, 1),
+            '+' => (Lexeme::Plus, 1),
+            '?' => (Lexeme::Question, 1),
+            '#' => (Lexeme::Hash, 1),
+            '!' => (Lexeme::Bang, 1),
+            ',' | '/' | ';' | ':' => (Lexeme::Delim(c), 1),
+            '{' => {
+                let end = rest.find('}')?;
+                (lex_braces(&rest[1..end])?, end + 1)
+            }
+            '<' => {
+                let end = rest.find('>')?;
+                (Lexeme::Type(rest[1..end].trim()), end + 1)
+            }
+            '\'' => {
+                let mut chars = rest[1..].chars();
+                let delim = chars.next()?;
+                if chars.next() != Some('\'') || delim == '\'' {
+                    return None;
+                }
+                (Lexeme::Delim(delim), 2 + delim.len_utf8())
+            }
+            c if c.is_ascii_alphabetic() || c == '-' || c == '_' => {
+                let len = rest
+                    .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+                    .unwrap_or(rest.len());
+                if rest[len..].starts_with('(') {
+                    (Lexeme::Function(&rest[..len]), len + 1)
+                } else {
+                    (Lexeme::Keyword(&rest[..len]), len)
+                }
+            }
+            _ => return None,
+        };
+        lexemes.push(lexeme);
+        rest = &rest[len..];
+    }
+    Some(lexemes)
+}
+
+/// `{A}`, `{A,}` or `{A,B}`, given the text between the braces.
+fn lex_braces(inner: &str) -> Option<Lexeme<'static>> {
+    let parse = |text: &str| text.trim().parse::<usize>().ok();
+    Some(match inner.split_once(',') {
+        None => {
+            let count = parse(inner)?;
+            Lexeme::Braces(count, Some(count))
+        }
+        Some((min, max)) if max.trim().is_empty() => Lexeme::Braces(parse(min)?, None),
+        Some((min, max)) => Lexeme::Braces(parse(min)?, Some(parse(max)?)),
+    })
+}
+
+/// Parse a grammar, or `None` when it uses anything this module does not
+/// implement.
+fn parse_grammar(grammar: &str, depth: usize) -> Option<Node> {
+    if depth > MAX_EXPANSION_DEPTH {
+        return None;
+    }
+    let lexemes = lex(grammar)?;
+    let mut parser = GrammarParser {
+        lexemes: &lexemes,
+        pos: 0,
+        depth,
+    };
+    let node = parser.alternatives()?;
+    (parser.pos == lexemes.len()).then_some(node)
+}
+
+/// Recursive descent over grammar lexemes, by combinator precedence:
+/// "Juxtaposition is stronger than the double ampersand, the double
+/// ampersand is stronger than the double bar, and the double bar is
+/// stronger than the bar."
+struct GrammarParser<'l, 'g> {
+    lexemes: &'l [Lexeme<'g>],
+    pos: usize,
+    depth: usize,
+}
+
+impl<'g> GrammarParser<'_, 'g> {
+    fn peek(&self) -> Option<Lexeme<'g>> {
+        self.lexemes.get(self.pos).copied()
+    }
+
+    fn eat(&mut self, lexeme: Lexeme<'g>) -> bool {
+        let found = self.peek() == Some(lexeme);
+        if found {
+            self.pos += 1;
+        }
+        found
+    }
+
+    /// Operands joined by `separator`, each parsed by `operand`.
+    fn joined(
+        &mut self,
+        separator: Lexeme<'g>,
+        operand: fn(&mut Self) -> Option<Node>,
+        combine: fn(Vec<Node>) -> Node,
+    ) -> Option<Node> {
+        let mut operands = vec![operand(self)?];
+        while self.eat(separator) {
+            operands.push(operand(self)?);
+        }
+        Some(if operands.len() == 1 {
+            operands.pop()?
+        } else {
+            combine(operands)
+        })
+    }
+
+    fn alternatives(&mut self) -> Option<Node> {
+        self.joined(Lexeme::Bar, Self::any_of, Node::OneOf)
+    }
+
+    fn any_of(&mut self) -> Option<Node> {
+        let node = self.joined(Lexeme::DoubleBar, Self::all_of, Node::AnyOf)?;
+        (!matches!(&node, Node::AnyOf(operands) if operands.len() > MAX_INTERLEAVED))
+            .then_some(node)
+    }
+
+    fn all_of(&mut self) -> Option<Node> {
+        let node = self.joined(Lexeme::DoubleAmpersand, Self::sequence, Node::AllOf)?;
+        (!matches!(&node, Node::AllOf(operands) if operands.len() > MAX_INTERLEAVED))
+            .then_some(node)
+    }
+
+    fn sequence(&mut self) -> Option<Node> {
+        let mut terms = Vec::new();
+        while let Some(lexeme) = self.peek() {
+            if matches!(
+                lexeme,
+                Lexeme::Bar
+                    | Lexeme::DoubleBar
+                    | Lexeme::DoubleAmpersand
+                    | Lexeme::CloseGroup
+                    | Lexeme::CloseParen
+            ) {
+                break;
+            }
+            terms.push(self.term()?);
+        }
+        match terms.len() {
+            0 => None,
+            1 => terms.pop(),
+            _ => Some(Node::Seq(terms)),
+        }
+    }
+
+    fn term(&mut self) -> Option<Node> {
+        let lexeme = self.peek()?;
+        self.pos += 1;
+        let mut node = match lexeme {
+            Lexeme::Keyword(keyword) => Node::Keyword(keyword.to_owned()),
+            Lexeme::Delim(delim) => Node::Delim(delim),
+            Lexeme::Type(reference) => resolve_type(reference, self.depth)?,
+            Lexeme::OpenGroup => {
+                let inner = self.alternatives()?;
+                if !self.eat(Lexeme::CloseGroup) {
+                    return None;
+                }
+                inner
+            }
+            Lexeme::Function(name) => {
+                // The arguments are parsed for well-formedness only: a
+                // function in a value is accepted without matching.
+                if self.peek() != Some(Lexeme::CloseParen) {
+                    self.alternatives()?;
+                }
+                if !self.eat(Lexeme::CloseParen) {
+                    return None;
+                }
+                Node::Function(name.to_owned())
+            }
+            _ => return None,
+        };
+        while let Some(lexeme) = self.peek() {
+            let (min, max, comma) = match lexeme {
+                Lexeme::Star => (0, None, false),
+                Lexeme::Plus => (1, None, false),
+                Lexeme::Question => (0, Some(1), false),
+                Lexeme::Braces(min, max) => (min, max, false),
+                Lexeme::Hash => {
+                    if let Some(Lexeme::Braces(min, max)) = self.lexemes.get(self.pos + 1).copied()
+                    {
+                        self.pos += 1;
+                        (min, max, true)
+                    } else {
+                        (1, None, true)
+                    }
+                }
+                Lexeme::Bang => {
+                    self.pos += 1;
+                    node = Node::Required(Box::new(node));
+                    continue;
+                }
+                _ => break,
+            };
+            self.pos += 1;
+            node = Node::Repeat {
+                node: Box::new(node),
+                min,
+                max,
+                comma,
+            };
+        }
+        Some(node)
+    }
+}
+
+/// The node for `<reference>` (the text between `<` and `>`), or `None` for
+/// a reference this module does not implement.
+fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
+    if reference.starts_with('\'') {
+        // A property value range, <'property'>.
+        return None;
+    }
+    if let Some(name) = reference.strip_suffix("()") {
+        return Some(Node::Function(name.to_owned()));
+    }
+    let (name, range) = match reference.split_once('[') {
+        Some((name, range)) => (name.trim(), parse_range(range.strip_suffix(']')?)?),
+        None => (reference, Range::UNRESTRICTED),
+    };
+    let leaf = match name {
+        "number" => Leaf::Numeric(NumericType::Number),
+        "integer" => Leaf::Numeric(NumericType::Integer),
+        "percentage" => Leaf::Numeric(NumericType::Percentage),
+        "length" => Leaf::Numeric(NumericType::Length),
+        "length-percentage" => Leaf::Numeric(NumericType::LengthPercentage),
+        "angle" => Leaf::Numeric(NumericType::Angle),
+        "angle-percentage" => Leaf::Numeric(NumericType::AnglePercentage),
+        "time" => Leaf::Numeric(NumericType::Time),
+        "time-percentage" => Leaf::Numeric(NumericType::TimePercentage),
+        "frequency" => Leaf::Numeric(NumericType::Frequency),
+        "frequency-percentage" => Leaf::Numeric(NumericType::FrequencyPercentage),
+        "resolution" => Leaf::Numeric(NumericType::Resolution),
+        "flex" => Leaf::Numeric(NumericType::Flex),
+        "string" => Leaf::String,
+        "url" => Leaf::Url,
+        "custom-ident" => Leaf::CustomIdent,
+        "dashed-ident" => Leaf::DashedIdent,
+        "ident" => Leaf::Ident,
+        _ => {
+            if reference.contains('[') {
+                return None;
+            }
+            let (_, grammar) = NAMED_TYPES.iter().find(|(named, _)| *named == name)?;
+            return parse_grammar(grammar, depth + 1);
+        }
+    };
+    Some(Node::Type(leaf, range))
+}
+
+/// The bounds of a bracketed range, `min,max` without the brackets. A bound
+/// of ±∞, or one with a unit other than a zero, is left unchecked.
+fn parse_range(text: &str) -> Option<Range> {
+    let (min, max) = text.split_once(',')?;
+    Some(Range {
+        min: parse_bound(min, f64::NEG_INFINITY)?,
+        max: parse_bound(max, f64::INFINITY)?,
+    })
+}
+
+/// One range bound, `unchecked` when it is ±∞ or not comparable to a value
+/// written in another unit.
+fn parse_bound(text: &str, unchecked: f64) -> Option<f64> {
+    let text = text.trim();
+    let unsigned = text.strip_prefix(['-', '+', '\u{2212}']).unwrap_or(text);
+    if unsigned == "∞" {
+        return Some(unchecked);
+    }
+    let split = text
+        .find(|c: char| !(c.is_ascii_digit() || matches!(c, '.' | '-' | '+')))
+        .unwrap_or(text.len());
+    let value: f64 = text[..split].parse().ok()?;
+    // "Values of 0 can be written without units": a zero is zero in any
+    // unit, other bounds with a unit would need conversion.
+    Some(if split == text.len() || value == 0.0 {
+        value
+    } else {
+        unchecked
+    })
+}
+
+/// Matches parsed values against a grammar node.
+struct Matcher<'v, 'a> {
+    /// The significant (non-whitespace) top-level component values.
+    values: &'v [&'v ComponentValue<'a>],
+    /// Whether range restrictions are checked.
+    ranges: bool,
+}
+
+impl Matcher<'_, '_> {
+    /// Every position at which `node`, matched from `pos`, can end.
+    ///
+    /// `whole` is set while `node` spans the entire value (the root, through
+    /// `|` alternatives), where the comma omission rule can be applied
+    /// exactly.
+    fn ends(&self, node: &Node, pos: usize, whole: bool) -> BTreeSet<usize> {
+        match node {
+            Node::Keyword(_) | Node::Delim(_) | Node::Type(..) | Node::Function(_) => self
+                .values
+                .get(pos)
+                .filter(|value| self.single(node, value))
+                .map(|_| pos + 1)
+                .into_iter()
+                .collect(),
+            Node::Seq(items) => {
+                let mut out = BTreeSet::new();
+                self.sequence(items, pos, false, false, whole, &mut out);
+                out
+            }
+            Node::AllOf(items) => self.interleaved(items, pos, true),
+            Node::AnyOf(items) => self.interleaved(items, pos, false),
+            Node::OneOf(items) => items
+                .iter()
+                .flat_map(|item| self.ends(item, pos, whole))
+                .collect(),
+            Node::Repeat {
+                node,
+                min,
+                max,
+                comma,
+            } => self.repeat(node, pos, *min, *max, *comma),
+            Node::Required(node) => {
+                let mut ends = self.ends(node, pos, whole);
+                ends.remove(&pos);
+                ends
+            }
+        }
+    }
+
+    /// Whether one component value matches a single-value node.
+    fn single(&self, node: &Node, value: &ComponentValue<'_>) -> bool {
+        match node {
+            Node::Keyword(keyword) => value
+                .ident()
+                .is_some_and(|ident| ident.eq_ignore_ascii_case(keyword)),
+            Node::Delim(delim) => {
+                matches!(
+                    (delim, value),
+                    (',', ComponentValue::Token(Token::Comma))
+                        | (';', ComponentValue::Token(Token::Semicolon))
+                        | (':', ComponentValue::Token(Token::Colon))
+                ) || matches!(value, ComponentValue::Token(Token::Delim(c)) if c == delim)
+            }
+            Node::Function(name) => {
+                matches!(value, ComponentValue::Function(function) if function.name.eq_ignore_ascii_case(name))
+            }
+            Node::Type(leaf, range) => {
+                leaf_matches(*leaf, value) && (!self.ranges || in_range(*range, value))
+            }
+            _ => false,
+        }
+    }
+
+    fn is_comma(&self, pos: usize) -> bool {
+        matches!(
+            self.values.get(pos),
+            Some(ComponentValue::Token(Token::Comma))
+        )
+    }
+
+    /// Juxtaposed `items` from `pos`, applying the comma omission rule
+    /// (<https://drafts.csswg.org/css-values-4/#comb-comma>): a grammar
+    /// comma is matched only between two items that were not omitted, and
+    /// adjacent grammar commas collapse into one. `any_before` records that
+    /// an earlier item consumed values; `pending` that a grammar comma is
+    /// waiting for the next item that does.
+    ///
+    /// Outside a whole value the items around a group are unknown here, so
+    /// at the edges of the group a comma may be either present or omitted.
+    fn sequence(
+        &self,
+        items: &[Node],
+        pos: usize,
+        any_before: bool,
+        pending: bool,
+        whole: bool,
+        out: &mut BTreeSet<usize>,
+    ) {
+        let Some((item, rest)) = items.split_first() else {
+            out.insert(pos);
+            if pending && !whole && self.is_comma(pos) {
+                out.insert(pos + 1);
+            }
+            return;
+        };
+        if *item == Node::Delim(',') {
+            self.sequence(rest, pos, any_before, true, whole, out);
+            return;
+        }
+        let here = self.ends(item, pos, false);
+        if here.contains(&pos) {
+            self.sequence(rest, pos, any_before, pending, whole, out);
+        }
+        let comma_required = pending && any_before;
+        if !comma_required {
+            for &end in here.iter().filter(|&&end| end > pos) {
+                self.sequence(rest, end, true, false, whole, out);
+            }
+        }
+        if (comma_required || (pending && !whole)) && self.is_comma(pos) {
+            for end in self.ends(item, pos + 1, false) {
+                if end > pos + 1 {
+                    self.sequence(rest, end, true, false, whole, out);
+                }
+            }
+        }
+    }
+
+    /// `&&` (`all`) or `||` operands from `pos`, in any order, each at most
+    /// once.
+    fn interleaved(&self, items: &[Node], pos: usize, all: bool) -> BTreeSet<usize> {
+        let full = (1_u32 << items.len()) - 1;
+        let mut out = BTreeSet::new();
+        let mut seen = BTreeSet::new();
+        let mut pending = vec![(pos, 0_u32)];
+        while let Some((at, used)) = pending.pop() {
+            if !seen.insert((at, used)) {
+                continue;
+            }
+            if (all && used == full) || (!all && used != 0) {
+                out.insert(at);
+            }
+            for (index, item) in items.iter().enumerate() {
+                let bit = 1 << index;
+                if used & bit == 0 {
+                    pending.extend(
+                        self.ends(item, at, false)
+                            .into_iter()
+                            .map(|end| (end, used | bit)),
+                    );
+                }
+            }
+        }
+        out
+    }
+
+    /// `min` to `max` repetitions of `node` from `pos`, separated by commas
+    /// when `comma` is set.
+    fn repeat(
+        &self,
+        node: &Node,
+        pos: usize,
+        min: usize,
+        max: Option<usize>,
+        comma: bool,
+    ) -> BTreeSet<usize> {
+        let mut out = BTreeSet::new();
+        if min == 0 {
+            out.insert(pos);
+        }
+        let mut frontier = BTreeSet::from([pos]);
+        let mut count = 0;
+        while !frontier.is_empty() && max.is_none_or(|max| count < max) {
+            let mut next = BTreeSet::new();
+            for &at in &frontier {
+                let start = if comma && count > 0 {
+                    if !self.is_comma(at) {
+                        continue;
+                    }
+                    at + 1
+                } else {
+                    at
+                };
+                next.extend(self.ends(node, start, false));
+            }
+            count += 1;
+            if count >= min {
+                // A position reached again after more repetitions can only
+                // reach what it reached before.
+                next.retain(|&end| out.insert(end));
+            }
+            if count > min + self.values.len() {
+                break;
+            }
+            frontier = next;
+        }
+        out
+    }
+}
+
+/// Whether `value` is a literal of `leaf`.
+fn leaf_matches(leaf: Leaf, value: &ComponentValue<'_>) -> bool {
+    let ComponentValue::Token(token) = value else {
+        return false;
+    };
+    match leaf {
+        Leaf::Numeric(ty) => !match_numeric(value, ty, UnitlessMode::PresentationAttribute).is_no(),
+        Leaf::String => matches!(token, Token::String(_)),
+        Leaf::Url => matches!(token, Token::Url(_)),
+        Leaf::CustomIdent => matches!(
+            token,
+            Token::Ident(ident)
+                if !is_css_wide_keyword(ident) && !ident.eq_ignore_ascii_case("default")
+        ),
+        Leaf::DashedIdent => matches!(token, Token::Ident(ident) if ident.starts_with("--")),
+        Leaf::Ident => matches!(token, Token::Ident(_)),
+    }
+}
+
+/// Whether a numeric literal lies within `range`.
+fn in_range(range: Range, value: &ComponentValue<'_>) -> bool {
+    match value {
+        ComponentValue::Token(
+            Token::Number(number) | Token::Percentage(number) | Token::Dimension { number, .. },
+        ) => range.contains(number.value),
+        _ => true,
+    }
 }
 
 #[cfg(test)]
