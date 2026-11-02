@@ -58,7 +58,8 @@ pub fn check_color(value: &str) -> Option<String> {
 /// `Paint`: an SVG `<paint>`.
 ///
 /// `<paint> = none | <color> | <url> [none | <color>]? | context-fill |
-/// context-stroke`, with the SVG 1.1 `<icccolor>` allowed after a color.
+/// context-stroke`, with the SVG 1.1 `<icccolor>` allowed after a color and
+/// the deferred CSS Fill and Stroke 3 `child` keyword allowed on its own.
 pub fn check_paint(value: &str) -> Option<String> {
     let list = parse_component_values(value);
     if is_undecidable(value, &list) {
@@ -94,7 +95,9 @@ fn single_paint_reason(value: &ComponentValue<'_>) -> Option<String> {
         return None;
     }
     if let Some(ident) = value.ident() {
-        if ["none", "context-fill", "context-stroke"]
+        // `child` is the CSS Fill and Stroke 3 `<svg-paint>` keyword SVG 2
+        // deferred; `child(<integer>)` is accepted as an unknown function.
+        if ["none", "context-fill", "context-stroke", "child"]
             .iter()
             .any(|keyword| keyword.eq_ignore_ascii_case(ident))
         {
