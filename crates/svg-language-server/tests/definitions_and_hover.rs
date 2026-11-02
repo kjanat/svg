@@ -826,3 +826,232 @@ fn hover_browser_selection_and_sections_update_without_restarting() -> TestResul
     server.shutdown_and_exit()?;
     Ok(())
 }
+
+#[test]
+fn path_data_hover_sketches_the_geometry() -> TestResult {
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><path d="M0 0 H20 V20 H0 Z" fill="none"/></svg>"#;
+    let uri = "file:///path-sketch.svg";
+    server.open(uri, source)?;
+
+    let request =
+        |column| json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}});
+    let name_column = u32::try_from(source.find(" d=").ok_or("d attribute")? + 1)?;
+    let value_column = u32::try_from(source.find("H20").ok_or("path data")?)?;
+
+    // Hovering the attribute name shows the sketch above the catalog entry.
+    let on_name = server.request("textDocument/hover", &request(name_column))?;
+    let name_text = on_name["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover on d attribute name")?;
+    assert!(
+        name_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "hover should carry a braille sketch: {name_text}"
+    );
+    assert!(
+        name_text.contains("5 commands") && name_text.contains("1 subpath"),
+        "hover should summarize the geometry: {name_text}"
+    );
+    assert!(
+        name_text.contains("20 × 20 units"),
+        "hover should report the extent in user units: {name_text}"
+    );
+    assert!(
+        name_text.contains("MDN Reference"),
+        "the catalog entry should survive alongside the sketch: {name_text}"
+    );
+
+    // Hovering inside the value sketches too, where there was no hover before.
+    let in_value = server.request("textDocument/hover", &request(value_column))?;
+    let value_text = in_value["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover inside path data")?;
+    assert!(
+        value_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "hovering path data should sketch it: {value_text}"
+    );
+
+    // The sketch is an opt-out section like every other hover block.
+    server.change_configuration(&json!({"svg":{"hover":{"sections":["description"]}}}))?;
+    let disabled = server.request("textDocument/hover", &request(name_column))?;
+    let disabled_text = disabled["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover with the sketch disabled")?;
+    assert!(
+        !disabled_text
+            .chars()
+            .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "dropping path_sketch from sections should remove the sketch: {disabled_text}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn unparsable_path_data_hover_keeps_the_catalog_entry() -> TestResult {
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><path d="M0 0 L"/></svg>"#;
+    let uri = "file:///path-sketch-invalid.svg";
+    server.open(uri, source)?;
+
+    let column = u32::try_from(source.find(" d=").ok_or("d attribute")? + 1)?;
+    let response = server.request(
+        "textDocument/hover",
+        &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+    )?;
+    let text = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover on truncated path data")?;
+    assert!(
+        !text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "truncated path data should not sketch a guess: {text}"
+    );
+    assert!(
+        text.contains("MDN Reference"),
+        "the catalog entry should still render: {text}"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn foreign_namespace_path_attribute_is_not_sketched() -> TestResult {
+    // The host grammar keys `d_attribute` off the attribute spelling alone, so
+    // foreign markup carrying a `d` must not borrow the SVG path sketch.
+    let mut server = TestServer::start()?;
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><shape d="M0 0 H20 V20 Z"/></foreignObject></svg>"#;
+    let uri = "file:///foreign-path-sketch.svg";
+    server.open(uri, source)?;
+
+    for needle in [" d=", "H20"] {
+        let column = u32::try_from(source.find(needle).ok_or("attribute present")? + 1)?;
+        let response = server.request(
+            "textDocument/hover",
+            &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+        )?;
+        let rendered = response["result"]["contents"]["value"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(
+            !rendered
+                .chars()
+                .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+            "foreign content must not get an SVG path sketch at {needle}: {response}"
+        );
+    }
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+#[test]
+fn path_attribute_is_only_sketched_where_it_applies() -> TestResult {
+    // The grammar keys `d_attribute` off the spelling, so a `path` attribute on
+    // a shape that never takes one must not be sketched as if it drew anything,
+    // while the element it does apply to still is.
+    let mut server = TestServer::start()?;
+    let source = r#"<svg><rect path="M0 0 L10 10"/><animateMotion path="M0 0 L10 10"/></svg>"#;
+    let uri = "file:///path-attr-applicability.svg";
+    server.open(uri, source)?;
+
+    let braille = |text: &str| text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c));
+    let hover =
+        |server: &mut TestServer, column: u32| -> Result<String, Box<dyn std::error::Error>> {
+            let response = server.request(
+                "textDocument/hover",
+                &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+            )?;
+            Ok(response["result"]["contents"]["value"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned())
+        };
+
+    let on_rect = u32::try_from(source.find(" path=").ok_or("rect path attr")? + 1)?;
+    let on_motion = u32::try_from(source.rfind(" path=").ok_or("animateMotion path attr")? + 1)?;
+    assert!(
+        !braille(&hover(&mut server, on_rect)?),
+        "`path` on a rect draws nothing and must not be sketched"
+    );
+    assert!(
+        braille(&hover(&mut server, on_motion)?),
+        "`path` on animateMotion should still sketch"
+    );
+
+    server.shutdown_and_exit()?;
+    Ok(())
+}
+
+/// The sketch is cached per document and `d` value, so the danger is a stale
+/// one: editing the path must change the picture, and a second hover inside
+/// the same unchanged value must give the same one.
+#[test]
+fn path_sketch_cache_survives_the_cursor_and_not_an_edit() -> TestResult {
+    let mut server = TestServer::start()?;
+    let square = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 h50 v50 h-50 z"/></svg>"#;
+    server.open("file:///sketch-cache.svg", square)?;
+
+    let sketch_at =
+        |server: &mut TestServer, character: u64| -> Result<String, Box<dyn std::error::Error>> {
+            let response = server.request(
+                "textDocument/hover",
+                &json!({
+                    "textDocument": { "uri": "file:///sketch-cache.svg" },
+                    "position": { "line": 0, "character": character }
+                }),
+            )?;
+            Ok(response["result"]["contents"]["value"]
+                .as_str()
+                .ok_or("hover value")?
+                .to_owned())
+        };
+
+    // Two positions inside the same value: the attribute name and the data.
+    // Read from the fixture rather than counted, so an edit to the prologue
+    // cannot move the cursor off the constructs this test is about.
+    let on_name = u64::try_from(square.find(" d=").ok_or("the d attribute")? + 1)?;
+    let in_value = u64::try_from(square.find("h50").ok_or("the path data")?)?;
+    let on_name = sketch_at(&mut server, on_name)?;
+    let in_value = sketch_at(&mut server, in_value)?;
+    assert!(
+        on_name.contains('\u{2800}') || on_name.contains('\u{28ff}') || on_name.contains('⠀'),
+        "the attribute-name hover should carry a sketch: {on_name}"
+    );
+    // Only the dots: the two hovers carry different surrounding prose, and it
+    // is the picture that has to match.
+    let braille_of = |text: &str| -> String {
+        text.chars()
+            .filter(|glyph| ('\u{2800}'..='\u{28ff}').contains(glyph))
+            .collect()
+    };
+    assert_eq!(
+        braille_of(&on_name),
+        braille_of(&in_value),
+        "the same value should draw the same picture wherever the cursor sits"
+    );
+
+    // Now change the geometry; the cached picture must not survive it.
+    let tall = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 h10 v90 h-10 z"/></svg>"#;
+    server.notify(
+        "textDocument/didChange",
+        &json!({
+            "textDocument": { "uri": "file:///sketch-cache.svg", "version": 2 },
+            "contentChanges": [{ "text": tall }]
+        }),
+    )?;
+
+    let in_tall_value = u64::try_from(tall.find("h10").ok_or("the edited path data")?)?;
+    let after_edit = sketch_at(&mut server, in_tall_value)?;
+    assert_ne!(
+        braille_of(&in_value),
+        braille_of(&after_edit),
+        "editing the path must redraw it, not serve the cached picture"
+    );
+    server.shutdown_and_exit()
+}

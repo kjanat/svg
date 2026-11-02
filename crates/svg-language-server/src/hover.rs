@@ -10,9 +10,47 @@ use crate::{
     clipboard::svg_data_uri,
     compat::{CompatOverride, Outcome},
     hover_settings::{BrowserDetail, HoverSettings, Section, browser_label},
+    path_preview::Sketch,
     positions::byte_offset_for_row_col,
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
 };
+
+/// Render a path sketch as a fenced block, so the braille grid keeps its
+/// column alignment in clients that reflow prose.
+pub fn format_path_sketch(sketch: &Sketch) -> String {
+    let commands = plural(sketch.commands, "command");
+    let subpaths = plural(sketch.subpaths, "subpath");
+    let width = round_extent(sketch.width);
+    let height = round_extent(sketch.height);
+    format!(
+        "```text\n{}\n```\n\n{commands} · {subpaths} · {width} × {height} units",
+        sketch.art
+    )
+}
+
+fn plural(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("{count} {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
+}
+
+/// Trim an extent to two decimals without leaving a trailing `.00`.
+///
+/// Geometry finer than that keeps scientific notation instead: rounding a
+/// drawn extent to `0` would report real geometry as degenerate.
+fn round_extent(value: f64) -> String {
+    let magnitude = value.abs();
+    if magnitude > 0.0 && magnitude < 0.01 {
+        return format!("{value:.2e}");
+    }
+    let rounded = format!("{value:.2}");
+    rounded
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_owned()
+}
 
 struct HoverSourceLink {
     label: String,
@@ -1834,6 +1872,39 @@ mod tests {
             Some(vec![svg_data::VerdictReason::ProfileObsolete {
                 last_seen: SpecSnapshotId::Svg11Rec20110816
             }])
+        );
+    }
+
+    #[test]
+    fn path_sketch_summary_keeps_small_extents_visible() {
+        let sketch = Sketch {
+            art: "\u{2801}".to_owned(),
+            commands: 2,
+            subpaths: 1,
+            width: 0.001,
+            height: 0.0,
+        };
+        let summary = format_path_sketch(&sketch);
+        assert!(
+            summary.contains("1.00e-3 × 0 units"),
+            "a drawn extent must not round away to zero: {summary}"
+        );
+        assert!(summary.contains("2 commands · 1 subpath"), "{summary}");
+    }
+
+    #[test]
+    fn path_sketch_summary_trims_whole_extents() {
+        let sketch = Sketch {
+            art: "\u{2801}".to_owned(),
+            commands: 1,
+            subpaths: 1,
+            width: 20.0,
+            height: 10.5,
+        };
+        assert!(
+            format_path_sketch(&sketch).contains("20 × 10.5 units"),
+            "{}",
+            format_path_sketch(&sketch)
         );
     }
 }
