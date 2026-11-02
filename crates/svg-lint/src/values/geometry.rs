@@ -3,41 +3,490 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! The `transform`, `patternTransform` and `gradientTransform` attributes
+//! have two definitions that disagree: the legacy SVG grammar of CSS
+//! Transforms 1 §6.2 (<https://drafts.csswg.org/css-transforms-1/#svg-syntax>:
+//! unitless numbers only, commas or whitespace between arguments and between
+//! functions, `rotate(a cx cy)`), and SVG 2's rule that a presentation
+//! attribute is parsed as a value of its property
+//! (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>:
+//! the CSS `transform` grammar `none | <transform-list>`, comma-separated
+//! arguments, units, with a bare `<number>` admitted for lengths and angles).
+//! A value is accepted when either definition accepts it.
+//!
+//! `preserveAspectRatio` follows SVG 2's `<align> <meetOrSlice>?`
+//! (<https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute>),
+//! parsed as CSS (<https://svgwg.org/svg2-draft/types.html#attribute-css-value>),
+//! so keywords match ASCII case-insensitively and comments are allowed.
 
-/// `Transform`: a transform list using these functions.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
-pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
-    let _ = (value, functions);
-    None
+use super::syntax::cascade::is_css_wide_keyword_value;
+use super::syntax::notation::{contains_arbitrary_substitution, is_whole_value};
+use super::syntax::parser::{BlockKind, ComponentValue, parse_component_values};
+use super::syntax::tokenizer::Token;
+use super::syntax::types::{Match, NumericType, UnitlessMode, match_numeric};
+
+/// The argument types of the CSS transform functions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Arg {
+    /// `<number>`.
+    Number,
+    /// `[ <number> | <percentage> ]`.
+    NumberOrPercentage,
+    /// `<length-percentage>`.
+    LengthPercentage,
+    /// `<length>`.
+    Length,
+    /// `[ <angle> | <zero> ]`.
+    Angle,
+    /// `[ <length [0,∞]> | none ]`.
+    Perspective,
 }
 
+/// A CSS transform function: CSS Transforms 1 §7.1 and CSS Transforms 2
+/// §12 (<https://drafts.csswg.org/css-transforms-2/#three-d-transform-functions>).
+struct CssFunction {
+    /// The name as the specs write it.
+    name: &'static str,
+    /// The argument types, in order.
+    args: &'static [Arg],
+    /// How many trailing arguments may be omitted.
+    optional: usize,
+    /// The arguments both definitions accept, for the diagnostic.
+    usage: &'static str,
+    /// The argument counts of the legacy SVG form, for the six functions of
+    /// CSS Transforms 1 §6.2.
+    svg_counts: &'static [usize],
+}
+
+const fn css(
+    name: &'static str,
+    args: &'static [Arg],
+    optional: usize,
+    usage: &'static str,
+) -> CssFunction {
+    CssFunction {
+        name,
+        args,
+        optional,
+        usage,
+        svg_counts: &[],
+    }
+}
+
+const fn svg_and_css(
+    name: &'static str,
+    args: &'static [Arg],
+    optional: usize,
+    usage: &'static str,
+    svg_counts: &'static [usize],
+) -> CssFunction {
+    CssFunction {
+        name,
+        args,
+        optional,
+        usage,
+        svg_counts,
+    }
+}
+
+const ANGLE: &[Arg] = &[Arg::Angle];
+const NUMBER_OR_PERCENTAGE: &[Arg] = &[Arg::NumberOrPercentage];
+const LENGTH_PERCENTAGE: &[Arg] = &[Arg::LengthPercentage];
+
+/// Every transform function either definition allows.
+const TRANSFORM_FUNCTIONS: &[CssFunction] = &[
+    svg_and_css("matrix", &[Arg::Number; 6], 0, "six numbers", &[6]),
+    svg_and_css(
+        "translate",
+        &[Arg::LengthPercentage; 2],
+        1,
+        "one or two numbers, lengths or percentages",
+        &[1, 2],
+    ),
+    css(
+        "translateX",
+        LENGTH_PERCENTAGE,
+        0,
+        "one number, length or percentage",
+    ),
+    css(
+        "translateY",
+        LENGTH_PERCENTAGE,
+        0,
+        "one number, length or percentage",
+    ),
+    svg_and_css(
+        "scale",
+        &[Arg::NumberOrPercentage; 2],
+        1,
+        "one or two numbers or percentages",
+        &[1, 2],
+    ),
+    css(
+        "scaleX",
+        NUMBER_OR_PERCENTAGE,
+        0,
+        "one number or percentage",
+    ),
+    css(
+        "scaleY",
+        NUMBER_OR_PERCENTAGE,
+        0,
+        "one number or percentage",
+    ),
+    svg_and_css(
+        "rotate",
+        ANGLE,
+        0,
+        "one angle or number, or three numbers (angle, cx, cy)",
+        &[1, 3],
+    ),
+    css(
+        "skew",
+        &[Arg::Angle; 2],
+        1,
+        "one or two comma-separated angles or numbers",
+    ),
+    svg_and_css("skewX", ANGLE, 0, "one angle or number", &[1]),
+    svg_and_css("skewY", ANGLE, 0, "one angle or number", &[1]),
+    css(
+        "matrix3d",
+        &[Arg::Number; 16],
+        0,
+        "sixteen comma-separated numbers",
+    ),
+    css(
+        "translate3d",
+        &[Arg::LengthPercentage, Arg::LengthPercentage, Arg::Length],
+        0,
+        "two lengths or percentages and a length, separated by commas",
+    ),
+    css("translateZ", &[Arg::Length], 0, "one number or length"),
+    css(
+        "scale3d",
+        &[Arg::NumberOrPercentage; 3],
+        0,
+        "three comma-separated numbers or percentages",
+    ),
+    css(
+        "scaleZ",
+        NUMBER_OR_PERCENTAGE,
+        0,
+        "one number or percentage",
+    ),
+    css(
+        "rotate3d",
+        &[Arg::Number, Arg::Number, Arg::Number, Arg::Angle],
+        0,
+        "three numbers and an angle, separated by commas",
+    ),
+    css("rotateX", ANGLE, 0, "one angle or number"),
+    css("rotateY", ANGLE, 0, "one angle or number"),
+    css("rotateZ", ANGLE, 0, "one angle or number"),
+    css(
+        "perspective",
+        &[Arg::Perspective],
+        0,
+        "one non-negative length, or none",
+    ),
+];
+
+/// `Transform`: a transform list using these functions.
+///
+/// `functions` is the catalog's list of the functions the attribute allows;
+/// an empty list allows every transform function.
+pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
+    let list = parse_component_values(value);
+    if list.depth_limited
+        || contains_arbitrary_substitution(&list.values)
+        || is_whole_value(&list.values)
+        || is_css_wide_keyword_value(value)
+    {
+        return None;
+    }
+    let items: Vec<&ComponentValue<'_>> = list.significant().collect();
+    if let [only] = items.as_slice()
+        && only
+            .ident()
+            .is_some_and(|ident| ident.eq_ignore_ascii_case("none"))
+    {
+        return None;
+    }
+    let mut seen_function = false;
+    let mut after_comma = false;
+    let mut items = items.into_iter().peekable();
+    while let Some(item) = items.next() {
+        let reason = match item {
+            ComponentValue::Function(function) => {
+                check_function(&function.name, &function.value, true, functions)
+            }
+            // The legacy form allows whitespace before the `(`:
+            // `"translate" wsp* "("`.
+            ComponentValue::Token(Token::Ident(name)) => match items.next_if(|next| {
+                matches!(next, ComponentValue::Block(block) if block.kind == BlockKind::Paren)
+            }) {
+                Some(ComponentValue::Block(block)) => {
+                    check_function(name, &block.value, false, functions)
+                }
+                _ if name.eq_ignore_ascii_case("none") => {
+                    Some("none cannot be combined with transform functions".to_owned())
+                }
+                _ => Some(format!(
+                    "expected a transform function, found {}",
+                    describe(item)
+                )),
+            },
+            ComponentValue::Token(Token::Comma) => {
+                if !seen_function || after_comma {
+                    return Some("a comma must sit between two transform functions".to_owned());
+                }
+                after_comma = true;
+                continue;
+            }
+            other => Some(format!(
+                "expected a transform function, found {}",
+                describe(other)
+            )),
+        };
+        if reason.is_some() {
+            return reason;
+        }
+        seen_function = true;
+        after_comma = false;
+    }
+    after_comma.then(|| "a transform list cannot end with a comma".to_owned())
+}
+
+/// Check one transform function. `function_token` is false for the legacy
+/// `name (` form, which only the SVG grammar allows.
+fn check_function(
+    name: &str,
+    args: &[ComponentValue<'_>],
+    function_token: bool,
+    functions: &[&str],
+) -> Option<String> {
+    let Some(known) = TRANSFORM_FUNCTIONS
+        .iter()
+        .find(|known| known.name.eq_ignore_ascii_case(name))
+    else {
+        return Some(format!("unknown transform function {name}()"));
+    };
+    if !functions.is_empty()
+        && !functions
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(known.name))
+    {
+        return Some(format!("{}() is not allowed here", known.name));
+    }
+    let svg = if known.svg_counts.is_empty() {
+        Match::No
+    } else {
+        match_svg_args(args, known.svg_counts)
+    };
+    let css = if function_token {
+        match_css_args(args, known)
+    } else {
+        Match::No
+    };
+    svg.or(css)
+        .is_no()
+        .then(|| format!("{}() takes {}", known.name, known.usage))
+}
+
+/// The legacy arguments: `number ( comma-wsp? number )*` with one of
+/// `counts` numbers, `wsp*` around them.
+fn match_svg_args(args: &[ComponentValue<'_>], counts: &[usize]) -> Match {
+    let mut numbers = 0;
+    let mut after_comma = false;
+    for arg in args.iter().filter(|arg| !arg.is_whitespace()) {
+        match arg {
+            ComponentValue::Token(Token::Number(_)) => {
+                numbers += 1;
+                after_comma = false;
+            }
+            ComponentValue::Token(Token::Comma) if numbers > 0 && !after_comma => {
+                after_comma = true;
+            }
+            _ => return Match::No,
+        }
+    }
+    Match::from(!after_comma && counts.contains(&numbers))
+}
+
+/// The CSS arguments: comma-separated, one component value each.
+fn match_css_args(args: &[ComponentValue<'_>], function: &CssFunction) -> Match {
+    let groups: Vec<&[ComponentValue<'_>]> = if args.iter().all(ComponentValue::is_whitespace) {
+        Vec::new()
+    } else {
+        args.split(|arg| matches!(arg, ComponentValue::Token(Token::Comma)))
+            .collect()
+    };
+    let max = function.args.len();
+    if groups.len() < max - function.optional || groups.len() > max {
+        return Match::No;
+    }
+    let mut result = Match::Yes;
+    for (group, &ty) in groups.iter().zip(function.args) {
+        let mut significant = group.iter().filter(|value| !value.is_whitespace());
+        let (Some(value), None) = (significant.next(), significant.next()) else {
+            return Match::No;
+        };
+        match match_arg(value, ty) {
+            Match::No => return Match::No,
+            Match::Unknown => result = Match::Unknown,
+            Match::Yes => {}
+        }
+    }
+    result
+}
+
+/// One CSS argument, with the SVG 2 presentation attribute rule that admits
+/// a bare `<number>` for `<length>`, `<length-percentage>` and `<angle>`.
+fn match_arg(value: &ComponentValue<'_>, ty: Arg) -> Match {
+    let mode = UnitlessMode::PresentationAttribute;
+    match ty {
+        Arg::Number => match_numeric(value, NumericType::Number, mode),
+        Arg::NumberOrPercentage => match_numeric(value, NumericType::Number, mode)
+            .or(match_numeric(value, NumericType::Percentage, mode)),
+        Arg::LengthPercentage => match_numeric(value, NumericType::LengthPercentage, mode),
+        Arg::Length => match_numeric(value, NumericType::Length, mode),
+        Arg::Angle => match_numeric(value, NumericType::Angle, mode),
+        Arg::Perspective => {
+            if value
+                .ident()
+                .is_some_and(|ident| ident.eq_ignore_ascii_case("none"))
+            {
+                return Match::Yes;
+            }
+            // `<length [0,∞]>`: a negative length literal is out of range. A
+            // bare number stands for the substituted `<number>`, which has no
+            // range.
+            if let ComponentValue::Token(Token::Dimension { number, .. }) = value
+                && number.value < 0.0
+            {
+                return Match::No;
+            }
+            match_numeric(value, NumericType::Length, mode)
+        }
+    }
+}
+
+/// The SVG 2 `<align>` keywords.
+const SVG2_ALIGNMENTS: &[&str] = &[
+    "none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax",
+    "xMidYMax", "xMaxYMax",
+];
+
+/// The SVG 2 `<meetOrSlice>` keywords.
+const SVG2_MEET_OR_SLICE: &[&str] = &["meet", "slice"];
+
 /// `PreserveAspectRatio`: alignment plus optional meet/slice.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// An empty keyword list stands for the SVG 2 keywords. `defer` (SVG 1.1)
+/// is accepted before the alignment only when `alignments` lists it.
 pub fn check_preserve_aspect_ratio(
     value: &str,
     alignments: &[&str],
     meet_or_slice: &[&str],
 ) -> Option<String> {
-    let _ = (value, alignments, meet_or_slice);
-    None
+    let list = parse_component_values(value);
+    if list.depth_limited || contains_arbitrary_substitution(&list.values) {
+        return None;
+    }
+    let alignments = if alignments.is_empty() {
+        SVG2_ALIGNMENTS
+    } else {
+        alignments
+    };
+    let meet_or_slice = if meet_or_slice.is_empty() {
+        SVG2_MEET_OR_SLICE
+    } else {
+        meet_or_slice
+    };
+    let is_defer = |item: &ComponentValue<'_>| {
+        item.ident()
+            .is_some_and(|ident| ident.eq_ignore_ascii_case("defer"))
+    };
+    let mut items = list.significant();
+    let mut first = items.next();
+    if first.is_some_and(is_defer) {
+        if !contains_keyword(alignments, "defer") {
+            return Some("the defer keyword was removed in SVG 2".to_owned());
+        }
+        first = items.next();
+    }
+    let Some(align) = first else {
+        return Some("expected an alignment such as xMidYMid".to_owned());
+    };
+    if is_defer(align)
+        || !align
+            .ident()
+            .is_some_and(|ident| contains_keyword(alignments, ident))
+    {
+        return Some(format!(
+            "expected an alignment ({}), found {}",
+            alignments
+                .iter()
+                .filter(|keyword| !keyword.eq_ignore_ascii_case("defer"))
+                .copied()
+                .collect::<Vec<_>>()
+                .join(" | "),
+            describe(align)
+        ));
+    }
+    if let Some(mode) = items.next()
+        && !mode
+            .ident()
+            .is_some_and(|ident| contains_keyword(meet_or_slice, ident))
+    {
+        return Some(format!(
+            "expected {} after the alignment, found {}",
+            meet_or_slice.join(" or "),
+            describe(mode)
+        ));
+    }
+    items
+        .next()
+        .map(|extra| format!("unexpected {} at the end", describe(extra)))
+}
+
+/// Whether `list` holds `keyword`, ignoring ASCII case.
+fn contains_keyword(list: &[&str], keyword: &str) -> bool {
+    list.iter().any(|known| known.eq_ignore_ascii_case(keyword))
+}
+
+/// A short description of a component value for a diagnostic.
+fn describe(value: &ComponentValue<'_>) -> String {
+    match value {
+        ComponentValue::Token(Token::Ident(ident)) => format!("`{ident}`"),
+        ComponentValue::Function(function) => format!("`{}()`", function.name),
+        ComponentValue::Token(Token::Comma) => "a comma".to_owned(),
+        ComponentValue::Token(
+            Token::Number(_) | Token::Percentage(_) | Token::Dimension { .. },
+        ) => "a number".to_owned(),
+        ComponentValue::Block(_) => "a bracketed block".to_owned(),
+        ComponentValue::Token(_) => "an unexpected token".to_owned(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The catalog's value space for an attribute.
+    fn catalog_values(attr: &str) -> &'static svg_data::AttributeValues {
+        let Some(def) = svg_data::attribute(attr) else {
+            panic!("{attr} is not in the catalog");
+        };
+        &def.values
+    }
+
     /// The functions the catalog lists for a transform attribute.
     fn catalog_functions(attr: &str) -> &'static [&'static str] {
-        let def = svg_data::attribute(attr).expect("catalog attribute");
-        match def.values {
+        match catalog_values(attr) {
             svg_data::AttributeValues::Transform(functions) => functions,
-            ref other => panic!("{attr} is not a transform list: {other:?}"),
+            other => panic!("{attr} is not a transform list: {other:?}"),
         }
     }
 
@@ -496,7 +945,7 @@ mod tests {
             ),
         ];
         for (attr, valid, invalid) in cases {
-            let values = &svg_data::attribute(attr).expect("catalog attribute").values;
+            let values = catalog_values(attr);
             for value in *valid {
                 assert_eq!(
                     crate::values::invalid_reason(values, value),
