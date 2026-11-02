@@ -3,53 +3,482 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! - [`check_language_tag`]: well-formedness against the RFC 5646 §2.1
+//!   `Language-Tag` ABNF (<https://www.rfc-editor.org/rfc/rfc5646#section-2.1>).
+//!   Validity against the IANA subtag registry is not checked.
+//! - [`check_media_type`]: the RFC 9110 `media-type` production that the
+//!   MIME Sniffing "valid MIME type string" refers to
+//!   (<https://mimesniff.spec.whatwg.org/#valid-mime-type>).
+//! - [`check_media_query_list`]: the Media Queries 4 `<media-query-list>`
+//!   grammar (<https://drafts.csswg.org/mediaqueries-4/#mq-syntax>) over CSS
+//!   component values; the contents of parentheses and functions are only
+//!   held to `<general-enclosed>`, which accepts any balanced value.
+//! - [`check_referrer_policy`]: the Referrer Policy keywords, matched as an
+//!   HTML enumerated attribute.
+//! - [`check_suggested_file_name`]: any value.
+
+use super::syntax::{
+    microsyntax::{eq_ascii_case_insensitive, find_ascii_case_insensitive, is_xml_whitespace},
+    parser::{BlockKind, ComponentValue, comma_separated, parse_component_values},
+    tokenizer::Token,
+};
+
+// ----- LanguageTag -----
+
+/// RFC 5646 `irregular` and `regular` grandfathered tags. The `regular` ones
+/// also match `langtag`; they are listed so the table mirrors the ABNF.
+const GRANDFATHERED_TAGS: &[&str] = &[
+    "en-GB-oed",
+    "i-ami",
+    "i-bnn",
+    "i-default",
+    "i-enochian",
+    "i-hak",
+    "i-klingon",
+    "i-lux",
+    "i-mingo",
+    "i-navajo",
+    "i-pwn",
+    "i-tao",
+    "i-tay",
+    "i-tsu",
+    "sgn-BE-FR",
+    "sgn-BE-NL",
+    "sgn-CH-DE",
+    "art-lojban",
+    "cel-gaulish",
+    "no-bok",
+    "no-nyn",
+    "zh-guoyu",
+    "zh-hakka",
+    "zh-min",
+    "zh-min-nan",
+    "zh-xiang",
+];
 
 /// `LanguageTag`: a BCP 47 tag or empty.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// The empty string is accepted (`lang` and `xml:lang` allow it), and so is
+/// white space around the value, which an SVG 1.1 DTD discards from the
+/// `NMTOKEN` `xml:lang` before the value is used. A comma-separated list of
+/// tags is accepted as well: SVG 1.1 gives `lang` on `glyph` and
+/// `font-face` that form, and the catalog has one value space for `lang`.
 pub fn check_language_tag(value: &str) -> Option<String> {
-    let _ = value;
+    let value = value.trim_matches(is_xml_whitespace);
+    if value.is_empty() {
+        return None;
+    }
+    if !value.contains(',') {
+        return (!is_well_formed_language_tag(value))
+            .then(|| format!("\"{value}\" is not a well-formed BCP 47 language tag"));
+    }
+    for item in value.split(',') {
+        let item = item.trim_matches(is_xml_whitespace);
+        if item.is_empty() {
+            return Some("a comma-separated list of language tags has an empty entry".to_owned());
+        }
+        if !is_well_formed_language_tag(item) {
+            return Some(format!(
+                "\"{item}\" is not a well-formed BCP 47 language tag"
+            ));
+        }
+    }
     None
 }
+
+/// RFC 5646 §2.1 `Language-Tag = langtag / privateuse / grandfathered`,
+/// matched ASCII case-insensitively.
+fn is_well_formed_language_tag(tag: &str) -> bool {
+    if find_ascii_case_insensitive(tag, GRANDFATHERED_TAGS).is_some() {
+        return true;
+    }
+    let subtags: Vec<&str> = tag.split('-').collect();
+    // Every production is built from 1 to 8 `alphanum` subtags joined by "-".
+    if !subtags
+        .iter()
+        .all(|subtag| (1..=8).contains(&subtag.len()) && is_alphanum(subtag))
+    {
+        return false;
+    }
+    let Some((&first, rest)) = subtags.split_first() else {
+        return false;
+    };
+    if is_private_use_singleton(first) {
+        // privateuse = "x" 1*("-" (1*8alphanum))
+        return !rest.is_empty();
+    }
+    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    if first.len() < 2 || !is_alpha(first) {
+        return false;
+    }
+    let mut at = 1;
+    let next = |at: usize| subtags.get(at).copied();
+    if first.len() <= 3 {
+        // extlang = 3ALPHA *2("-" 3ALPHA)
+        let mut extlangs = 0;
+        while extlangs < 3 && next(at).is_some_and(|s| s.len() == 3 && is_alpha(s)) {
+            extlangs += 1;
+            at += 1;
+        }
+    }
+    // script = 4ALPHA
+    if next(at).is_some_and(|s| s.len() == 4 && is_alpha(s)) {
+        at += 1;
+    }
+    // region = 2ALPHA / 3DIGIT
+    if next(at).is_some_and(|s| (s.len() == 2 && is_alpha(s)) || (s.len() == 3 && is_digit(s))) {
+        at += 1;
+    }
+    // variant = 5*8alphanum / (DIGIT 3alphanum)
+    while next(at).is_some_and(|s| {
+        s.len() >= 5 || (s.len() == 4 && s.starts_with(|c: char| c.is_ascii_digit()))
+    }) {
+        at += 1;
+    }
+    // extension = singleton 1*("-" (2*8alphanum))
+    while next(at).is_some_and(|s| s.len() == 1 && !is_private_use_singleton(s)) {
+        at += 1;
+        let start = at;
+        while next(at).is_some_and(|s| s.len() >= 2) {
+            at += 1;
+        }
+        if at == start {
+            return false;
+        }
+    }
+    // ["-" privateuse]
+    if next(at).is_some_and(is_private_use_singleton) {
+        return at + 1 < subtags.len();
+    }
+    at == subtags.len()
+}
+
+const fn is_private_use_singleton(subtag: &str) -> bool {
+    eq_ascii_case_insensitive(subtag, "x")
+}
+
+fn is_alpha(s: &str) -> bool {
+    s.bytes().all(|b| b.is_ascii_alphabetic())
+}
+
+fn is_digit(s: &str) -> bool {
+    s.bytes().all(|b| b.is_ascii_digit())
+}
+
+fn is_alphanum(s: &str) -> bool {
+    s.bytes().all(|b| b.is_ascii_alphanumeric())
+}
+
+// ----- MediaType -----
+
+/// Filter Effects 1 transfer function types (`type` on `feFuncR`, `feFuncG`,
+/// `feFuncB` and `feFuncA`), which reach this check because the catalog
+/// scopes them to `feComponentTransfer`.
+const TRANSFER_FUNCTION_TYPES: &[&str] = &["identity", "table", "discrete", "linear", "gamma"];
 
 /// `MediaType`: a MIME type.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// A valid MIME type string: RFC 9110 `media-type = type "/" subtype
+/// parameters`. The transfer function types of `feFunc*` are accepted too
+/// (see [`TRANSFER_FUNCTION_TYPES`]).
 pub fn check_media_type(value: &str) -> Option<String> {
-    let _ = value;
+    // The SVG 1.1 DTD declares the feFunc* `type` as an enumeration, so an
+    // XML processor reading that DTD trims it.
+    if TRANSFER_FUNCTION_TYPES.contains(&value.trim_matches(is_xml_whitespace)) {
+        return None;
+    }
+    media_type_problem(value).map(|problem| format!("not a valid MIME type string: {problem}"))
+}
+
+/// Why `value` does not match the RFC 9110 `media-type` production.
+fn media_type_problem(value: &str) -> Option<&'static str> {
+    let (media_type, rest) = split_token(value);
+    if media_type.is_empty() {
+        return Some("expected a type such as \"text\" before \"/\"");
+    }
+    let Some(rest) = rest.strip_prefix('/') else {
+        return Some("expected \"/\" and a subtype after the type");
+    };
+    let (subtype, mut rest) = split_token(rest);
+    if subtype.is_empty() {
+        return Some("expected a subtype after \"/\"");
+    }
+    // parameters = *( OWS ";" OWS [ parameter ] )
+    while !rest.is_empty() {
+        let Some(after) = rest.trim_start_matches(is_ows).strip_prefix(';') else {
+            return Some("unexpected character; parameters must start with \";\"");
+        };
+        rest = after.trim_start_matches(is_ows);
+        let (name, after_name) = split_token(rest);
+        if name.is_empty() {
+            continue;
+        }
+        // parameter = parameter-name "=" parameter-value
+        let Some(after_eq) = after_name.strip_prefix('=') else {
+            return Some("a parameter needs \"=\" and a value directly after its name");
+        };
+        rest = if after_eq.starts_with('"') {
+            match strip_quoted_string(after_eq) {
+                Some(after_value) => after_value,
+                None => return Some("a quoted parameter value is not terminated"),
+            }
+        } else {
+            let (parameter_value, after_value) = split_token(after_eq);
+            if parameter_value.is_empty() {
+                return Some("a parameter value is missing after \"=\"");
+            }
+            after_value
+        };
+    }
     None
 }
+
+/// RFC 9110 `tchar`.
+const fn is_tchar(c: char) -> bool {
+    c.is_ascii_alphanumeric()
+        || matches!(
+            c,
+            '!' | '#'
+                | '$'
+                | '%'
+                | '&'
+                | '\''
+                | '*'
+                | '+'
+                | '-'
+                | '.'
+                | '^'
+                | '_'
+                | '`'
+                | '|'
+                | '~'
+        )
+}
+
+/// RFC 9110 `OWS = *( SP / HTAB )`, one character of it.
+const fn is_ows(c: char) -> bool {
+    matches!(c, ' ' | '\t')
+}
+
+/// The longest `token` (`*tchar`) at the start of `s`, and what follows.
+fn split_token(s: &str) -> (&str, &str) {
+    let end = s.find(|c: char| !is_tchar(c)).unwrap_or(s.len());
+    s.split_at(end)
+}
+
+/// RFC 9110 `quoted-string` at the start of `s` (which starts with `"`):
+/// the rest after the closing quote, or `None` when it is unterminated or
+/// holds a character the production excludes. Non-ASCII characters are
+/// taken as `obs-text`.
+fn strip_quoted_string(s: &str) -> Option<&str> {
+    let mut chars = s.char_indices().skip(1);
+    while let Some((at, c)) = chars.next() {
+        match c {
+            '"' => return Some(&s[at + 1..]),
+            // quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
+            '\\' => {
+                let (_, escaped) = chars.next()?;
+                if !(escaped == '\t'
+                    || escaped == ' '
+                    || escaped.is_ascii_graphic()
+                    || !escaped.is_ascii())
+                {
+                    return None;
+                }
+            }
+            // qdtext = HTAB / SP / %x21 / %x23-5B / %x5D-7E / obs-text
+            c if c == '\t' || c == ' ' || c.is_ascii_graphic() || !c.is_ascii() => {}
+            _ => return None,
+        }
+    }
+    None
+}
+
+// ----- MediaQueryList -----
+
+/// The keywords `<media-type>` excludes (Media Queries 4 §3).
+const RESERVED_MEDIA_TYPES: &[&str] = &["only", "not", "and", "or", "layer"];
 
 /// `MediaQueryList`: a media query list.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// Each top-level comma-separated entry must match `<media-query>`. The
+/// inside of a parenthesized block or a function is only required to be a
+/// `<general-enclosed>` (no bad string or URL token, no unmatched closing
+/// bracket): media features, ranges and future syntax are not modelled. An
+/// empty or whitespace-only list, unclosed blocks at the end of the value
+/// and a whitespace-only last entry are accepted.
 pub fn check_media_query_list(value: &str) -> Option<String> {
-    let _ = value;
+    let list = parse_component_values(value);
+    if list.depth_limited {
+        return None;
+    }
+    let groups: Vec<_> = comma_separated(&list.values).collect();
+    let final_entry = groups.len().saturating_sub(1);
+    for (index, group) in groups.iter().enumerate() {
+        let query: Vec<&ComponentValue<'_>> = group
+            .iter()
+            .filter(|value| !value.is_whitespace())
+            .collect();
+        if query.is_empty() {
+            if index == final_entry && !group.is_empty() {
+                continue;
+            }
+            return Some("the media query list has an empty entry".to_owned());
+        }
+        if let Some(problem) = media_query_problem(&query) {
+            return Some(problem);
+        }
+    }
     None
 }
 
-/// `ReferrerPolicy`: a referrer policy token.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+/// Why `query` (one entry, whitespace removed) does not match
+/// `<media-query> = <media-condition> | [ not | only ]? <media-type>
+/// [ and <media-condition-without-or> ]?`.
+fn media_query_problem(query: &[&ComponentValue<'_>]) -> Option<String> {
+    if media_condition_end(query, 0, true) == Some(query.len()) {
+        return None;
+    }
+    let mut at = usize::from(
+        query
+            .first()
+            .is_some_and(|value| is_keyword(value, "not") || is_keyword(value, "only")),
+    );
+    let Some(media_type) = query.get(at).and_then(|value| value.ident()) else {
+        return Some(
+            "expected a media type or a condition in parentheses, as in \"screen and (color)\""
+                .to_owned(),
+        );
+    };
+    if let Some(reserved) = find_ascii_case_insensitive(media_type, RESERVED_MEDIA_TYPES) {
+        return Some(format!("\"{reserved}\" cannot be used as a media type"));
+    }
+    at += 1;
+    if at == query.len() {
+        return None;
+    }
+    if query.get(at).is_some_and(|value| is_keyword(value, "and"))
+        && media_condition_end(query, at + 1, false) == Some(query.len())
+    {
+        return None;
+    }
+    Some(format!(
+        "a media type can only be followed by \"and\" and a condition without \"or\", after \
+         \"{media_type}\""
+    ))
+}
+
+/// Where a `<media-condition>` (or, without `or`, a
+/// `<media-condition-without-or>`) starting at `start` ends:
+/// `<media-not> | <media-in-parens> [ <media-and>* | <media-or>* ]`.
+fn media_condition_end(
+    query: &[&ComponentValue<'_>],
+    start: usize,
+    allow_or: bool,
+) -> Option<usize> {
+    let first = query.get(start)?;
+    if is_keyword(first, "not") {
+        return query
+            .get(start + 1)
+            .is_some_and(|value| is_media_in_parens(value))
+            .then_some(start + 2);
+    }
+    if !is_media_in_parens(first) {
+        return None;
+    }
+    let mut at = start + 1;
+    let mut joiner = None;
+    while let Some(keyword) = query.get(at).and_then(|value| value.ident()) {
+        let this = if eq_ascii_case_insensitive(keyword, "and") {
+            "and"
+        } else if allow_or && eq_ascii_case_insensitive(keyword, "or") {
+            "or"
+        } else {
+            break;
+        };
+        // and and or cannot mix at one level.
+        if joiner.is_some_and(|joiner| joiner != this)
+            || !query
+                .get(at + 1)
+                .is_some_and(|value| is_media_in_parens(value))
+        {
+            break;
+        }
+        joiner = Some(this);
+        at += 2;
+    }
+    Some(at)
+}
+
+/// `<media-in-parens>`, held only to its `<general-enclosed>` bound: a
+/// `()-block` or a function whose contents are an `<any-value>`.
+fn is_media_in_parens(value: &ComponentValue<'_>) -> bool {
+    match value {
+        ComponentValue::Block(block) if block.kind == BlockKind::Paren => {
+            is_any_value(&block.value)
+        }
+        ComponentValue::Function(function) => is_any_value(&function.value),
+        _ => false,
+    }
+}
+
+/// CSS Syntax 3 `<any-value>`: no `<bad-string-token>`, `<bad-url-token>`
+/// or unmatched `)`, `]` or `}` at any depth.
+fn is_any_value(values: &[ComponentValue<'_>]) -> bool {
+    values.iter().all(|value| match value {
+        ComponentValue::Token(token) => !matches!(
+            token,
+            Token::BadString
+                | Token::BadUrl
+                | Token::CloseParen
+                | Token::CloseSquare
+                | Token::CloseCurly
+        ),
+        ComponentValue::Function(function) => is_any_value(&function.value),
+        ComponentValue::Block(block) => is_any_value(&block.value),
+    })
+}
+
+fn is_keyword(value: &ComponentValue<'_>, keyword: &str) -> bool {
+    value
+        .ident()
+        .is_some_and(|ident| eq_ascii_case_insensitive(ident, keyword))
+}
+
+// ----- ReferrerPolicy -----
+
+/// The referrer policies of Referrer Policy §3, the empty string included.
+const REFERRER_POLICIES: &[&str] = &[
+    "",
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url",
+];
+
+/// `ReferrerPolicy`: a referrer policy token, matched ASCII
+/// case-insensitively with no surrounding white space (an HTML enumerated
+/// attribute).
 pub fn check_referrer_policy(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    if find_ascii_case_insensitive(value, REFERRER_POLICIES).is_some() {
+        return None;
+    }
+    Some(format!(
+        "\"{value}\" is not a referrer policy; expected one of {}",
+        REFERRER_POLICIES[1..].join(", ")
+    ))
 }
 
-/// `SuggestedFileName`: a download file name.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
-pub fn check_suggested_file_name(value: &str) -> Option<String> {
+// ----- SuggestedFileName -----
+
+/// `SuggestedFileName`: a download file name. HTML places no restriction on
+/// the value, so every value is valid.
+pub const fn check_suggested_file_name(value: &str) -> Option<String> {
     let _ = value;
     None
 }
