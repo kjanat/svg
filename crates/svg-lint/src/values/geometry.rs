@@ -528,14 +528,42 @@ mod tests {
         assert_invalid_transforms(&[
             ",translate(1)",
             "translate(1),",
-            "translate(1),,scale(2)",
-            "translate(1) , , scale(2)",
             ",",
             "translate(1) foo",
             "10",
             "translate(1);",
             "translate(1))",
             "{translate(1)}",
+        ]);
+    }
+
+    // Claim: "transforms: transform | transform comma-wsp+ transforms" and
+    // "fractional-constant: digit-sequence? "." digit-sequence |
+    // digit-sequence ".""
+    // https://www.w3.org/TR/SVG11/coords.html#TransformAttribute
+    // SVG 1.1 documents are linted against the SVG 1.1 grammar, which allows
+    // several separators between functions and a number ending in a dot.
+    #[test]
+    fn svg11_transform_list() {
+        assert_valid_transforms(&[
+            "translate(1),,scale(2)",
+            "translate(1) , , scale(2)",
+            "translate(1)\n,\n,\nscale(2)",
+            "translate(1.)",
+            "translate(1. 2.)",
+            "scale(1.e2)",
+            "rotate(45. 10. 10.)",
+            "matrix(1. 0 0 1. 0 0)",
+            "translate(1.,2.),,rotate(3.E-1)",
+        ]);
+        assert_invalid_transforms(&[
+            ",,translate(1)",
+            "translate(1),,",
+            "translate(1..)",
+            "translate(.)",
+            "translate(1.,)",
+            "translate(1.) 2",
+            "translate(1.e)",
         ]);
     }
 
