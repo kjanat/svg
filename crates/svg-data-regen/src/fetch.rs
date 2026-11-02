@@ -15,12 +15,13 @@
 //! - [raw.githubusercontent.com][raw] — raw files at the pinned commit.
 //!
 //! [gh-api]: https://api.github.com/repos/w3c/svgwg
-//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/master/
+//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/main/
 
-use std::time::Duration;
+use std::{sync::OnceLock, time::Duration};
 
 use serde_json::Value;
 use ureq::config::IpFamily;
+use ureq::tls::{PemItem, RootCerts, TlsConfig, parse_pem};
 
 use crate::util::boxed;
 
@@ -47,19 +48,60 @@ pub struct Head {
     pub committed_date: String,
 }
 
-/// Fetch the body of `url` as text, sending the headers GitHub expects.
-fn get_text(url: &str, accept: &str) -> Fallible<String> {
-    let config = ureq::Agent::config_builder()
+/// Environment variable naming a PEM bundle of trust roots.
+///
+/// The same variable OpenSSL-based tools read. When set, its certificates
+/// replace the bundled Mozilla roots, so regeneration works behind a
+/// TLS-intercepting proxy whose CA only that bundle holds. Unset (as on CI), the
+/// bundled roots apply unchanged.
+const CERT_FILE_ENV: &str = "SSL_CERT_FILE";
+
+/// The shared HTTP agent, built once per run.
+fn agent() -> Fallible<&'static ureq::Agent> {
+    static AGENT: OnceLock<ureq::Agent> = OnceLock::new();
+    if let Some(agent) = AGENT.get() {
+        return Ok(agent);
+    }
+    let mut config = ureq::Agent::config_builder()
         .ip_family(IpFamily::Ipv4Only)
         .timeout_global(Some(REQUEST_TIMEOUT))
-        .timeout_per_call(Some(REQUEST_TIMEOUT))
-        .build();
-    let agent: ureq::Agent = config.into();
-    let mut response = agent
+        .timeout_per_call(Some(REQUEST_TIMEOUT));
+    if let Some(roots) = roots_from_env()? {
+        config = config.tls_config(TlsConfig::builder().root_certs(roots).build());
+    }
+    Ok(AGENT.get_or_init(|| config.build().into()))
+}
+
+/// Trust roots from [`CERT_FILE_ENV`], when it names a file.
+fn roots_from_env() -> Fallible<Option<RootCerts>> {
+    let Some(path) = std::env::var_os(CERT_FILE_ENV).filter(|path| !path.is_empty()) else {
+        return Ok(None);
+    };
+    let pem = std::fs::read(&path)
+        .map_err(|error| boxed(format!("{CERT_FILE_ENV}={}: {error}", path.display())))?;
+    let mut certs = Vec::new();
+    for item in parse_pem(&pem) {
+        if let PemItem::Certificate(cert) = item? {
+            certs.push(cert);
+        }
+    }
+    if certs.is_empty() {
+        return Err(boxed(format!(
+            "{CERT_FILE_ENV}={} holds no certificates",
+            path.display()
+        )));
+    }
+    Ok(Some(RootCerts::new_with_certs(&certs)))
+}
+
+/// Fetch the body of `url` as text, sending the headers GitHub expects.
+fn get_text(url: &str, accept: &str) -> Fallible<String> {
+    let mut response = agent()?
         .get(url)
         .header("User-Agent", USER_AGENT)
         .header("Accept", accept)
-        .call()?;
+        .call()
+        .map_err(|error| boxed(format!("{url}: {error}")))?;
     let body = response
         .body_mut()
         .with_config()
