@@ -3,25 +3,508 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! [`check_color`] follows the CSS Color 4 `<color>` grammar
+//! (<https://drafts.csswg.org/css-color-4/#color-syntax>) and
+//! [`check_paint`] the SVG 2 `<paint>` grammar
+//! (<https://svgwg.org/svg2-draft/painting.html#DataTypePaint>). Every
+//! attribute that reaches them is a presentation attribute (or, for
+//! `text-decoration-color`, shares its name with a CSS property), so the
+//! value is parsed as CSS component values: comments and surrounding
+//! whitespace are allowed and keywords match ASCII case-insensitively.
+//!
+//! Accepted without being modelled:
+//!
+//! - a CSS-wide keyword, a `<whole-value>` notation or any arbitrary
+//!   substitution function (`var()`, `env()`, `attr()`, `if()`, ...);
+//! - any function other than the CSS Color 4 color functions, such as
+//!   `color-mix()`, `light-dark()`, `contrast-color()` or `device-cmyk()`;
+//! - relative color syntax (`rgb(from ...)`), `color()` with a custom or
+//!   unrecognized color space, and a function (a math function) wherever a
+//!   single color component is expected;
+//! - an SVG 1.1 `icc-color()` after a color
+//!   (<https://www.w3.org/TR/SVG11/types.html#DataTypeICCColor>), since the
+//!   check cannot tell which SVG version the document targets.
+
+use super::syntax::{
+    cascade::is_css_wide_keyword_value,
+    notation::{contains_arbitrary_substitution, is_whole_value},
+    parser::{ComponentValue, ComponentValueList, Function, parse_component_values},
+    tokenizer::Token,
+    types::{Match, NumericType, UnitlessMode, match_numeric},
+};
 
 /// `Color`: a CSS `<color>`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// `<color> = <color-base> | currentColor | <system-color>`, optionally
+/// followed by an SVG 1.1 `<icccolor>`.
 pub fn check_color(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let list = parse_component_values(value);
+    if is_undecidable(value, &list) {
+        return None;
+    }
+    let values: Vec<&ComponentValue<'_>> = list.significant().collect();
+    match values.as_slice() {
+        [] => Some("expected a color, found an empty value".to_owned()),
+        [color] => color_reason(color),
+        [color, icc] if is_icc_color(icc) => color_reason(color),
+        _ => Some(format!(
+            "expected a single color, found {} values",
+            values.len()
+        )),
+    }
 }
 
 /// `Paint`: an SVG `<paint>`.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
+///
+/// `<paint> = none | <color> | <url> [none | <color>]? | context-fill |
+/// context-stroke`, with the SVG 1.1 `<icccolor>` allowed after a color.
 pub fn check_paint(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let list = parse_component_values(value);
+    if is_undecidable(value, &list) {
+        return None;
+    }
+    let values: Vec<&ComponentValue<'_>> = list.significant().collect();
+    match values.as_slice() {
+        [] => Some("expected a paint, found an empty value".to_owned()),
+        [single] => single_paint_reason(single),
+        [url, fallback @ ..] if is_url(url) => fallback_reason(fallback),
+        [color, icc] if is_icc_color(icc) => color_reason(color),
+        _ => Some(
+            "expected none, a color, context-fill, context-stroke, or a url() optionally followed \
+             by none or a color"
+                .to_owned(),
+        ),
+    }
+}
+
+/// Whether the value cannot be decided at parse time: a CSS-wide keyword, a
+/// `<whole-value>` notation, an arbitrary substitution function anywhere,
+/// or nesting beyond the parser's limit.
+fn is_undecidable(value: &str, list: &ComponentValueList<'_>) -> bool {
+    list.depth_limited
+        || contains_arbitrary_substitution(&list.values)
+        || is_whole_value(&list.values)
+        || is_css_wide_keyword_value(value)
+}
+
+/// The reason a lone `<paint>` component is invalid.
+fn single_paint_reason(value: &ComponentValue<'_>) -> Option<String> {
+    if is_url(value) {
+        return None;
+    }
+    if let Some(ident) = value.ident() {
+        if ["none", "context-fill", "context-stroke"]
+            .iter()
+            .any(|keyword| keyword.eq_ignore_ascii_case(ident))
+        {
+            return None;
+        }
+        if !is_color_keyword(ident) {
+            return Some(format!(
+                "`{ident}` is not none, context-fill, context-stroke or a color keyword"
+            ));
+        }
+    }
+    color_reason(value)
+}
+
+/// The reason the fallback after a paint server `<url>` is invalid:
+/// `[none | <color>]?`.
+fn fallback_reason(fallback: &[&ComponentValue<'_>]) -> Option<String> {
+    match fallback {
+        [] => None,
+        [value]
+            if value
+                .ident()
+                .is_some_and(|ident| ident.eq_ignore_ascii_case("none")) =>
+        {
+            None
+        }
+        [color] | [color, _] if is_url(color) => {
+            Some("a url() can only be followed by none or a color".to_owned())
+        }
+        [color] => color_reason(color),
+        [color, icc] if is_icc_color(icc) => color_reason(color),
+        _ => Some("a url() can only be followed by one fallback, none or a color".to_owned()),
+    }
+}
+
+/// Whether `value` is a `<url>`: `<url> = <url()> | <src()>`, with
+/// `<url()> = url( <string> <url-modifier>* ) | <url-token>`.
+fn is_url(value: &ComponentValue<'_>) -> bool {
+    match value {
+        ComponentValue::Token(Token::Url(_)) => true,
+        ComponentValue::Function(function) => {
+            function.name.eq_ignore_ascii_case("url") || function.name.eq_ignore_ascii_case("src")
+        }
+        _ => false,
+    }
+}
+
+/// Whether `value` is an SVG 1.1 `icc-color()`.
+fn is_icc_color(value: &ComponentValue<'_>) -> bool {
+    matches!(value, ComponentValue::Function(function) if function.name.eq_ignore_ascii_case("icc-color"))
+}
+
+/// The reason one component value is not a `<color>`.
+fn color_reason(value: &ComponentValue<'_>) -> Option<String> {
+    match value {
+        ComponentValue::Token(Token::Ident(ident)) => {
+            (!is_color_keyword(ident)).then(|| format!("`{ident}` is not a color keyword"))
+        }
+        ComponentValue::Token(Token::Hash { value, .. }) => (!is_hex_color(value)).then(|| {
+            format!("`#{value}` is not a hex color: it needs 3, 4, 6 or 8 hexadecimal digits")
+        }),
+        ComponentValue::Token(Token::Url(_)) => Some("a url() is not a color".to_owned()),
+        ComponentValue::Token(Token::BadUrl) => Some("malformed url()".to_owned()),
+        ComponentValue::Token(_) | ComponentValue::Block(_) => Some("expected a color".to_owned()),
+        ComponentValue::Function(function) => function_reason(function),
+    }
+}
+
+/// `<named-color>`, `transparent`, `currentcolor`, `<system-color>` and
+/// `<deprecated-color>`, all ASCII case-insensitive.
+fn is_color_keyword(ident: &str) -> bool {
+    ["transparent", "currentcolor"]
+        .iter()
+        .chain(svg_color::NAMED_COLOR_NAMES)
+        .chain(SYSTEM_COLORS)
+        .chain(DEPRECATED_SYSTEM_COLORS)
+        .any(|keyword| keyword.eq_ignore_ascii_case(ident))
+}
+
+/// The `<system-color>` keywords of CSS Color 4 §6.2.
+const SYSTEM_COLORS: &[&str] = &[
+    "AccentColor",
+    "AccentColorText",
+    "ActiveText",
+    "ButtonBorder",
+    "ButtonFace",
+    "ButtonText",
+    "Canvas",
+    "CanvasText",
+    "Field",
+    "FieldText",
+    "GrayText",
+    "Highlight",
+    "HighlightText",
+    "LinkText",
+    "Mark",
+    "MarkText",
+    "SelectedItem",
+    "SelectedItemText",
+    "VisitedText",
+];
+
+/// The `<deprecated-color>` keywords of CSS Color 4 Appendix A, which user
+/// agents must still support.
+const DEPRECATED_SYSTEM_COLORS: &[&str] = &[
+    "ActiveBorder",
+    "ActiveCaption",
+    "AppWorkspace",
+    "Background",
+    "ButtonHighlight",
+    "ButtonShadow",
+    "CaptionText",
+    "InactiveBorder",
+    "InactiveCaption",
+    "InactiveCaptionText",
+    "InfoBackground",
+    "InfoText",
+    "Menu",
+    "MenuText",
+    "Scrollbar",
+    "ThreeDDarkShadow",
+    "ThreeDFace",
+    "ThreeDHighlight",
+    "ThreeDLightShadow",
+    "ThreeDShadow",
+    "Window",
+    "WindowFrame",
+    "WindowText",
+];
+
+/// A `<hash-token>` value of 3, 4, 6 or 8 hexadecimal digits.
+fn is_hex_color(value: &str) -> bool {
+    matches!(value.len(), 3 | 4 | 6 | 8) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// The `<predefined-rgb>` and `<xyz-space>` color spaces of CSS Color 4
+/// `color()`.
+const COLOR_SPACES: &[&str] = &[
+    "srgb",
+    "srgb-linear",
+    "display-p3",
+    "display-p3-linear",
+    "a98-rgb",
+    "prophoto-rgb",
+    "rec2020",
+    "xyz",
+    "xyz-d50",
+    "xyz-d65",
+];
+
+/// One component of a color function.
+#[derive(Clone, Copy)]
+enum Slot {
+    /// `<hue> = <number> | <angle>`.
+    Hue,
+    /// `<percentage>` alone (the legacy `hsl()` saturation and lightness).
+    Percentage,
+    /// `<number> | <percentage>`, which is also `<alpha-value>`.
+    NumberOrPercentage,
+}
+
+impl Slot {
+    fn matches(self, value: &ComponentValue<'_>) -> Match {
+        let mode = UnitlessMode::Css;
+        match self {
+            Self::Hue => match_numeric(value, NumericType::Number, mode).or(match_numeric(
+                value,
+                NumericType::Angle,
+                mode,
+            )),
+            Self::Percentage => match_numeric(value, NumericType::Percentage, mode),
+            Self::NumberOrPercentage => match_numeric(value, NumericType::Number, mode)
+                .or(match_numeric(value, NumericType::Percentage, mode)),
+        }
+    }
+
+    const fn expected(self) -> &'static str {
+        match self {
+            Self::Hue => "a number or an angle",
+            Self::Percentage => "a percentage",
+            Self::NumberOrPercentage => "a number or a percentage",
+        }
+    }
+}
+
+/// The reason a function is not a `<color>`. Functions other than the CSS
+/// Color 4 color functions are accepted.
+fn function_reason(function: &Function<'_>) -> Option<String> {
+    let name = function.name.to_ascii_lowercase();
+    let args: Vec<&ComponentValue<'_>> = function
+        .value
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .collect();
+    let relative = args
+        .first()
+        .and_then(|value| value.ident())
+        .is_some_and(|ident| ident.eq_ignore_ascii_case("from"));
+    let problem = match name.as_str() {
+        // Relative color syntax (CSS Color 5) is not modelled.
+        _ if relative => None,
+        "rgb" | "rgba" => rgb_problem(function, &args),
+        "hsl" | "hsla" => hsl_problem(function, &args),
+        "hwb" => modern_problem(
+            &args,
+            [
+                Slot::Hue,
+                Slot::NumberOrPercentage,
+                Slot::NumberOrPercentage,
+            ],
+        ),
+        "lab" | "oklab" => modern_problem(&args, [Slot::NumberOrPercentage; 3]),
+        "lch" | "oklch" => modern_problem(
+            &args,
+            [
+                Slot::NumberOrPercentage,
+                Slot::NumberOrPercentage,
+                Slot::Hue,
+            ],
+        ),
+        "color" => color_function_problem(&args),
+        "url" | "src" => Some("a url() is not a color".to_owned()),
+        _ => None,
+    };
+    problem.map(|problem| format!("invalid {name}(): {problem}"))
+}
+
+/// Whether `args` contain a top-level `<comma-token>`.
+fn has_comma(args: &[&ComponentValue<'_>]) -> bool {
+    args.iter()
+        .any(|value| matches!(value, ComponentValue::Token(Token::Comma)))
+}
+
+/// `rgb()` and `rgba()`: the legacy syntax when the arguments contain a
+/// comma, the modern syntax otherwise.
+fn rgb_problem(function: &Function<'_>, args: &[&ComponentValue<'_>]) -> Option<String> {
+    if !has_comma(args) {
+        return modern_problem(args, [Slot::NumberOrPercentage; 3]);
+    }
+    let groups = match legacy_groups(function) {
+        Ok(groups) => groups,
+        Err(problem) => return Some(problem),
+    };
+    let (channels, alpha) = match groups.as_slice() {
+        [r, g, b] => ([*r, *g, *b], None),
+        [r, g, b, a] => ([*r, *g, *b], Some(*a)),
+        _ => return Some(legacy_count_problem(groups.len())),
+    };
+    if let Some(problem) = channels
+        .iter()
+        .find_map(|channel| legacy_slot_problem(channel, Slot::NumberOrPercentage, "channel"))
+    {
+        return Some(problem);
+    }
+    let numbers = channels
+        .iter()
+        .all(|channel| !match_numeric(channel, NumericType::Number, UnitlessMode::Css).is_no());
+    let percentages = channels
+        .iter()
+        .all(|channel| !Slot::Percentage.matches(channel).is_no());
+    if !numbers && !percentages {
+        return Some(
+            "the legacy syntax takes three numbers or three percentages, separated by commas"
+                .to_owned(),
+        );
+    }
+    alpha.and_then(|alpha| legacy_slot_problem(alpha, Slot::NumberOrPercentage, "alpha"))
+}
+
+/// `hsl()` and `hsla()`: the legacy syntax when the arguments contain a
+/// comma, the modern syntax otherwise.
+fn hsl_problem(function: &Function<'_>, args: &[&ComponentValue<'_>]) -> Option<String> {
+    if !has_comma(args) {
+        return modern_problem(
+            args,
+            [
+                Slot::Hue,
+                Slot::NumberOrPercentage,
+                Slot::NumberOrPercentage,
+            ],
+        );
+    }
+    let groups = match legacy_groups(function) {
+        Ok(groups) => groups,
+        Err(problem) => return Some(problem),
+    };
+    let (channels, alpha) = match groups.as_slice() {
+        [h, s, l] => ([*h, *s, *l], None),
+        [h, s, l, a] => ([*h, *s, *l], Some(*a)),
+        _ => return Some(legacy_count_problem(groups.len())),
+    };
+    let slots = [Slot::Hue, Slot::Percentage, Slot::Percentage];
+    let names = ["hue", "saturation", "lightness"];
+    slots
+        .iter()
+        .zip(names)
+        .zip(channels)
+        .find_map(|((slot, name), channel)| legacy_slot_problem(channel, *slot, name))
+        .or_else(|| {
+            alpha.and_then(|alpha| legacy_slot_problem(alpha, Slot::NumberOrPercentage, "alpha"))
+        })
+}
+
+fn legacy_count_problem(found: usize) -> String {
+    format!("the legacy syntax takes 3 or 4 comma-separated values, found {found}")
+}
+
+/// The reason one legacy-syntax argument does not match `slot`.
+fn legacy_slot_problem(value: &ComponentValue<'_>, slot: Slot, name: &str) -> Option<String> {
+    if value
+        .ident()
+        .is_some_and(|ident| ident.eq_ignore_ascii_case("none"))
+    {
+        return Some("none is not allowed in the legacy comma-separated syntax".to_owned());
+    }
+    slot.matches(value)
+        .is_no()
+        .then(|| format!("the {name} must be {}", slot.expected()))
+}
+
+/// The arguments of a legacy (comma-separated) color function, one value
+/// per comma-separated group. Every comma must separate two values, so an
+/// empty group (from a leading, doubled or trailing comma) is an error, as
+/// is a group of more than one value.
+fn legacy_groups<'v, 'a>(
+    function: &'v Function<'a>,
+) -> Result<Vec<&'v ComponentValue<'a>>, String> {
+    function
+        .value
+        .split(|value| matches!(value, ComponentValue::Token(Token::Comma)))
+        .map(|group| {
+            let mut significant = group.iter().filter(|value| !value.is_whitespace());
+            match (significant.next(), significant.next()) {
+                (Some(only), None) => Ok(only),
+                (None, _) => Err("a comma must separate two values".to_owned()),
+                (Some(_), Some(_)) => Err("the legacy syntax takes one value between commas; do \
+                                           not mix commas and spaces"
+                    .to_owned()),
+            }
+        })
+        .collect()
+}
+
+/// The modern (space-separated) syntax: three components matching `slots`,
+/// each of which may be `none`, then optionally `/` and an `<alpha-value>`
+/// or `none`.
+fn modern_problem(args: &[&ComponentValue<'_>], slots: [Slot; 3]) -> Option<String> {
+    if has_comma(args) {
+        return Some("commas are not allowed here; separate the components with spaces".to_owned());
+    }
+    let mut parts = args.split(|value| matches!(value, ComponentValue::Token(Token::Delim('/'))));
+    let components = parts.next().unwrap_or_default();
+    let alpha = parts.next();
+    if parts.next().is_some() {
+        return Some("only one / may separate the alpha value".to_owned());
+    }
+    if components.len() != slots.len() {
+        return Some(format!(
+            "expected {} components, found {}",
+            slots.len(),
+            components.len()
+        ));
+    }
+    let names = ["first", "second", "third"];
+    if let Some(problem) = slots
+        .iter()
+        .zip(names)
+        .zip(components)
+        .find_map(|((slot, name), component)| modern_slot_problem(component, *slot, name))
+    {
+        return Some(problem);
+    }
+    match alpha {
+        None => None,
+        Some([value]) => modern_slot_problem(value, Slot::NumberOrPercentage, "alpha"),
+        Some(_) => Some("expected one alpha value after /".to_owned()),
+    }
+}
+
+/// The reason one modern-syntax component does not match `slot` or `none`.
+fn modern_slot_problem(value: &ComponentValue<'_>, slot: Slot, name: &str) -> Option<String> {
+    if value
+        .ident()
+        .is_some_and(|ident| ident.eq_ignore_ascii_case("none"))
+    {
+        return None;
+    }
+    slot.matches(value)
+        .is_no()
+        .then(|| format!("the {name} component must be {} or none", slot.expected()))
+}
+
+/// `color()`: a color space followed by three components. A custom
+/// (`--*`) or unrecognized color space is accepted.
+fn color_function_problem(args: &[&ComponentValue<'_>]) -> Option<String> {
+    match args.split_first() {
+        None => Some("expected a color space and three components".to_owned()),
+        Some((ComponentValue::Function(_), _)) => None,
+        Some((space, rest)) => match space.ident() {
+            Some(space)
+                if COLOR_SPACES
+                    .iter()
+                    .any(|known| known.eq_ignore_ascii_case(space)) =>
+            {
+                modern_problem(rest, [Slot::NumberOrPercentage; 3])
+            }
+            Some(_) => None,
+            None => Some("expected a color space first".to_owned()),
+        },
+    }
 }
 
 #[cfg(test)]
