@@ -330,7 +330,9 @@ fn unmodeled_feature_kind(name: &str) -> Option<CatalogCompatSubfeatureKind> {
     // aliases that should be retained as compat records, not promoted to first-
     // class catalog attributes.
     match name {
-        "data_uri" | "external_uri" | "omit_external_fragment" | "tooltip_display" => {
+        // `svgView` is the `svgView()` URL fragment identifier on `<view>`
+        // (SVG 2 linking, #SVGViewSpecification), not an attribute.
+        "data_uri" | "external_uri" | "omit_external_fragment" | "svgView" | "tooltip_display" => {
             Some(CatalogCompatSubfeatureKind::Behavior)
         }
         "xlink_href" => Some(CatalogCompatSubfeatureKind::LegacyXlinkAlias),
@@ -419,6 +421,7 @@ mod tests {
         );
         assert_eq!(bcd_attribute_name("path").as_deref(), Some("path"));
         assert_eq!(bcd_attribute_name("data_uri"), None);
+        assert_eq!(bcd_attribute_name("svgView"), None);
         assert_eq!(bcd_attribute_name("xlink_href"), None);
     }
 

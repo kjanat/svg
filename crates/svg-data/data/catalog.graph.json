@@ -2462,6 +2462,11 @@
       "name": "svg.elements.use.xlink_href"
     },
     {
+      "id": "compat:svg.elements.view.svgView",
+      "kind": "compat_feature",
+      "name": "svg.elements.view.svgView"
+    },
+    {
       "id": "css-property:accumulate",
       "kind": "css_property",
       "name": "accumulate"
@@ -6045,11 +6050,6 @@
       "id": "value:surfaceScale",
       "kind": "value_grammar",
       "name": "surfaceScale (number)"
-    },
-    {
-      "id": "value:svgView",
-      "kind": "value_grammar",
-      "name": "svgView (unresolved)"
     },
     {
       "id": "value:systemLanguage",
@@ -45989,16 +45989,6 @@
       "kind": "has_value_grammar"
     },
     {
-      "from": "attribute:svgView",
-      "to": "element:view",
-      "kind": "applies_to"
-    },
-    {
-      "from": "attribute:svgView",
-      "to": "value:svgView",
-      "kind": "has_value_grammar"
-    },
-    {
       "from": "attribute:systemLanguage",
       "to": "attribute-category:conditional processing",
       "kind": "member_of"
@@ -51586,6 +51576,16 @@
     {
       "from": "compat:svg.elements.use.xlink_href",
       "to": "element:use",
+      "kind": "describes"
+    },
+    {
+      "from": "compat:svg.elements.view.svgView",
+      "to": "attribute:svgView",
+      "kind": "describes"
+    },
+    {
+      "from": "compat:svg.elements.view.svgView",
+      "to": "element:view",
       "kind": "describes"
     },
     {
