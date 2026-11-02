@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json\npackage.json"
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with: { node-version-file: package.json, package-manager-cache: false }
       - id: plan
         run: node .github/actions/npm-smoke/runtime.mjs matrix
@@ -39,7 +39,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json\ndistribution/npm/facade\npackage.json"
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with: { node-version-file: package.json, architecture: "${{ matrix.arch }}", package-manager-cache: false }
       - name: download and extract producer dist artifact
         uses: $/.github/actions/dist-artifact
