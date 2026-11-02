@@ -1039,6 +1039,32 @@ mod catalog_tests {
     }
 
     #[test]
+    fn tspan_shares_text_position_lists() {
+        // SVG 2 defines x, y, dx, dy and rotate once for `text` and `tspan`
+        // (definitions.xml gives both the same attributes); the spec scopes the
+        // dfns to `text` only, so the catalog must carry the list forms to `tspan`.
+        for name in ["x", "y", "dx", "dy", "rotate"] {
+            let Some(attribute) = attribute(name) else {
+                panic!("{name} missing from catalog");
+            };
+            let grammar = |element| match attribute.values_for_element(Some(element)) {
+                AttributeValues::CssGrammar { grammar, .. } => Some(*grammar),
+                _ => None,
+            };
+            let on_text = grammar("text");
+            assert!(
+                on_text.is_some(),
+                "{name} on text should be a position list grammar"
+            );
+            assert_eq!(
+                grammar("tspan"),
+                on_text,
+                "{name} on tspan should share the text position list"
+            );
+        }
+    }
+
+    #[test]
     fn animate_motion_uses_motion_specific_value_shapes() {
         let Some(animate_motion) = element("animateMotion") else {
             panic!("animateMotion missing from catalog");

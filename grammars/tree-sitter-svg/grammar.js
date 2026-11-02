@@ -910,7 +910,12 @@ export default grammar({
 
 		length_list_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.length_list),
 
-		length_list_attribute_value: $ => quoted($.length_list),
+		/**
+		 * `x`/`y` are geometry presentation attributes as well as text position
+		 * lists: a presentation attribute is parsed as a value of its property,
+		 * so a CSS-wide keyword (`inherit`, `initial`, `unset`) stands alone.
+		 */
+		length_list_attribute_value: $ => quoted(choice($.length_list, $.keyword_value)),
 
 		length_list: $ =>
 			seq(

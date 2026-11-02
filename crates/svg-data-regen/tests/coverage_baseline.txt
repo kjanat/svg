@@ -14,3 +14,9 @@
 # name.
 begin
 end
+#
+# `focusgroup`/`focusgroupstart` come from BCD only (`svg.global_attributes`,
+# experimental, not standard-track, no `spec_url`). No SVG, HTML or CSS spec
+# defines them yet; their value space awaits a published definition.
+focusgroup
+focusgroupstart
