@@ -42,7 +42,7 @@
 		<dependency>
 			<groupId>io.github.tree-sitter</groupId>
 			<artifactId>jtreesitter</artifactId>
-			<version>0.26.0</version>
+			<version>0.26.1</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
