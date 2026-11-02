@@ -24,14 +24,28 @@ immutable. The SVGWG commit and dated SVG publications identify SVG sources.
 
 ## Inputs and extraction
 
-| Input                                                        | Extraction                               | Result                                                                                          |
-| ------------------------------------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| SVGWG `publish.xml` and definitions XML at a resolved commit | `discover.rs`, `extract.rs`              | Publication graph, elements, categories, attributes and content models                          |
-| Chapter HTML at the same commit                              | `chapter.rs`, `paths.rs`                 | Descriptions, definitions, property values and path grammar                                     |
-| Dated SVG 1.1 and SVG 2 indexes                              | `inventory.rs`, `legacy.rs`              | Per-edition membership and historical property values                                           |
-| Dated chapters and pinned draft chapters                     | `spec_lifecycle.rs`                      | Explicit deprecated, obsolete and removed declarations with source anchors and attribute owners |
-| CSS, SVG module and ARIA definitions                         | `css.rs`, `aria.rs`, `treesitter.rs`     | Referenced property grammars, value spaces and parser inputs                                    |
-| BCD and Web Features npm data                                | `compat.rs`, shared compatibility models | Browser statements, BCD flags, Baseline milestones and WebDX advice                             |
+SVG 2 has been written in Bikeshed since 2026-10-14 ([w3c/svgwg#1036]). The
+build manifest is `tools/svg2-build/config/svg2.json` (definitions files,
+maturity, editor's-draft base) and `svg2-split.json` (chapters and appendices),
+checked against the includes of `master/index.bs`. Chapters are read from
+`master/<name>.bs` at the same commit and lowered to plain HTML before
+extraction: link shorthands become links with the text Bikeshed renders, escapes
+are dropped, chapter-page ids replace single-page ids, and names keep the
+straight quotes the old HTML source used (`'rect'`, `'fill'`). Lifecycle
+declarations of the editor's draft link to the published chapter pages, whose
+ids the build keeps stable.
+
+Behind a TLS-intercepting proxy, set `SSL_CERT_FILE` to a PEM bundle the proxy
+is trusted by; regeneration then uses those roots instead of the bundled ones.
+
+| Input                                                         | Extraction                               | Result                                                                                          |
+| ------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| SVG 2 build manifest and definitions XML at a resolved commit | `svgwg.rs`, `extract.rs`                 | Chapter list, permalink base, elements, categories, attributes and content models               |
+| Chapter Bikeshed sources at the same commit                   | `bikeshed.rs`, `chapter.rs`, `paths.rs`  | Descriptions, definitions, property values and path grammar                                     |
+| Dated SVG 1.1 and SVG 2 indexes                               | `inventory.rs`, `legacy.rs`              | Per-edition membership and historical property values                                           |
+| Dated chapters and pinned draft chapters                      | `spec_lifecycle.rs`                      | Explicit deprecated, obsolete and removed declarations with source anchors and attribute owners |
+| CSS, SVG module and ARIA definitions                          | `css.rs`, `aria.rs`, `treesitter.rs`     | Referenced property grammars, value spaces and parser inputs                                    |
+| BCD and Web Features npm data                                 | `compat.rs`, shared compatibility models | Browser statements, BCD flags, Baseline milestones and WebDX advice                             |
 
 The four supported snapshots are SVG 1.1 First Edition (2003), SVG 1.1 Second
 Edition (2011), SVG 2 CR (2018), and the rolling SVG 2 editor's draft. Their
@@ -99,3 +113,4 @@ features, removed features, exact attribute context and runtime replacement.
 remain explicit grammar follow-ups in [#51].
 
 [#51]: https://github.com/kjanat/svg/issues/51
+[w3c/svgwg#1036]: https://github.com/w3c/svgwg/issues/1036

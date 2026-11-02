@@ -1,62 +1,63 @@
 //! Extract permalink anchors, term definitions, and example references from a
-//! chapter or appendix HTML page.
+//! chapter or appendix page.
 //!
-//! Chapter source HTML carries the prose, the `id` anchors that element and
-//! attribute hrefs point at, the `<dfn>` term definitions, and `<edit:example>`
-//! references. (The rendered element-summary tables are injected at publish
-//! time from `definitions.xml`, so the structural content model is extracted
-//! from there, not here.) This module turns one page into a typed record.
+//! Chapter sources carry the prose, the `id` anchors that element and
+//! attribute hrefs point at, the `<dfn>` term definitions, and the example
+//! blocks. (The element-summary boxes are generated at build time from
+//! `definitions.xml` and stay empty `data-svg-fill` placeholders in the source,
+//! so the structural content model is extracted from there, not here.) This
+//! module turns one page into a typed record. SVG 2 pages arrive as Bikeshed
+//! sources lowered to plain HTML by [`crate::bikeshed`]; external modules and
+//! the property definitions of other specs arrive as published HTML.
 //!
 //! # Sources parsed
 //!
-//! Chapter/appendix pages named in `publish.xml` (fetched by `main`, pinned to
-//! the run's commit; links resolve to the current `master`):
+//! Chapter/appendix pages listed by the SVG 2 build manifest
+//! ([`crate::svgwg`]; fetched by `main`, pinned to the run's commit; links
+//! resolve to the current `main`):
 //!
-//! [`access.html`][access], [`animate.html`][animate],
-//! [`attindex.html`][attindex], [`changes.html`][changes],
-//! [`conform.html`][conform], [`coords.html`][coords],
-//! [`eltindex.html`][eltindex], [`embedded.html`][embedded],
-//! [`geometry.html`][geometry], [`idl.html`][idl],
-//! [`idlindex.html`][idlindex], [`implnote.html`][implnote],
-//! [`interact.html`][interact], [`intro.html`][intro],
-//! [`linking.html`][linking], [`mimereg.html`][mimereg],
-//! [`painting.html`][painting], [`paths.html`][paths],
-//! [`propidx.html`][propidx], [`pservers.html`][pservers],
-//! [`refs.html`][refs], [`render.html`][render], [`shapes.html`][shapes],
-//! [`struct.html`][struct], [`styling.html`][styling], [`text.html`][text],
-//! [`types.html`][types]
+//! [`access.bs`][access], [`animate.bs`][animate], [`attindex.bs`][attindex],
+//! [`changes.bs`][changes], [`conform.bs`][conform], [`coords.bs`][coords],
+//! [`eltindex.bs`][eltindex], [`embedded.bs`][embedded],
+//! [`geometry.bs`][geometry], [`idl.bs`][idl], [`idlindex.bs`][idlindex],
+//! [`implnote.bs`][implnote], [`interact.bs`][interact], [`intro.bs`][intro],
+//! [`linking.bs`][linking], [`mimereg.bs`][mimereg], [`painting.bs`][painting],
+//! [`paths.bs`][paths], [`propidx.bs`][propidx], [`pservers.bs`][pservers],
+//! [`refs.bs`][refs], [`render.bs`][render], [`shapes.bs`][shapes],
+//! [`struct.bs`][struct], [`styling.bs`][styling], [`text.bs`][text],
+//! [`types.bs`][types]
 //!
 //! Plus external SVG module chapters SVG 2 reuses:
 //!
 //! - [SVG Animations][animations]
 //!
-//! [access]: https://raw.githubusercontent.com/w3c/svgwg/master/access.html
-//! [animate]: https://raw.githubusercontent.com/w3c/svgwg/master/animate.html
-//! [attindex]: https://raw.githubusercontent.com/w3c/svgwg/master/attindex.html
-//! [changes]: https://raw.githubusercontent.com/w3c/svgwg/master/changes.html
-//! [conform]: https://raw.githubusercontent.com/w3c/svgwg/master/conform.html
-//! [coords]: https://raw.githubusercontent.com/w3c/svgwg/master/coords.html
-//! [eltindex]: https://raw.githubusercontent.com/w3c/svgwg/master/eltindex.html
-//! [embedded]: https://raw.githubusercontent.com/w3c/svgwg/master/embedded.html
-//! [geometry]: https://raw.githubusercontent.com/w3c/svgwg/master/geometry.html
-//! [idl]: https://raw.githubusercontent.com/w3c/svgwg/master/idl.html
-//! [idlindex]: https://raw.githubusercontent.com/w3c/svgwg/master/idlindex.html
-//! [implnote]: https://raw.githubusercontent.com/w3c/svgwg/master/implnote.html
-//! [interact]: https://raw.githubusercontent.com/w3c/svgwg/master/interact.html
-//! [intro]: https://raw.githubusercontent.com/w3c/svgwg/master/intro.html
-//! [linking]: https://raw.githubusercontent.com/w3c/svgwg/master/linking.html
-//! [mimereg]: https://raw.githubusercontent.com/w3c/svgwg/master/mimereg.html
-//! [painting]: https://raw.githubusercontent.com/w3c/svgwg/master/painting.html
-//! [paths]: https://raw.githubusercontent.com/w3c/svgwg/master/paths.html
-//! [propidx]: https://raw.githubusercontent.com/w3c/svgwg/master/propidx.html
-//! [pservers]: https://raw.githubusercontent.com/w3c/svgwg/master/pservers.html
-//! [refs]: https://raw.githubusercontent.com/w3c/svgwg/master/refs.html
-//! [render]: https://raw.githubusercontent.com/w3c/svgwg/master/render.html
-//! [shapes]: https://raw.githubusercontent.com/w3c/svgwg/master/shapes.html
-//! [struct]: https://raw.githubusercontent.com/w3c/svgwg/master/struct.html
-//! [styling]: https://raw.githubusercontent.com/w3c/svgwg/master/styling.html
-//! [text]: https://raw.githubusercontent.com/w3c/svgwg/master/text.html
-//! [types]: https://raw.githubusercontent.com/w3c/svgwg/master/types.html
+//! [access]: https://github.com/w3c/svgwg/blob/main/master/access.bs
+//! [animate]: https://github.com/w3c/svgwg/blob/main/master/animate.bs
+//! [attindex]: https://github.com/w3c/svgwg/blob/main/master/attindex.bs
+//! [changes]: https://github.com/w3c/svgwg/blob/main/master/changes.bs
+//! [conform]: https://github.com/w3c/svgwg/blob/main/master/conform.bs
+//! [coords]: https://github.com/w3c/svgwg/blob/main/master/coords.bs
+//! [eltindex]: https://github.com/w3c/svgwg/blob/main/master/eltindex.bs
+//! [embedded]: https://github.com/w3c/svgwg/blob/main/master/embedded.bs
+//! [geometry]: https://github.com/w3c/svgwg/blob/main/master/geometry.bs
+//! [idl]: https://github.com/w3c/svgwg/blob/main/master/idl.bs
+//! [idlindex]: https://github.com/w3c/svgwg/blob/main/master/idlindex.bs
+//! [implnote]: https://github.com/w3c/svgwg/blob/main/master/implnote.bs
+//! [interact]: https://github.com/w3c/svgwg/blob/main/master/interact.bs
+//! [intro]: https://github.com/w3c/svgwg/blob/main/master/intro.bs
+//! [linking]: https://github.com/w3c/svgwg/blob/main/master/linking.bs
+//! [mimereg]: https://github.com/w3c/svgwg/blob/main/master/mimereg.bs
+//! [painting]: https://github.com/w3c/svgwg/blob/main/master/painting.bs
+//! [paths]: https://github.com/w3c/svgwg/blob/main/master/paths.bs
+//! [propidx]: https://github.com/w3c/svgwg/blob/main/master/propidx.bs
+//! [pservers]: https://github.com/w3c/svgwg/blob/main/master/pservers.bs
+//! [refs]: https://github.com/w3c/svgwg/blob/main/master/refs.bs
+//! [render]: https://github.com/w3c/svgwg/blob/main/master/render.bs
+//! [shapes]: https://github.com/w3c/svgwg/blob/main/master/shapes.bs
+//! [struct]: https://github.com/w3c/svgwg/blob/main/master/struct.bs
+//! [styling]: https://github.com/w3c/svgwg/blob/main/master/styling.bs
+//! [text]: https://github.com/w3c/svgwg/blob/main/master/text.bs
+//! [types]: https://github.com/w3c/svgwg/blob/main/master/types.bs
 //! [animations]: https://svgwg.org/specs/animations/
 
 use std::collections::BTreeMap;
@@ -92,18 +93,19 @@ pub struct Dfn {
     pub kind: Option<String>,
 }
 
-/// An `<edit:example>` reference to an example asset.
+/// An example block (`<div class="example">`) and the asset it includes.
 #[derive(Debug, Clone, Serialize)]
 pub struct Example {
-    /// The referenced example file (`href`).
+    /// The included example file (the `path:` of its `include-code` block).
     pub href: Option<String>,
-    /// The `image` flag (`yes`/`no`), when set.
-    pub image: Option<String>,
-    /// The `link` flag (`yes`/`no`), when set.
-    pub link: Option<String>,
+    /// Whether the example shows a rendered figure.
+    pub figure: bool,
+    /// Whether the example links to its SVG file.
+    pub view_as_svg: bool,
 }
 
-/// A property definition table (`<table class="propdef">`): the value space and
+/// A property definition table (`<table class="propdef">`, `svg-propdef` in
+/// SVG 2's Bikeshed source): the value space and
 /// metadata for a single CSS-style property or presentation attribute.
 #[derive(Debug, Clone, Serialize)]
 pub struct PropertyValueDef {
@@ -161,7 +163,7 @@ pub struct AnchorDescription {
 /// Everything extracted from one chapter/appendix page.
 #[derive(Debug, Clone, Serialize)]
 pub struct Chapter {
-    /// The chapter's source name (e.g. `struct`), backing `<name>.html`.
+    /// The chapter's source name (e.g. `struct`), backing `<name>.bs`.
     pub name: String,
     /// Every `id` anchor on the page.
     pub anchors: Vec<Anchor>,
@@ -177,9 +179,10 @@ pub struct Chapter {
     pub anchor_descriptions: Vec<AnchorDescription>,
 }
 
-/// Category membership used to expand the spec's publish-time `<edit:*category>`
-/// macros (which are empty in source HTML) back into prose. Keyed by category
-/// name; values are the member element/attribute names, in document order.
+/// Category membership used to expand the spec's build-time category
+/// placeholders (`data-svg-fill="element-category"`, empty in the source) back
+/// into prose. Keyed by category name; values are the member element/attribute
+/// names, in document order.
 #[derive(Debug, Default)]
 pub struct MacroIndex {
     /// Element-category name to its member element names.
@@ -190,8 +193,8 @@ pub struct MacroIndex {
 
 /// Extract anchors, definitions, examples, properties, and term definitions
 /// from a chapter's HTML. `macros` supplies category membership so that the
-/// publish-time `<edit:*category>` placeholders in descriptions are expanded
-/// rather than dropped.
+/// build-time category placeholders in descriptions are expanded rather than
+/// dropped.
 ///
 /// # Errors
 /// Returns an error if the HTML cannot be parsed.
@@ -237,14 +240,14 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
             continue;
         }
 
-        if has_class(tag, "propdef") {
+        if is_propdef(tag) {
             let ids = dfn_ids(tag, parser);
             if !ids.is_empty() {
                 pending_description_ids = ids;
             }
         }
 
-        if tag_name == "edit:elementsummary" {
+        if fill_kind(tag).as_deref() == Some("element-summary") {
             pending_description_ids.clear();
         }
 
@@ -265,17 +268,17 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
                 term: normalize_ws(&tag.inner_text(parser)),
                 kind: attr(tag, "data-dfn-type"),
             }),
-            "edit:example" => chapter.examples.push(Example {
-                href: attr(tag, "href"),
-                image: attr(tag, "image"),
-                link: attr(tag, "link"),
-            }),
+            "div" if has_class(tag, "example") => {
+                if let Some(example) = example_of(tag, parser) {
+                    chapter.examples.push(example);
+                }
+            }
             "table" if has_class(tag, "attrdef") => {
                 chapter
                     .properties
                     .extend(extract_attrdef_table(tag, parser));
             }
-            "table" if has_class(tag, "propdef") => {
+            "table" if is_propdef(tag) => {
                 chapter.properties.extend(extract_propdef(tag, parser));
             }
             "dl" if has_class(tag, "propdef-list-svg2") => {
@@ -303,7 +306,23 @@ pub fn extract_chapter(name: &str, html: &str, macros: &MacroIndex) -> Fallible<
 
     append_html_derived_properties(html, &dom, &mut chapter.properties);
 
+    unscope_category_definitions(&mut chapter.properties, macros);
     Ok(chapter)
+}
+
+/// Drop the `data-dfn-for` of definitions scoped to an attribute category
+/// (`conditional processing`, `aria`): such an attribute belongs to every
+/// bearer of the category, so it has no single bearer element.
+fn unscope_category_definitions(properties: &mut [PropertyValueDef], macros: &MacroIndex) {
+    for property in properties {
+        if property
+            .dfn_for
+            .as_ref()
+            .is_some_and(|scope| macros.attribute_categories.contains_key(scope))
+        {
+            property.dfn_for = None;
+        }
+    }
 }
 
 fn append_html_derived_properties(
@@ -998,9 +1017,9 @@ fn attribute_description_text(dd: &HTMLTag, parser: &Parser, macros: &MacroIndex
     description_text(dd, parser, macros)
 }
 
-/// Build a tag's text content, expanding `<edit:elementcategory>` and
-/// `<edit:attributecategory>` placeholders into their member lists (which
-/// `inner_text` would otherwise drop, leaving dangling "Specifically:" prose).
+/// Build a tag's text content, expanding element- and attribute-category
+/// placeholders into their member lists (which `inner_text` would otherwise
+/// drop, leaving dangling "Specifically:" prose).
 fn description_text(tag: &HTMLTag, parser: &Parser, macros: &MacroIndex) -> String {
     let mut buffer = String::new();
     collect_text(tag, parser, macros, &mut buffer);
@@ -1014,11 +1033,11 @@ fn collect_text(tag: &HTMLTag, parser: &Parser, macros: &MacroIndex, buffer: &mu
             continue;
         };
         if let Some(child) = node.as_tag() {
-            match child.name().as_utf8_str().as_ref() {
-                "edit:elementcategory" => {
+            match fill_kind(child).as_deref() {
+                Some("element-category") => {
                     push_members(&macros.element_categories, child, buffer);
                 }
-                "edit:attributecategory" => {
+                Some("attribute-category") => {
                     push_members(&macros.attribute_categories, child, buffer);
                 }
                 _ => collect_text(child, parser, macros, buffer),
@@ -1029,9 +1048,10 @@ fn collect_text(tag: &HTMLTag, parser: &Parser, macros: &MacroIndex, buffer: &mu
     }
 }
 
-/// Append the comma-joined members of the category named by `tag`'s `name`.
+/// Append the comma-joined members of the category named by `tag`'s
+/// `data-name`.
 fn push_members(members: &BTreeMap<String, Vec<String>>, tag: &HTMLTag, buffer: &mut String) {
-    if let Some(name) = attr(tag, "name")
+    if let Some(name) = attr(tag, "data-name")
         && let Some(names) = members.get(&name)
     {
         buffer.push_str(&names.join(", "));
@@ -1599,6 +1619,44 @@ fn is_heading(name: &str) -> bool {
     matches!(name, "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
 }
 
+/// Whether `tag` is a property definition table or block: `propdef` in CSS
+/// specs and old SVG editions, `svg-propdef` in SVG 2's Bikeshed source (which
+/// keeps Bikeshed from restyling it as its own propdef).
+fn is_propdef(tag: &HTMLTag) -> bool {
+    has_class(tag, "propdef") || has_class(tag, "svg-propdef")
+}
+
+/// The kind of build-time generated content a placeholder stands for
+/// (`data-svg-fill`: `element-summary`, `element-category`, ...).
+fn fill_kind(tag: &HTMLTag) -> Option<String> {
+    attr(tag, "data-svg-fill")
+}
+
+/// The asset an example block includes, and how it is shown.
+fn example_of(div: &HTMLTag, parser: &Parser) -> Option<Example> {
+    let mut href = None;
+    let mut figure = false;
+    let mut view_as_svg = false;
+    for handle in div.children().all(parser) {
+        let Some(child) = handle.as_tag() else {
+            continue;
+        };
+        if child.name().as_utf8_str() == "pre" && has_class(child, "include-code") && href.is_none()
+        {
+            href = normalize_ws(&child.inner_text(parser))
+                .strip_prefix("path:")
+                .map(|path| path.trim().to_owned());
+        }
+        figure |= has_class(child, "figure");
+        view_as_svg |= has_class(child, "view-as-svg");
+    }
+    href.is_some().then_some(Example {
+        href,
+        figure,
+        view_as_svg,
+    })
+}
+
 /// The value of attribute `key` on `tag`, if present with a value.
 fn attr(tag: &HTMLTag, key: &str) -> Option<String> {
     match tag.attributes().get(key) {
@@ -1632,7 +1690,7 @@ mod tests {
   <dt id="DirectAttribute"><span class="adef">direct</span></dt>
   <dd><p>The direct attribute uses its dt id.</p><dl><dt>Value</dt><dd>number</dd></dl></dd>
 </dl>
-<edit:example href='images/x.svg' image='no'/>"#;
+<div class="example"><pre class="include-code xml">path: images/x.svg</pre><p class="view-as-svg"><a href="images/x.svg">View</a></p></div>"#;
 
     #[test]
     fn value_keywords_keeps_only_bare_keywords() {
@@ -1686,7 +1744,8 @@ mod tests {
 
         assert_eq!(ch.examples.len(), 1);
         assert_eq!(ch.examples[0].href.as_deref(), Some("images/x.svg"));
-        assert_eq!(ch.examples[0].image.as_deref(), Some("no"));
+        assert!(!ch.examples[0].figure);
+        assert!(ch.examples[0].view_as_svg);
 
         assert_eq!(ch.properties.len(), 1);
         let prop = &ch.properties[0];
@@ -2041,10 +2100,29 @@ table-cell | table-caption | none | <a href="cascade.html#value-def-inherit" cla
     }
 
     #[test]
+    fn unscopes_definitions_for_an_attribute_category() -> Result<(), Box<dyn std::error::Error>> {
+        let html = r#"<table class="svg-propdef def">
+  <tr><th>Name:</th><td><dfn id="SystemLanguageAttribute" data-dfn-type="element-attr"
+    data-dfn-for="conditional processing">systemLanguage</dfn></td></tr>
+  <tr><th>Value:</th><td>[ &lt;language-tag> ]#</td></tr>
+</table>"#;
+        let mut macros = MacroIndex::default();
+        macros.attribute_categories.insert(
+            "conditional processing".to_owned(),
+            vec!["systemLanguage".to_owned()],
+        );
+        let ch = extract_chapter("struct", html, &macros)?;
+        let property = ch.properties.first().ok_or("no property")?;
+        assert_eq!(property.name, "systemLanguage");
+        assert_eq!(property.dfn_for, None);
+        Ok(())
+    }
+
+    #[test]
     fn expands_category_macro_in_description() -> Result<(), Box<dyn std::error::Error>> {
         let html = r"<dl class='definitions'>
   <dt><dfn id='c' data-dfn-type='dfn'>container element</dfn></dt>
-  <dd>An element. Specifically: <edit:elementcategory name='container'/>.</dd>
+  <dd>An element. Specifically: <span data-svg-fill='element-category' data-name='container'></span>.</dd>
 </dl>";
         let mut macros = MacroIndex::default();
         macros.element_categories.insert(

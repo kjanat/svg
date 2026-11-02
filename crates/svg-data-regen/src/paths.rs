@@ -1,12 +1,12 @@
-//! Path-data facts scraped from SVGWG `paths.html`.
+//! Path-data facts scraped from the SVG 2 Paths chapter.
 //!
 //! # Sources parsed
 //!
-//! - [`paths.html`][paths] — the path grammar EBNF productions and the `d`
-//!   property definition. Fetched pinned to the run's commit; the link resolves
-//!   to the current `master`.
+//! - [`master/paths.bs`][paths] — the path grammar EBNF productions and the `d`
+//!   property definition, lowered by [`crate::bikeshed`]. Fetched pinned to the
+//!   run's commit; the link resolves to the current `main`.
 //!
-//! [paths]: https://raw.githubusercontent.com/w3c/svgwg/master/paths.html
+//! [paths]: https://github.com/w3c/svgwg/blob/main/master/paths.bs
 
 use std::{collections::BTreeSet, sync::LazyLock};
 
@@ -17,7 +17,6 @@ use crate::{
     util::{boxed, tag_open_end},
 };
 
-const PATHS_HTML_PATH: &str = "master/paths.html";
 const PATH_DATA_BNF_HEADING: &str = "id=\"PathDataBNF\"";
 
 /// The production whose alternatives enumerate the path commands. The command
@@ -40,10 +39,10 @@ static QUOTED_LETTER_RE: LazyLock<Regex> =
     LazyLock::new(|| crate::util::compile_regex(r#"["']([A-Za-z])["']"#));
 static TAG_RE: LazyLock<Regex> = LazyLock::new(|| crate::util::compile_regex("(?is)<[^>]+>"));
 
-/// Path-data grammar facts from the pinned SVGWG `paths.html` chapter.
+/// Path-data grammar facts from the pinned SVGWG Paths chapter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathsGrammarFacts {
-    /// Raw GitHub URL for the pinned `paths.html` source.
+    /// Raw GitHub URL for the pinned Paths chapter source.
     pub url: String,
     /// The `d` property name from `#DProperty`.
     pub path_data_property: String,
@@ -51,15 +50,19 @@ pub struct PathsGrammarFacts {
     pub path_command_letters: Vec<String>,
 }
 
-/// Fetch and parse path-data grammar facts from SVGWG `paths.html`.
+/// Fetch and parse path-data grammar facts from the Paths chapter source at
+/// `path` (`master/paths.bs`).
 ///
 /// # Errors
 /// Returns an error when the chapter is missing required anchors or the scraped
 /// command letters do not satisfy the validation gate.
-pub fn fetch_paths_grammar_facts(repo_slug: &str, commit_sha: &str) -> Fallible<PathsGrammarFacts> {
-    let html = fetch::raw_file(repo_slug, commit_sha, PATHS_HTML_PATH)?;
-    let url =
-        format!("https://raw.githubusercontent.com/{repo_slug}/{commit_sha}/{PATHS_HTML_PATH}");
+pub fn fetch_paths_grammar_facts(
+    repo_slug: &str,
+    commit_sha: &str,
+    path: &str,
+) -> Fallible<PathsGrammarFacts> {
+    let html = crate::bikeshed::lower(&fetch::raw_file(repo_slug, commit_sha, path)?);
+    let url = format!("https://raw.githubusercontent.com/{repo_slug}/{commit_sha}/{path}");
     let path_data_property = extract_path_data_property(&html)?;
     let path_command_letters = extract_path_command_letters(&html)?;
     validate_path_command_letters(&path_command_letters)?;
@@ -74,16 +77,16 @@ fn extract_path_data_property(html: &str) -> Fallible<String> {
     let marker = r#"<dfn id="DProperty""#;
     let dfn_start = html
         .find(marker)
-        .ok_or_else(|| boxed("paths.html missing #DProperty <dfn>"))?;
+        .ok_or_else(|| boxed("paths chapter missing #DProperty <dfn>"))?;
     let dfn_open_end = tag_open_end(html, dfn_start)
-        .ok_or_else(|| boxed("paths.html #DProperty <dfn> tag is malformed"))?;
+        .ok_or_else(|| boxed("paths chapter #DProperty <dfn> tag is malformed"))?;
     let dfn_close = html[dfn_open_end..]
         .find("</dfn>")
         .map(|offset| dfn_open_end + offset)
-        .ok_or_else(|| boxed("paths.html #DProperty <dfn> is unclosed"))?;
+        .ok_or_else(|| boxed("paths chapter #DProperty <dfn> is unclosed"))?;
     let name = strip_tags(&html[dfn_open_end..dfn_close]);
     if name.is_empty() {
-        return Err(boxed("paths.html #DProperty <dfn> has no property name"));
+        return Err(boxed("paths chapter #DProperty <dfn> has no property name"));
     }
     Ok(name)
 }
@@ -94,7 +97,7 @@ fn extract_path_command_letters(html: &str) -> Fallible<Vec<String>> {
     for production in command_production_names(grammar)? {
         let Some(block) = production_block(grammar, &production) else {
             return Err(boxed(format!(
-                "paths.html svg-path grammar missing `{production}` production listed by \
+                "paths chapter svg-path grammar missing `{production}` production listed by \
                  `{DRAWTO_COMMAND_PRODUCTION}`"
             )));
         };
@@ -104,7 +107,7 @@ fn extract_path_command_letters(html: &str) -> Fallible<Vec<String>> {
     }
     if letters.is_empty() {
         return Err(boxed(
-            "paths.html svg-path grammar contained no path command letters",
+            "paths chapter svg-path grammar contained no path command letters",
         ));
     }
     Ok(letters.into_iter().collect())
@@ -116,7 +119,7 @@ fn extract_path_command_letters(html: &str) -> Fallible<Vec<String>> {
 fn command_production_names(grammar: &str) -> Fallible<Vec<String>> {
     let block = production_block(grammar, DRAWTO_COMMAND_PRODUCTION).ok_or_else(|| {
         boxed(format!(
-            "paths.html svg-path grammar missing `{DRAWTO_COMMAND_PRODUCTION}` production"
+            "paths chapter svg-path grammar missing `{DRAWTO_COMMAND_PRODUCTION}` production"
         ))
     })?;
     let names: Vec<String> = block
@@ -128,7 +131,7 @@ fn command_production_names(grammar: &str) -> Fallible<Vec<String>> {
         .collect();
     if names.is_empty() {
         return Err(boxed(format!(
-            "paths.html `{DRAWTO_COMMAND_PRODUCTION}` production listed no command alternatives"
+            "paths chapter `{DRAWTO_COMMAND_PRODUCTION}` production listed no command alternatives"
         )));
     }
     Ok(names)
@@ -137,19 +140,19 @@ fn command_production_names(grammar: &str) -> Fallible<Vec<String>> {
 fn path_data_bnf_grammar(html: &str) -> Fallible<&str> {
     let heading = html
         .find(PATH_DATA_BNF_HEADING)
-        .ok_or_else(|| boxed("paths.html missing #PathDataBNF anchor"))?;
+        .ok_or_else(|| boxed("paths chapter missing #PathDataBNF anchor"))?;
     let after_heading = &html[heading..];
     let pre_start = after_heading
         .find("<pre")
-        .ok_or_else(|| boxed("paths.html #PathDataBNF missing <pre> grammar block"))?;
+        .ok_or_else(|| boxed("paths chapter #PathDataBNF missing <pre> grammar block"))?;
     let pre_open = after_heading[pre_start..]
         .find('>')
         .map(|offset| pre_start + offset + 1)
-        .ok_or_else(|| boxed("paths.html path grammar <pre> has no opening tag"))?;
+        .ok_or_else(|| boxed("paths chapter path grammar <pre> has no opening tag"))?;
     let pre_end = after_heading[pre_open..]
         .find("</pre>")
         .map(|offset| pre_open + offset)
-        .ok_or_else(|| boxed("paths.html path grammar <pre> has no closing tag"))?;
+        .ok_or_else(|| boxed("paths chapter path grammar <pre> has no closing tag"))?;
     Ok(&after_heading[pre_open..pre_end])
 }
 
@@ -208,7 +211,7 @@ fn validate_path_command_letters(letters: &[String]) -> Fallible<()> {
         problems.push(format!("unexpected: {}", unexpected.join(", ")));
     }
     Err(boxed(format!(
-        "paths.html path command letters do not match the expected set ({})",
+        "paths chapter path command letters do not match the expected set ({})",
         problems.join("; ")
     )))
 }

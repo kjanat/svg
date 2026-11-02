@@ -11,19 +11,20 @@
 //!
 //! # Sources parsed
 //!
-//! The definitions modules fetched by `main`, pinned to the run's commit (links
-//! resolve to the current `master`):
+//! The definitions modules the SVG 2 build configuration lists ([`crate::svgwg`]),
+//! fetched by `main` pinned to the run's commit (links resolve to the current
+//! `main`):
 //!
 //! - [`definitions.xml`][defs] / [`definitions-filters.xml`][filters] /
 //!   [`definitions-masking.xml`][masking] /
 //!   [`definitions-compositing.xml`][compositing]
 //! - the animations module [`definitions.xml`][anim]
 //!
-//! [defs]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions.xml
-//! [filters]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-filters.xml
-//! [masking]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-masking.xml
-//! [compositing]: https://raw.githubusercontent.com/w3c/svgwg/master/definitions-compositing.xml
-//! [anim]: https://raw.githubusercontent.com/w3c/svgwg/master/specs/animations/master/definitions.xml
+//! [defs]: https://github.com/w3c/svgwg/blob/main/master/definitions.xml
+//! [filters]: https://github.com/w3c/svgwg/blob/main/master/definitions-filters.xml
+//! [masking]: https://github.com/w3c/svgwg/blob/main/master/definitions-masking.xml
+//! [compositing]: https://github.com/w3c/svgwg/blob/main/master/definitions-compositing.xml
+//! [anim]: https://github.com/w3c/svgwg/blob/main/specs/animations/master/definitions.xml
 
 use quick_xml::events::{BytesEnd, BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -175,8 +176,8 @@ enum Context {
 
 /// Extract all entities from a definitions module's XML.
 ///
-/// `anchor_base` is the module's external anchor base from `publish.xml` (the
-/// `base` attribute on its `<definitions>` entry), carried onto the result so
+/// `anchor_base` is the module's external anchor base from the SVG 2 build
+/// configuration (the `base` of its `definitions` entry), carried onto the result so
 /// later phases can resolve the module's hrefs into permalinks.
 ///
 /// # Errors

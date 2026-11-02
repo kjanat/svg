@@ -100,3 +100,41 @@
   the identical way to the font-width.` Do not mark `font-stretch` deprecated
   from MDN prose alone; first decide whether the repo should follow pinned SVG 2
   / CSS Fonts 3 data, or add first-class alias/replacement metadata.
+
+## svgwg Upstream Layout
+
+- On 2026-10-14 (w3c/svgwg@09d59ab, PR #1199) SVG 2 moved to Bikeshed:
+  `master/publish.xml` and the `master/*.html` chapter sources with `edit:*`
+  elements were removed, and the default branch became `main` (the old `master`
+  branch is frozen). `master/*.html` files that remain are stub pages of removed
+  chapters. The manifest is now `tools/svg2-build/config/svg2.json` plus
+  `svg2-split.json`; chapters are `master/<name>.bs`.
+
+- The conversion is checkable: regenerating with the old pipeline at
+  w3c/svgwg@8b6274e (last HTML commit) and with the new one at @09d59ab (the
+  converted sources, same content) gives the same catalog apart from provenance
+  URLs and six descriptions that lose old-source link artifacts (`'style
+  element' element` became `'style' element`). Repeat that comparison after any
+  change to `bikeshed.rs`.
+
+- Bikeshed renders property links without quotes (`'fill'` shorthand and `<a
+  class="property">fill</a>`), and the converted source wraps element and
+  attribute links in curly quotes (`‘<{rect}>’`). Lowering puts straight quotes
+  around every such name; the lifecycle extractor's `'name' property` patterns
+  depend on that.
+
+- The converter added `data-dfn-for` to attribute definitions scoped to an
+  attribute category (`conditional processing`, `aria`). Treat those as
+  unscoped, or the category name becomes a bogus bearer element in
+  `element_values`. Older non-element bearers (`core-attributes`,
+  `filter-primitive`, comma-joined element lists) come from the external
+  filter/animation specs and predate this.
+
+- Chapter-page ids and single-page ids differ for some headings: the `.bs`
+  heading carries the single-page id in `id` and the chapter-page id in
+  `data-multipage-id`. Permalinks use chapter pages, so lowering swaps them.
+  Empty `<span class="bs-old-id">` aliases exist only for the single page.
+
+- Lifecycle declaration pages are read in name order (as for dated editions);
+  the first of two agreeing declarations is recorded, so manifest order would
+  change the recorded source (`XLinkRefAttrs` vs `types.html`).

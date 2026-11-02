@@ -254,8 +254,9 @@ impl GrammarProjectionInputs {
 pub fn fetch_grammar_projection_inputs(
     repo_slug: &str,
     commit_sha: &str,
+    paths_chapter: &str,
 ) -> Fallible<GrammarProjectionInputs> {
-    let paths = crate::paths::fetch_paths_grammar_facts(repo_slug, commit_sha)?;
+    let paths = crate::paths::fetch_paths_grammar_facts(repo_slug, commit_sha, paths_chapter)?;
     let source = package_source(WEBREF_CSS_PACKAGE, WEBREF_CSS_DATA_PATH)?;
     let css_json: WebrefCssJson =
         serde_json::from_str(&fetch::url_text(&source.url, "application/json")?)?;

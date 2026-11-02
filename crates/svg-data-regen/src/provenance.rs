@@ -1,54 +1,14 @@
 //! Typed provenance for a regeneration run.
 //!
 //! Captures the exact upstream commit a run fetched plus the permalink base
-//! URLs distilled from `publish.xml`. This is what later phases stamp into the
-//! derived data so every fact can be traced to a pinned commit and minted into
-//! a permalink.
-
-use crate::discover::VersionLink;
-
-/// The permalink base URLs a regeneration derives from.
-///
-/// Distilled from `publish.xml`'s `<versions>` block into the specific editions
-/// permalinks point at. Each is optional because not every edition's manifest
-/// declares every alias.
-#[derive(Debug, Clone)]
-pub struct BaseUrls {
-    /// Rolling editor's-draft render (`<cvs>`): the GitHub-pages base.
-    pub editors_draft: Option<String>,
-    /// Current dated `/TR/` edition (`<this>`).
-    pub dated: Option<String>,
-    /// Version-less `/TR/` draft alias (`<latest>`).
-    pub latest: Option<String>,
-    /// Version-less `/TR/` REC alias (`<latestrec>`).
-    pub latest_rec: Option<String>,
-}
-
-impl BaseUrls {
-    /// Distil the typed permalink bases from the raw `<versions>` links.
-    pub fn from_links(links: &[VersionLink]) -> Self {
-        let find = |primary: &str, fallback: Option<&str>| {
-            links
-                .iter()
-                .find(|link| link.name == primary)
-                .or_else(|| {
-                    fallback.and_then(|fallback| links.iter().find(|link| link.name == fallback))
-                })
-                .map(|link| link.href.clone())
-        };
-        Self {
-            editors_draft: find("cvs", Some("cvs-single")),
-            dated: find("this", Some("this-single")),
-            latest: find("latest", None),
-            latest_rec: find("latestrec", None),
-        }
-    }
-}
+//! URLs the SVG 2 build declares (see [`crate::svgwg`]). This is what later
+//! phases stamp into the derived data so every fact can be traced to a pinned
+//! commit and minted into a permalink.
 
 /// The exact upstream snapshot a regeneration fetched, plus permalink bases.
 ///
 /// Everything needed to reproduce the run (slug + ref + SHA) and to mint
-/// permalinks (the dated/draft base URLs and the commit date).
+/// permalinks (the draft base URL and the commit date).
 #[derive(Debug, Clone)]
 pub struct Provenance {
     /// Canonical browse URL of the upstream repository.
@@ -61,6 +21,8 @@ pub struct Provenance {
     pub commit_date: String,
     /// The spec maturity at that commit (`ED`, `CR`, ...).
     pub maturity: String,
-    /// The permalink base URLs declared by the manifest.
-    pub base_urls: BaseUrls,
+    /// Base URL of the editor's-draft chapter pages (`published_base`).
+    pub editors_draft: String,
+    /// The version-less `/TR/` alias, when the build declares one.
+    pub latest: Option<String>,
 }
