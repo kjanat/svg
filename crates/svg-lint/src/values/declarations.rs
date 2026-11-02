@@ -3,15 +3,285 @@
 //! Each check returns `None` for a valid value and `Some(reason)` for an
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
+//!
+//! SVG 2 parses `style` as a CSS Style Attributes declaration list
+//! (<https://svgwg.org/svg2-draft/styling.html#StyleAttribute>). The check
+//! reports only what makes the value certainly not CSS: a declaration that
+//! does not start with a property name and a colon, a top-level `!` other
+//! than a trailing `!important`, an unmatched `)`, `]` or `}`, a bad string
+//! or url, and the tokenizer's parse errors (an invalid escape, and a string,
+//! url or comment cut off by the end of the value). Property names and values
+//! are not validated: unknown properties are valid syntax. Blocks and
+//! functions left open at the end are closed without a parse error, so they
+//! are accepted.
+
+use std::borrow::Cow;
+
+use super::syntax::tokenizer::{Token, tokenize};
 
 /// `CssDeclarationList`: a CSS declaration list.
-#[allow(
-    clippy::missing_const_for_fn,
-    reason = "stub: replaced by the real check"
-)]
 pub fn check_css_declaration_list(value: &str) -> Option<String> {
-    let _ = value;
-    None
+    let input = xml_normalized(value);
+    let (tokens, trailing) = lex(&input);
+    if skip_comments(trailing).starts_with("/*") {
+        return Some("unterminated comment".to_owned());
+    }
+    if let Some(last) = tokens.last()
+        && let Some(reason) = end_of_value_error(last, input.len())
+    {
+        return Some(reason.to_owned());
+    }
+    check_structure(&tokens)
+}
+
+/// XML attribute-value normalization turns every literal tab, line feed and
+/// carriage return into a space; the value handed to the check no longer
+/// tells them apart from character references, so read them all as spaces.
+fn xml_normalized(value: &str) -> Cow<'_, str> {
+    if value.contains(['\t', '\n', '\r']) {
+        Cow::Owned(value.replace(['\t', '\n', '\r'], " "))
+    } else {
+        Cow::Borrowed(value)
+    }
+}
+
+/// A token with its source text (leading comments excluded) and the byte
+/// offset where that text ends.
+struct Lexed<'a> {
+    token: Token<'a>,
+    text: &'a str,
+    end: usize,
+}
+
+/// Tokenize `input`, returning the tokens and the text after the last one
+/// (nothing but comments).
+fn lex(input: &str) -> (Vec<Lexed<'_>>, &str) {
+    let mut tokenizer = tokenize(input);
+    let mut tokens = Vec::new();
+    loop {
+        let start = tokenizer.offset();
+        let Some(token) = tokenizer.next() else {
+            return (tokens, &input[start..]);
+        };
+        let end = tokenizer.offset();
+        tokens.push(Lexed {
+            token,
+            text: skip_comments(&input[start..end]),
+            end,
+        });
+    }
+}
+
+/// `s` without its leading complete `/* ... */` comments.
+fn skip_comments(mut s: &str) -> &str {
+    while let Some(body) = s.strip_prefix("/*")
+        && let Some(end) = body.find("*/")
+    {
+        s = &body[end + 2..];
+    }
+    s
+}
+
+/// Whether `text` ends with `c` that is not escaped by a backslash.
+fn ends_with_unescaped(text: &str, c: char) -> bool {
+    text.strip_suffix(c)
+        .is_some_and(|rest| !ends_with_lone_backslash(rest))
+}
+
+/// Whether `text` ends with an odd run of backslashes: the last one starts an
+/// escape.
+fn ends_with_lone_backslash(text: &str) -> bool {
+    text.bytes().rev().take_while(|&b| b == b'\\').count() % 2 == 1
+}
+
+/// The parse error, if any, of the last token when the end of the value cut
+/// it off.
+fn end_of_value_error(last: &Lexed<'_>, input_len: usize) -> Option<&'static str> {
+    if last.end != input_len {
+        return None;
+    }
+    match last.token {
+        // A string ends only at its closing quote, a newline or EOF.
+        Token::String(_) => {
+            let mut chars = last.text.chars();
+            let terminated = chars
+                .next()
+                .is_some_and(|quote| ends_with_unescaped(chars.as_str(), quote));
+            (!terminated).then_some("unterminated string")
+        }
+        // A url token ends only at `)` or EOF.
+        Token::Url(_) => (!ends_with_unescaped(last.text, ')')).then_some("unterminated url("),
+        _ => ends_with_lone_backslash(last.text).then_some("escape at the end of the value"),
+    }
+}
+
+/// Where "parse a list of declarations" stands, at the top level.
+enum State {
+    /// Expecting a declaration or at-rule.
+    Start,
+    /// In an at-rule, which ends at `;` or after its `{}` block.
+    AtRule,
+    /// After a property name, expecting a colon.
+    Name(String),
+    /// In a declaration's value.
+    Value(ValueState),
+}
+
+/// What decides whether a value's top-level `!` is a trailing `!important`.
+#[derive(Default)]
+struct ValueState {
+    bangs: usize,
+    /// The last two significant top-level component values.
+    last: [Significant; 2],
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Significant {
+    #[default]
+    Other,
+    Bang,
+    Important,
+}
+
+impl ValueState {
+    fn push(&mut self, item: Significant) {
+        if item == Significant::Bang {
+            self.bangs += 1;
+        }
+        self.last = [self.last[1], item];
+    }
+
+    /// Whether every top-level `!` is the one of a trailing `!important`.
+    fn bangs_ok(&self) -> bool {
+        self.bangs == 0
+            || (self.bangs == 1 && self.last == [Significant::Bang, Significant::Important])
+    }
+}
+
+const BANG_REASON: &str = "`!` in a declaration value is only allowed in a trailing `!important`";
+
+/// The bracket a block or function closes with.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Closer {
+    Paren,
+    Square,
+    Curly,
+}
+
+impl Closer {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Paren => ")",
+            Self::Square => "]",
+            Self::Curly => "}",
+        }
+    }
+}
+
+/// Walk the tokens as "parse a list of declarations" does.
+fn check_structure(tokens: &[Lexed<'_>]) -> Option<String> {
+    let mut open: Vec<Closer> = Vec::new();
+    let mut state = State::Start;
+    for lexed in tokens {
+        let token = &lexed.token;
+        if let Some(reason) = token_error(token) {
+            return Some(reason.to_owned());
+        }
+        let opener = match token {
+            Token::OpenParen | Token::Function(_) => Some(Closer::Paren),
+            Token::OpenSquare => Some(Closer::Square),
+            Token::OpenCurly => Some(Closer::Curly),
+            _ => None,
+        };
+        let closer = match token {
+            Token::CloseParen => Some(Closer::Paren),
+            Token::CloseSquare => Some(Closer::Square),
+            Token::CloseCurly => Some(Closer::Curly),
+            _ => None,
+        };
+        if let Some(closer) = closer {
+            // A closer that does not end the innermost open block is kept as
+            // a token, and such a token is never valid CSS.
+            if open.last() != Some(&closer) {
+                return Some(format!("unmatched `{}`", closer.as_str()));
+            }
+            open.pop();
+            if open.is_empty() && closer == Closer::Curly && matches!(state, State::AtRule) {
+                state = State::Start;
+            }
+            continue;
+        }
+        if !open.is_empty() {
+            open.extend(opener);
+            continue;
+        }
+        state = match state {
+            State::Start => match token {
+                Token::Whitespace | Token::Semicolon => State::Start,
+                Token::AtKeyword(_) => State::AtRule,
+                Token::Ident(name) => State::Name(name.clone().into_owned()),
+                Token::Colon => return Some("declaration has an empty property name".to_owned()),
+                _ => {
+                    return Some(format!(
+                        "declaration starts with `{}` instead of a property name",
+                        lexed.text
+                    ));
+                }
+            },
+            State::AtRule => match token {
+                Token::Semicolon => State::Start,
+                _ => State::AtRule,
+            },
+            State::Name(name) => match token {
+                Token::Whitespace => State::Name(name),
+                Token::Colon => State::Value(ValueState::default()),
+                _ => return Some(missing_colon(&name)),
+            },
+            State::Value(mut value) => match token {
+                Token::Whitespace => State::Value(value),
+                Token::Semicolon => {
+                    if !value.bangs_ok() {
+                        return Some(BANG_REASON.to_owned());
+                    }
+                    State::Start
+                }
+                Token::Delim('!') => {
+                    value.push(Significant::Bang);
+                    State::Value(value)
+                }
+                Token::Ident(ident) if ident.eq_ignore_ascii_case("important") => {
+                    value.push(Significant::Important);
+                    State::Value(value)
+                }
+                _ => {
+                    value.push(Significant::Other);
+                    State::Value(value)
+                }
+            },
+        };
+        open.extend(opener);
+    }
+    match state {
+        State::Name(name) => Some(missing_colon(&name)),
+        State::Value(value) if !value.bangs_ok() => Some(BANG_REASON.to_owned()),
+        _ => None,
+    }
+}
+
+fn missing_colon(name: &str) -> String {
+    format!("property `{name}` is not followed by a colon")
+}
+
+/// The parse error a token is by itself.
+const fn token_error(token: &Token<'_>) -> Option<&'static str> {
+    match token {
+        Token::BadString => Some("string broken by a newline"),
+        Token::BadUrl => Some("malformed url()"),
+        // The tokenizer emits a `\` delim only for a backslash before a
+        // newline outside a string.
+        Token::Delim('\\') => Some("`\\` before a newline is not a valid escape"),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
