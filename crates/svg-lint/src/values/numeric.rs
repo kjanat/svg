@@ -31,7 +31,9 @@ pub fn check_number(value: &str) -> Option<String> {
     if is_blank(value) || !match_value(value, NumericType::Number, UnitlessMode::Css).is_no() {
         return None;
     }
-    (!is_xsd_decimal(value)).then(|| "expected a number".to_owned())
+    xsd_decimal_fraction(value)
+        .is_none()
+        .then(|| "expected a number".to_owned())
 }
 
 /// `Integer`: an `<integer>`.
@@ -42,14 +44,16 @@ pub fn check_number(value: &str) -> Option<String> {
 /// - a CSS `<integer>` (<https://drafts.csswg.org/css-values-4/#integers>),
 ///   which covers the HTML valid integer and XML Schema `integer` forms, and
 ///   anything the syntax layer cannot decide (math functions and the like);
-/// - a CSS `<number>` without a fractional component (`3.0`, `1e3`): ARIA
-///   defines an integer only as "A numerical value without a fractional
-///   component" (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_integer>);
+/// - a CSS `<number>` or XML Schema `decimal` without a fractional component
+///   (`3.0`, `1e3`, `3.`): ARIA defines an integer only as "A numerical
+///   value without a fractional component"
+///   (<https://www.w3.org/TR/wai-aria-1.2/#valuetype_integer>);
 /// - the zero-length (or whitespace-only) string an ARIA attribute may have.
 pub fn check_integer(value: &str) -> Option<String> {
     if is_blank(value)
         || !match_value(value, NumericType::Integer, UnitlessMode::Css).is_no()
         || is_integral_number(value)
+        || xsd_decimal_fraction(value).is_some_and(|fraction| fraction.bytes().all(|d| d == b'0'))
     {
         return None;
     }
@@ -89,17 +93,18 @@ fn is_integral_number(value: &str) -> bool {
     )
 }
 
-/// XML Schema 1.1 Part 2 `decimal` lexical space,
-/// `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)`, after the `collapse` whitespace
-/// facet strips leading and trailing whitespace
+/// The fractional digits of `value` when it is in the XML Schema 1.1 Part 2
+/// `decimal` lexical space, `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)`, after
+/// the `collapse` whitespace facet strips leading and trailing whitespace
 /// (<https://www.w3.org/TR/xmlschema11-2/#decimal>).
-fn is_xsd_decimal(value: &str) -> bool {
+fn xsd_decimal_fraction(value: &str) -> Option<&str> {
     let body = value.trim_matches(is_xml_whitespace);
     let body = body.strip_prefix(['+', '-']).unwrap_or(body);
     let (whole, fraction) = body.split_once('.').unwrap_or((body, ""));
     let digits = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
     let has_dot = body.contains('.');
-    digits(whole) && digits(fraction) && (!whole.is_empty() || (has_dot && !fraction.is_empty()))
+    (digits(whole) && digits(fraction) && (!whole.is_empty() || (has_dot && !fraction.is_empty())))
+        .then_some(fraction)
 }
 
 #[cfg(test)]
@@ -374,7 +379,7 @@ mod tests {
                 attr,
                 "g",
                 is_integer,
-                &["1", "-1", "12", "", "3.0"],
+                &["1", "-1", "12", "", "3.0", "3.", "+4"],
                 &["1.5", "two", "1 2", "3px"],
             );
         }
