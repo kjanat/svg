@@ -41,8 +41,8 @@
 	"deploy": {
 		"org": "kjanat",
 		"app": "svg-compat",
-		"install": "deno install",
-		"build": "deno task check:deploy",
+		"install": "DENO_NO_PACKAGE_JSON=1 deno install",
+		"build": "DENO_NO_PACKAGE_JSON=1 deno task check:deploy",
 		"runtime": { "entrypoint": "main.ts", "cwd": "src" }
 	},
 	"test": {
