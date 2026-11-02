@@ -35,9 +35,6 @@ straight quotes the old HTML source used (`'rect'`, `'fill'`). Lifecycle
 declarations of the editor's draft link to the published chapter pages, whose
 ids the build keeps stable.
 
-Behind a TLS-intercepting proxy, set `SSL_CERT_FILE` to a PEM bundle the proxy
-is trusted by; regeneration then uses those roots instead of the bundled ones.
-
 | Input                                                         | Extraction                               | Result                                                                                          |
 | ------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | SVG 2 build manifest and definitions XML at a resolved commit | `svgwg.rs`, `extract.rs`                 | Chapter list, permalink base, elements, categories, attributes and content models               |
