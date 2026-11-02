@@ -395,6 +395,14 @@ fn check_attributes(
             Some(elem_name),
         ) {
             ProfileLookup::Present { value, lifecycle } => {
+                check_attribute_value(
+                    ctx,
+                    attr_node,
+                    tag_start,
+                    elem_name,
+                    lookup_name.as_ref(),
+                    value,
+                );
                 let lifecycle = attribute_diagnostic_lifecycle(
                     ctx,
                     elem_name,
@@ -447,6 +455,42 @@ fn check_attributes(
             }
             ProfileLookup::Unknown => {}
         }
+    }
+}
+
+/// Report a value outside the attribute's value space: the element-scoped value
+/// space when the catalog has one for `elem_name`, else the profile's.
+fn check_attribute_value(
+    ctx: &mut LintContext<'_>,
+    attr_node: Node,
+    tag_start: usize,
+    elem_name: &str,
+    attr_name: &str,
+    def: &svg_data::AttributeDef,
+) {
+    let Some(value_node) = attr_node.child_by_field_name("value") else {
+        return;
+    };
+    let Ok(raw) = std::str::from_utf8(&ctx.source[value_node.byte_range()]) else {
+        return;
+    };
+    let scoped = def
+        .element_values
+        .iter()
+        .find(|values| values.element == elem_name)
+        .map(|values| &values.values);
+    let values = scoped.unwrap_or_else(|| def.values_for_profile(ctx.options.profile));
+    let value = crate::values::attribute_value_text(raw);
+    if let Some(reason) = crate::values::invalid_reason(values, &value) {
+        push_diag_in_tag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            value_node,
+            Some(tag_start),
+            Severity::Warning,
+            DiagnosticCode::InvalidAttributeValue,
+            format!("Invalid value for {attr_name} on <{elem_name}>: {reason}"),
+        );
     }
 }
 
