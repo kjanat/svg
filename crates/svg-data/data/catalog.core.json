@@ -6544,6 +6544,7 @@
         "height",
         "href",
         "preserveAspectRatio",
+        "referrerpolicy",
         "width",
         "x",
         "y"
@@ -8935,6 +8936,7 @@
       "attrs": [
         "crossorigin",
         "href",
+        "referrerpolicy",
         "type"
       ],
       "global_attrs": true
@@ -9277,7 +9279,7 @@
     },
     {
       "name": "style",
-      "description": "The 'style element' element allows style sheets to be embedded directly within SVG content. SVG's 'style element' element has the same attributes as the corresponding element in HTML.",
+      "description": "The 'style' element allows style sheets to be embedded directly within SVG content. SVG's 'style' element has the same attributes as the corresponding element in HTML.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Element/style",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElement",
       "standard_track": true,
@@ -16261,7 +16263,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "auto | <box-size>",
+        "grammar": "auto | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -16283,6 +16285,16 @@
               "id": 3,
               "kind": "type",
               "text": "<box-size>"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "type",
+              "text": "<anchor-size()>"
             }
           ],
           "edges": [
@@ -16309,6 +16321,26 @@
             {
               "from": 2,
               "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
               "kind": "next"
             }
           ]
@@ -19253,7 +19285,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "normal | none | [ <content-replacement> | <content-list> ] [/ [ <string> | <counter> | <attr()> ]+ ]? | <element()>",
+        "grammar": "normal | none | [ <content-replacement> | <content-list> ] [/ <alt-text> ]? | <element()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -19306,12 +19338,13 @@
             },
             {
               "id": 10,
-              "kind": "group"
+              "kind": "type",
+              "text": "<alt-text>"
             },
             {
               "id": 11,
-              "kind": "type",
-              "text": "<string>"
+              "kind": "operator",
+              "text": "?"
             },
             {
               "id": 12,
@@ -19320,36 +19353,6 @@
             },
             {
               "id": 13,
-              "kind": "type",
-              "text": "<counter>"
-            },
-            {
-              "id": 14,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 15,
-              "kind": "type",
-              "text": "<attr()>"
-            },
-            {
-              "id": 16,
-              "kind": "operator",
-              "text": "+"
-            },
-            {
-              "id": 17,
-              "kind": "operator",
-              "text": "?"
-            },
-            {
-              "id": 18,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 19,
               "kind": "type",
               "text": "<element()>"
             }
@@ -19441,12 +19444,17 @@
               "kind": "contains"
             },
             {
-              "from": 10,
+              "from": 0,
               "to": 11,
               "kind": "contains"
             },
             {
-              "from": 10,
+              "from": 9,
+              "to": 11,
+              "kind": "next"
+            },
+            {
+              "from": 0,
               "to": 12,
               "kind": "contains"
             },
@@ -19456,73 +19464,13 @@
               "kind": "next"
             },
             {
-              "from": 10,
+              "from": 0,
               "to": 13,
               "kind": "contains"
             },
             {
               "from": 12,
               "to": 13,
-              "kind": "next"
-            },
-            {
-              "from": 10,
-              "to": 14,
-              "kind": "contains"
-            },
-            {
-              "from": 13,
-              "to": 14,
-              "kind": "next"
-            },
-            {
-              "from": 10,
-              "to": 15,
-              "kind": "contains"
-            },
-            {
-              "from": 14,
-              "to": 15,
-              "kind": "next"
-            },
-            {
-              "from": 9,
-              "to": 16,
-              "kind": "contains"
-            },
-            {
-              "from": 10,
-              "to": 16,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 17,
-              "kind": "contains"
-            },
-            {
-              "from": 9,
-              "to": 17,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 18,
-              "kind": "contains"
-            },
-            {
-              "from": 17,
-              "to": 18,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 19,
-              "kind": "contains"
-            },
-            {
-              "from": 18,
-              "to": 19,
               "kind": "next"
             }
           ]
@@ -24599,6 +24547,7 @@
     },
     {
       "name": "dx",
+      "description": "If a single <length> is provided, this value represents the new relative X (Y) coordinate for the current text position for rendering the glyphs corresponding to the first character within this element or any of its descendants. The current text position is shifted along the x-axis (y-axis) of the current user coordinate system by <length> before the first character's glyphs are rendered.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDXAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -25458,6 +25407,7 @@
     },
     {
       "name": "dy",
+      "description": "If a single <length> is provided, this value represents the new relative X (Y) coordinate for the current text position for rendering the glyphs corresponding to the first character within this element or any of its descendants. The current text position is shifted along the x-axis (y-axis) of the current user coordinate system by <length> before the first character's glyphs are rendered.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementDYAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -31632,6 +31582,308 @@
           "tspan",
           "use"
         ]
+      }
+    },
+    {
+      "name": "focusgroup",
+      "spec_url": null,
+      "experimental": true,
+      "standard_track": false,
+      "animation": "not_animatable",
+      "presentation_attribute": null,
+      "baseline": {
+        "support": {
+          "chrome": "150",
+          "chrome_android": "150",
+          "edge": "150"
+        },
+        "status": "limited",
+        "raw_status": "false"
+      },
+      "browser_support": {
+        "chrome": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "134",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "101",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
+      },
+      "values": {
+        "kind": "unresolved"
+      },
+      "applicability": {
+        "kind": "global"
+      }
+    },
+    {
+      "name": "focusgroupstart",
+      "spec_url": null,
+      "experimental": true,
+      "standard_track": false,
+      "animation": "not_animatable",
+      "presentation_attribute": null,
+      "baseline": {
+        "support": {
+          "chrome": "150",
+          "chrome_android": "150",
+          "edge": "150"
+        },
+        "status": "limited",
+        "raw_status": "false"
+      },
+      "browser_support": {
+        "chrome": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "134",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "101",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "150",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
+      },
+      "values": {
+        "kind": "unresolved"
+      },
+      "applicability": {
+        "kind": "global"
       }
     },
     {
@@ -41734,6 +41986,7 @@
     {
       "name": "hreflang",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/hreflang",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementHreflangAttribute",
       "standard_track": true,
       "animation": "not_animatable",
@@ -41879,6 +42132,7 @@
       "element_compat": [
         {
           "element": "a",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/hreflang",
           "standard_track": true,
           "baseline": {
             "support": {
@@ -49885,6 +50139,7 @@
     },
     {
       "name": "lengthAdjust",
+      "description": "The user agent is required to achieve correct start and end positions for the text strings, but the locations of intermediate glyphs are not predictable because user agents might employ advanced algorithms to stretch or compress text strings in order to balance correct start and end positioning with optimal typography.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementLengthAdjustAttribute",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -51232,7 +51487,7 @@
     },
     {
       "name": "marker",
-      "description": "The 'marker property' property sets values for the 'marker-start', 'marker-mid' and 'marker-end' properties. The value of the 'marker property' is used directly for all three of the corresponding longhand properties.",
+      "description": "The 'marker' property sets values for the 'marker-start', 'marker-mid' and 'marker-end' properties. The value of the 'marker' is used directly for all three of the corresponding longhand properties.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerProperty",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -52527,7 +52782,7 @@
     },
     {
       "name": "markerUnits",
-      "description": "The 'markerUnits' attribute defines the coordinate system for attributes 'markerWidth', 'markerHeight' and the contents of the 'marker element'. Values have the following meanings:",
+      "description": "The 'markerUnits' attribute defines the coordinate system for attributes 'markerWidth', 'markerHeight' and the contents of the 'marker'. Values have the following meanings:",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerUnits",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerUnitsAttribute",
       "standard_track": true,
@@ -54684,7 +54939,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "none | <box-size> | <anchor-size()> | contain | fit-content(<length-percentage>)",
+        "grammar": "none | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -54716,26 +54971,6 @@
               "id": 5,
               "kind": "type",
               "text": "<anchor-size()>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 7,
-              "kind": "keyword",
-              "text": "contain"
-            },
-            {
-              "id": 8,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 9,
-              "kind": "function",
-              "text": "fit-content"
             }
           ],
           "edges": [
@@ -54782,46 +55017,6 @@
             {
               "from": 4,
               "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 5,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 6,
-              "to": 7,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 8,
-              "kind": "contains"
-            },
-            {
-              "from": 7,
-              "to": 8,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 9,
-              "kind": "contains"
-            },
-            {
-              "from": 8,
-              "to": 9,
               "kind": "next"
             }
           ]
@@ -55165,9 +55360,274 @@
     {
       "name": "method",
       "description": "Indicates the method by which text should be rendered along the path.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/method",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextPathElementMethodAttribute",
+      "standard_track": true,
       "animation": "discrete",
       "presentation_attribute": null,
+      "browser_support": {
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3.1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
+      },
+      "element_compat": [
+        {
+          "element": "textPath",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/method",
+          "standard_track": true,
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "1",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "18",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "4",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "15",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "3.1",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "1.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "4.4",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        }
+      ],
       "values": {
         "kind": "enum",
         "values": [
@@ -55319,7 +55779,7 @@
       "presentation_attribute": null,
       "values": {
         "kind": "css_grammar",
-        "grammar": "auto | <box-size> | <anchor-size()> | contain | fit-content(<length-percentage>)",
+        "grammar": "auto | <box-size> | <anchor-size()>",
         "graph": {
           "root": 0,
           "nodes": [
@@ -55351,26 +55811,6 @@
               "id": 5,
               "kind": "type",
               "text": "<anchor-size()>"
-            },
-            {
-              "id": 6,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 7,
-              "kind": "keyword",
-              "text": "contain"
-            },
-            {
-              "id": 8,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 9,
-              "kind": "function",
-              "text": "fit-content"
             }
           ],
           "edges": [
@@ -55417,46 +55857,6 @@
             {
               "from": 4,
               "to": 5,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 6,
-              "kind": "contains"
-            },
-            {
-              "from": 5,
-              "to": 6,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 7,
-              "kind": "contains"
-            },
-            {
-              "from": 6,
-              "to": 7,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 8,
-              "kind": "contains"
-            },
-            {
-              "from": 7,
-              "to": 8,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 9,
-              "kind": "contains"
-            },
-            {
-              "from": 8,
-              "to": 9,
               "kind": "next"
             }
           ]
@@ -56414,6 +56814,7 @@
     {
       "name": "offset",
       "description": "Indicates were the gradient stop is placed. For linear gradients, the 'offset' attribute represents a location along the gradient vector. For radial gradients, it represents a fractional distance from the edge of the innermost/smallest circle to the edge of the outermost/largest circle.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/offset",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopElementOffsetAttribute",
       "standard_track": true,
       "animation": "additive",
@@ -56570,6 +56971,7 @@
       "element_compat": [
         {
           "element": "stop",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/offset",
           "standard_track": true,
           "baseline": {
             "support": {
@@ -62943,6 +63345,1094 @@
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/paths.html#PathLengthAttribute",
       "animation": "additive",
       "presentation_attribute": null,
+      "element_compat": [
+        {
+          "element": "circle",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "ellipse",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "line",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "path",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "50",
+              "chrome_android": "50",
+              "edge": "79",
+              "firefox": "6",
+              "firefox_android": "6",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "50",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "50",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "6",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "6",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "37",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "37",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "50",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "polygon",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "polyline",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "rect",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/pathLength",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "57",
+              "chrome_android": "57",
+              "edge": "79",
+              "firefox": "61",
+              "firefox_android": "61",
+              "safari": "14",
+              "safari_ios": "14"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-09-16",
+              "date": "2020-09-16"
+            },
+            "high_date": {
+              "raw": "2023-03-16",
+              "date": "2023-03-16"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "61",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "44",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "43",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "7.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "57",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "path",
+          "values": {
+            "kind": "number"
+          }
+        }
+      ],
       "values": {
         "kind": "number"
       },
@@ -63962,6 +65452,7 @@
     {
       "name": "ping",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/ping",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementPingAttribute",
       "experimental": true,
       "standard_track": true,
@@ -64107,6 +65598,7 @@
       "element_compat": [
         {
           "element": "a",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/ping",
           "experimental": true,
           "standard_track": true,
           "baseline": {
@@ -66578,7 +68070,7 @@
     },
     {
       "name": "preserveAspectRatio",
-      "description": "Indicates whether or not to force uniform scaling. Applies to all elements that establish a new SVG viewport (see elements that establish SVG viewports), plus the 'image', 'marker element', 'pattern' and 'view' elements",
+      "description": "Indicates whether or not to force uniform scaling. Applies to all elements that establish a new SVG viewport (see elements that establish SVG viewports), plus the 'image', 'marker', 'pattern' and 'view' elements",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/coords.html#PreserveAspectRatioAttribute",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -69983,6 +71475,7 @@
     {
       "name": "referrerpolicy",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/referrerpolicy",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementReferrerpolicyAttribute",
       "standard_track": true,
       "animation": "not_animatable",
@@ -70139,6 +71632,7 @@
       "element_compat": [
         {
           "element": "a",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/referrerpolicy",
           "standard_track": true,
           "baseline": {
             "support": {
@@ -70297,6 +71791,18 @@
           "values": {
             "kind": "referrer_policy"
           }
+        },
+        {
+          "element": "image",
+          "values": {
+            "kind": "referrer_policy"
+          }
+        },
+        {
+          "element": "script",
+          "values": {
+            "kind": "referrer_policy"
+          }
         }
       ],
       "values": {
@@ -70305,13 +71811,16 @@
       "applicability": {
         "kind": "elements",
         "elements": [
-          "a"
+          "a",
+          "image",
+          "script"
         ]
       }
     },
     {
       "name": "rel",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/rel",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementRelAttribute",
       "standard_track": true,
       "animation": "not_animatable",
@@ -70459,6 +71968,7 @@
       "element_compat": [
         {
           "element": "a",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/rel",
           "standard_track": true,
           "baseline": {
             "support": {
@@ -71531,6 +73041,7 @@
     },
     {
       "name": "rotate",
+      "description": "The supplemental rotation, in degrees, about the current text position that will be applied to all of the glyphs corresponding to each character within this element.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementRotateAttribute",
       "animation": "discrete",
       "presentation_attribute": null,
@@ -79566,7 +81077,7 @@
     },
     {
       "name": "style",
-      "description": "The 'style attribute' attribute is used to supply a CSS declaration of an element. The attribute is parsed as a declaration-list.",
+      "description": "The 'style' attribute is used to supply a CSS declaration of an element. The attribute is parsed as a declaration-list.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/style",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleAttribute",
       "standard_track": true,
@@ -80072,6 +81583,326 @@
         "elements": [
           "feDiffuseLighting",
           "feSpecularLighting"
+        ]
+      }
+    },
+    {
+      "name": "svgView",
+      "spec_url": null,
+      "standard_track": true,
+      "animation": "not_animatable",
+      "presentation_attribute": null,
+      "baseline": {
+        "support": {
+          "chrome": "1",
+          "chrome_android": "18",
+          "edge": "79",
+          "firefox": "15",
+          "firefox_android": "15",
+          "safari": "3",
+          "safari_ios": "2"
+        },
+        "status": "widely",
+        "raw_status": "\"high\"",
+        "low_date": {
+          "raw": "2020-01-15",
+          "date": "2020-01-15"
+        },
+        "high_date": {
+          "raw": "2022-07-15",
+          "date": "2022-07-15"
+        }
+      },
+      "browser_support": {
+        "chrome": [
+          {
+            "version_added": "1",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "chrome_android": [
+          {
+            "version_added": "18",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "edge": [
+          {
+            "version_added": "79",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "firefox_android": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "ie": [
+          {
+            "version_added": false,
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "oculus": [
+          {
+            "version_added": "5.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera": [
+          {
+            "version_added": "15",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "opera_android": [
+          {
+            "version_added": "14",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari": [
+          {
+            "version_added": "3",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "safari_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "samsunginternet_android": [
+          {
+            "version_added": "1.0",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_android": [
+          {
+            "version_added": "4.4",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ],
+        "webview_ios": [
+          {
+            "version_added": "2",
+            "flags": [],
+            "impl_url": [],
+            "partial_implementation": false,
+            "notes": []
+          }
+        ]
+      },
+      "element_compat": [
+        {
+          "element": "view",
+          "standard_track": true,
+          "baseline": {
+            "support": {
+              "chrome": "1",
+              "chrome_android": "18",
+              "edge": "79",
+              "firefox": "15",
+              "firefox_android": "15",
+              "safari": "3",
+              "safari_ios": "2"
+            },
+            "status": "widely",
+            "raw_status": "\"high\"",
+            "low_date": {
+              "raw": "2020-01-15",
+              "date": "2020-01-15"
+            },
+            "high_date": {
+              "raw": "2022-07-15",
+              "date": "2022-07-15"
+            }
+          },
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "1",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "18",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "79",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "15",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "15",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "5.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "15",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": "3",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": "2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "1.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "4.4",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": "2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        }
+      ],
+      "values": {
+        "kind": "unresolved"
+      },
+      "applicability": {
+        "kind": "elements",
+        "elements": [
+          "view"
         ]
       }
     },
@@ -88087,6 +89918,7 @@
     },
     {
       "name": "textLength",
+      "description": "The author's computation of the total sum of all of the advance values that correspond to character data within this element, including the advance value on the glyph (horizontal or vertical), the effect of properties 'letter-spacing' and 'word-spacing' and adjustments due to attributes 'dx' and 'dy' on this 'text' or 'tspan' element or any descendants. This value is used to calibrate the user agent's own calculations with that of the author.",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementTextLengthAttribute",
       "animation": "additive",
       "presentation_attribute": null,
@@ -88694,6 +90526,7 @@
     {
       "name": "title",
       "description": "This attribute specifies a title for the style sheet, which is used when exposing and selecting between alternate style sheets. The attribute takes any value.",
+      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/title",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/styling.html#StyleElementTitleAttribute",
       "standard_track": true,
       "animation": "not_animatable",
@@ -88850,6 +90683,7 @@
       "element_compat": [
         {
           "element": "style",
+          "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/title",
           "standard_track": true,
           "baseline": {
             "support": {
@@ -98630,6 +100464,114 @@
           }
         }
       ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
+          }
+        }
+      ],
       "values": {
         "kind": "length"
       },
@@ -103034,6 +104976,114 @@
                 "notes": []
               }
             ]
+          }
+        }
+      ],
+      "element_values": [
+        {
+          "element": "text",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "[ [ <length-percentage> | <number> ]+ ]#",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "group"
+                },
+                {
+                  "id": 2,
+                  "kind": "group"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                },
+                {
+                  "id": 4,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 5,
+                  "kind": "type",
+                  "text": "<number>"
+                },
+                {
+                  "id": 6,
+                  "kind": "operator",
+                  "text": "+"
+                },
+                {
+                  "id": 7,
+                  "kind": "operator",
+                  "text": "#"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 4,
+                  "kind": "contains"
+                },
+                {
+                  "from": 3,
+                  "to": 4,
+                  "kind": "next"
+                },
+                {
+                  "from": 2,
+                  "to": 5,
+                  "kind": "contains"
+                },
+                {
+                  "from": 4,
+                  "to": 5,
+                  "kind": "next"
+                },
+                {
+                  "from": 1,
+                  "to": 6,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 6,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 7,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 7,
+                  "kind": "next"
+                }
+              ]
+            }
           }
         }
       ],

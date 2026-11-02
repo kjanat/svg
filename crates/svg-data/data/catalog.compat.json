@@ -2,13 +2,13 @@
   "schema_version": 2,
   "browser_compat_data": {
     "name": "@mdn/browser-compat-data",
-    "version": "8.1.1",
-    "url": "https://unpkg.com/@mdn/browser-compat-data@8.1.1/data.json"
+    "version": "8.1.8",
+    "url": "https://unpkg.com/@mdn/browser-compat-data@8.1.8/data.json"
   },
   "web_features": {
     "name": "web-features",
-    "version": "3.38.0",
-    "url": "https://unpkg.com/web-features@3.38.0/data.json"
+    "version": "3.45.0",
+    "url": "https://unpkg.com/web-features@3.45.0/data.json"
   },
   "unmodeled_features": [
     {
@@ -2150,6 +2150,15 @@
       "name": "omit_external_fragment",
       "experimental": true,
       "standard_track": true,
+      "baseline": {
+        "support": {
+          "chrome": "137",
+          "chrome_android": "137",
+          "edge": "137"
+        },
+        "status": "limited",
+        "raw_status": "false"
+      },
       "browser_support": {
         "chrome": [
           {
