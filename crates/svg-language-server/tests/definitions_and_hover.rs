@@ -75,7 +75,7 @@ fn class_definition_and_hover() -> TestResult {
         "class hover should include the CSS definition snippet: {hover_resp}"
     );
     assert!(
-        hover_text.contains("[class-test.svg:1](file:///class-test.svg#L1)"),
+        hover_text.contains(r"[class\-test\.svg\:1](file:///class-test.svg#L1)"),
         "class hover should provide a clickable source link: {hover_resp}"
     );
 
@@ -220,7 +220,7 @@ fn custom_property_definition_and_hover() -> TestResult {
         "custom property hover should render the declaration as CSS markdown: {var_hover_resp}"
     );
     assert!(
-        var_hover_text.contains("[vars-test.svg:1](file:///vars-test.svg#L1)"),
+        var_hover_text.contains(r"[vars\-test\.svg\:1](file:///vars-test.svg#L1)"),
         "custom property hover should provide a clickable source link: {var_hover_resp}"
     );
 
@@ -481,8 +481,10 @@ fn hover_renders_baseline_qualifier_for_fegaussianblur() -> TestResult {
         hover_value.contains("Widely Available since ≤2021"),
         "hover should surface the ≤ qualifier on feGaussianBlur: {hover_resp}"
     );
-    assert!(hover_value.contains("Newly Available date: ≤2018-10-02"));
-    assert!(hover_value.contains("Widely Available date: ≤2021-04-02"));
+    assert!(
+        !hover_value.contains("Available date:"),
+        "the dated paragraphs restated the Baseline line: {hover_value}"
+    );
 
     server.shutdown_and_exit()?;
     Ok(())
@@ -825,4 +827,133 @@ fn hover_browser_selection_and_sections_update_without_restarting() -> TestResul
     assert!(!text.contains("Safari on iOS"), "{text}");
     server.shutdown_and_exit()?;
     Ok(())
+}
+
+/// A client that advertises Markdown gets Markdown, syntax and all.
+#[test]
+fn hover_is_markdown_when_the_client_advertises_it() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&support::markdown_capabilities())?;
+    server.open(
+        "file:///markup-test.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="10"/></svg>"#,
+    )?;
+
+    let response = server.request(
+        "textDocument/hover",
+        &json!({
+            "textDocument": { "uri": "file:///markup-test.svg" },
+            "position": { "line": 0, "character": 43 }
+        }),
+    )?;
+    assert_eq!(
+        response["result"]["contents"]["kind"].as_str(),
+        Some("markdown"),
+        "an advertised markdown client should be answered in markdown: {response}"
+    );
+    let value = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover value")?;
+    assert!(
+        value.contains("**") || value.contains('`') || value.contains("]("),
+        "markdown hover should keep its syntax: {value}"
+    );
+    server.shutdown_and_exit()
+}
+
+/// A client that advertises nothing is promised only plain text, so it must
+/// not be handed Markdown with the syntax left in it.
+#[test]
+fn hover_is_plain_text_when_the_client_advertises_nothing() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&json!({}))?;
+    server.open(
+        "file:///markup-test.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="10"/></svg>"#,
+    )?;
+
+    let response = server.request(
+        "textDocument/hover",
+        &json!({
+            "textDocument": { "uri": "file:///markup-test.svg" },
+            "position": { "line": 0, "character": 43 }
+        }),
+    )?;
+    assert_eq!(
+        response["result"]["contents"]["kind"].as_str(),
+        Some("plaintext"),
+        "a client promising only plain text should not be sent markdown: {response}"
+    );
+    let value = response["result"]["contents"]["value"]
+        .as_str()
+        .ok_or("hover value")?;
+    assert!(
+        !value.contains("**") && !value.contains('`') && !value.contains("]("),
+        "plain text hover should carry no markdown syntax: {value}"
+    );
+    assert!(
+        value.contains("rect"),
+        "plain text hover should still say what it is about: {value}"
+    );
+    server.shutdown_and_exit()
+}
+
+/// Completion documentation is negotiated separately from hover, so a client
+/// may advertise one and not the other.
+#[test]
+fn completion_documentation_follows_its_own_advertised_format() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&json!({
+        "textDocument": { "hover": { "contentFormat": ["markdown"] } }
+    }))?;
+    server.open(
+        "file:///markup-completion.svg",
+        r##"<svg><rect fill="#ff0000"/></svg>"##,
+    )?;
+
+    let response = server.request(
+        "textDocument/completion",
+        &json!({
+            "textDocument": { "uri": "file:///markup-completion.svg" },
+            "position": { "line": 0, "character": 5 }
+        }),
+    )?;
+    let items = response["result"]["items"]
+        .as_array()
+        .or_else(|| response["result"].as_array())
+        .ok_or("completion items")?;
+    let documented = items
+        .iter()
+        .find(|item| item["documentation"]["kind"].is_string())
+        .ok_or("an item carrying documentation")?;
+    assert_eq!(
+        documented["documentation"]["kind"].as_str(),
+        Some("plaintext"),
+        "hover markdown must not imply completion markdown: {documented}"
+    );
+    server.shutdown_and_exit()
+}
+
+/// `contentFormat` is ordered by preference, so a client that understands
+/// Markdown but would rather have plain text must be given plain text.
+#[test]
+fn hover_follows_the_advertised_preference_order() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&json!({
+        "textDocument": { "hover": { "contentFormat": ["plaintext", "markdown"] } }
+    }))?;
+    server.open(
+        "file:///order-test.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="10"/></svg>"#,
+    )?;
+
+    let response = server.request(
+        "textDocument/hover",
+        &json!({
+            "textDocument": { "uri": "file:///order-test.svg" },
+            "position": { "line": 0, "character": 43 }
+        }),
+    )?;
+    assert_eq!(
+        response["result"]["contents"]["kind"].as_str(),
+        Some("plaintext"),
+        "listing plaintext first means preferring it: {response}"
+    );
+    server.shutdown_and_exit()
 }
