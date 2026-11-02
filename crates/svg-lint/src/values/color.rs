@@ -1154,6 +1154,18 @@ mod tests {
         );
     }
 
+    // Claim: "<svg-paint> = child | child( <integer> )"
+    // https://drafts.csswg.org/fill-stroke-3/#typedef-svg-paint
+    // SVG 2 deferred these to CSS Fill and Stroke 3 rather than rejecting
+    // them ("Remove child, child(<integer>) as they are deferred to the next
+    // level of the spec", https://svgwg.org/svg2-draft/changes.html), and
+    // the SVG 2 repository still carries an example using `fill="child"`.
+    // (accept-only)
+    #[test]
+    fn deferred_child_paint_is_accepted() {
+        assert_valid(check_paint, &["child", "Child", "child(1)", "child(2)"]);
+    }
+
     // Claim: "<url> = <url()> | <src()>" with "<url()> = url( <string>
     // <url-modifier>* ) | <url-token>" and "<src()> = src( <string>
     // <url-modifier>* )"
