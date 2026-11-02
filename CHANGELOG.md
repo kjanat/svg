@@ -11,6 +11,8 @@ When bumping the workspace version after a catalog refresh:
 
 - [ ] `bun run codegen` in `grammars/tree-sitter-svg` so `grammar.json` matches
       `catalog.tree-sitter.json` (Tree-sitter SVG CI fails otherwise)
+- [ ] `tree-sitter generate` in `grammars/tree-sitter-svg` after a version bump,
+      so the parser's embedded metadata version matches `tree-sitter.json`
 
 ## [Unreleased]
 
@@ -27,6 +29,10 @@ When bumping the workspace version after a catalog refresh:
   lifecycle annotations in lint and completion across historical profiles.
 - Treat retained `xlink:href` as deprecated in SVG 2, preserve SVG 1.1 usage,
   and restrict the obsolete `type` warning to `<style>` in the editor's draft.
+- Regenerate the SVG parser so its embedded metadata version is `0.3.0`,
+  matching `tree-sitter.json`; the `0.3.0` release left it at `0.1.0`.
+- Read the SVG 2 editor's draft from its Bikeshed sources: the spec-data refresh
+  had failed since svgwg removed `publish.xml` and the HTML chapter sources.
 
 ## [0.3.0] - 2026-09-09
 
