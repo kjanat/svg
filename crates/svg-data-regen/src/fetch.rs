@@ -15,7 +15,7 @@
 //! - [raw.githubusercontent.com][raw] — raw files at the pinned commit.
 //!
 //! [gh-api]: https://api.github.com/repos/w3c/svgwg
-//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/master/
+//! [raw]: https://raw.githubusercontent.com/w3c/svgwg/main/
 
 use std::time::Duration;
 

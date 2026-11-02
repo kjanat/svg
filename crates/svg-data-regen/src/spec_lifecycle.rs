@@ -13,6 +13,7 @@ use crate::catalog::{
     CatalogDeclaredStatus, CatalogInventory, CatalogLifecycleDeclaration, CatalogLifecycleEntry,
     CatalogLifecycleStatus, CatalogSnapshot, CatalogSpecSnapshotId,
 };
+use crate::svgwg::{REPO_SLUG, Svg2Sources};
 use crate::util::{boxed, compile_regex, normalize_html_ws, parse_html};
 use crate::{Fallible, fetch};
 
@@ -205,91 +206,123 @@ fn paragraph_declarations(
     Ok(found)
 }
 
-/// Link to rendered HTML so fragment anchors work, while fetching upstream directly.
-fn declaration_source_url(source: &str) -> String {
-    source.replace(
-        "https://raw.githubusercontent.com/",
-        "https://raw.githack.com/",
-    )
+/// One page to read declarations from.
+struct Page {
+    /// Where the page's source is fetched from.
+    fetch_url: String,
+    /// The rendered page declarations link to (anchors resolve there).
+    source_url: String,
+    /// Whether the fetched source is Bikeshed, to lower before extraction.
+    bikeshed: bool,
 }
 
-/// Fetch the dated historical chapters or the same commit used by definitions.
-/// The publication's table of contents discovers chapters; no cached verdicts
-/// or manually classified feature list participates in extraction.
+/// Pages a profile's declarations come from.
+///
+/// The editor's draft reads the chapter sources at the same commit as the
+/// definitions, and links each declaration to the published chapter page (the
+/// build keeps every id). The dated editions read their published chapters,
+/// discovered from the publication's table of contents; no cached verdicts or
+/// manually classified feature list participates in extraction.
+fn profile_pages(
+    profile: CatalogSpecSnapshotId,
+    commit: &str,
+    draft: &Svg2Sources,
+) -> Fallible<Vec<Page>> {
+    if profile == CatalogSpecSnapshotId::Svg2EditorsDraft {
+        // Pages are read in name order, like the dated editions, so the first
+        // of two agreeing declarations (the one recorded) does not depend on
+        // chapter order.
+        return Ok(draft
+            .chapters
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .map(|name| Page {
+                fetch_url: format!(
+                    "https://raw.githubusercontent.com/{REPO_SLUG}/{commit}/{}",
+                    draft.page_path(name)
+                ),
+                source_url: draft.page_url(name),
+                bikeshed: true,
+            })
+            .collect());
+    }
+    let base = match profile {
+        CatalogSpecSnapshotId::Svg11Rec20030114 => "https://www.w3.org/TR/2003/REC-SVG11-20030114/",
+        CatalogSpecSnapshotId::Svg11Rec20110816 => "https://www.w3.org/TR/2011/REC-SVG11-20110816/",
+        _ => "https://www.w3.org/TR/2018/CR-SVG2-20181004/",
+    };
+    let overview_url = if profile == CatalogSpecSnapshotId::Svg11Rec20030114 {
+        base.to_owned()
+    } else {
+        format!("{base}Overview.html")
+    };
+    let overview = fetch::url_text(&overview_url, "text/html")
+        .map_err(|e| boxed(format!("{overview_url}: {e}")))?;
+    let dom = parse_html(&overview)?;
+    let chapters = dom
+        .nodes()
+        .iter()
+        .filter_map(|node| {
+            let tag = node.as_tag()?;
+            if tag.name().as_utf8_str() != "a" {
+                return None;
+            }
+            let href = tag.attributes().get("href").flatten()?.as_utf8_str();
+            let page = href.split('#').next()?;
+            (std::path::Path::new(page)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+                && !page.contains(['/', ':'])
+                && page != "Overview.html"
+                // Change logs and indexes describe other editions or repeat
+                // definitions; they are not declarations for this one.
+                && !matches!(
+                    page,
+                    "single-page.html"
+                        | "changes.html"
+                        | "eltindex.html"
+                        | "attindex.html"
+                        | "propidx.html"
+                        | "idlindex.html"
+                ))
+            .then(|| page.to_owned())
+        })
+        .collect::<BTreeSet<_>>();
+    if chapters.is_empty() {
+        return Err(boxed(format!(
+            "{base}: no chapters discovered for lifecycle extraction"
+        )));
+    }
+    Ok(chapters
+        .into_iter()
+        .map(|chapter| {
+            let url = format!("{base}{chapter}");
+            Page {
+                fetch_url: url.clone(),
+                source_url: url,
+                bikeshed: false,
+            }
+        })
+        .collect())
+}
+
+/// Fetch a profile's pages and collect their explicit lifecycle declarations.
 pub fn fetch_declarations(
     profile: CatalogSpecSnapshotId,
     commit: &str,
-    draft_chapters: &[String],
+    draft: &Svg2Sources,
 ) -> Fallible<Vec<Declaration>> {
-    let (base, chapters) = if profile == CatalogSpecSnapshotId::Svg2EditorsDraft {
-        (
-            format!("https://raw.githubusercontent.com/w3c/svgwg/{commit}/master/"),
-            draft_chapters
-                .iter()
-                .map(|name| format!("{name}.html"))
-                .collect::<BTreeSet<_>>(),
-        )
-    } else {
-        let base = match profile {
-            CatalogSpecSnapshotId::Svg11Rec20030114 => {
-                "https://www.w3.org/TR/2003/REC-SVG11-20030114/"
-            }
-            CatalogSpecSnapshotId::Svg11Rec20110816 => {
-                "https://www.w3.org/TR/2011/REC-SVG11-20110816/"
-            }
-            _ => "https://www.w3.org/TR/2018/CR-SVG2-20181004/",
-        };
-        let overview_url = if profile == CatalogSpecSnapshotId::Svg11Rec20030114 {
-            base.to_owned()
-        } else {
-            format!("{base}Overview.html")
-        };
-        let overview = fetch::url_text(&overview_url, "text/html")
-            .map_err(|e| boxed(format!("{overview_url}: {e}")))?;
-        let dom = parse_html(&overview)?;
-        let chapters = dom
-            .nodes()
-            .iter()
-            .filter_map(|node| {
-                let tag = node.as_tag()?;
-                if tag.name().as_utf8_str() != "a" {
-                    return None;
-                }
-                let href = tag.attributes().get("href").flatten()?.as_utf8_str();
-                let page = href.split('#').next()?;
-                (std::path::Path::new(page)
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
-                    && !page.contains(['/', ':'])
-                    && page != "Overview.html")
-                    .then(|| page.to_owned())
-            })
-            .collect::<BTreeSet<_>>();
-        if chapters.is_empty() {
-            return Err(boxed(format!(
-                "{base}: no chapters discovered for lifecycle extraction"
-            )));
-        }
-        (base.to_owned(), chapters)
-    };
     let mut facts = BTreeMap::<(bool, String, Option<String>), Declaration>::new();
-    for chapter in chapters {
-        // Change logs describe other editions and are not declarations for this one.
-        if matches!(
-            chapter.as_str(),
-            "single-page.html"
-                | "changes.html"
-                | "eltindex.html"
-                | "attindex.html"
-                | "propidx.html"
-                | "idlindex.html"
-        ) {
-            continue;
-        }
-        let source = format!("{base}{chapter}");
-        let html =
-            fetch::url_text(&source, "text/html").map_err(|e| boxed(format!("{source}: {e}")))?;
-        for declaration in extract(&html, &declaration_source_url(&source))? {
+    for page in profile_pages(profile, commit, draft)? {
+        let html = fetch::url_text(&page.fetch_url, "text/html")
+            .map_err(|e| boxed(format!("{}: {e}", page.fetch_url)))?;
+        let html = if page.bikeshed {
+            crate::bikeshed::lower(&html)
+        } else {
+            html
+        };
+        for declaration in extract(&html, &page.source_url)? {
             let key = (
                 declaration.element,
                 declaration.name.clone(),

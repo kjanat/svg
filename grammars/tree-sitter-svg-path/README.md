@@ -38,9 +38,9 @@ Empty and whitespace-only path data (`d=""`, `d="   "`) are valid per spec.
 ## Development
 
 ```sh
-tree-sitter generate      # regenerate src/parser.c from grammar.js
-tree-sitter test          # corpus tests (test/corpus/)
-bun run test              # node binding + drift-guard tests
+tree-sitter generate # regenerate src/parser.c from grammar.js
+tree-sitter test     # corpus tests (test/corpus/)
+bun run test         # node binding + drift-guard tests
 ```
 
 `constants.js` exports `PATH_COMMAND_LETTERS`; `grammar.test.ts` asserts it

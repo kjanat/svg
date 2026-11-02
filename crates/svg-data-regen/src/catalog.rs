@@ -173,7 +173,9 @@ pub struct CatalogTreeSitterSources {
     pub css_unit_pages: Vec<String>,
     /// SVG Animations URL used for SVG clock units.
     pub svg_clock_value_syntax: String,
-    /// Pinned SVGWG `paths.html` URL used for path-data grammar facts.
+    /// Pinned SVGWG Paths chapter source URL used for path-data grammar facts
+    /// (`master/paths.bs` since the Bikeshed build; the key keeps its name so
+    /// the schema stays stable).
     pub paths_html: String,
 }
 
@@ -226,7 +228,8 @@ pub struct CatalogTreeSitterTokens {
     pub color_interpolation_spaces: Vec<String>,
     /// Hue interpolation direction keywords.
     pub hue_interpolation_methods: Vec<String>,
-    /// Single-letter path command tokens from SVGWG `paths.html#PathDataBNF`.
+    /// Single-letter path command tokens from the SVGWG Paths chapter's
+    /// `#PathDataBNF`.
     pub path_command_letters: Vec<String>,
 }
 
@@ -1083,8 +1086,8 @@ pub struct CatalogLegacyInputs<'a> {
 
 /// Build the catalog from every definitions module's extracted entities.
 ///
-/// `editors_draft_base` is the SVG 2 editor's-draft base URL (from
-/// `publish.xml`'s `<cvs>`), used to resolve permalinks for the modules defined
+/// `editors_draft_base` is the SVG 2 editor's-draft base URL (the build
+/// configuration's `published_base`), used to resolve permalinks for the modules defined
 /// within `svgwg` itself; modules carrying their own external `anchor_base`
 /// (CSS drafts) resolve against that instead.
 /// # Errors

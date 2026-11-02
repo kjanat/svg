@@ -3,31 +3,32 @@
 //! Fetches the canonical SVG specification straight from upstream (`w3c/svgwg`
 //! on GitHub, resolved at the default-branch HEAD or an explicit ref) and
 //! extracts structured data. Nothing upstream is vendored; only the derived
-//! structured output is committed, and permalinks pin to the fetched commit.
+//! structured output is committed, and the manifest records the fetched commit.
 //!
 //! Run with `cargo run -p svg-data-regen [-- <ref>]`, where `<ref>` is an
 //! optional branch name, tag, or commit SHA to pin (default: the repository's
 //! resolved default-branch HEAD).
 //!
 //! This entry point wires the phases together; the work lives in the
-//! submodules: [`fetch`] (network), [`discover`] (manifest parse), and
-//! [`provenance`] (typed run identity).
+//! submodules: [`fetch`] (network), [`svgwg`] (the SVG 2 build manifest),
+//! [`bikeshed`] (chapter source lowering), and [`provenance`] (typed run
+//! identity).
 //!
 //! # Sources parsed
 //!
-//! Root: [w3c/svgwg] — the run resolves a commit and fetches its
-//! [`publish.xml`][publish] (the publication manifest). Every other source URL
-//! is documented on the module that parses it: [`discover`] (`publish.xml`),
-//! [`extract`] (definitions XML), [`chapter`] (chapter/appendix HTML),
-//! [`css`] (external CSS propdefs), [`aria`] (WAI-ARIA), [`legacy`] (SVG 1.1
-//! property indexes), [`inventory`] (edition element/attribute indexes),
+//! Root: [w3c/svgwg] — the run resolves a commit and reads the SVG 2 build
+//! manifest there ([`svgwg`]). Every other source URL is documented on the
+//! module that parses it: [`extract`] (definitions XML), [`chapter`] (chapter
+//! and appendix Bikeshed sources), [`css`] (external CSS propdefs), [`aria`]
+//! (WAI-ARIA), [`legacy`] (SVG 1.1 property indexes), [`inventory`] (edition
+//! element/attribute indexes), [`spec_lifecycle`] (lifecycle declarations),
 //! [`paths`] (path grammar), [`compat`] (browser-compat-data / web-features),
 //! and [`treesitter`] (`@webref/css`).
 //!
 //! [w3c/svgwg]: https://github.com/w3c/svgwg
-//! [publish]: https://raw.githubusercontent.com/w3c/svgwg/master/publish.xml
 
 mod aria;
+mod bikeshed;
 #[path = "../../svg-data/src/browser_compat.rs"]
 #[allow(dead_code)]
 mod browser_compat;
@@ -38,7 +39,6 @@ mod compat;
 #[path = "../../svg-data/src/compat_model.rs"]
 mod compat_model;
 mod css;
-mod discover;
 mod extract;
 mod fetch;
 mod inventory;
@@ -49,6 +49,7 @@ mod provenance;
 mod refresh_compat;
 mod schema;
 mod spec_lifecycle;
+mod svgwg;
 mod treesitter;
 mod util;
 
@@ -59,18 +60,9 @@ use std::{
 
 use std::process::ExitCode;
 
-use discover::PublishGraph;
-use provenance::{BaseUrls, Provenance};
+use provenance::Provenance;
 use serde::Serialize;
-
-/// Upstream repository the catalog derives from.
-const REPO_SLUG: &str = "w3c/svgwg";
-/// Canonical browse URL for the repository (recorded in provenance).
-const REPO_URL: &str = "https://github.com/w3c/svgwg";
-/// Path within the repo to the SVG 2 publication manifest.
-const PUBLISH_PATH: &str = "master/publish.xml";
-/// Directory the manifest's relative hrefs resolve against.
-const PUBLISH_DIR: &str = "master";
+use svgwg::{REPO_SLUG, REPO_URL, Svg2Sources};
 
 /// Crate-wide result alias: `Ok(T)` or a boxed dynamic error.
 pub(crate) type Fallible<T> = Result<T, Box<dyn std::error::Error>>;
@@ -99,26 +91,25 @@ fn run() -> Fallible<()> {
     };
     let head = fetch::resolve_head(REPO_SLUG, &reference)?;
 
-    // Fetch and parse the publication manifest at the pinned commit.
-    let publish_xml = fetch::raw_file(REPO_SLUG, &head.sha, PUBLISH_PATH)?;
-    let graph = discover::parse_publish(&publish_xml)?;
+    // Read the SVG 2 build manifest at the pinned commit.
+    let sources = Svg2Sources::fetch(&head.sha)?;
 
     let provenance = Provenance {
         repository: REPO_URL.to_owned(),
         reference,
         commit_sha: head.sha,
         commit_date: head.committed_date,
-        maturity: graph.maturity.clone(),
-        base_urls: BaseUrls::from_links(&graph.versions),
+        maturity: sources.maturity.clone(),
+        editors_draft: sources.editors_draft.clone(),
+        latest: sources.latest.clone(),
     };
 
-    report(&provenance, &graph)
+    report(&provenance, &sources)
 }
 
-/// Print the resolved provenance and discovered graph, then prove the
-/// canonical-fetch model by actually fetching every definitions module and one
-/// chapter at the pinned commit (verifying href resolution end to end).
-fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
+/// Print the resolved provenance and manifest, then extract every input and
+/// write the catalog.
+fn report(provenance: &Provenance, sources: &Svg2Sources) -> Fallible<()> {
     println!("# svg-data-regen - canonical fetch + provenance");
     println!("repository:  {}", provenance.repository);
     println!("ref:         {}", provenance.reference);
@@ -126,37 +117,24 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     println!("commit date: {}", provenance.commit_date);
     println!("maturity:    {}", provenance.maturity);
 
-    println!("\n## permalink base URLs (publish.xml <versions>)");
-    print_base(
-        "editors-draft (cvs)",
-        provenance.base_urls.editors_draft.as_deref(),
-    );
-    print_base("dated (this)       ", provenance.base_urls.dated.as_deref());
-    print_base(
-        "latest             ",
-        provenance.base_urls.latest.as_deref(),
-    );
-    print_base(
-        "latest-rec         ",
-        provenance.base_urls.latest_rec.as_deref(),
-    );
+    println!("\n## permalink base URLs (SVG 2 build configuration)");
+    println!("  editors-draft: {}", provenance.editors_draft);
     println!(
-        "  ({} version links, {} index references discovered)",
-        graph.versions.len(),
-        graph.references.len()
+        "  latest:        {}",
+        provenance.latest.as_deref().unwrap_or("(absent)")
     );
 
     println!(
-        "\n## input graph: {} definitions, {} chapters, {} appendices",
-        graph.definitions.len(),
-        graph.chapters.len(),
-        graph.appendices.len()
+        "\n## inputs: {} definitions, {} chapters, {} appendices",
+        sources.definitions.len(),
+        sources.chapters.len(),
+        sources.appendices.len()
     );
 
     // REGEN_SAMPLE=<name> prints the element, property, and/or term with that
     // name as a JSON sample (whichever exist). Unset: the first of each kind.
     let want_sample = std::env::var("REGEN_SAMPLE").ok();
-    let extracted = extract_definitions_modules(provenance, graph, want_sample.as_deref())?;
+    let extracted = extract_definitions_modules(provenance, sources, want_sample.as_deref())?;
     let DefinitionsExtraction {
         modules: all_defs,
         macros,
@@ -174,15 +152,11 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
         println!("{}", serde_json::to_string_pretty(element)?);
     }
 
-    let editors_draft = provenance
-        .base_urls
-        .editors_draft
-        .as_deref()
-        .unwrap_or_default();
-    let chapter_report = report_chapters(provenance, graph, &macros, want_sample.as_deref())?;
+    let editors_draft = provenance.editors_draft.as_str();
+    let chapter_report = report_chapters(provenance, sources, &macros, want_sample.as_deref())?;
     let external_properties = fetch_and_report_external_property_defs(&all_defs, editors_draft)?;
     let external_svg_properties = fetch_and_report_external_svg_module_attr_defs(
-        graph,
+        sources,
         &all_defs,
         &macros,
         want_sample.as_deref(),
@@ -192,16 +166,16 @@ fn report(provenance: &Provenance, graph: &PublishGraph) -> Fallible<()> {
     let mut inventories = fetch_and_report_inventories(&all_defs)?;
     let mut lifecycle_declarations = std::collections::BTreeMap::new();
     for inventory in &mut inventories {
-        let declarations = spec_lifecycle::fetch_declarations(
-            inventory.profile,
-            &provenance.commit_sha,
-            &graph.chapters,
-        )?;
+        let declarations =
+            spec_lifecycle::fetch_declarations(inventory.profile, &provenance.commit_sha, sources)?;
         spec_lifecycle::reconcile_inventory(inventory, &declarations)?;
         lifecycle_declarations.insert(inventory.profile, declarations);
     }
-    let grammar_inputs =
-        fetch_and_report_grammar_projection_inputs(REPO_SLUG, &provenance.commit_sha)?;
+    let grammar_inputs = fetch_and_report_grammar_projection_inputs(
+        REPO_SLUG,
+        &provenance.commit_sha,
+        &sources.page_path("paths"),
+    )?;
     let aria = fetch_and_report_aria()?;
     let chapter_report = chapter_report
         .with_external_properties(external_properties.properties)
@@ -264,7 +238,7 @@ struct DefinitionsExtraction {
 
 fn extract_definitions_modules(
     provenance: &Provenance,
-    graph: &PublishGraph,
+    sources: &Svg2Sources,
     want_sample: Option<&str>,
 ) -> Fallible<DefinitionsExtraction> {
     println!("\n## definitions extraction (at pinned commit)");
@@ -273,8 +247,8 @@ fn extract_definitions_modules(
     let mut animate_motion = None;
     let mut macros = chapter::MacroIndex::default();
     let mut modules = Vec::new();
-    for module in &graph.definitions {
-        let path = fetch::resolve_repo_path(PUBLISH_DIR, &module.href)?;
+    for module in &sources.definitions {
+        let path = fetch::resolve_repo_path("", &module.path)?;
         let xml = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
         let defs = extract::extract_definitions(&xml, module.base.clone())?;
         println!(
@@ -351,12 +325,13 @@ fn build_committed_catalog(
 fn fetch_and_report_grammar_projection_inputs(
     repo_slug: &str,
     commit_sha: &str,
+    paths_chapter: &str,
 ) -> Fallible<treesitter::GrammarProjectionInputs> {
     println!("\n## tree-sitter grammar projection inputs");
-    let inputs = treesitter::fetch_grammar_projection_inputs(repo_slug, commit_sha)?;
+    let inputs = treesitter::fetch_grammar_projection_inputs(repo_slug, commit_sha, paths_chapter)?;
     println!("  @webref/css extracted");
     println!(
-        "  paths.html -> {} path command letter(s), d property = `{}`",
+        "  {paths_chapter} -> {} path command letter(s), d property = `{}`",
         inputs.paths.path_command_letters.len(),
         inputs.paths.path_data_property
     );
@@ -385,7 +360,7 @@ fn fetch_and_report_external_property_defs(
 }
 
 fn fetch_and_report_external_svg_module_attr_defs(
-    graph: &PublishGraph,
+    sources: &Svg2Sources,
     modules: &[extract::Definitions],
     macros: &chapter::MacroIndex,
     want: Option<&str>,
@@ -400,8 +375,8 @@ fn fetch_and_report_external_svg_module_attr_defs(
             urls.insert(base.to_owned());
         }
     }
-    for module in &graph.definitions {
-        if let Some(spec_name) = external_svg_spec_name(&module.href) {
+    for module in &sources.definitions {
+        if let Some(spec_name) = external_svg_spec_name(&module.path) {
             urls.insert(format!("https://svgwg.org/specs/{spec_name}/"));
         }
     }
@@ -447,10 +422,8 @@ fn fetch_and_report_external_svg_module_attr_defs(
     Ok(properties)
 }
 
-fn external_svg_spec_name(href: &str) -> Option<&str> {
-    let rest = href
-        .strip_prefix("../specs/")
-        .or_else(|| href.strip_prefix("specs/"))?;
+fn external_svg_spec_name(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix("specs/")?;
     let (name, tail) = rest.split_once('/')?;
     (tail == "master/definitions.xml").then_some(name)
 }
@@ -674,13 +647,14 @@ fn index_categories(defs: &extract::Definitions, macros: &mut chapter::MacroInde
     }
 }
 
-/// Extract and report the chapter/appendix pages: anchor, definition, example,
+/// Extract and report the chapter/appendix pages (their Bikeshed sources,
+/// lowered by [`bikeshed`]): anchor, definition, example,
 /// property, and term counts, plus a sample property and term as JSON. `want`
 /// (from `REGEN_SAMPLE`) selects which property/term to print by name; when
 /// `None`, the first of each is shown.
 fn report_chapters(
     provenance: &Provenance,
-    graph: &PublishGraph,
+    sources: &Svg2Sources,
     macros: &chapter::MacroIndex,
     want: Option<&str>,
 ) -> Fallible<ChapterReport> {
@@ -694,10 +668,9 @@ fn report_chapters(
     let mut sample_term: Option<chapter::TermDefinition> = None;
     let mut collected_properties = Vec::new();
     let mut collected_descriptions = Vec::new();
-    let pages = graph.chapters.iter().chain(&graph.appendices);
-    for name in pages {
-        let path = format!("{PUBLISH_DIR}/{name}.html");
-        let html = fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?;
+    for name in sources.pages() {
+        let path = sources.page_path(name);
+        let html = bikeshed::lower(&fetch::raw_file(REPO_SLUG, &provenance.commit_sha, &path)?);
         let extracted = chapter::extract_chapter(name, &html, macros)?;
         println!(
             "  {name:<12} {:>4} anchors  {:>3} dfns  {:>2} ex  {:>3} props  {:>3} terms",
@@ -739,7 +712,7 @@ fn report_chapters(
         "  {:-<12} {anchors:>4} anchors  {dfns:>3} dfns  {examples:>2} ex  {properties:>3} props  \
          {terms:>3} terms ({} pages)",
         "TOTAL ",
-        graph.chapters.len() + graph.appendices.len(),
+        sources.chapters.len() + sources.appendices.len(),
     );
 
     if let Some(property) = &sample_property {
@@ -790,13 +763,5 @@ impl Totals {
         self.properties += defs.properties.len();
         self.element_categories += defs.element_categories.len();
         self.attribute_categories += defs.attribute_categories.len();
-    }
-}
-
-/// Print one optional base URL, marking absent aliases explicitly.
-fn print_base(label: &str, url: Option<&str>) {
-    match url {
-        Some(url) => println!("  {label}: {url}"),
-        None => println!("  {label}: (absent)"),
     }
 }

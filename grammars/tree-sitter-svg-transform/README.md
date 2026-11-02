@@ -36,9 +36,9 @@ does not require the host's closing quote to disambiguate.
 ## Development
 
 ```sh
-tree-sitter generate      # regenerate src/parser.c from grammar.js
-tree-sitter test          # corpus tests (test/corpus/)
-bun run test              # node binding tests
+tree-sitter generate # regenerate src/parser.c from grammar.js
+tree-sitter test     # corpus tests (test/corpus/)
+bun run test         # node binding tests
 ```
 
 ## License

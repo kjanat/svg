@@ -14,13 +14,6 @@
 			"description": "Format the codebase using dprint.",
 		},
 	},
-	"deploy": {
-		"org": "kjanat",
-		"app": "svg-compat",
-		"install": "deno install",
-		"build": "deno task check:deploy",
-		"runtime": { "entrypoint": "main.ts", "cwd": "workers/svg-compat/src" },
-	},
 	"exclude": ["./target", "./grammars"],
 	"lint": {
 		"rules": {

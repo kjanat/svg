@@ -7,7 +7,14 @@ use svg_data::edition::{ROLLING_PIN, Series, VersionsEnvelope, unseen_versions};
 use ureq::config::IpFamily;
 
 const SVGWG_REPO_API: &str = "https://api.github.com/repos/w3c/svgwg";
-const TRACKED_SPEC_PATH_PREFIX: &str = "master/";
+/// Path prefixes of the svgwg files `svg-data-regen` reads: the SVG 2 chapter
+/// sources and definitions, the build configuration that lists them, and the
+/// animations module's definitions.
+const TRACKED_SPEC_PATH_PREFIXES: &[&str] = &[
+    "master/",
+    "tools/svg2-build/config/",
+    "specs/animations/master/definitions.xml",
+];
 const USER_AGENT: &str = "svg-data-svgwg-drift (+https://github.com/kjanat/svg)";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const BODY_LIMIT: u64 = 64 * 1024 * 1024;
@@ -95,7 +102,7 @@ fn spec_report() -> Fallible<Value> {
     } else {
         changed_files(&agent, ROLLING_PIN.commit, &head)?
             .into_iter()
-            .filter(|file| file.starts_with(TRACKED_SPEC_PATH_PREFIX))
+            .filter(|file| is_tracked_input(file))
             .collect()
     };
 
@@ -129,6 +136,12 @@ fn spec_report() -> Fallible<Value> {
             "tracked_input_drift": tracked_input_drift,
         },
     }))
+}
+
+fn is_tracked_input(path: &str) -> bool {
+    TRACKED_SPEC_PATH_PREFIXES
+        .iter()
+        .any(|prefix| path.starts_with(prefix))
 }
 
 fn compat_report() -> Fallible<Value> {
@@ -245,4 +258,29 @@ fn fetch_text(agent: &ureq::Agent, url: &str, accept: &str) -> Fallible<String> 
 
 fn boxed(message: impl Into<String>) -> Box<dyn std::error::Error> {
     Box::<dyn std::error::Error>::from(message.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_tracked_input;
+
+    #[test]
+    fn tracks_every_input_the_regenerator_reads() {
+        for path in [
+            "master/shapes.bs",
+            "master/definitions.xml",
+            "master/index.bs",
+            "tools/svg2-build/config/svg2.json",
+            "specs/animations/master/definitions.xml",
+        ] {
+            assert!(is_tracked_input(path), "{path} should be tracked");
+        }
+        for path in [
+            "tools/svg2-build/convert.py",
+            "specs/animations/master/Overview.html",
+            "README.md",
+        ] {
+            assert!(!is_tracked_input(path), "{path} should not be tracked");
+        }
+    }
 }

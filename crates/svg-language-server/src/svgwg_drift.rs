@@ -75,24 +75,30 @@ fn svgwg_head(agent: &ureq::Agent) -> Option<String> {
     parse_head_sha(&commit_json)
 }
 
-/// Path prefix (within the `w3c/svgwg` repository) of the SVG 2 spec source
-/// files the baked editor's-draft inventory is derived from.
+/// Path prefixes (within the `w3c/svgwg` repository) of the files the baked
+/// editor's-draft data is derived from.
 ///
-/// The editor's-draft snapshot pins inputs at `master/publish.xml`,
-/// `master/definitions.xml`, `master/definitions-*.xml` — all under the
-/// `master/` source directory. Commits that touch *only* files outside this
-/// prefix (CI, tooling, other specs in the same repo) move HEAD without
-/// affecting the derived data, so they must not count as staleness.
+/// `svg-data-regen` reads the SVG 2 Bikeshed chapter sources and definitions
+/// under `master/`, the build configuration under `tools/svg2-build/config/`
+/// that lists them, and the animations module's definitions. Commits that touch
+/// *only* other files (CI, other tooling, other specs in the same repo) move
+/// HEAD without affecting the derived data, so they must not count as
+/// staleness.
 ///
-/// NOTE (cross-crate follow-up): this prefix is duplicated from the snapshot's
-/// `pinned_sources[].pin.path` values, which `svg-data` does **not** currently
-/// expose on [`ROLLING_PIN`](svg_data::edition::ROLLING_PIN) (only
+/// NOTE (cross-crate follow-up): these prefixes are duplicated in the
+/// `svgwg-drift` sentinel (`svg-data/src/bin/svgwg-drift.rs`), because
+/// `svg-data` does **not** currently expose them on
+/// [`ROLLING_PIN`](svg_data::edition::ROLLING_PIN) (only
 /// `repository`/`commit`/`captured_date`). When svg-data bakes the tracked paths
-/// into `RollingPin`, this constant should read them from there instead.
-const TRACKED_SPEC_PATH_PREFIX: &str = "master/";
+/// into `RollingPin`, both should read them from there instead.
+const TRACKED_SPEC_PATH_PREFIXES: &[&str] = &[
+    "master/",
+    "tools/svg2-build/config/",
+    "specs/animations/master/definitions.xml",
+];
 
 /// Whether any file changed between `base` and `head` in `w3c/svgwg` lies under
-/// the tracked SVG 2 spec source prefix ([`TRACKED_SPEC_PATH_PREFIX`]).
+/// the tracked SVG 2 spec source prefixes ([`TRACKED_SPEC_PATH_PREFIXES`]).
 ///
 /// Uses the GitHub compare API (`/compare/{base}...{head}`), which lists every
 /// changed file across the range. Returns `None` when the probe could not be
@@ -106,7 +112,7 @@ fn tracked_inputs_changed(agent: &ureq::Agent, base: &str, head: &str) -> Option
 }
 
 /// Pure half of [`tracked_inputs_changed`]: parse a GitHub compare response and
-/// report whether any changed file lies under [`TRACKED_SPEC_PATH_PREFIX`].
+/// report whether any changed file lies under [`TRACKED_SPEC_PATH_PREFIXES`].
 ///
 /// Returns `None` when the response is unparseable or omits the `files` array
 /// (the API drops it when the range spans too many commits), so the caller can
@@ -121,7 +127,11 @@ fn parse_compare_touches_tracked(json: &str) -> Option<bool> {
     Some(files.iter().any(|file| {
         file.get("filename")
             .and_then(serde_json::Value::as_str)
-            .is_some_and(|filename| filename.starts_with(TRACKED_SPEC_PATH_PREFIX))
+            .is_some_and(|filename| {
+                TRACKED_SPEC_PATH_PREFIXES
+                    .iter()
+                    .any(|prefix| filename.starts_with(prefix))
+            })
     }))
 }
 
@@ -317,11 +327,27 @@ mod tests {
     }
 
     #[test]
+    fn compare_with_build_configuration_or_module_definitions_is_drift() {
+        for filename in [
+            "tools/svg2-build/config/svg2-split.json",
+            "specs/animations/master/definitions.xml",
+        ] {
+            let json = format!(r#"{{"files":[{{"filename":"{filename}"}}]}}"#);
+            assert_eq!(
+                parse_compare_touches_tracked(&json),
+                Some(true),
+                "{filename}"
+            );
+        }
+    }
+
+    #[test]
     fn compare_touching_only_untracked_files_is_not_drift() {
         // Bare default-branch HEAD movement on unrelated files must not count.
         let json = r#"{"files":[
             {"filename":".github/workflows/ci.yml"},
             {"filename":"scripts/build.sh"},
+            {"filename":"tools/svg2-build/convert.py"},
             {"filename":"README.md"}
         ]}"#;
         assert_eq!(parse_compare_touches_tracked(json), Some(false));

@@ -281,11 +281,11 @@ Via Maven:
 ### Commands
 
 ```sh
-tree-sitter generate          # regenerate src/parser.c from grammar.js
-tree-sitter test              # run corpus + highlight assertions
-bun run test                  # Node binding tests
-bun run test:regex            # regex sample harness
-bun start                     # build WASM + open playground
+tree-sitter generate # regenerate src/parser.c from grammar.js
+tree-sitter test     # run corpus + highlight assertions
+bun run test         # Node binding tests
+bun run test:regex   # regex sample harness
+bun start            # build WASM + open playground
 ```
 
 ### Project Structure

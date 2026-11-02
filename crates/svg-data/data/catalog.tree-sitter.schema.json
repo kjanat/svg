@@ -162,7 +162,7 @@
           }
         },
         "paths_html": {
-          "description": "Pinned SVGWG `paths.html` URL used for path-data grammar facts.",
+          "description": "Pinned SVGWG Paths chapter source URL used for path-data grammar facts\n(`master/paths.bs` since the Bikeshed build; the key keeps its name so\nthe schema stays stable).",
           "type": "string"
         },
         "svg_clock_value_syntax": {
@@ -224,7 +224,7 @@
           }
         },
         "path_command_letters": {
-          "description": "Single-letter path command tokens from SVGWG `paths.html#PathDataBNF`.",
+          "description": "Single-letter path command tokens from the SVGWG Paths chapter's\n`#PathDataBNF`.",
           "type": "array",
           "items": {
             "type": "string"
