@@ -15,32 +15,62 @@
 use super::parser::ComponentValue;
 
 /// The math functions of CSS Values 4 §10.8, in ASCII lowercase.
-pub const MATH_FUNCTIONS: &[&str] = &[];
+pub const MATH_FUNCTIONS: &[&str] = &[
+    "calc", "min", "max", "clamp", "round", "mod", "rem", "sin", "cos", "tan", "asin", "acos",
+    "atan", "atan2", "pow", "sqrt", "hypot", "log", "exp", "abs", "sign",
+];
 
 /// The named arbitrary substitution functions, in ASCII lowercase. Any
 /// `<dashed-function>` (a name starting with `--`) is one as well.
-pub const ARBITRARY_SUBSTITUTION_FUNCTIONS: &[&str] = &[];
+pub const ARBITRARY_SUBSTITUTION_FUNCTIONS: &[&str] = &[
+    "var",
+    "env",
+    "attr",
+    "if",
+    "inherit",
+    "ident",
+    "random-item",
+];
 
 /// Whether `name` (a function name without its `(`) is a math function.
 #[must_use]
 pub fn is_math_function(name: &str) -> bool {
-    let _ = name;
-    false
+    MATH_FUNCTIONS
+        .iter()
+        .any(|known| known.eq_ignore_ascii_case(name))
 }
 
 /// Whether `name` (a function name without its `(`) is an arbitrary
 /// substitution function.
 #[must_use]
 pub fn is_arbitrary_substitution_function(name: &str) -> bool {
-    let _ = name;
-    false
+    name.starts_with("--")
+        || ARBITRARY_SUBSTITUTION_FUNCTIONS
+            .iter()
+            .any(|known| known.eq_ignore_ascii_case(name))
 }
 
 /// Whether an arbitrary substitution function appears anywhere in
 /// `values`, including inside functions and blocks.
 #[must_use]
 pub fn contains_arbitrary_substitution(values: &[ComponentValue<'_>]) -> bool {
-    let _ = values;
+    // An explicit stack: nesting is bounded by the parser, but recursion is
+    // not needed.
+    let mut pending = vec![values];
+    while let Some(values) = pending.pop() {
+        for value in values {
+            match value {
+                ComponentValue::Function(function) => {
+                    if is_arbitrary_substitution_function(&function.name) {
+                        return true;
+                    }
+                    pending.push(&function.value);
+                }
+                ComponentValue::Block(block) => pending.push(&block.value),
+                ComponentValue::Token(_) => {}
+            }
+        }
+    }
     false
 }
 

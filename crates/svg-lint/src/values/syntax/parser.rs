@@ -16,7 +16,7 @@
 
 use std::borrow::Cow;
 
-use super::tokenizer::Token;
+use super::tokenizer::{Token, tokenize};
 
 /// How deeply functions and blocks may nest before parsing stops.
 pub const MAX_NESTING: usize = 256;
@@ -73,15 +73,16 @@ impl ComponentValue<'_> {
     /// Whether this is a `<whitespace-token>`.
     #[must_use]
     pub const fn is_whitespace(&self) -> bool {
-        let _ = self;
-        false
+        matches!(self, Self::Token(Token::Whitespace))
     }
 
     /// The value of an `<ident-token>`.
     #[must_use]
-    pub const fn ident(&self) -> Option<&str> {
-        let _ = self;
-        None
+    pub fn ident(&self) -> Option<&str> {
+        match self {
+            Self::Token(Token::Ident(value)) => Some(value),
+            _ => None,
+        }
     }
 }
 
@@ -105,21 +106,123 @@ impl<'a> ComponentValueList<'a> {
     }
 }
 
+/// An open function or block, with the values of its parent.
+struct Frame<'a> {
+    kind: FrameKind<'a>,
+    parent: Vec<ComponentValue<'a>>,
+}
+
+enum FrameKind<'a> {
+    Function(Cow<'a, str>),
+    Block(BlockKind),
+}
+
+impl<'a> FrameKind<'a> {
+    /// Whether `token` is the mirror token that closes this frame.
+    const fn is_closed_by(&self, token: &Token<'_>) -> bool {
+        matches!(
+            (self, token),
+            (
+                Self::Function(_) | Self::Block(BlockKind::Paren),
+                Token::CloseParen
+            ) | (Self::Block(BlockKind::Square), Token::CloseSquare)
+                | (Self::Block(BlockKind::Curly), Token::CloseCurly)
+        )
+    }
+
+    fn finish(self, value: Vec<ComponentValue<'a>>, closed: bool) -> ComponentValue<'a> {
+        match self {
+            Self::Function(name) => ComponentValue::Function(Function {
+                name,
+                value,
+                closed,
+            }),
+            Self::Block(kind) => ComponentValue::Block(SimpleBlock {
+                kind,
+                value,
+                closed,
+            }),
+        }
+    }
+}
+
 /// "Parse a list of component values" (§5.4.9) from a string.
+///
+/// "Consume a list of component values" (§5.5.7) with `nested` false,
+/// "consume a component value" (§5.5.8), "consume a simple block" (§5.5.9)
+/// and "consume a function" (§5.5.10), run with an explicit stack.
 #[must_use]
 pub fn parse_component_values(input: &str) -> ComponentValueList<'_> {
-    let _ = input;
-    ComponentValueList::default()
+    let mut stack: Vec<Frame<'_>> = Vec::new();
+    let mut current = Vec::new();
+    let mut balanced = true;
+    let mut depth_limited = false;
+    for token in tokenize(input) {
+        let opened = match token {
+            Token::Function(name) => FrameKind::Function(name),
+            Token::OpenParen => FrameKind::Block(BlockKind::Paren),
+            Token::OpenSquare => FrameKind::Block(BlockKind::Square),
+            Token::OpenCurly => FrameKind::Block(BlockKind::Curly),
+            token => {
+                if stack
+                    .last()
+                    .is_some_and(|frame| frame.kind.is_closed_by(&token))
+                {
+                    if let Some(frame) = stack.pop() {
+                        let value = std::mem::replace(&mut current, frame.parent);
+                        current.push(frame.kind.finish(value, true));
+                    }
+                } else {
+                    if matches!(
+                        token,
+                        Token::CloseParen | Token::CloseSquare | Token::CloseCurly
+                    ) {
+                        balanced = false;
+                    }
+                    current.push(ComponentValue::Token(token));
+                }
+                continue;
+            }
+        };
+        if stack.len() == MAX_NESTING {
+            depth_limited = true;
+            break;
+        }
+        stack.push(Frame {
+            kind: opened,
+            parent: std::mem::take(&mut current),
+        });
+    }
+    // The end of input closes whatever is still open.
+    while let Some(frame) = stack.pop() {
+        balanced = false;
+        let value = std::mem::replace(&mut current, frame.parent);
+        current.push(frame.kind.finish(value, false));
+    }
+    ComponentValueList {
+        values: current,
+        balanced: balanced && !depth_limited,
+        depth_limited,
+    }
 }
 
 /// The groups of "parse a comma-separated list of component values"
 /// (§5.4.10), taken from an already parsed list: `values` split at its
-/// top-level `<comma-token>`s.
+/// top-level `<comma-token>`s. As in the spec, a final comma does not start
+/// another group, and an empty list has no groups.
 pub fn comma_separated<'v, 'a>(
     values: &'v [ComponentValue<'a>],
 ) -> impl Iterator<Item = &'v [ComponentValue<'a>]> {
-    let _ = values;
-    std::iter::empty()
+    let is_comma =
+        |value: &ComponentValue<'_>| matches!(value, ComponentValue::Token(Token::Comma));
+    let body = match values.split_last() {
+        Some((last, init)) if is_comma(last) => init,
+        _ => values,
+    };
+    (!values.is_empty())
+        .then(|| body.split(is_comma))
+        .into_iter()
+        .flatten()
 }
 
 #[cfg(test)]
@@ -169,7 +272,7 @@ mod tests {
         );
         assert!(list.balanced);
         assert!(!list.depth_limited);
-        assert!(parse_component_values("").values.is_empty());
+        assert_eq!(parse_component_values("").values, []);
         assert!(parse_component_values("").balanced);
     }
 
@@ -289,7 +392,7 @@ mod tests {
         assert_eq!(groups.len(), 4);
         assert_eq!(groups[0], [ident("a")]);
         assert_eq!(groups[1].len(), 2);
-        assert!(groups[2].is_empty());
+        assert_eq!(groups[2], []);
         assert_eq!(groups[3], [ident("d")]);
         assert_eq!(comma_separated(&[]).count(), 0);
         assert_eq!(

@@ -19,7 +19,13 @@
 //! Only the type is classified. Range restrictions (non-negative lengths,
 //! non-negative resolutions) are left to the checks.
 
-use super::parser::ComponentValue;
+use super::{
+    cascade::is_css_wide_keyword_value,
+    notation::contains_arbitrary_substitution,
+    parser::{ComponentValue, parse_component_values},
+    tokenizer::{Number, Token},
+    units::{UnitCategory, unit_category},
+};
 
 /// Whether a value matches a type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,15 +44,17 @@ impl Match {
     /// else `Unknown` if either is, else `No`.
     #[must_use]
     pub const fn or(self, other: Self) -> Self {
-        let _ = other;
-        self
+        match (self, other) {
+            (Self::Yes, _) | (_, Self::Yes) => Self::Yes,
+            (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
+            (Self::No, Self::No) => Self::No,
+        }
     }
 
     /// Whether the value is certainly not of the type.
     #[must_use]
     pub const fn is_no(self) -> bool {
-        let _ = self;
-        false
+        matches!(self, Self::No)
     }
 }
 
@@ -98,8 +106,73 @@ pub enum UnitlessMode {
 /// Whether one component value is a literal of `ty`.
 #[must_use]
 pub fn match_numeric(value: &ComponentValue<'_>, ty: NumericType, mode: UnitlessMode) -> Match {
-    let _ = (value, ty, mode);
-    Match::Unknown
+    match value {
+        ComponentValue::Function(_) => Match::Unknown,
+        ComponentValue::Token(token) => match_token(token, ty, mode),
+        ComponentValue::Block(_) => Match::No,
+    }
+}
+
+/// [`match_numeric`] for a preserved token.
+fn match_token(token: &Token<'_>, ty: NumericType, mode: UnitlessMode) -> Match {
+    match token {
+        Token::Number(number) => match_number(number, ty, mode),
+        Token::Percentage(_) => Match::from(ty.allows_percentage()),
+        Token::Dimension { unit, .. } => {
+            Match::from(unit_category(unit).is_some_and(|category| ty.has_unit(category)))
+        }
+        _ => Match::No,
+    }
+}
+
+/// [`match_numeric`] for a `<number-token>`.
+fn match_number(number: &Number, ty: NumericType, mode: UnitlessMode) -> Match {
+    let presentation = mode == UnitlessMode::PresentationAttribute;
+    match ty {
+        NumericType::Number => Match::Yes,
+        NumericType::Integer => Match::from(number.is_integer()),
+        NumericType::Length | NumericType::LengthPercentage => {
+            Match::from(presentation || number.value == 0.0)
+        }
+        NumericType::Angle | NumericType::AnglePercentage if presentation => Match::Yes,
+        // "some uses of <angle> allow a bare 0 to mean 0deg"
+        NumericType::Angle | NumericType::AnglePercentage if number.value == 0.0 => Match::Unknown,
+        _ => Match::No,
+    }
+}
+
+impl From<bool> for Match {
+    fn from(matches: bool) -> Self {
+        if matches { Self::Yes } else { Self::No }
+    }
+}
+
+impl NumericType {
+    /// Whether a `<percentage>` is of this type.
+    const fn allows_percentage(self) -> bool {
+        matches!(
+            self,
+            Self::Percentage
+                | Self::LengthPercentage
+                | Self::AnglePercentage
+                | Self::TimePercentage
+                | Self::FrequencyPercentage
+        )
+    }
+
+    /// Whether a dimension in `category` is of this type.
+    fn has_unit(self, category: UnitCategory) -> bool {
+        let expected = match self {
+            Self::Number | Self::Integer | Self::Percentage => return false,
+            Self::Length | Self::LengthPercentage => UnitCategory::Length,
+            Self::Angle | Self::AnglePercentage => UnitCategory::Angle,
+            Self::Time | Self::TimePercentage => UnitCategory::Time,
+            Self::Frequency | Self::FrequencyPercentage => UnitCategory::Frequency,
+            Self::Resolution => UnitCategory::Resolution,
+            Self::Flex => UnitCategory::Flex,
+        };
+        category == expected
+    }
 }
 
 /// Whether a whole value, parsed as CSS component values, is a single
@@ -110,14 +183,23 @@ pub fn match_numeric(value: &ComponentValue<'_>, ty: NumericType, mode: Unitless
 /// function, as in [`match_numeric`].
 #[must_use]
 pub fn match_value(value: &str, ty: NumericType, mode: UnitlessMode) -> Match {
-    let _ = (value, ty, mode);
-    Match::Unknown
+    let list = parse_component_values(value);
+    if list.depth_limited
+        || contains_arbitrary_substitution(&list.values)
+        || is_css_wide_keyword_value(value)
+    {
+        return Match::Unknown;
+    }
+    let mut significant = list.significant();
+    match (significant.next(), significant.next()) {
+        (Some(only), None) => match_numeric(only, ty, mode),
+        _ => Match::No,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::syntax::parser::parse_component_values;
 
     fn css(value: &str, ty: NumericType) -> Match {
         match_value(value, ty, UnitlessMode::Css)

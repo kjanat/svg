@@ -8,16 +8,24 @@
 //! `revert-rule`. Keywords match ASCII case-insensitively (CSS Values 4
 //! §4.1).
 
-use super::tokenizer::Token;
+use super::tokenizer::{Token, tokenize};
 
 /// The CSS-wide keywords, in ASCII lowercase.
-pub const CSS_WIDE_KEYWORDS: &[&str] = &[];
+pub const CSS_WIDE_KEYWORDS: &[&str] = &[
+    "initial",
+    "inherit",
+    "unset",
+    "revert",
+    "revert-layer",
+    "revert-rule",
+];
 
 /// Whether `keyword` (an identifier's value) is a CSS-wide keyword.
 #[must_use]
 pub fn is_css_wide_keyword(keyword: &str) -> bool {
-    let _ = keyword;
-    false
+    CSS_WIDE_KEYWORDS
+        .iter()
+        .any(|known| known.eq_ignore_ascii_case(keyword))
 }
 
 /// Whether `value`, tokenized as CSS, is a single CSS-wide keyword with
@@ -25,9 +33,11 @@ pub fn is_css_wide_keyword(keyword: &str) -> bool {
 /// is `inherit`.
 #[must_use]
 pub fn is_css_wide_keyword_value(value: &str) -> bool {
-    let _: Option<Token<'_>> = None;
-    let _ = value;
-    false
+    let mut tokens = tokenize(value).filter(|token| *token != Token::Whitespace);
+    matches!(
+        (tokens.next(), tokens.next()),
+        (Some(Token::Ident(keyword)), None) if is_css_wide_keyword(&keyword)
+    )
 }
 
 #[cfg(test)]

@@ -144,87 +144,512 @@ pub const fn tokenize(input: &str) -> Tokenizer<'_> {
     Tokenizer { input, pos: 0 }
 }
 
-impl Tokenizer<'_> {
+impl<'a> Tokenizer<'a> {
     /// The byte offset of the next unconsumed code point.
     #[must_use]
     pub const fn offset(&self) -> usize {
         self.pos
+    }
+
+    /// The unconsumed input.
+    fn rest(&self) -> &'a str {
+        &self.input[self.pos..]
+    }
+
+    /// The next input code point as preprocessing delivers it (NULL reads
+    /// as U+FFFD), or `None` at EOF.
+    fn peek(&self) -> Option<char> {
+        self.rest().chars().next().map(preprocess)
+    }
+
+    /// The code point after the next one, preprocessed (a CR LF pair is one
+    /// code point).
+    fn peek_second(&self) -> Option<char> {
+        let rest = self.rest();
+        let first = if rest.starts_with("\r\n") {
+            2
+        } else {
+            rest.chars().next()?.len_utf8()
+        };
+        rest[first..].chars().next().map(preprocess)
+    }
+
+    /// Consume the next input code point. CR LF counts as one newline.
+    fn bump(&mut self) {
+        let rest = self.rest();
+        if rest.starts_with("\r\n") {
+            self.pos += 2;
+        } else if let Some(c) = rest.chars().next() {
+            self.pos += c.len_utf8();
+        }
+    }
+
+    fn consume_whitespace(&mut self) {
+        while self.peek().is_some_and(is_whitespace) {
+            self.bump();
+        }
+    }
+
+    /// §4.3.2 "Consume comments".
+    fn consume_comments(&mut self) {
+        while let Some(body) = self.rest().strip_prefix("/*") {
+            self.pos = body.find("*/").map_or(self.input.len(), |end| {
+                self.input.len() - body.len() + end + 2
+            });
+        }
+    }
+
+    /// §4.3.7 "Consume an escaped code point", with the `\` already
+    /// consumed.
+    fn consume_escaped_code_point(&mut self) -> char {
+        let Some(first) = self.peek() else {
+            return REPLACEMENT;
+        };
+        if !first.is_ascii_hexdigit() {
+            self.bump();
+            return first;
+        }
+        let mut value = 0_u32;
+        for _ in 0..6 {
+            match self.peek().and_then(|c| c.to_digit(16)) {
+                Some(digit) => {
+                    value = value * 16 + digit;
+                    self.bump();
+                }
+                None => break,
+            }
+        }
+        if self.peek().is_some_and(is_whitespace) {
+            self.bump();
+        }
+        if value == 0 {
+            REPLACEMENT
+        } else {
+            // Surrogates and values past U+10FFFF are not `char`s.
+            char::from_u32(value).unwrap_or(REPLACEMENT)
+        }
+    }
+
+    /// §4.3.12 "Consume an ident sequence".
+    fn consume_ident_sequence(&mut self) -> Cow<'a, str> {
+        let mut value = Value::new(self.pos);
+        loop {
+            let at = self.pos;
+            match self.peek() {
+                Some(c) if is_ident_code_point(c) => {
+                    self.bump();
+                    value.literal(self.input, at, c);
+                }
+                Some('\\') if starts_with_valid_escape(self.rest()) => {
+                    self.bump();
+                    let c = self.consume_escaped_code_point();
+                    value.decoded(self.input, at, c);
+                }
+                _ => return value.finish(self.input, at),
+            }
+        }
+    }
+
+    /// §4.3.13 "Consume a number".
+    fn consume_number(&mut self) -> Number {
+        let start = self.pos;
+        let mut kind = NumberType::Integer;
+        let sign = match self.peek() {
+            Some('+') => Some(Sign::Plus),
+            Some('-') => Some(Sign::Minus),
+            _ => None,
+        };
+        if sign.is_some() {
+            self.bump();
+        }
+        self.consume_digits();
+        if self.peek() == Some('.') && self.peek_second().is_some_and(|c| c.is_ascii_digit()) {
+            self.bump();
+            self.consume_digits();
+            kind = NumberType::Number;
+        }
+        let rest = self.rest().as_bytes();
+        if let [b'e' | b'E', next, ..] = rest {
+            let digit_at = usize::from(matches!(next, b'+' | b'-')) + 1;
+            if rest.get(digit_at).is_some_and(u8::is_ascii_digit) {
+                self.pos += digit_at;
+                self.consume_digits();
+                kind = NumberType::Number;
+            }
+        }
+        // The consumed text is a valid Rust float literal: an optional sign,
+        // digits with an optional fraction, an optional exponent.
+        let value = self.input[start..self.pos].parse().unwrap_or_default();
+        Number { value, kind, sign }
+    }
+
+    fn consume_digits(&mut self) {
+        while self.peek().is_some_and(|c| c.is_ascii_digit()) {
+            self.bump();
+        }
+    }
+
+    /// §4.3.3 "Consume a numeric token".
+    fn consume_numeric_token(&mut self) -> Token<'a> {
+        let number = self.consume_number();
+        if would_start_ident_sequence(self.rest()) {
+            let unit = self.consume_ident_sequence();
+            Token::Dimension { number, unit }
+        } else if self.peek() == Some('%') {
+            self.bump();
+            Token::Percentage(number)
+        } else {
+            Token::Number(number)
+        }
+    }
+
+    /// §4.3.4 "Consume an ident-like token".
+    fn consume_ident_like_token(&mut self) -> Token<'a> {
+        let name = self.consume_ident_sequence();
+        if self.peek() != Some('(') {
+            return Token::Ident(name);
+        }
+        self.bump();
+        if !name.eq_ignore_ascii_case("url") {
+            return Token::Function(name);
+        }
+        while self.peek().is_some_and(is_whitespace)
+            && self.peek_second().is_some_and(is_whitespace)
+        {
+            self.bump();
+        }
+        let quote = |c: Option<char>| matches!(c, Some('"' | '\''));
+        let next = self.peek();
+        if quote(next) || (next.is_some_and(is_whitespace) && quote(self.peek_second())) {
+            Token::Function(name)
+        } else {
+            self.consume_url_token()
+        }
+    }
+
+    /// §4.3.5 "Consume a string token", with the opening quote consumed.
+    fn consume_string_token(&mut self, ending: char) -> Token<'a> {
+        let mut value = Value::new(self.pos);
+        loop {
+            let at = self.pos;
+            match self.peek() {
+                None => return Token::String(value.finish(self.input, at)),
+                Some(c) if c == ending => {
+                    self.bump();
+                    return Token::String(value.finish(self.input, at));
+                }
+                // Reconsume: the newline starts the next token.
+                Some(c) if is_newline(c) => return Token::BadString,
+                Some('\\') => {
+                    self.bump();
+                    match self.peek() {
+                        None => value.skip(self.input, at),
+                        Some(c) if is_newline(c) => {
+                            self.bump();
+                            value.skip(self.input, at);
+                        }
+                        Some(_) => {
+                            let c = self.consume_escaped_code_point();
+                            value.decoded(self.input, at, c);
+                        }
+                    }
+                }
+                Some(c) => {
+                    self.bump();
+                    value.literal(self.input, at, c);
+                }
+            }
+        }
+    }
+
+    /// §4.3.6 "Consume a url token", with `url(` consumed.
+    fn consume_url_token(&mut self) -> Token<'a> {
+        self.consume_whitespace();
+        let mut value = Value::new(self.pos);
+        loop {
+            let at = self.pos;
+            match self.peek() {
+                None => return Token::Url(value.finish(self.input, at)),
+                Some(')') => {
+                    self.bump();
+                    return Token::Url(value.finish(self.input, at));
+                }
+                Some(c) if is_whitespace(c) => {
+                    self.consume_whitespace();
+                    match self.peek() {
+                        None => return Token::Url(value.finish(self.input, at)),
+                        Some(')') => {
+                            self.bump();
+                            return Token::Url(value.finish(self.input, at));
+                        }
+                        Some(_) => {
+                            self.consume_remnants_of_bad_url();
+                            return Token::BadUrl;
+                        }
+                    }
+                }
+                Some(c) if matches!(c, '"' | '\'' | '(') || is_non_printable_code_point(c) => {
+                    self.bump();
+                    self.consume_remnants_of_bad_url();
+                    return Token::BadUrl;
+                }
+                Some('\\') => {
+                    let valid = starts_with_valid_escape(self.rest());
+                    self.bump();
+                    if !valid {
+                        self.consume_remnants_of_bad_url();
+                        return Token::BadUrl;
+                    }
+                    let c = self.consume_escaped_code_point();
+                    value.decoded(self.input, at, c);
+                }
+                Some(c) => {
+                    self.bump();
+                    value.literal(self.input, at, c);
+                }
+            }
+        }
+    }
+
+    /// §4.3.15 "Consume the remnants of a bad url".
+    fn consume_remnants_of_bad_url(&mut self) {
+        loop {
+            match self.peek() {
+                None => return,
+                Some(')') => {
+                    self.bump();
+                    return;
+                }
+                Some('\\') if starts_with_valid_escape(self.rest()) => {
+                    self.bump();
+                    self.consume_escaped_code_point();
+                }
+                Some(_) => self.bump(),
+            }
+        }
     }
 }
 
 impl<'a> Iterator for Tokenizer<'a> {
     type Item = Token<'a>;
 
+    /// §4.3.1 "Consume a token" (with "unicode ranges allowed" false).
     fn next(&mut self) -> Option<Token<'a>> {
-        let _ = self.input;
-        None
+        self.consume_comments();
+        let c = self.peek()?;
+        let rest = self.rest();
+        let token = match c {
+            c if is_whitespace(c) => {
+                self.consume_whitespace();
+                Token::Whitespace
+            }
+            '"' | '\'' => {
+                self.bump();
+                self.consume_string_token(c)
+            }
+            '#' => {
+                self.bump();
+                let after = self.rest();
+                if self.peek().is_some_and(is_ident_code_point) || starts_with_valid_escape(after) {
+                    let kind = if would_start_ident_sequence(after) {
+                        HashType::Id
+                    } else {
+                        HashType::Unrestricted
+                    };
+                    let value = self.consume_ident_sequence();
+                    Token::Hash { value, kind }
+                } else {
+                    Token::Delim('#')
+                }
+            }
+            '+' | '-' | '.' if would_start_number(rest) => self.consume_numeric_token(),
+            '-' if rest.starts_with("-->") => {
+                self.pos += 3;
+                Token::Cdc
+            }
+            '-' if would_start_ident_sequence(rest) => self.consume_ident_like_token(),
+            '<' if rest.starts_with("<!--") => {
+                self.pos += 4;
+                Token::Cdo
+            }
+            '@' if would_start_ident_sequence(&rest[1..]) => {
+                self.bump();
+                Token::AtKeyword(self.consume_ident_sequence())
+            }
+            '\\' if starts_with_valid_escape(rest) => self.consume_ident_like_token(),
+            c if c.is_ascii_digit() => self.consume_numeric_token(),
+            c if is_ident_start_code_point(c) => self.consume_ident_like_token(),
+            _ => {
+                self.bump();
+                match c {
+                    '(' => Token::OpenParen,
+                    ')' => Token::CloseParen,
+                    ',' => Token::Comma,
+                    ':' => Token::Colon,
+                    ';' => Token::Semicolon,
+                    '[' => Token::OpenSquare,
+                    ']' => Token::CloseSquare,
+                    '{' => Token::OpenCurly,
+                    '}' => Token::CloseCurly,
+                    // Includes `#`, `+`, `-`, `.`, `<`, `@` and `\` when their
+                    // longer forms did not apply.
+                    other => Token::Delim(other),
+                }
+            }
+        };
+        Some(token)
+    }
+}
+
+/// §3.3 preprocessing of one code point: NULL becomes U+FFFD. (CR and FF are
+/// handled by [`is_newline`], and CR LF by the cursor.)
+const fn preprocess(c: char) -> char {
+    if c == '\0' { REPLACEMENT } else { c }
+}
+
+/// A token value under construction: borrowed from the input until an
+/// escape, a NULL or a skipped code point forces a copy.
+struct Value {
+    start: usize,
+    owned: Option<String>,
+}
+
+impl Value {
+    const fn new(start: usize) -> Self {
+        Self { start, owned: None }
+    }
+
+    /// Make the value owned, copying the input before `at`.
+    fn own<'s>(&'s mut self, input: &str, at: usize) -> &'s mut String {
+        let start = self.start;
+        self.owned
+            .get_or_insert_with(|| input[start..at].to_owned())
+    }
+
+    /// Append `c`, written literally at `at` (as NULL when it reads as
+    /// U+FFFD).
+    fn literal(&mut self, input: &str, at: usize, c: char) {
+        if let Some(owned) = &mut self.owned {
+            owned.push(c);
+        } else if input.as_bytes()[at] == 0 {
+            self.own(input, at).push(c);
+        }
+    }
+
+    /// Append `c`, decoded from an escape that starts at `at`.
+    fn decoded(&mut self, input: &str, at: usize, c: char) {
+        self.own(input, at).push(c);
+    }
+
+    /// Drop the input from `at` up to the current position from the value.
+    fn skip(&mut self, input: &str, at: usize) {
+        self.own(input, at);
+    }
+
+    /// The finished value, which ends at `end` if still borrowed.
+    fn finish(self, input: &str, end: usize) -> Cow<'_, str> {
+        self.owned
+            .map_or_else(|| Cow::Borrowed(&input[self.start..end]), Cow::Owned)
     }
 }
 
 /// A newline after preprocessing (§4.2 "newline", §3.3): LF, CR or FF.
 #[must_use]
 pub const fn is_newline(c: char) -> bool {
-    let _ = c;
-    false
+    matches!(c, '\n' | '\r' | '\x0C')
 }
 
 /// "whitespace" (§4.2): a newline, U+0009 or U+0020.
 #[must_use]
 pub const fn is_whitespace(c: char) -> bool {
-    let _ = c;
-    false
+    is_newline(c) || matches!(c, '\t' | ' ')
 }
 
 /// "non-ASCII ident code point" (§4.2).
 #[must_use]
 pub const fn is_non_ascii_ident_code_point(c: char) -> bool {
-    let _ = c;
-    false
+    matches!(
+        c,
+        '\u{B7}'
+            | '\u{C0}'..='\u{D6}'
+            | '\u{D8}'..='\u{F6}'
+            | '\u{F8}'..='\u{37D}'
+            | '\u{37F}'..='\u{1FFF}'
+            | '\u{200C}'
+            | '\u{200D}'
+            | '\u{203F}'
+            | '\u{2040}'
+            | '\u{2070}'..='\u{218F}'
+            | '\u{2C00}'..='\u{2FEF}'
+            | '\u{3001}'..='\u{D7FF}'
+            | '\u{F900}'..='\u{FDCF}'
+            | '\u{FDF0}'..='\u{FFFD}'
+            | '\u{10000}'..
+    )
 }
 
 /// "ident-start code point" (§4.2).
 #[must_use]
 pub const fn is_ident_start_code_point(c: char) -> bool {
-    let _ = c;
-    false
+    c.is_ascii_alphabetic() || c == '_' || is_non_ascii_ident_code_point(c)
 }
 
 /// "ident code point" (§4.2).
 #[must_use]
 pub const fn is_ident_code_point(c: char) -> bool {
-    let _ = c;
-    false
+    is_ident_start_code_point(c) || c.is_ascii_digit() || c == '-'
 }
 
 /// "non-printable code point" (§4.2).
 #[must_use]
 pub const fn is_non_printable_code_point(c: char) -> bool {
-    let _ = c;
-    false
+    matches!(c, '\0'..='\x08' | '\x0B' | '\x0E'..='\x1F' | '\x7F')
+}
+
+/// The first three code points of `stream`, preprocessed.
+fn first_three(stream: &str) -> (Option<char>, Option<char>, Option<char>) {
+    let mut chars = stream.chars().map(preprocess);
+    (chars.next(), chars.next(), chars.next())
+}
+
+/// §4.3.8 on two explicit code points.
+fn is_valid_escape(first: Option<char>, second: Option<char>) -> bool {
+    first == Some('\\') && !second.is_some_and(is_newline)
 }
 
 /// "Check if two code points are a valid escape" (§4.3.8), applied to the
 /// start of `stream`.
 #[must_use]
 pub fn starts_with_valid_escape(stream: &str) -> bool {
-    let _ = stream;
-    false
+    let (first, second, _) = first_three(stream);
+    is_valid_escape(first, second)
 }
 
 /// "Check if three code points would start an ident sequence" (§4.3.9),
 /// applied to the start of `stream`.
 #[must_use]
 pub fn would_start_ident_sequence(stream: &str) -> bool {
-    let _ = stream;
-    false
+    match first_three(stream) {
+        (Some('-'), second, third) => {
+            second.is_some_and(|c| c == '-' || is_ident_start_code_point(c))
+                || is_valid_escape(second, third)
+        }
+        (Some('\\'), second, _) => is_valid_escape(Some('\\'), second),
+        (Some(c), ..) => is_ident_start_code_point(c),
+        (None, ..) => false,
+    }
 }
 
 /// "Check if three code points would start a number" (§4.3.10), applied to
 /// the start of `stream`.
 #[must_use]
 pub fn would_start_number(stream: &str) -> bool {
-    let _ = stream;
-    false
+    let digit = |c: Option<char>| c.is_some_and(|c| c.is_ascii_digit());
+    match first_three(stream) {
+        (Some('+' | '-'), second, third) => digit(second) || (second == Some('.') && digit(third)),
+        (Some('.'), second, _) => digit(second),
+        (first, ..) => digit(first),
+    }
 }
 
 #[cfg(test)]

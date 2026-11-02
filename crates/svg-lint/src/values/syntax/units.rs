@@ -18,33 +18,38 @@
 //! case-insensitively (CSS Values 4 §5.4).
 
 /// Absolute length units (CSS Values 4 §6.2).
-pub const ABSOLUTE_LENGTH_UNITS: &[&str] = &[];
+pub const ABSOLUTE_LENGTH_UNITS: &[&str] = &["cm", "mm", "q", "in", "pt", "pc", "px"];
 
 /// Font-relative length units (CSS Values 4 §6.1.1).
-pub const FONT_RELATIVE_LENGTH_UNITS: &[&str] = &[];
+pub const FONT_RELATIVE_LENGTH_UNITS: &[&str] = &[
+    "em", "rem", "ex", "rex", "cap", "rcap", "ch", "rch", "ic", "ric", "lh", "rlh",
+];
 
 /// Viewport-percentage length units with their small, large and dynamic
 /// variants (CSS Values 4 §6.1.2).
-pub const VIEWPORT_LENGTH_UNITS: &[&str] = &[];
+pub const VIEWPORT_LENGTH_UNITS: &[&str] = &[
+    "vw", "vh", "vi", "vb", "vmin", "vmax", "svw", "svh", "svi", "svb", "svmin", "svmax", "lvw",
+    "lvh", "lvi", "lvb", "lvmin", "lvmax", "dvw", "dvh", "dvi", "dvb", "dvmin", "dvmax",
+];
 
 /// Container query length units (CSS Conditional 5 §7).
-pub const CONTAINER_LENGTH_UNITS: &[&str] = &[];
+pub const CONTAINER_LENGTH_UNITS: &[&str] = &["cqw", "cqh", "cqi", "cqb", "cqmin", "cqmax"];
 
 /// Angle units (CSS Values 4 §7.1).
-pub const ANGLE_UNITS: &[&str] = &[];
+pub const ANGLE_UNITS: &[&str] = &["deg", "grad", "rad", "turn"];
 
 /// Duration units (CSS Values 4 §7.2).
-pub const TIME_UNITS: &[&str] = &[];
+pub const TIME_UNITS: &[&str] = &["s", "ms"];
 
 /// Frequency units (CSS Values 4 §7.3).
-pub const FREQUENCY_UNITS: &[&str] = &[];
+pub const FREQUENCY_UNITS: &[&str] = &["hz", "khz"];
 
 /// Resolution units (CSS Values 4 §7.4), including the `x` alias of
 /// `dppx`.
-pub const RESOLUTION_UNITS: &[&str] = &[];
+pub const RESOLUTION_UNITS: &[&str] = &["dpi", "dpcm", "dppx", "x"];
 
 /// Flexible length units (CSS Grid 1 §7.2.4).
-pub const FLEX_UNITS: &[&str] = &[];
+pub const FLEX_UNITS: &[&str] = &["fr"];
 
 /// The data type a unit identifier belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,8 +72,23 @@ pub enum UnitCategory {
 /// an identifier no table lists.
 #[must_use]
 pub fn unit_category(unit: &str) -> Option<UnitCategory> {
-    let _ = unit;
-    None
+    let tables: [(&[&str], UnitCategory); 9] = [
+        (ABSOLUTE_LENGTH_UNITS, UnitCategory::Length),
+        (FONT_RELATIVE_LENGTH_UNITS, UnitCategory::Length),
+        (VIEWPORT_LENGTH_UNITS, UnitCategory::Length),
+        (CONTAINER_LENGTH_UNITS, UnitCategory::Length),
+        (ANGLE_UNITS, UnitCategory::Angle),
+        (TIME_UNITS, UnitCategory::Time),
+        (FREQUENCY_UNITS, UnitCategory::Frequency),
+        (RESOLUTION_UNITS, UnitCategory::Resolution),
+        (FLEX_UNITS, UnitCategory::Flex),
+    ];
+    tables.into_iter().find_map(|(units, category)| {
+        units
+            .iter()
+            .any(|known| known.eq_ignore_ascii_case(unit))
+            .then_some(category)
+    })
 }
 
 /// Whether `unit` is a `<length>` unit.
