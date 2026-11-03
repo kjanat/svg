@@ -243,24 +243,56 @@ async function cleanDist(): Promise<void> {
 	await mkdir(distDir, { recursive: true });
 }
 
+/** The `catalog` and named `catalogs` of the root package.json. */
+interface WorkspaceCatalogs {
+	catalog?: Record<string, string>;
+	catalogs?: Record<string, Record<string, string>>;
+}
+
+const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
+
+/**
+ * Replace Bun `catalog:` and `catalog:<name>` dependency specifiers in
+ * `manifest` with the versions the root package.json catalogs pin.
+ *
+ * Generated packages sit outside the workspace globs, so Bun does not resolve
+ * their catalog references while packing. Bun 1.4.2 still read them from a
+ * copied workspace lockfile; 1.4.4 fails with "no matching catalog dependency".
+ * Resolving them here keeps the packed manifests independent of Bun's lookup.
+ */
+export function resolveCatalogReferences(manifest: Record<string, unknown>, workspace: WorkspaceCatalogs): void {
+	for (const field of DEPENDENCY_FIELDS) {
+		const dependencies = manifest[field];
+		if (typeof dependencies !== 'object' || dependencies === null) continue;
+		const specs = dependencies as Record<string, unknown>;
+		for (const [name, spec] of Object.entries(specs)) {
+			if (typeof spec !== 'string' || !spec.startsWith('catalog:')) continue;
+			const catalogName = spec.slice('catalog:'.length);
+			const catalog = catalogName === '' || catalogName === 'default' ? workspace.catalog : workspace.catalogs?.[catalogName];
+			const version = catalog?.[name];
+			if (version === undefined) {
+				throw new Error(`${String(manifest.name)}: no \`${spec}\` entry for ${name} in the root package.json`);
+			}
+			specs[name] = version;
+		}
+	}
+}
+
 async function packPackages(): Promise<void> {
+	const workspace = JSON.parse(await readFile(join(repoDir, 'package.json'), 'utf8')) as WorkspaceCatalogs;
 	for (const entry of await readdir(distDir, { withFileTypes: true })) {
 		if (!entry.isDirectory()) continue;
 		const directory = join(distDir, entry.name);
-		// Generated packages are outside the workspace globs. Bun needs the
-		// workspace lockfile here to resolve catalog references while packing.
-		const lockfile = join(directory, 'bun.lock');
-		await cp(join(repoDir, 'bun.lock'), lockfile);
-		try {
-			const result = spawnSync('bun', ['pm', 'pack', '--ignore-scripts', '--quiet', '--filename', join(distDir, `${entry.name}.tgz`)], {
-				cwd: directory,
-				stdio: 'inherit',
-			});
-			if (result.error) throw result.error;
-			if (result.status !== 0) throw new Error(`bun pm pack failed for ${entry.name}`);
-		} finally {
-			await rm(lockfile);
-		}
+		const manifestPath = join(directory, 'package.json');
+		const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+		resolveCatalogReferences(manifest, workspace);
+		await writeJson(manifestPath, manifest);
+		const result = spawnSync('bun', ['pm', 'pack', '--ignore-scripts', '--quiet', '--filename', join(distDir, `${entry.name}.tgz`)], {
+			cwd: directory,
+			stdio: 'inherit',
+		});
+		if (result.error) throw result.error;
+		if (result.status !== 0) throw new Error(`bun pm pack failed for ${entry.name}`);
 	}
 }
 
