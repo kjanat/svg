@@ -1116,6 +1116,43 @@ mod tests {
         );
     }
 
+    // Claim: "<paint>: none | currentColor | <color> [<icccolor>] |
+    // <funciri> [ none | currentColor | <color> [<icccolor>] ] | inherit"
+    // https://www.w3.org/TR/SVG11/painting.html#SpecifyingPaint
+    // Claim: "<color> = <color-base> | currentColor | <system-color>" and
+    // "<color-base> = <hex-color> | <color-function> | <named-color> | transparent"
+    // https://drafts.csswg.org/css-color-4/#color-syntax
+    // Claim: "<paint> = none | <color> | <url> [none | <color>]? |
+    // context-fill | context-stroke"
+    // https://svgwg.org/svg2-draft/painting.html#DataTypePaint
+    // (SVG 1.1 only allows an ICC color after a color; neither CSS Color nor
+    // SVG 2 has an icc-color() of its own)
+    #[test]
+    fn svg11_icc_color_needs_a_color_first() {
+        assert_valid(
+            check_color,
+            &["red icc-color(p, 1)", "rgb(0 0 0) ICC-COLOR(p, 1)"],
+        );
+        assert_valid(check_paint, &["url(#a) red icc-color(p, 1)"]);
+        assert_invalid(
+            check_color,
+            &[
+                "icc-color(x, 1)",
+                "icc-color(acmecmyk, 0.11, 0.48, 0.83, 0.00)",
+                "icc-color(a, 1) icc-color(b, 1)",
+            ],
+        );
+        assert_invalid(
+            check_paint,
+            &[
+                "icc-color(x,1)",
+                "ICC-Color(x, 1)",
+                "url(#a) icc-color(x,1)",
+                "icc-color(a, 1) icc-color(b, 1)",
+            ],
+        );
+    }
+
     // Claim: "<paint> = none | <color> | <url> [none | <color>]? |
     // context-fill | context-stroke"
     // https://svgwg.org/svg2-draft/painting.html#DataTypePaint
