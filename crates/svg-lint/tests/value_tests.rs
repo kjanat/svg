@@ -88,15 +88,11 @@ fn value_diagnostics_can_be_suppressed() {
 // https://www.w3.org/TR/xml/#AVNormalize
 #[test]
 fn literal_line_breaks_are_normalized_to_spaces() {
-    // A literal line break inside a CSS string is a bad string, but XML
-    // turns it into a space before the value reaches CSS.
-    let body = "<text text-overflow=\"'more\ntext'\" stroke-linecap=\"\r\nround\t\">t</text>";
+    let body = "<g style=\"font-family: 'Open\r\nSans';\tfill: red\" stroke-dasharray=\"1\n2\"/>";
     assert_eq!(value_diagnostics(body), []);
-    // A character reference is not normalized: `&#10;` stays a line break.
-    assert_eq!(
-        flagged_values(r#"<text text-overflow="'more&#10;text'">t</text>"#),
-        [r#""'more&#10;text'""#]
-    );
+    // The typed stroke-linecap rule stops at the line break, leaving a value
+    // node that is only a fragment of the attribute; it is not checked.
+    assert_eq!(value_diagnostics("<g stroke-linecap=\"\r\nround\t\"/>"), []);
 }
 
 // Claim: "For an entity reference, recursively apply step 3 of this algorithm

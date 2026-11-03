@@ -137,47 +137,74 @@ fn d_attribute(value: &str) -> Option<String> {
 }
 
 /// The attribute value as XML delivers it: `raw` is the value node's source
-/// text, quotes included.
-pub fn attribute_value_text(raw: &str) -> Cow<'_, str> {
+/// text, quotes included. `None` when the value references an entity the
+/// document declares, whose replacement text this crate does not resolve, or
+/// when `raw` is not a whole quoted value (a fragment left by parse error
+/// recovery).
+///
+/// This follows XML 1.0 attribute-value normalization
+/// (<https://www.w3.org/TR/xml/#AVNormalize>): line breaks are first
+/// normalized (<https://www.w3.org/TR/xml/#sec-line-ends>), each literal
+/// white space character becomes a space, and character references and the
+/// predefined entities are then replaced. A character reference to white
+/// space (`&#10;`) is kept as that character.
+pub fn attribute_value_text(raw: &str) -> Option<Cow<'_, str>> {
     let unquoted = raw
         .strip_prefix('"')
         .and_then(|rest| rest.strip_suffix('"'))
         .or_else(|| {
             raw.strip_prefix('\'')
                 .and_then(|rest| rest.strip_suffix('\''))
-        })
-        .unwrap_or(raw);
-    decode_references(unquoted)
+        })?;
+    let normalized = normalize_white_space(unquoted);
+    match decode_references(&normalized)? {
+        Cow::Borrowed(_) => Some(normalized),
+        Cow::Owned(decoded) => Some(Cow::Owned(decoded)),
+    }
 }
 
-/// Decode XML character references (`&#65;`, `&#x41;`) and the five predefined
-/// entities. An unrecognized reference is kept as written.
-fn decode_references(text: &str) -> Cow<'_, str> {
-    if !text.contains('&') {
+/// Each literal `#x20 | #x9 | #xD | #xA` as one space, with `#xD #xA` taken
+/// as a single line break.
+fn normalize_white_space(text: &str) -> Cow<'_, str> {
+    if !text.contains(['\t', '\n', '\r']) {
         return Cow::Borrowed(text);
+    }
+    Cow::Owned(text.replace("\r\n", " ").replace(['\t', '\n', '\r'], " "))
+}
+
+/// Decode XML character references (`&#65;`, `&#x41;`) and the five
+/// predefined entities. `None` for a reference to any other entity, which
+/// only the document's DTD defines. A `&` that starts no well-formed
+/// reference is kept as written.
+fn decode_references(text: &str) -> Option<Cow<'_, str>> {
+    if !text.contains('&') {
+        return Some(Cow::Borrowed(text));
     }
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(at) = rest.find('&') {
         out.push_str(&rest[..at]);
         let after = &rest[at + 1..];
-        let decoded = after.find(';').and_then(|end| {
-            let name = &after[..end];
-            let ch = match name {
+        let reference = after.find(';').map(|end| (&after[..end], end));
+        let decoded = match reference {
+            Some((name, end)) => match name {
                 "amp" => Some('&'),
                 "lt" => Some('<'),
                 "gt" => Some('>'),
                 "quot" => Some('"'),
                 "apos" => Some('\''),
-                _ => name
+                _ if name.starts_with('#') => name
                     .strip_prefix("#x")
                     .or_else(|| name.strip_prefix("#X"))
                     .and_then(|hex| u32::from_str_radix(hex, 16).ok())
                     .or_else(|| name.strip_prefix('#').and_then(|dec| dec.parse().ok()))
                     .and_then(char::from_u32),
-            };
-            ch.map(|ch| (ch, end))
-        });
+                _ if is_xml_name(name) => return None,
+                _ => None,
+            }
+            .map(|ch| (ch, end)),
+            None => None,
+        };
         if let Some((ch, end)) = decoded {
             out.push(ch);
             rest = &after[end + 1..];
@@ -187,7 +214,18 @@ fn decode_references(text: &str) -> Cow<'_, str> {
         }
     }
     out.push_str(rest);
-    Cow::Owned(out)
+    Some(Cow::Owned(out))
+}
+
+/// Whether `name` is an XML `Name`, restricted to the ASCII subset plus any
+/// non-ASCII character (a conservative superset for entity names).
+fn is_xml_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|first| {
+        first.is_ascii_alphabetic() || matches!(first, '_' | ':') || !first.is_ascii()
+    }) && chars.all(|ch| {
+        ch.is_ascii_alphanumeric() || matches!(ch, '_' | ':' | '-' | '.') || !ch.is_ascii()
+    })
 }
 
 #[cfg(test)]
@@ -196,10 +234,38 @@ mod tests {
 
     #[test]
     fn strips_either_quote_and_decodes_references() {
-        assert_eq!(attribute_value_text("\"a b\""), "a b");
-        assert_eq!(attribute_value_text("'a'"), "a");
-        assert_eq!(attribute_value_text("\"&lt;&amp;&#65;&#x42;\""), "<&AB");
-        assert_eq!(attribute_value_text("\"&bogus; &\""), "&bogus; &");
+        let text = |raw| attribute_value_text(raw).map(Cow::into_owned);
+        assert_eq!(text("\"a b\"").as_deref(), Some("a b"));
+        assert_eq!(text("'a'").as_deref(), Some("a"));
+        assert_eq!(text("\"&lt;&amp;&#65;&#x42;\"").as_deref(), Some("<&AB"));
+        assert_eq!(text("\"& &#; &1;\"").as_deref(), Some("& &#; &1;"));
+    }
+
+    // Claim: "For a white space character (#x20, #xD, #xA, #x9), append a
+    // space character (#x20) to the normalized value." and "For a character
+    // reference, append the referenced character to the normalized value."
+    // https://www.w3.org/TR/xml/#AVNormalize
+    #[test]
+    fn literal_white_space_is_normalized_but_references_are_not() {
+        let text = |raw| attribute_value_text(raw).map(Cow::into_owned);
+        assert_eq!(text("\"a\r\nb\tc\rd\ne\"").as_deref(), Some("a b c d e"));
+        assert_eq!(text("\"a&#10;b&#9;c\"").as_deref(), Some("a\nb\tc"));
+    }
+
+    // Claim: "For an entity reference, recursively apply step 3 of this
+    // algorithm to the replacement text of the entity."
+    // https://www.w3.org/TR/xml/#AVNormalize
+    #[test]
+    fn declared_entity_references_make_the_value_unknown() {
+        assert_eq!(attribute_value_text("\"&overflow;\""), None);
+        assert_eq!(attribute_value_text("\"1 &st0; 2\""), None);
+    }
+
+    #[test]
+    fn unquoted_fragments_are_not_values() {
+        for raw in ["", "\"", "a", "\"a", "'a\""] {
+            assert_eq!(attribute_value_text(raw), None, "{raw:?}");
+        }
     }
 
     fn d_values() -> AttributeValues {
