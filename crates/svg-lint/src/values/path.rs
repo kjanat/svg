@@ -6,8 +6,11 @@
 //!
 //! - Path data (`path` on `animateMotion` and `textPath`) follows the SVG 2
 //!   EBNF "The grammar for path data"
-//!   (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>). Rendering up
-//!   to the first error (`#PathDataErrorHandling`) is recovery, not validity.
+//!   (<https://svgwg.org/svg2-draft/paths.html#PathDataBNF>), with numbers
+//!   widened to the SVG 1.1 BNF, which also allows a trailing decimal point
+//!   (<https://www.w3.org/TR/SVG11/paths.html#PathDataBNF>): the check is
+//!   not told the profile. Rendering up to the first error
+//!   (`#PathDataErrorHandling`) is recovery, not validity.
 //! - `keyTimes` and `keyPoints` are `<number> [; <number>]* ;?` in CSS value
 //!   definition syntax, parsed as CSS
 //!   (<https://svgwg.org/svg2-draft/types.html#attribute-css-value>), with
@@ -17,9 +20,7 @@
 //!   (<https://w3c.github.io/svgwg/specs/animations/#AnimateMotionElement>).
 
 use super::syntax::{
-    microsyntax::{
-        scan_coordinate, scan_flag, skip_comma_wsp, skip_wsp, strip_comma_wsp, trim_wsp,
-    },
+    microsyntax::{scan_flag, skip_comma_wsp, skip_wsp, strip_comma_wsp, trim_wsp},
     notation::contains_arbitrary_substitution,
     parser::{ComponentValue, parse_component_values},
     tokenizer::Token,
@@ -156,10 +157,14 @@ impl PathParser<'_> {
         }
     }
 
-    /// `coordinate::= sign? number`
+    /// `coordinate::= sign? number`, with SVG 1.1's `number` (see
+    /// [`coordinate_len`]).
     fn coordinate(&mut self) -> PathResult {
-        let (_, rest) = scan_coordinate(self.rest).ok_or_else(|| self.error("a number"))?;
-        self.rest = rest;
+        let len = coordinate_len(self.rest.as_bytes());
+        if len == 0 {
+            return Err(self.error("a number"));
+        }
+        self.rest = &self.rest[len..];
         Ok(())
     }
 
@@ -213,6 +218,43 @@ impl PathParser<'_> {
         self.rest = rest;
         Ok(())
     }
+}
+
+/// The length of a signed path-data number at the start of `bytes`, matched
+/// greedily, or 0 when there is none.
+///
+/// This is SVG 1.1's `number` (`sign? integer-constant | sign?
+/// floating-point-constant`), whose `fractional-constant` also admits
+/// `digit-sequence "."`. Every SVG 2 `coordinate` is one, and the check is not
+/// told the profile, so the SVG 1.1 form (e.g. `23.`, `1.e5`) is accepted
+/// rather than reported as the SVG 2 "disallowed number format".
+fn coordinate_len(bytes: &[u8]) -> usize {
+    let digits = |from: usize| {
+        bytes.get(from..).map_or(0, |tail| {
+            tail.iter().take_while(|b| b.is_ascii_digit()).count()
+        })
+    };
+    let sign = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let integer = digits(sign);
+    let mut len = sign + integer;
+    if bytes.get(len) == Some(&b'.') {
+        let fraction = digits(len + 1);
+        if integer > 0 || fraction > 0 {
+            len += 1 + fraction;
+        }
+    }
+    if len == sign {
+        return 0;
+    }
+    // exponent ::= ("e" | "E") sign? digit-sequence
+    if matches!(bytes.get(len), Some(b'e' | b'E')) {
+        let exponent_sign = usize::from(matches!(bytes.get(len + 1), Some(b'+' | b'-')));
+        let exponent = digits(len + 1 + exponent_sign);
+        if exponent > 0 {
+            len += 1 + exponent_sign + exponent;
+        }
+    }
+    len
 }
 
 /// `SemicolonNumberList`: semicolon-separated numbers.
