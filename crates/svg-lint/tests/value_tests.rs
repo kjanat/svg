@@ -82,3 +82,33 @@ fn value_diagnostics_can_be_suppressed() {
 <rect stroke-linejoin="pointy"/>"#;
     assert_eq!(value_diagnostics(body), []);
 }
+
+// Claim: "For a white space character (#x20, #xD, #xA, #x9), append a space
+// character (#x20) to the normalized value."
+// https://www.w3.org/TR/xml/#AVNormalize
+#[test]
+fn literal_line_breaks_are_normalized_to_spaces() {
+    // A literal line break inside a CSS string is a bad string, but XML
+    // turns it into a space before the value reaches CSS.
+    let body = "<text text-overflow=\"'more\ntext'\" stroke-linecap=\"\r\nround\t\">t</text>";
+    assert_eq!(value_diagnostics(body), []);
+    // A character reference is not normalized: `&#10;` stays a line break.
+    assert_eq!(
+        flagged_values(r#"<text text-overflow="'more&#10;text'">t</text>"#),
+        [r#""'more&#10;text'""#]
+    );
+}
+
+// Claim: "For an entity reference, recursively apply step 3 of this algorithm
+// to the replacement text of the entity."
+// https://www.w3.org/TR/xml/#AVNormalize
+#[test]
+fn values_with_declared_entities_are_not_checked() {
+    let source = r#"<!DOCTYPE svg [<!ENTITY overflow "ellipsis">]>
+<svg xmlns="http://www.w3.org/2000/svg"><text text-overflow="&overflow;" stroke-linecap="&cap;">t</text></svg>"#;
+    let diagnostics: Vec<_> = lint(source.as_bytes())
+        .into_iter()
+        .filter(|diagnostic| diagnostic.code == DiagnosticCode::InvalidAttributeValue)
+        .collect();
+    assert_eq!(diagnostics, []);
+}
