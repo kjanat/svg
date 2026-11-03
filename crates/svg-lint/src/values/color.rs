@@ -580,12 +580,14 @@ mod tests {
         );
     }
 
-    // Claim: "The <system-color> keywords are defined as follows: AccentColor
-    // AccentColorText ActiveText ButtonBorder ButtonFace ButtonText Canvas
-    // CanvasText Field FieldText GrayText Highlight HighlightText LinkText Mark
-    // MarkText SelectedItem SelectedItemText VisitedText" and "Note: As with
-    // all other keywords, these names are ASCII case-insensitive."
+    // Claim: "The <system-color> keywords are defined as follows:" and "Note:
+    // As with all other keywords, these names are ASCII case-insensitive."
     // https://drafts.csswg.org/css-color-4/#css-system-colors
+    // The definition list that follows has one entry per keyword (each with
+    // its own description): AccentColor, AccentColorText, ActiveText,
+    // ButtonBorder, ButtonFace, ButtonText, Canvas, CanvasText, Field,
+    // FieldText, GrayText, Highlight, HighlightText, LinkText, Mark, MarkText,
+    // SelectedItem, SelectedItemText and VisitedText.
     #[test]
     fn system_colors() {
         assert_valid(
@@ -604,13 +606,15 @@ mod tests {
 
     // Claim: "User agents must support these keywords, and to mitigate
     // fingerprinting must map them to the (undeprecated) system colors as
-    // listed below." with "<deprecated-color> = ActiveBorder | ActiveCaption
-    // | AppWorkspace | Background | ButtonHighlight | ButtonShadow |
-    // CaptionText | InactiveBorder | InactiveCaption | InactiveCaptionText |
-    // InfoBackground | InfoText | Menu | MenuText | Scrollbar |
-    // ThreeDDarkShadow | ThreeDFace | ThreeDHighlight | ThreeDLightShadow |
-    // ThreeDShadow | Window | WindowFrame | WindowText"
+    // listed below." and "The deprecated system colors are represented as the
+    // <deprecated-color> sub-type, and are defined as:"
     // https://drafts.csswg.org/css-color-4/#deprecated-system-colors
+    // The definition list that follows has one entry per keyword (each with
+    // its own description): ActiveBorder, ActiveCaption, AppWorkspace,
+    // Background, ButtonHighlight, ButtonShadow, CaptionText, InactiveBorder,
+    // InactiveCaption, InactiveCaptionText, InfoBackground, InfoText, Menu,
+    // MenuText, Scrollbar, ThreeDDarkShadow, ThreeDFace, ThreeDHighlight,
+    // ThreeDLightShadow, ThreeDShadow, Window, WindowFrame and WindowText.
     #[test]
     fn deprecated_system_colors() {
         assert_valid(
@@ -803,6 +807,11 @@ mod tests {
     // Claim: "hsl() = [ <legacy-hsl-syntax> | <modern-hsl-syntax> ]
     // hsla() = [ <legacy-hsla-syntax> | <modern-hsla-syntax> ]
     // <modern-hsl-syntax> = hsl(
+    //     [<hue> | none]
+    //     [<percentage> | <number> | none]
+    //     [<percentage> | <number> | none]
+    //     [ / [<alpha-value> | none] ]? )
+    // <modern-hsla-syntax> = hsla(
     //     [<hue> | none]
     //     [<percentage> | <number> | none]
     //     [<percentage> | <number> | none]
