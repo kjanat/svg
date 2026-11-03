@@ -331,13 +331,82 @@ mod tests {
         valid("\n\tfill: red;\n\tstroke: blue;\n");
         // Comments are not tokens.
         valid("/* a */ fill /* b */ : /* c */ red /* d */ ; /* e */");
-        // Escaped and non-ASCII property names are identifiers.
+        // Escaped property names and names with non-ASCII ident code points
+        // are identifiers.
         valid("\\66 ill: red");
         valid("_height: 1px; -webkit-mask: none; prop\u{e9}t\u{e9}: x");
         // Unknown properties and values are valid syntax.
         valid("not-a-property: whatever 1 2 3 #fff");
         valid("fill: calc((1px + 2%) * var(--k, 3)) env(x) attr(y)");
         valid("fill: inherit; stroke: revert-layer");
+    }
+
+    // Claim: "AttValue ::= '"' ([^<&"] | Reference)* '"' | "'" ([^<&'] |
+    // Reference)* "'"" / "EntityRef ::= '&' Name ';'"
+    // https://www.w3.org/TR/xml/#NT-AttValue
+    // Claim: "When an entity reference appears in an attribute value, or a
+    // parameter entity reference appears in a literal entity value, its
+    // replacement text MUST be processed in place of the reference itself as
+    // though it were part of the document at the location the reference was
+    // recognized"
+    // https://www.w3.org/TR/xml/#inliteral
+    // Claim: "For an entity reference, recursively apply step 3 of this
+    // algorithm to the replacement text of the entity."
+    // https://www.w3.org/TR/xml/#AVNormalize
+    // (A reference to a DTD-declared entity reaches the check undecoded; its
+    // replacement text is unknown, so the value is accepted.)
+    #[test]
+    fn declared_entity_references_are_accepted() {
+        valid("&st0;");
+        valid("&st0;&st1;");
+        valid("fill:red;&st1;");
+        valid("&a-b.c_d:e\u{b7}f\u{e9};");
+        valid("&\u{e9}t\u{e9};");
+        valid("&_x; ) }");
+        valid("fill: &x; ! foo");
+        // Not a reference: `&` with no name, a name start that is not a
+        // NameStartChar, or no closing `;`.
+        invalid("&;");
+        invalid("& st0;");
+        invalid("&0st;");
+        invalid("&-st;");
+        invalid("&st0");
+        invalid("&st 0;");
+        invalid("fill: red; &");
+    }
+
+    /// Diagnostics from linting `svg` whose message is about an invalid
+    /// value.
+    fn invalid_value_messages(svg: &str) -> Vec<String> {
+        crate::lint(svg.as_bytes())
+            .into_iter()
+            .filter(|d| d.code == crate::types::DiagnosticCode::InvalidAttributeValue)
+            .map(|d| d.message)
+            .collect()
+    }
+
+    // Claim: "When an entity reference appears in an attribute value, or a
+    // parameter entity reference appears in a literal entity value, its
+    // replacement text MUST be processed in place of the reference itself as
+    // though it were part of the document at the location the reference was
+    // recognized"
+    // https://www.w3.org/TR/xml/#inliteral
+    #[test]
+    fn style_entities_from_an_internal_subset() {
+        let svg = r#"<?xml version="1.0"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd" [
+  <!ENTITY st0 "fill:#FFFFFF;stroke:#000000;stroke-miterlimit:4;">
+  <!ENTITY st1 "fill:none;">
+]>
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+  <path style="&st0;" d="M0 0L1 1"/>
+  <path style="&st0;&st1;" d="M0 0L1 1"/>
+  <path style="fill:red;&st1;" d="M0 0L1 1"/>
+  <path style="fill:red;&amp;" d="M0 0L1 1"/>
+</svg>"#;
+        let messages = invalid_value_messages(svg);
+        assert_eq!(messages.len(), 1, "{messages:?}");
+        assert!(messages[0].contains("style"), "{messages:?}");
     }
 
     // Claim: "declaration-list : declaration [ ';' S* declaration-list ]? |
@@ -394,6 +463,41 @@ mod tests {
         invalid("fill: red; (x): y");
         invalid("f(x): y");
         invalid("<!-- fill: red");
+    }
+
+    // Claim: "declaration : property S* ':' S* value;" / "property :
+    // IDENT;" / "ident [-]?{nmstart}{nmchar}*" / "nmstart
+    // [_a-z]|{nonascii}|{escape}" / "nonascii [^\0-\237]" / "nmchar
+    // [_a-z0-9-]|{nonascii}|{escape}"
+    // https://www.w3.org/TR/CSS2/syndata.html#tokenization
+    // Claim: "The value of the style attribute must match the syntax of the
+    // contents of a CSS declaration block (excluding the delimiting braces),
+    // whose formal grammar is given below in the terms and conventions of
+    // the CSS core grammar"
+    // https://drafts.csswg.org/css-style-attr/#syntax
+    // (SVG 2 cites that grammar. CSS Syntax 3 narrows its "non-ASCII ident
+    // code point" set, so where the two disagree the check accepts: every
+    // code point from U+00A0 up is an identifier code point.)
+    #[test]
+    fn property_names_take_css21_non_ascii_code_points() {
+        valid("x\u{a9}: 1");
+        valid("\u{a0}fill: red");
+        valid("\u{200b}fill: red");
+        valid("\u{3000}x: 1; fill\u{d7}: red; \u{f7}\u{37e}\u{2190}\u{fdd0}: 0");
+        valid("-\u{a9}x: 2");
+        valid("fill: red; x\u{2000}\u{206f}y: z");
+        // U+0080 to U+009F are outside {nonascii} and are not identifier
+        // code points in CSS Syntax 3 either.
+        invalid("x\u{85}: 1");
+        invalid("\u{9f}fill: red");
+        // A non-ASCII code point does not make a missing colon valid.
+        invalid("x\u{a9} 1");
+        assert_eq!(
+            check_css_declaration_list("x\u{a9} 1").as_deref(),
+            Some("property `x\u{a9}` is not followed by a colon")
+        );
+        invalid("\u{2000} fill: red");
+        invalid("\u{2000}\u{a0} 1");
     }
 
     // Claim: "declaration : property S* ':' S* value;"
