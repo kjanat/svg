@@ -1090,8 +1090,9 @@ mod tests {
     // https://drafts.csswg.org/css-values-4/#mult-opt
     // Grammars: "[ anonymous | use-credentials ]?"
     // https://svgwg.org/svg2-draft/embedded.html#ImageElementCrossoriginAttribute
-    // and "none | all | [ digits <integer>? ]"
+    // and "none | all | [ digits <integer [2,4]>? ]"
     // https://drafts.csswg.org/css-writing-modes-4/#propdef-text-combine-upright
+    // (the catalog grammar drops the range)
     #[test]
     fn question_mark_is_optional() {
         let image = real(
@@ -1119,8 +1120,23 @@ mod tests {
             None,
             "none | all | [ digits <integer>? ]",
         );
-        valid(combine, &["none", "all", "digits", "digits 2"]);
-        invalid(combine, &["digits 2.5", "digits 2 3", "2", "all digits"]);
+        valid(
+            combine,
+            &["none", "all", "digits", "digits 2", "digits 3", "DIGITS 4"],
+        );
+        invalid(
+            combine,
+            &[
+                "digits 2.5",
+                "digits 2 3",
+                "2",
+                "all digits",
+                "digits 1",
+                "digits 5",
+                "digits 0",
+                "digits -2",
+            ],
+        );
     }
 
     // Claim: "A comma-separated pair of numbers in curly braces ({A,B})
@@ -1359,7 +1375,7 @@ mod tests {
         }
         for attr in ["rx", "ry"] {
             let grammar = real(attr, None, "<length-percentage> | auto");
-            valid(grammar, &["5", "5%", "1em", "auto"]);
+            valid(grammar, &["5", "5%", "1em", "auto", "0"]);
             invalid(grammar, &["none", "5deg", "5 5"]);
         }
         let kerning = real("kerning", None, "auto | <length>");
@@ -1368,6 +1384,32 @@ mod tests {
         let path_length = real("path-length", None, "none | <length>");
         valid(path_length, &["none", "100", "100px"]);
         invalid(path_length, &["50%", "auto"]);
+    }
+
+    // Claim: "The 'r', 'rx', 'ry', width and height properties do not: a
+    // negative <length-percentage> is [=invalid value|invalid=]."
+    // https://svgwg.org/svg2-draft/geometry.html#geometry-negative-values
+    // Grammar: "<length-percentage> | auto"
+    // https://svgwg.org/svg2-draft/geometry.html#RxProperty
+    // width and height share their catalog grammar with filter primitives,
+    // where "A negative or zero value disables the effect of the given
+    // filter primitive"
+    // (https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitive-width),
+    // so only rx and ry are range checked.
+    #[test]
+    fn negative_radii_are_invalid() {
+        for attr in ["rx", "ry"] {
+            let grammar = real(attr, None, "<length-percentage> | auto");
+            valid(
+                grammar,
+                &["0", "0px", "5", "5%", " 1em ", "AUTO", "calc(-1px)"],
+            );
+            invalid(grammar, &["-5", "-1px", "-0.5%", "-1e1"]);
+            let reason = check("-5", grammar).unwrap_or_default();
+            assert!(reason.contains("range"), "{reason}");
+        }
+        let width = real("width", None, "auto | <length-percentage>");
+        valid(width, &["-5", "-1px"]);
     }
 
     // Claim: "Since presentation attributes are parsed as CSS values, not
@@ -1392,13 +1434,17 @@ mod tests {
     // https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-numoctaves
     // and targetX = "<integer>"
     // https://drafts.csswg.org/filter-effects-1/#element-attrdef-feconvolvematrix-targetx
+    // with "The value must be such that: 0 <= targetX < orderX." (likewise
+    // targetY) and, for numOctaves, "Negative values are unsupported."
+    // The three attributes share the catalog grammar, and the upper bound
+    // depends on `order`, so negative values are not asserted either way.
     #[test]
     fn integers() {
         let octaves = real("numOctaves", Some("feTurbulence"), "<integer>");
         let target_x = real("targetX", Some("feConvolveMatrix"), "<integer>");
         let target_y = real("targetY", Some("feConvolveMatrix"), "<integer>");
         for grammar in [octaves, target_x, target_y] {
-            valid(grammar, &["3", "+2", "-1", "0", " 4 "]);
+            valid(grammar, &["3", "+2", "0", " 4 "]);
             invalid(grammar, &["3.5", "1e2", "3px", "three", "1 2", ""]);
         }
     }
@@ -1415,6 +1461,8 @@ mod tests {
         let repeat = real("repeatCount", Some("animate"), "<number> | indefinite");
         valid(repeat, &["2.5", "1e3", ".5", "indefinite", "3"]);
         invalid(repeat, &["2x", "forever", "1 2", "50%"]);
+        let canonical = real("repeatCount", None, "<number> | indefinite");
+        valid(canonical, &["1", "INDEFINITE"]);
         for element in ["animate", "animateMotion"] {
             let rotate = real("rotate", Some(element), "<number> | auto | auto-reverse");
             valid(rotate, &["auto", "auto-reverse", "-45", "30"]);
@@ -1422,12 +1470,33 @@ mod tests {
         }
     }
 
+    // Claim: "This is a (base 10) "floating point" numeric value that
+    // specifies the number of iterations. It can include partial iterations
+    // expressed as fraction values. A fractional value describes a portion
+    // of the simple duration. Values must be greater than 0."
+    // https://svgwg.org/specs/animations/#RepeatCountAttribute
+    #[test]
+    fn repeat_count_is_greater_than_zero() {
+        for element in [None, Some("animate")] {
+            let grammar = real("repeatCount", element, "<number> | indefinite");
+            valid(
+                grammar,
+                &["0.5", "1e-3", "1", " 2 ", "indefinite", "+3", "calc(0)"],
+            );
+            invalid(grammar, &["0", "0.0", "-0", "+0", "-1", "-0.5", "0e5"]);
+            let reason = check("0", grammar).unwrap_or_default();
+            assert!(reason.contains("range"), "{reason}");
+        }
+    }
+
     // Claim: "Percentage values are denoted by <percentage>, and indicates a
     // value that is some fraction of another reference value."
     // https://drafts.csswg.org/css-values-4/#percentages
-    // Grammar: "normal | <percentage> | ultra-condensed | extra-condensed |
-    // condensed | semi-condensed | semi-expanded | expanded | extra-expanded
-    // | ultra-expanded" https://drafts.csswg.org/css-fonts-4/#propdef-font-width
+    // Grammar: "normal | <percentage [0,∞]> | ultra-condensed |
+    // extra-condensed | condensed | semi-condensed | semi-expanded |
+    // expanded | extra-expanded | ultra-expanded"
+    // https://drafts.csswg.org/css-fonts-4/#propdef-font-width
+    // The catalog grammar drops the range.
     #[test]
     fn percentages() {
         let grammar = real(
@@ -1438,9 +1507,19 @@ mod tests {
         );
         valid(
             grammar,
-            &["50%", "150.5%", "condensed", "ULTRA-EXPANDED", "normal"],
+            &[
+                "50%",
+                "150.5%",
+                "0%",
+                "condensed",
+                "ULTRA-EXPANDED",
+                "normal",
+            ],
         );
-        invalid(grammar, &["50", "50px", "narrow", "condensed 50%"]);
+        invalid(
+            grammar,
+            &["50", "50px", "narrow", "condensed 50%", "-10%", "-0.5%"],
+        );
     }
 
     // Claim: "Angle values are <dimension>s denoted by <angle>. The angle
@@ -1505,13 +1584,27 @@ mod tests {
     // https://svgwg.org/svg2-draft/painting.html#DataTypeMarkerRef
     // Grammar: "none | <marker-ref>"
     // https://svgwg.org/svg2-draft/painting.html#MarkerProperty
+    // with "Unless otherwise specified, white space and/or comments may
+    // appear before, after, and/or between components combined using the
+    // above combinators and multipliers."
+    // https://drafts.csswg.org/css-values-4/#component-whitespace
     #[test]
     fn urls() {
         for attr in ["marker", "marker-start", "marker-mid", "marker-end"] {
             let grammar = real(attr, None, "none | <marker-ref>");
             valid(
                 grammar,
-                &["none", "url(#m)", "url('#m')", "URL(#m)", "src('#m')"],
+                &[
+                    "none",
+                    "url(#m)",
+                    "url('#m')",
+                    "URL(#m)",
+                    "src('#m')",
+                    " url(#m) ",
+                    "url( '#m' )",
+                    "url( \"#m\")",
+                    "url( #m )",
+                ],
             );
             invalid(grammar, &["#m", "m", "url(#a) url(#b)", "none url(#m)"]);
         }
@@ -1586,22 +1679,32 @@ mod tests {
     // https://svgwg.org/svg2-draft/painting.html#MarkerElementRefXAttribute,
     // and the same grammar for stroke-dashoffset, startOffset, textLength
     // and the line x1, y1, x2, y2 attributes.
+    // markerWidth and markerHeight: "A negative value for either attribute
+    // is an error (see Error processing)."
+    // https://svgwg.org/svg2-draft/painting.html#MarkerWidthAttribute and
+    // textLength: "A negative value is an error (see Error processing)."
+    // https://svgwg.org/svg2-draft/text.html#TextElementTextLengthAttribute
+    // The grammar is shared with attributes that accept negative values, so
+    // a negative value is asserted valid only for those.
     #[test]
     fn length_percentage_or_number_attributes() {
-        let cases: &[(&str, Option<&str>)] = &[
-            ("markerWidth", Some("marker")),
-            ("markerHeight", Some("marker")),
-            ("stroke-dashoffset", None),
-            ("startOffset", None),
-            ("textLength", Some("text")),
-            ("x1", Some("line")),
-            ("x2", Some("line")),
-            ("y1", Some("line")),
-            ("y2", Some("line")),
+        let cases: &[(&str, Option<&str>, bool)] = &[
+            ("markerWidth", Some("marker"), false),
+            ("markerHeight", Some("marker"), false),
+            ("stroke-dashoffset", None, true),
+            ("startOffset", None, true),
+            ("textLength", Some("text"), false),
+            ("x1", Some("line"), true),
+            ("x2", Some("line"), true),
+            ("y1", Some("line"), true),
+            ("y2", Some("line"), true),
         ];
-        for &(attr, element) in cases {
+        for &(attr, element, negative) in cases {
             let grammar = real(attr, element, "<length-percentage> | <number>");
-            valid(grammar, &["3", "-5", "10px", "50%", "1e1"]);
+            valid(grammar, &["3", "0", "10px", "50%", "1e1"]);
+            if negative {
+                valid(grammar, &["-5", "-1px"]);
+            }
             invalid(grammar, &["auto", "3 4", "10deg", ""]);
         }
         let ref_x = real(
@@ -1638,8 +1741,11 @@ mod tests {
         invalid(ref_y, &["left", "auto"]);
     }
 
-    // Claim: "Values: auto | <box-size> | <anchor-size()>" for width/height
-    // https://drafts.csswg.org/css-sizing-3/#propdef-width with "<box-size> =
+    // Claim: "Name: width, height, inline-size, block-size Value: auto |
+    // <box-size>" https://drafts.csswg.org/css-sizing-3/#propdef-width,
+    // extended by "Name: block-size, inline-size, width, height, ... New
+    // values: <anchor-size()>"
+    // https://drafts.csswg.org/css-anchor-position-1/#anchor-size-fn, with "<box-size> =
     // <length-percentage [0,∞]> | stretch | contain | min-content |
     // max-content | fit-content | stretch(<length-percentage [0,∞]>) |
     // fit-content(<length-percentage [0,∞]>) | <calc-size()>"
@@ -1737,39 +1843,49 @@ mod tests {
         invalid(grammar, &["auto", "1px 2px", "thin thick", "1px,"]);
     }
 
-    // Claim: "The ‘baseline’ value was removed with the conversion of
-    // ‘vertical-align’ to a shorthand for ‘alignment-baseline’ and
-    // ‘baseline-shift’ as it is also a value for ‘alignment-baseline’ and it
-    // is redundant with a length value of ‘0’."
-    // https://svgwg.org/svg2-draft/text.html#BaselineShiftProperty
+    // Claim: "User agents may additionally support the keyword baseline as
+    // computing to 0 if is necessary for them to support legacy SVG
+    // content." https://drafts.csswg.org/css-inline-3/#baseline-shift-svg-legacy
+    // and "Value: baseline | sub | super | <percentage> | <length> |
+    // inherit" https://www.w3.org/TR/SVG11/text.html#BaselineShiftProperty
+    // The SVG 2 sentence that the value "was removed" is a non-normative
+    // annotation (https://svgwg.org/svg2-draft/text.html#BaselineShiftProperty),
+    // so `baseline` is accepted.
     #[test]
-    fn baseline_shift_lost_baseline() {
+    fn baseline_shift_legacy_baseline() {
         let grammar = real(
             "baseline-shift",
             None,
             "<length-percentage> | sub | super | top | center | bottom",
         );
-        invalid(grammar, &["baseline"]);
-        valid(grammar, &["0"]);
+        valid(grammar, &["baseline", "BASELINE", " baseline ", "0"]);
+        invalid(grammar, &["baseline 0", "baseline sub", "baselines"]);
     }
 
-    // Claim: "<number> | <length>" for tab-size
-    // https://drafts.csswg.org/css-text-3/#tab-size-property, "normal |
-    // <number> | <length-percentage>" for line-height
-    // https://svgwg.org/svg2-draft/text.html#LineHeightProperty, "<rect()> |
-    // auto" for clip https://drafts.csswg.org/css-masking-1/#propdef-clip
+    // Claim: "Value: <number [0,∞]> | <length [0,∞]>" for tab-size
+    // https://drafts.csswg.org/css-text-3/#tab-size-property, "Value: normal
+    // | <number [0,∞]> | <length-percentage [0,∞]>" for line-height
+    // https://drafts.csswg.org/css-inline-3/#propdef-line-height (SVG 2
+    // defers: "the normative definition of the line-height property is in
+    // the CSS 2.1 specification"
+    // https://svgwg.org/svg2-draft/text.html#LineHeightProperty, where
+    // "Negative values are illegal."
+    // https://www.w3.org/TR/CSS21/visudet.html#propdef-line-height), and
+    // "<rect()> | auto" for clip
+    // https://drafts.csswg.org/css-masking-1/#propdef-clip
+    // The catalog grammars for tab-size and line-height drop the ranges.
     #[test]
     fn other_leaf_grammars() {
         let tab = real("tab-size", None, "<number> | <length>");
-        valid(tab, &["4", "2em", "0"]);
-        invalid(tab, &["50%", "auto", "4 4"]);
+        valid(tab, &["4", "2em", "0", "0px"]);
+        invalid(tab, &["50%", "auto", "4 4", "-1", "-4px"]);
         let line = real(
             "line-height",
             None,
             "normal | <number> | <length-percentage>",
         );
-        valid(line, &["normal", "1.2", "120%", "14px"]);
-        invalid(line, &["auto", "1.2 1.2", "single"]);
+        valid(line, &["normal", "1.2", "120%", "14px", "0", "calc(-1px)"]);
+        invalid(line, &["auto", "1.2 1.2", "single", "-1", "-2px", "-10%"]);
         let clip = real("clip", None, "<rect()> | auto");
         valid(
             clip,
@@ -1809,14 +1925,18 @@ mod tests {
         invalid(grammar, &["10\\qx"]);
     }
 
-    // Claim: "When a value contains an arbitrary substitution function, the
-    // entire value’s grammar must be assumed to be valid at parse time."
-    // (no anchor for the sentence; section)
-    // https://drafts.csswg.org/css-values-5/#arbitrary-substitution
-    // and math functions "can be used wherever <length>, <frequency>,
-    // <angle>, <time>, <flex>, <resolution>, <percentage>, <number>, or
-    // <integer> values are allowed."
-    // https://drafts.csswg.org/css-values-4/#calc-func
+    // Claim: "If a property value contains one or more arbitrary
+    // substitution functions, and all of those functions are themselves
+    // syntactically valid according to their argument grammars, the entire
+    // value’s grammar must be assumed to be valid at parse time."
+    // https://drafts.csswg.org/css-values-5/#resolve-property
+    // (the check accepts such a value without checking the functions'
+    // arguments, which only accepts more)
+    // and "A math function represents a numeric value, one of: <length>,
+    // <frequency>, <angle>, <time>, <flex>, <resolution>, <percentage>,
+    // <number>, <integer> ...or the <length-percentage>/etc mixed types, and
+    // can be used wherever such a value would be valid."
+    // https://drafts.csswg.org/css-values-4/#math
     // Accept-only: the stub accepts these too.
     #[test]
     fn functions_and_substitutions_accept() {
