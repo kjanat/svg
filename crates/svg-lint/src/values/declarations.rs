@@ -14,14 +14,23 @@
 //! are not validated: unknown properties are valid syntax. Blocks and
 //! functions left open at the end are closed without a parse error, so they
 //! are accepted.
+//!
+//! Two inputs are accepted rather than judged. A value that still holds an
+//! XML entity reference (`&name;`, an entity declared in the DTD) stands for
+//! replacement text the check never sees. And every code point from U+00A0
+//! up is read as an identifier code point, as the CSS 2.1 core grammar that
+//! CSS Style Attributes builds on has it, though CSS Syntax 3 excludes some.
 
 use std::borrow::Cow;
 
-use super::syntax::tokenizer::{Token, tokenize};
+use super::syntax::tokenizer::{Token, is_non_ascii_ident_code_point, tokenize};
 
 /// `CssDeclarationList`: a CSS declaration list.
 pub fn check_css_declaration_list(value: &str) -> Option<String> {
-    let input = xml_normalized(value);
+    if has_entity_reference(value) {
+        return None;
+    }
+    let input = normalized(value);
     let (tokens, trailing) = lex(&input);
     if skip_comments(trailing).starts_with("/*") {
         return Some("unterminated comment".to_owned());
@@ -31,18 +40,89 @@ pub fn check_css_declaration_list(value: &str) -> Option<String> {
     {
         return Some(reason.to_owned());
     }
-    check_structure(&tokens)
+    check_structure(&tokens, value)
 }
 
+/// Whether `value` holds an XML entity reference, `'&' Name ';'`.
+///
+/// A literal `&` in an attribute value can only start a reference, and the
+/// value handed to the check has character references and the predefined
+/// entities decoded already, so a reference left in it names an entity
+/// declared in the DTD. (A decoded `&amp;` followed by a name and `;` looks
+/// the same and is accepted too.)
+fn has_entity_reference(value: &str) -> bool {
+    value.match_indices('&').any(|(at, _)| {
+        let mut chars = value[at + 1..].chars();
+        chars.next().is_some_and(is_xml_name_start_char)
+            && chars
+                .find(|&c| !is_xml_name_char(c))
+                .is_some_and(|c| c == ';')
+    })
+}
+
+/// XML 1.0 `NameStartChar`.
+const fn is_xml_name_start_char(c: char) -> bool {
+    matches!(
+        c,
+        ':' | 'A'..='Z'
+            | '_'
+            | 'a'..='z'
+            | '\u{C0}'..='\u{D6}'
+            | '\u{D8}'..='\u{F6}'
+            | '\u{F8}'..='\u{2FF}'
+            | '\u{370}'..='\u{37D}'
+            | '\u{37F}'..='\u{1FFF}'
+            | '\u{200C}'..='\u{200D}'
+            | '\u{2070}'..='\u{218F}'
+            | '\u{2C00}'..='\u{2FEF}'
+            | '\u{3001}'..='\u{D7FF}'
+            | '\u{F900}'..='\u{FDCF}'
+            | '\u{FDF0}'..='\u{FFFD}'
+            | '\u{10000}'..='\u{EFFFF}'
+    )
+}
+
+/// XML 1.0 `NameChar`.
+const fn is_xml_name_char(c: char) -> bool {
+    is_xml_name_start_char(c)
+        || matches!(
+            c,
+            '-' | '.' | '0'..='9' | '\u{B7}' | '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}'
+        )
+}
+
+/// The value as the check tokenizes it, byte for byte as long as `value`, so
+/// a token's offsets also locate its source text in `value`.
+///
 /// XML attribute-value normalization turns every literal tab, line feed and
 /// carriage return into a space; the value handed to the check no longer
 /// tells them apart from character references, so read them all as spaces.
-fn xml_normalized(value: &str) -> Cow<'_, str> {
-    if value.contains(['\t', '\n', '\r']) {
-        Cow::Owned(value.replace(['\t', '\n', '\r'], " "))
-    } else {
-        Cow::Borrowed(value)
+/// A code point from U+00A0 up that CSS Syntax 3 does not count as an
+/// identifier code point is read as one that it does, of the same UTF-8
+/// length.
+fn normalized(value: &str) -> Cow<'_, str> {
+    if !value.chars().any(needs_normalizing) {
+        return Cow::Borrowed(value);
     }
+    Cow::Owned(
+        value
+            .chars()
+            .map(|c| match c {
+                '\t' | '\n' | '\r' => ' ',
+                c if needs_normalizing(c) => match c.len_utf8() {
+                    2 => '\u{C0}',
+                    3 => '\u{4E00}',
+                    _ => '\u{10000}',
+                },
+                c => c,
+            })
+            .collect(),
+    )
+}
+
+/// Whether [`normalized`] replaces `c`.
+const fn needs_normalizing(c: char) -> bool {
+    matches!(c, '\t' | '\n' | '\r') || (c >= '\u{A0}' && !is_non_ascii_ident_code_point(c))
 }
 
 /// A token with its source text (leading comments excluded) and the byte
@@ -178,8 +258,17 @@ impl Closer {
     }
 }
 
-/// Walk the tokens as "parse a list of declarations" does.
-fn check_structure(tokens: &[Lexed<'_>]) -> Option<String> {
+/// The text of `lexed` as written in `source`, the value it was lexed from
+/// before [`normalized`].
+fn source_text<'s>(lexed: &Lexed<'_>, source: &'s str) -> &'s str {
+    source
+        .get(lexed.end - lexed.text.len()..lexed.end)
+        .unwrap_or_default()
+}
+
+/// Walk the tokens as "parse a list of declarations" does; `source` is the
+/// value as written, for the reasons.
+fn check_structure(tokens: &[Lexed<'_>], source: &str) -> Option<String> {
     let mut open: Vec<Closer> = Vec::new();
     let mut state = State::Start;
     for lexed in tokens {
@@ -219,12 +308,12 @@ fn check_structure(tokens: &[Lexed<'_>]) -> Option<String> {
             State::Start => match token {
                 Token::Whitespace | Token::Semicolon => State::Start,
                 Token::AtKeyword(_) => State::AtRule,
-                Token::Ident(name) => State::Name(name.clone().into_owned()),
+                Token::Ident(_) => State::Name(source_text(lexed, source).to_owned()),
                 Token::Colon => return Some("declaration has an empty property name".to_owned()),
                 _ => {
                     return Some(format!(
                         "declaration starts with `{}` instead of a property name",
-                        lexed.text
+                        source_text(lexed, source)
                     ));
                 }
             },
