@@ -24,7 +24,8 @@
 //!   single color component is expected;
 //! - an SVG 1.1 `icc-color()` after a color
 //!   (<https://www.w3.org/TR/SVG11/types.html#DataTypeICCColor>), since the
-//!   check cannot tell which SVG version the document targets.
+//!   check cannot tell which SVG version the document targets. An
+//!   `icc-color()` without a color before it is invalid in every version.
 
 use super::syntax::{
     cascade::is_css_wide_keyword_value,
@@ -284,7 +285,8 @@ impl Slot {
 }
 
 /// The reason a function is not a `<color>`. Functions other than the CSS
-/// Color 4 color functions are accepted.
+/// Color 4 color functions, `url()`, `src()` and the SVG 1.1 `icc-color()`
+/// (which is only ever an alternate for a preceding color) are accepted.
 fn function_reason(function: &Function<'_>) -> Option<String> {
     let name = function.name.to_ascii_lowercase();
     let args: Vec<&ComponentValue<'_>> = function
@@ -320,6 +322,7 @@ fn function_reason(function: &Function<'_>) -> Option<String> {
         ),
         "color" => color_function_problem(&args),
         "url" | "src" => Some("a url() is not a color".to_owned()),
+        "icc-color" => Some("an ICC color can only follow a color".to_owned()),
         _ => None,
     };
     problem.map(|problem| format!("invalid {name}(): {problem}"))
