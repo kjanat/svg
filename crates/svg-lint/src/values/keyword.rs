@@ -462,10 +462,10 @@ impl Rule {
             }
             (Self::FontStyle, [only]) => is_keyword(only, FONT_STYLE_KEYWORDS),
             (Self::FontStyle, [oblique, angle]) => {
-                is_keyword(oblique, &["oblique"]) && is_angle(angle)
+                is_keyword(oblique, &["oblique"]) && is_oblique_angle(angle)
             }
             (Self::GlyphOrientationVertical, [only]) => {
-                is_keyword(only, &["auto"]) || is_angle(only)
+                is_keyword(only, &["auto"]) || is_quarter_turn(only)
             }
             _ => false,
         };
@@ -485,10 +485,12 @@ impl Rule {
                 "expected a non-negative percentage or one of {}",
                 FONT_STRETCH_KEYWORDS.join(", ")
             ),
-            Self::FontStyle => {
-                "expected normal, italic, left, right, or oblique with an optional angle".to_owned()
+            Self::FontStyle => "expected normal, italic, left, right, or oblique with an optional \
+                                angle from -90deg to 90deg"
+                .to_owned(),
+            Self::GlyphOrientationVertical => {
+                "expected auto or a multiple of 90 degrees".to_owned()
             }
-            Self::GlyphOrientationVertical => "expected auto or an angle".to_owned(),
         }
     }
 }
@@ -527,15 +529,61 @@ const fn percentage(value: &ComponentValue<'_>) -> Option<f64> {
     }
 }
 
-/// An `<angle>`, or the `<number>` a presentation attribute accepts for it.
-fn is_angle(value: &ComponentValue<'_>) -> bool {
+/// The angle `value` denotes: an `<angle>` dimension (in degrees), or the
+/// `<number>` a presentation attribute accepts for it.
+fn angle(value: &ComponentValue<'_>) -> Option<Angle> {
     match value {
-        ComponentValue::Token(Token::Number(_)) => true,
-        ComponentValue::Token(Token::Dimension { unit, .. }) => {
-            unit_category(unit) == Some(UnitCategory::Angle)
+        ComponentValue::Token(Token::Number(number)) => Some(Angle::Number(number.value)),
+        ComponentValue::Token(Token::Dimension { number, unit }) => {
+            (unit_category(unit) == Some(UnitCategory::Angle)).then(|| {
+                let per_unit = [
+                    ("grad", 0.9),
+                    ("rad", 180.0 / std::f64::consts::PI),
+                    ("turn", 360.0),
+                ]
+                .into_iter()
+                .find_map(|(name, degrees)| unit.eq_ignore_ascii_case(name).then_some(degrees))
+                .unwrap_or(1.0);
+                Angle::Dimension(number.value * per_unit)
+            })
         }
-        _ => false,
+        _ => None,
     }
+}
+
+/// An angle as written.
+#[derive(Clone, Copy)]
+enum Angle {
+    /// A `<number>` standing in for an `<angle>`.
+    Number(f64),
+    /// An `<angle>` dimension, converted to degrees.
+    Dimension(f64),
+}
+
+/// Slack for the rounding of a unit conversion.
+const DEGREE_EPSILON: f64 = 1e-9;
+
+/// The `<angle [-90deg,90deg]>` of `oblique`. The range applies to an angle
+/// dimension; the `<number>` that replaces `<angle>` in a presentation
+/// attribute's grammar carries no range, so any number is accepted.
+fn is_oblique_angle(value: &ComponentValue<'_>) -> bool {
+    match angle(value) {
+        Some(Angle::Number(_)) => true,
+        Some(Angle::Dimension(degrees)) => degrees.abs() <= 90.0 + DEGREE_EPSILON,
+        None => false,
+    }
+}
+
+/// A `glyph-orientation-vertical` angle: `0deg | 90deg | 0 | 90` in CSS,
+/// and in SVG 1.1 any `<angle>` or number that is a multiple of 90 degrees.
+/// Radian values cannot be exact, so a value within a hundredth of a degree
+/// of a multiple of 90 is accepted.
+fn is_quarter_turn(value: &ComponentValue<'_>) -> bool {
+    let Some(Angle::Number(degrees) | Angle::Dimension(degrees)) = angle(value) else {
+        return false;
+    };
+    let offset = degrees.rem_euclid(90.0);
+    degrees.is_finite() && offset.min(90.0 - offset) < 0.01
 }
 
 /// An SVG attribute defined in CSS Value Definition Syntax as a choice of
