@@ -395,6 +395,14 @@ fn check_attributes(
             Some(elem_name),
         ) {
             ProfileLookup::Present { value, lifecycle } => {
+                check_attribute_value(
+                    ctx,
+                    attr_node,
+                    tag_start,
+                    elem_name,
+                    lookup_name.as_ref(),
+                    value,
+                );
                 let lifecycle = attribute_diagnostic_lifecycle(
                     ctx,
                     elem_name,
@@ -447,6 +455,49 @@ fn check_attributes(
             }
             ProfileLookup::Unknown => {}
         }
+    }
+}
+
+/// Report a value outside the attribute's value space: the element-scoped value
+/// space when the catalog has one for `elem_name`, else the profile's.
+fn check_attribute_value(
+    ctx: &mut LintContext<'_>,
+    attr_node: Node,
+    tag_start: usize,
+    elem_name: &str,
+    attr_name: &str,
+    def: &svg_data::AttributeDef,
+) {
+    // Typed attributes can nest the node that carries the value field one
+    // level down (`animate_motion_attribute` wraps a `d_attribute`).
+    let value_node = attr_node.child_by_field_name("value").or_else(|| {
+        let mut cursor = attr_node.walk();
+        attr_node
+            .named_children(&mut cursor)
+            .find_map(|child| child.child_by_field_name("value"))
+    });
+    let Some(value_node) = value_node else {
+        return;
+    };
+    let Ok(raw) = std::str::from_utf8(&ctx.source[value_node.byte_range()]) else {
+        return;
+    };
+    let Some(values) = crate::values::values_for(def, elem_name, ctx.options.profile) else {
+        return;
+    };
+    let Some(value) = crate::values::attribute_value_text(raw) else {
+        return;
+    };
+    if let Some(reason) = crate::values::invalid_reason_for(attr_name, values, &value) {
+        push_diag_in_tag(
+            &mut ctx.diagnostics,
+            &mut ctx.suppressions,
+            value_node,
+            Some(tag_start),
+            Severity::Warning,
+            DiagnosticCode::InvalidAttributeValue,
+            format!("Invalid value for {attr_name} on <{elem_name}>: {reason}"),
+        );
     }
 }
 
