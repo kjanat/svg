@@ -4,6 +4,12 @@
 //! invalid one. Constructs a check does not model must be accepted, never
 //! reported: a false positive on valid SVG is worse than a missed error.
 //!
+//! A check sees the value with references decoded but white space as
+//! written. XML attribute-value normalization turns a literal line break
+//! into a space (<https://www.w3.org/TR/xml/#AVNormalize>), and a decoded
+//! `&#10;` cannot be told apart from one, so the media type and media query
+//! checks take every CR and LF as a space.
+//!
 //! - [`check_language_tag`]: well-formedness against the RFC 5646 §2.1
 //!   `Language-Tag` ABNF (<https://www.rfc-editor.org/rfc/rfc5646#section-2.1>).
 //!   Validity against the IANA subtag registry is not checked.
@@ -17,6 +23,8 @@
 //! - [`check_referrer_policy`]: the Referrer Policy keywords, matched as an
 //!   HTML enumerated attribute.
 //! - [`check_suggested_file_name`]: any value.
+
+use std::borrow::Cow;
 
 use super::syntax::{
     microsyntax::{eq_ascii_case_insensitive, find_ascii_case_insensitive, is_xml_whitespace},
@@ -180,15 +188,52 @@ const TRANSFER_FUNCTION_TYPES: &[&str] = &["identity", "table", "discrete", "lin
 /// `MediaType`: a MIME type.
 ///
 /// A valid MIME type string: RFC 9110 `media-type = type "/" subtype
-/// parameters`. The transfer function types of `feFunc*` are accepted too
-/// (see [`TRANSFER_FUNCTION_TYPES`]).
+/// parameters`, with line breaks taken as spaces. The transfer function
+/// types of `feFunc*` are accepted too (see [`is_transfer_function_type`]).
 pub fn check_media_type(value: &str) -> Option<String> {
-    // The SVG 1.1 DTD declares the feFunc* `type` as an enumeration, so an
-    // XML processor reading that DTD trims it.
-    if TRANSFER_FUNCTION_TYPES.contains(&value.trim_matches(is_xml_whitespace)) {
+    if is_transfer_function_type(value) {
         return None;
     }
-    media_type_problem(value).map(|problem| format!("not a valid MIME type string: {problem}"))
+    let value = line_breaks_as_spaces(value);
+    let problem = media_type_problem(&value)?;
+    if value.contains('/') {
+        return Some(format!("not a valid MIME type string: {problem}"));
+    }
+    Some(format!(
+        "not a valid MIME type string: {problem}; on feFuncR, feFuncG, feFuncB and feFuncA, type \
+         is one of {}",
+        TRANSFER_FUNCTION_TYPES.join(", ")
+    ))
+}
+
+/// Whether `value` parses as CSS to one transfer function type: SVG 2
+/// parses an attribute in CSS Value Definition Syntax as CSS, so keywords
+/// match ASCII case-insensitively and white space, comments and escapes are
+/// allowed. A value that is a single function (`var()` and the like) is
+/// not modelled and is accepted.
+fn is_transfer_function_type(value: &str) -> bool {
+    let list = parse_component_values(value);
+    if list.depth_limited {
+        return true;
+    }
+    let mut parts = list.significant();
+    match (parts.next(), parts.next()) {
+        (Some(ComponentValue::Function(_)), None) => true,
+        (Some(only), None) => only.ident().is_some_and(|ident| {
+            find_ascii_case_insensitive(ident, TRANSFER_FUNCTION_TYPES).is_some()
+        }),
+        _ => false,
+    }
+}
+
+/// `value` with each line break (CR LF, CR or LF) replaced by a space, as
+/// XML attribute-value normalization delivers a literal one.
+fn line_breaks_as_spaces(value: &str) -> Cow<'_, str> {
+    if value.contains(['\r', '\n']) {
+        Cow::Owned(value.replace("\r\n", " ").replace(['\r', '\n'], " "))
+    } else {
+        Cow::Borrowed(value)
+    }
 }
 
 /// Why `value` does not match the RFC 9110 `media-type` production.
@@ -307,9 +352,11 @@ const RESERVED_MEDIA_TYPES: &[&str] = &["only", "not", "and", "or", "layer"];
 /// `<general-enclosed>` (no bad string or URL token, no unmatched closing
 /// bracket): media features, ranges and future syntax are not modelled. An
 /// empty or whitespace-only list, unclosed blocks at the end of the value
-/// and a whitespace-only last entry are accepted.
+/// and a whitespace-only last entry are accepted. Line breaks are taken as
+/// spaces before tokenizing.
 pub fn check_media_query_list(value: &str) -> Option<String> {
-    let list = parse_component_values(value);
+    let value = line_breaks_as_spaces(value);
+    let list = parse_component_values(&value);
     if list.depth_limited {
         return None;
     }
