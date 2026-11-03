@@ -46,7 +46,8 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
     }
     let effective = WIDENED_GRAMMARS
         .iter()
-        .find_map(|&(catalog, widened)| (catalog == grammar).then_some(widened))
+        .chain(RANGED_GRAMMARS)
+        .find_map(|&(catalog, matched)| (catalog == grammar).then_some(matched))
         .unwrap_or(grammar);
     let root = parse_grammar(effective, 0)?;
 
@@ -77,7 +78,9 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
     if matches(true) {
         None
     } else if matches(false) {
-        Some(format!("a number is outside the range `{grammar}` allows"))
+        Some(format!(
+            "a number is outside the range `{effective}` allows"
+        ))
     } else {
         Some(format!("does not match `{grammar}`"))
     }
@@ -100,8 +103,14 @@ const OPAQUE_GRAMMARS: &[&str] = &["none | <string>", "<number>+"];
 /// attribute widens, with the grammar matched in their place: the union of
 /// both, so a value either definition allows is accepted.
 const WIDENED_GRAMMARS: &[(&str, &str)] = &[
-    // width, height, inline-size: "auto | <box-size> | <anchor-size()>"
-    // (https://drafts.csswg.org/css-sizing-3/#propdef-width).
+    // width, height, inline-size: "auto | <box-size>"
+    // (https://drafts.csswg.org/css-sizing-3/#propdef-width), with the
+    // "New values: <anchor-size()>"
+    // (https://drafts.csswg.org/css-anchor-position-1/#anchor-size-fn).
+    // width and height also size filter primitives, where "A negative or
+    // zero value disables the effect of the given filter primitive"
+    // (https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitive-width),
+    // so the unrestricted <length-percentage> stays.
     (
         "auto | <length-percentage>",
         "auto | <length-percentage> | <box-size> | <anchor-size()>",
@@ -122,6 +131,17 @@ const WIDENED_GRAMMARS: &[(&str, &str)] = &[
         "<length-percentage> | <number>",
         "[ <length-percentage> | <line-width> | <number> ]#",
     ),
+    // baseline-shift: "User agents may additionally support the keyword
+    // baseline as computing to 0 if is necessary for them to support legacy
+    // SVG content."
+    // (https://drafts.csswg.org/css-inline-3/#baseline-shift-svg-legacy),
+    // and SVG 1.1 has "Value: baseline | sub | super | <percentage> |
+    // <length> | inherit"
+    // (https://www.w3.org/TR/SVG11/text.html#BaselineShiftProperty).
+    (
+        "<length-percentage> | sub | super | top | center | bottom",
+        "<length-percentage> | sub | super | top | center | bottom | baseline",
+    ),
     // symbol refX/refY are "Similar to the matching attributes on ‘marker’"
     // (https://svgwg.org/svg2-draft/struct.html#SymbolElementRefXAttribute).
     (
@@ -132,6 +152,48 @@ const WIDENED_GRAMMARS: &[(&str, &str)] = &[
         "<length> | top | center | bottom",
         "<length-percentage> | <number> | top | center | bottom",
     ),
+];
+
+/// Catalog grammars whose definition restricts a numeric range the catalog
+/// text leaves out, with the grammar matched in their place. Each one is
+/// the only catalog usage of its grammar text, so the range cannot reach an
+/// attribute it does not apply to.
+///
+/// A range opened with `(` instead of `[` excludes its lower bound, for a
+/// prose constraint value definition syntax cannot write.
+const RANGED_GRAMMARS: &[(&str, &str)] = &[
+    // font-width: "normal | <percentage [0,∞]> | ultra-condensed | ..."
+    // (https://drafts.csswg.org/css-fonts-4/#propdef-font-width).
+    (
+        "normal | <percentage> | ultra-condensed | extra-condensed | condensed | semi-condensed | \
+         semi-expanded | expanded | extra-expanded | ultra-expanded",
+        "normal | <percentage [0,∞]> | ultra-condensed | extra-condensed | condensed | \
+         semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded",
+    ),
+    // text-combine-upright: "none | all | [ digits <integer [2,4]>? ]"
+    // (https://drafts.csswg.org/css-writing-modes-4/#propdef-text-combine-upright).
+    (
+        "none | all | [ digits <integer>? ]",
+        "none | all | [ digits <integer [2,4]>? ]",
+    ),
+    // tab-size: "<number [0,∞]> | <length [0,∞]>"
+    // (https://drafts.csswg.org/css-text-3/#tab-size-property).
+    ("<number> | <length>", "<number [0,∞]> | <length [0,∞]>"),
+    // line-height: "normal | <number [0,∞]> | <length-percentage [0,∞]>"
+    // (https://drafts.csswg.org/css-inline-3/#propdef-line-height).
+    (
+        "normal | <number> | <length-percentage>",
+        "normal | <number [0,∞]> | <length-percentage [0,∞]>",
+    ),
+    // rx, ry: "a negative <length-percentage> is [=invalid value|invalid=]"
+    // (https://svgwg.org/svg2-draft/geometry.html#geometry-negative-values).
+    (
+        "<length-percentage> | auto",
+        "<length-percentage [0,∞]> | auto",
+    ),
+    // repeatCount: "Values must be greater than 0."
+    // (https://svgwg.org/specs/animations/#RepeatCountAttribute).
+    ("<number> | indefinite", "<number (0,∞]> | indefinite"),
 ];
 
 /// Non-terminals defined by a grammar of their own, expanded in place.
@@ -212,12 +274,13 @@ enum Leaf {
     Ident,
 }
 
-/// A closed range restriction. A bound that is unrestricted or cannot be
-/// compared is infinite.
+/// A range restriction, closed unless `min_exclusive` is set. A bound that
+/// is unrestricted or cannot be compared is infinite.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Range {
     min: f64,
     max: f64,
+    min_exclusive: bool,
 }
 
 impl Range {
@@ -226,10 +289,11 @@ impl Range {
     const UNRESTRICTED: Self = Self {
         min: f64::NEG_INFINITY,
         max: f64::INFINITY,
+        min_exclusive: false,
     };
 
     fn contains(self, value: f64) -> bool {
-        (self.min..=self.max).contains(&value)
+        (self.min..=self.max).contains(&value) && !(self.min_exclusive && value <= self.min)
     }
 }
 
@@ -498,8 +562,15 @@ fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
     if let Some(name) = reference.strip_suffix("()") {
         return Some(Node::Function(name.to_owned()));
     }
-    let (name, range) = match reference.split_once('[') {
-        Some((name, range)) => (name.trim(), parse_range(range.strip_suffix(']')?)?),
+    let (name, range) = match reference.find(['[', '(']) {
+        Some(open) => {
+            let min_exclusive = reference[open..].starts_with('(');
+            let bounds = reference[open + 1..].strip_suffix(']')?;
+            (
+                reference[..open].trim(),
+                parse_range(bounds, min_exclusive)?,
+            )
+        }
         None => (reference, Range::UNRESTRICTED),
     };
     let leaf = match name {
@@ -522,7 +593,7 @@ fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
         "dashed-ident" => Leaf::DashedIdent,
         "ident" => Leaf::Ident,
         _ => {
-            if reference.contains('[') {
+            if reference.contains(['[', '(']) {
                 return None;
             }
             let (_, grammar) = NAMED_TYPES.iter().find(|(named, _)| *named == name)?;
@@ -534,11 +605,12 @@ fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
 
 /// The bounds of a bracketed range, `min,max` without the brackets. A bound
 /// of ±∞, or one with a unit other than a zero, is left unchecked.
-fn parse_range(text: &str) -> Option<Range> {
+fn parse_range(text: &str, min_exclusive: bool) -> Option<Range> {
     let (min, max) = text.split_once(',')?;
     Some(Range {
         min: parse_bound(min, f64::NEG_INFINITY)?,
         max: parse_bound(max, f64::INFINITY)?,
+        min_exclusive,
     })
 }
 
