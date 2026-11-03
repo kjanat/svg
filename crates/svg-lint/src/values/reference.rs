@@ -5,24 +5,87 @@
 //! reported: a false positive on valid SVG is worse than a missed error.
 //!
 //! SVG 2 parses an attribute defined as a URL with the URL Standard's URL
-//! parser against the document's URL
-//! (<https://svgwg.org/svg2-draft/types.html#attribute-url>), and says an
-//! invalid URL does not make a document non-conforming
-//! (<https://svgwg.org/svg2-draft/linking.html#linkRefAttrs>). So the only
-//! values reported are those the parser fails on whatever the document's URL
-//! is: a scheme-ful URL whose authority cannot be parsed. Validation errors
-//! that still parse (spaces, backslashes, unescaped code points) are accepted,
-//! as is anything whose outcome depends on the base URL.
+//! parser against the document's URL, and when that parse fails "the
+//! attribute is assumed to have been specified as the given initial value"
+//! (<https://svgwg.org/svg2-draft/types.html#attribute-url>). So the values
+//! reported are those the parser fails on whatever the document's URL is: a
+//! scheme-ful or scheme-relative URL whose authority cannot be parsed. Such a
+//! reference is ignored; SVG 2 does not make the document non-conforming over
+//! it (<https://svgwg.org/svg2-draft/linking.html#linkRefAttrs>). Validation
+//! errors that still parse (spaces, backslashes, unescaped code points) are
+//! accepted, as is anything whose outcome depends on the base URL.
+//!
+//! An IRI is held to the RFC 3987 grammar instead, and only to the shape of
+//! its authority: IRI values come from SVG 1.1's `xlink:href`, which `XLink`
+//! 1.1 makes a LEIRI, allowing more characters than RFC 3987 does.
 
 /// `Url`: a URL, parsed by the URL Standard's URL parser.
 pub fn check_url(value: &str) -> Option<String> {
-    url_parse_failure(value).map(|why| format!("the URL parser fails on it: {why}"))
+    url_parse_failure(value).map(|why| {
+        format!(
+            "the URL parser fails on it ({why}), so the attribute is treated as its initial value"
+        )
+    })
 }
 
-/// `Iri`: an IRI reference. The URL parser takes any scalar value string,
-/// so this is the same check as [`check_url`].
+/// `Iri`: an IRI reference
+/// (<https://www.rfc-editor.org/rfc/rfc3987#section-2.2>).
 pub fn check_iri(value: &str) -> Option<String> {
-    check_url(value)
+    iri_authority_failure(value).map(|why| format!("it is not an IRI reference: {why}"))
+}
+
+/// Why the authority of an IRI reference, when it has one, does not match
+/// `iauthority = [ iuserinfo "@" ] ihost [ ":" port ]`. Only the IP-literal
+/// brackets and the port are checked: LEIRIs widen the other characters.
+fn iri_authority_failure(value: &str) -> Option<&'static str> {
+    let input = preprocess(value);
+    // `IRI = scheme ":" ihier-part ...` and `irelative-part = "//" iauthority
+    // ...`; RFC 3987's `scheme` is the one the URL parser's scheme state reads.
+    let hier_part = split_scheme(&input).map_or(input.as_str(), |(_, rest)| rest);
+    let authority = hier_part.strip_prefix("//")?;
+    let authority = &authority[..authority.find(['/', '?', '#']).unwrap_or(authority.len())];
+    let host_and_port = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
+    let port = if let Some(literal) = host_and_port.strip_prefix('[') {
+        let Some((address, after)) = literal.split_once(']') else {
+            return Some("the IP-literal has no closing \"]\"");
+        };
+        if let Some(future) = address.strip_prefix(['v', 'V']) {
+            if let Some(failure) = ip_future_failure(future) {
+                return Some(failure);
+            }
+        } else if ipv6_failure(address).is_some() {
+            return Some("the IP-literal is neither an IPv6 address nor IPvFuture");
+        }
+        if after.is_empty() {
+            return None;
+        }
+        let Some(port) = after.strip_prefix(':') else {
+            return Some("only a port can follow the IP-literal");
+        };
+        port
+    } else {
+        let (host, port) = host_and_port.split_once(':').unwrap_or((host_and_port, ""));
+        if host.contains(['[', ']']) {
+            return Some("\"[\" and \"]\" can only enclose an IP-literal host");
+        }
+        port
+    };
+    (!port.bytes().all(|b| b.is_ascii_digit())).then_some("the port is not all digits")
+}
+
+/// Why `IPvFuture = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )`
+/// does not match, given what follows the "v".
+fn ip_future_failure(future: &str) -> Option<&'static str> {
+    let Some((version, address)) = future.split_once('.') else {
+        return Some("IPvFuture needs a \".\" after its version");
+    };
+    (version.is_empty()
+        || !version.bytes().all(|b| b.is_ascii_hexdigit())
+        || address.is_empty()
+        || address.contains('['))
+    .then_some("IPvFuture is \"v\", hex digits, \".\" and an address")
 }
 
 /// The special schemes that have a network host ("file" is special too, but
@@ -41,7 +104,9 @@ pub(super) fn url_scheme(input: &str) -> Option<String> {
 /// URL, or `None` when it does not (or when the outcome depends on the base).
 pub(super) fn url_parse_failure(input: &str) -> Option<&'static str> {
     let input = preprocess(input);
-    let (scheme, rest) = split_scheme(&input)?;
+    let Some((scheme, rest)) = split_scheme(&input) else {
+        return scheme_relative_failure(&input);
+    };
     if SPECIAL_NETWORK_SCHEMES.contains(&scheme.as_str()) {
         // "special relative or authority state", "relative slash state" and
         // "special authority slashes state" all reach the authority when two
@@ -62,6 +127,44 @@ pub(super) fn url_parse_failure(input: &str) -> Option<&'static str> {
         // "path or authority state": `scheme://` starts an authority.
         authority_failure(rest.strip_prefix("//")?, false)
     }
+}
+
+/// Why a scheme-relative `input` fails against every possible base URL.
+///
+/// Its two leading slashes reach the "special authority ignore slashes state"
+/// against a special base other than "file", the "authority state" against a
+/// non-special base, and the "file host state" against a "file" base; a base
+/// with an opaque path fails it in the "no scheme state" anyway. It is
+/// reported only when all three fail.
+fn scheme_relative_failure(input: &str) -> Option<&'static str> {
+    let rest = input.strip_prefix("//")?;
+    let failure = authority_failure(rest.trim_start_matches(['/', '\\']), true)?;
+    authority_failure(rest, false)?;
+    file_host_failure(rest)?;
+    Some(failure)
+}
+
+/// The "file host state" over `input`, which starts right after the two
+/// slashes of the "file slash state".
+fn file_host_failure(input: &str) -> Option<&'static str> {
+    let buffer = &input[..input.find(['/', '\\', '?', '#']).unwrap_or(input.len())];
+    if buffer.is_empty() || is_windows_drive_letter(buffer) {
+        return None;
+    }
+    // "host parsing buffer with url is not special": "file" is special, so
+    // the host is a domain, not an opaque host.
+    host_failure(buffer, false)
+}
+
+/// "A Windows drive letter is two code points, of which the first is an ASCII
+/// alpha and the second is either U+003A (:) or U+007C (|)."
+/// <https://url.spec.whatwg.org/#windows-drive-letter>
+fn is_windows_drive_letter(buffer: &str) -> bool {
+    let mut chars = buffer.chars();
+    matches!(
+        (chars.next(), chars.next(), chars.next()),
+        (Some(letter), Some(':' | '|'), None) if letter.is_ascii_alphabetic()
+    )
 }
 
 /// The input preprocessing of the basic URL parser: "Remove any leading and
@@ -755,7 +858,6 @@ mod tests {
                 "//C:/x",
                 "//C|/x",
                 "//[::1]/x",
-                "//exa mple.com/",
                 "\\\\:80/x",
             ],
         );
@@ -767,6 +869,7 @@ mod tests {
                 "//user@/x",
                 "//host:99999/",
                 "//[g::]/",
+                "//exa mple.com/",
             ],
         );
     }
