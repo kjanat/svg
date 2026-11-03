@@ -15,19 +15,26 @@
 //! arguments, units, with a bare `<number>` admitted for lengths and angles).
 //! The SVG 1.1 grammar
 //! (<https://www.w3.org/TR/SVG11/coords.html#TransformAttribute>) still
-//! applies to SVG 1.1 documents and allows more: several separators between
-//! functions and numbers that end in a dot (`1.`). A value is accepted when
-//! any of these definitions accepts it.
+//! applies to SVG 1.1 documents and differs again: several separators between
+//! functions and numbers that end in a dot (`1.`), but a required separator
+//! between numbers and between functions. A value is accepted when any one of
+//! these definitions accepts the whole value; a list that needs one grammar
+//! for one function and another for the next is reported. CSS Values 5 adds
+//! `transform-mix()` and `transform-interpolate()` to `<transform-function>`;
+//! they are accepted with their arguments unchecked.
 //!
 //! `preserveAspectRatio` follows SVG 2's `<align> <meetOrSlice>?`
 //! (<https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute>),
 //! parsed as CSS (<https://svgwg.org/svg2-draft/types.html#attribute-css-value>),
-//! so keywords match ASCII case-insensitively and comments are allowed.
+//! so keywords match ASCII case-insensitively and comments are allowed. It is
+//! not a presentation attribute, so `var()` is not substituted in it.
 
 use super::syntax::cascade::is_css_wide_keyword_value;
-use super::syntax::microsyntax::{is_svg_wsp, skip_comma_wsp, skip_wsp, trim_wsp};
+use super::syntax::microsyntax::{is_svg_wsp, skip_comma_wsp, skip_wsp, strip_comma_wsp, trim_wsp};
 use super::syntax::notation::{contains_arbitrary_substitution, is_whole_value};
-use super::syntax::parser::{BlockKind, ComponentValue, parse_component_values};
+use super::syntax::parser::{
+    BlockKind, ComponentValue, Function, SimpleBlock, parse_component_values,
+};
 use super::syntax::tokenizer::Token;
 use super::syntax::types::{Match, NumericType, UnitlessMode, match_numeric};
 
@@ -197,12 +204,26 @@ const TRANSFORM_FUNCTIONS: &[CssFunction] = &[
     ),
 ];
 
+/// Transform functions that later modules add to `<transform-function>`:
+/// CSS Values 5 §6.4 and §7.6
+/// (<https://drafts.csswg.org/css-values-5/#transform-mix>,
+/// <https://drafts.csswg.org/css-values-5/#transform-interpolate>). Their
+/// arguments are not checked, and the catalog's function lists predate
+/// them, so they are accepted whatever the list says.
+const EXTENSION_FUNCTIONS: &[&str] = &["transform-mix", "transform-interpolate"];
+
+/// Says that a list mixes the two transform grammars.
+const MIXED_SYNTAX: &str = "is SVG transform syntax, which cannot be mixed with CSS syntax \
+                            (units, comments, escapes or CSS-only functions) in one list";
+
 /// `Transform`: a transform list using these functions.
 ///
 /// `functions` is the catalog's list of the functions the attribute allows;
 /// an empty list allows every transform function.
 pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
-    if matches_legacy_list(value, functions) {
+    if matches_legacy_list(value, functions, Legacy::Transforms1)
+        || matches_legacy_list(value, functions, Legacy::Svg11)
+    {
         return None;
     }
     let list = parse_component_values(value);
@@ -221,21 +242,18 @@ pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
     {
         return None;
     }
+    // Neither legacy grammar matched, so the value must be the CSS
+    // `<transform-function>+`: function tokens only, and no commas.
     let mut seen_function = false;
-    let mut after_comma = false;
     let mut items = items.into_iter().peekable();
     while let Some(item) = items.next() {
         let reason = match item {
-            ComponentValue::Function(function) => {
-                check_function(&function.name, &function.value, true, functions)
-            }
-            // The legacy form allows whitespace before the `(`:
-            // `"translate" wsp* "("`.
+            ComponentValue::Function(function) => check_css_function(function, functions),
             ComponentValue::Token(Token::Ident(name)) => match items.next_if(|next| {
                 matches!(next, ComponentValue::Block(block) if block.kind == BlockKind::Paren)
             }) {
                 Some(ComponentValue::Block(block)) => {
-                    check_function(name, &block.value, false, functions)
+                    Some(check_spaced_function(name, block, functions))
                 }
                 _ if name.eq_ignore_ascii_case("none") => {
                     Some("none cannot be combined with transform functions".to_owned())
@@ -245,13 +263,13 @@ pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
                     describe(item)
                 )),
             },
-            ComponentValue::Token(Token::Comma) => {
-                if !seen_function || after_comma {
-                    return Some("a comma must sit between two transform functions".to_owned());
-                }
-                after_comma = true;
-                continue;
-            }
+            ComponentValue::Token(Token::Comma) => Some(if !seen_function {
+                "a comma must sit between two transform functions".to_owned()
+            } else if items.peek().is_none() {
+                "a transform list cannot end with a comma".to_owned()
+            } else {
+                format!("a comma between transform functions {MIXED_SYNTAX}")
+            }),
             other => Some(format!(
                 "expected a transform function, found {}",
                 describe(other)
@@ -261,28 +279,46 @@ pub fn check_transform(value: &str, functions: &[&str]) -> Option<String> {
             return reason;
         }
         seen_function = true;
-        after_comma = false;
     }
-    after_comma.then(|| "a transform list cannot end with a comma".to_owned())
+    None
 }
 
-/// Whether `value` is a whole transform list in the legacy SVG grammars:
-/// CSS Transforms 1 §6.2 and SVG 1.1 §7.6 together, so `wsp* transforms?
-/// wsp*` with any run of whitespace and commas (none included) between two
-/// functions, and `comma-wsp?` between numbers.
-fn matches_legacy_list(value: &str, functions: &[&str]) -> bool {
+/// The two legacy grammars of the transform attributes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Legacy {
+    /// CSS Transforms 1 §6.2: `<number-token>` numbers, and `comma-wsp?`
+    /// between numbers and between functions.
+    Transforms1,
+    /// SVG 1.1 §7.6: numbers may end in a dot, `comma-wsp` between numbers
+    /// and `comma-wsp+` between functions.
+    Svg11,
+}
+
+/// Whether `value` is a whole transform list in one legacy grammar:
+/// `wsp* transforms? wsp*`.
+fn matches_legacy_list(value: &str, functions: &[&str], grammar: Legacy) -> bool {
     let mut rest = trim_wsp(value);
     if rest.is_empty() {
         return true;
     }
     loop {
-        let Some(after) = legacy_function(rest, functions) else {
+        let Some(after) = legacy_function(rest, functions, grammar) else {
             return false;
         };
         if after.is_empty() {
             return true;
         }
-        let next = after.trim_start_matches(|c: char| is_svg_wsp(c) || c == ',');
+        let next = match grammar {
+            Legacy::Transforms1 => skip_comma_wsp(after),
+            Legacy::Svg11 => {
+                let next = after.trim_start_matches(|c: char| is_svg_wsp(c) || c == ',');
+                // `comma-wsp+`: at least one separator.
+                if next.len() == after.len() {
+                    return false;
+                }
+                next
+            }
+        };
         // Only separators left: the list ends with a comma.
         if next.is_empty() {
             return false;
@@ -292,9 +328,9 @@ fn matches_legacy_list(value: &str, functions: &[&str]) -> bool {
 }
 
 /// One legacy transform function at the start of `s`, returning the rest:
-/// `name wsp* "(" wsp* number ( comma-wsp? number )* wsp* ")"` with one of
+/// `name wsp* "(" wsp* number ( separator number )* wsp* ")"` with one of
 /// the function's legacy argument counts.
-fn legacy_function<'s>(s: &'s str, functions: &[&str]) -> Option<&'s str> {
+fn legacy_function<'s>(s: &'s str, functions: &[&str], grammar: Legacy) -> Option<&'s str> {
     let name_end = s
         .find(|c: char| !c.is_ascii_alphabetic())
         .unwrap_or(s.len());
@@ -307,33 +343,44 @@ fn legacy_function<'s>(s: &'s str, functions: &[&str]) -> Option<&'s str> {
     }
     let mut rest = skip_wsp(skip_wsp(rest).strip_prefix('(')?);
     let mut count = 0;
-    while let Some(after) = scan_svg11_number(rest) {
+    loop {
+        let (after, is_number_token) = scan_svg11_number(rest)?;
+        if grammar == Legacy::Transforms1 && !is_number_token {
+            return None;
+        }
         count += 1;
-        let separated = skip_comma_wsp(after);
-        if scan_svg11_number(separated).is_some() {
-            rest = separated;
-        } else {
-            rest = after;
-            break;
+        let separated = match grammar {
+            Legacy::Transforms1 => Some(skip_comma_wsp(after)),
+            Legacy::Svg11 => strip_comma_wsp(after),
+        };
+        match separated {
+            Some(next) if scan_svg11_number(next).is_some() => rest = next,
+            _ => {
+                rest = after;
+                break;
+            }
         }
     }
     let rest = skip_wsp(rest).strip_prefix(')')?;
     known.svg_counts.contains(&count).then_some(rest)
 }
 
-/// An SVG 1.1 `number` at the start of `s`, returning the rest: `sign?
-/// (digit-sequence ("." digit-sequence?)? | "." digit-sequence) exponent?`.
-/// It also covers every CSS Transforms 1 `<number-token>`.
-fn scan_svg11_number(s: &str) -> Option<&str> {
+/// An SVG 1.1 `number` at the start of `s`: `sign? (digit-sequence ("."
+/// digit-sequence?)? | "." digit-sequence) exponent?`. Returns the rest and
+/// whether the number is also a CSS `<number-token>`, which cannot end in a
+/// dot: `1.` and `1.e2` are SVG 1.1 only.
+fn scan_svg11_number(s: &str) -> Option<(&str, bool)> {
     let digits = |s: &str| s.len() - s.trim_start_matches(|c: char| c.is_ascii_digit()).len();
     let rest = s.strip_prefix(['+', '-']).unwrap_or(s);
     let integer = digits(rest);
     let mut rest = &rest[integer..];
     let mut fraction = 0;
+    let mut trailing_dot = false;
     if let Some(after_dot) = rest.strip_prefix('.') {
         fraction = digits(after_dot);
         if integer > 0 || fraction > 0 {
             rest = &after_dot[fraction..];
+            trailing_dot = fraction == 0;
         }
     }
     if integer == 0 && fraction == 0 {
@@ -346,47 +393,77 @@ fn scan_svg11_number(s: &str) -> Option<&str> {
             rest = &after_sign[exponent..];
         }
     }
-    Some(rest)
+    Some((rest, !trailing_dot))
 }
 
-/// Check one transform function. `function_token` is false for the legacy
-/// `name (` form, which only the SVG grammar allows.
-fn check_function(
-    name: &str,
-    args: &[ComponentValue<'_>],
-    function_token: bool,
-    functions: &[&str],
-) -> Option<String> {
+/// The transform function `name` if the attribute allows it, or the reason
+/// it is not one.
+fn known_function(name: &str, functions: &[&str]) -> Result<&'static CssFunction, String> {
     let Some(known) = TRANSFORM_FUNCTIONS
         .iter()
         .find(|known| known.name.eq_ignore_ascii_case(name))
     else {
-        return Some(format!("unknown transform function {name}()"));
+        return Err(format!("unknown transform function {name}()"));
     };
-    if !functions.is_empty()
-        && !functions
-            .iter()
-            .any(|allowed| allowed.eq_ignore_ascii_case(known.name))
-    {
-        return Some(format!("{}() is not allowed here", known.name));
+    if !functions.is_empty() && !contains_keyword(functions, known.name) {
+        return Err(format!("{}() is not allowed here", known.name));
     }
-    let svg = if known.svg_counts.is_empty() {
-        Match::No
-    } else {
-        match_svg_args(args, known.svg_counts)
+    Ok(known)
+}
+
+/// Check one transform function written as a CSS function token.
+fn check_css_function(function: &Function<'_>, functions: &[&str]) -> Option<String> {
+    if contains_keyword(EXTENSION_FUNCTIONS, &function.name) {
+        return None;
+    }
+    let known = match known_function(&function.name, functions) {
+        Ok(known) => known,
+        Err(reason) => return Some(reason),
     };
-    let css = if function_token {
-        match_css_args(args, known)
+    if !match_css_args(&function.value, known).is_no() {
+        return None;
+    }
+    let legacy_shaped =
+        !known.svg_counts.is_empty() && !match_svg_args(&function.value, known.svg_counts).is_no();
+    Some(if legacy_shaped && !function.closed {
+        format!(
+            "{}() needs a closing parenthesis: only CSS syntax, with comma-separated arguments, \
+             may leave it out",
+            known.name
+        )
+    } else if legacy_shaped {
+        format!(
+            "{}() with these arguments {MIXED_SYNTAX}; CSS syntax separates the arguments with \
+             commas and takes {}",
+            known.name, known.usage
+        )
     } else {
-        Match::No
+        format!("{}() takes {}", known.name, known.usage)
+    })
+}
+
+/// Check `name (args)`: a function name, then a parenthesized block. Only
+/// the legacy grammars allow this, with plain numbers, and the value already
+/// failed them.
+fn check_spaced_function(name: &str, block: &SimpleBlock<'_>, functions: &[&str]) -> String {
+    let known = match known_function(name, functions) {
+        Ok(known) => known,
+        Err(reason) => return reason,
     };
-    svg.or(css)
-        .is_no()
-        .then(|| format!("{}() takes {}", known.name, known.usage))
+    if !known.svg_counts.is_empty() && !match_svg_args(&block.value, known.svg_counts).is_no() {
+        format!("`{} (` {MIXED_SYNTAX}", known.name)
+    } else {
+        format!(
+            "{} must be followed directly by `(`: only SVG transform syntax, with plain numbers, \
+             allows a space before it",
+            known.name
+        )
+    }
 }
 
 /// The legacy arguments: `number ( comma-wsp? number )*` with one of
-/// `counts` numbers, `wsp*` around them.
+/// `counts` numbers, `wsp*` around them. It only shapes the diagnostic: the
+/// legacy grammars themselves are matched on the text.
 fn match_svg_args(args: &[ComponentValue<'_>], counts: &[usize]) -> Match {
     let mut numbers = 0;
     let mut after_comma = false;
@@ -482,7 +559,10 @@ pub fn check_preserve_aspect_ratio(
     meet_or_slice: &[&str],
 ) -> Option<String> {
     let list = parse_component_values(value);
-    if list.depth_limited || contains_arbitrary_substitution(&list.values) {
+    // Not a presentation attribute: the value is parsed against its own
+    // grammar only, so var() and the other substitution functions are never
+    // substituted and are reported like any other non-keyword.
+    if list.depth_limited {
         return None;
     }
     let alignments = if alignments.is_empty() {
@@ -537,9 +617,13 @@ pub fn check_preserve_aspect_ratio(
             describe(mode)
         ));
     }
-    items
-        .next()
-        .map(|extra| format!("unexpected {} at the end", describe(extra)))
+    items.next().map(|extra| {
+        format!(
+            "expected nothing after {}, found {}",
+            meet_or_slice.join(" or "),
+            describe(extra)
+        )
+    })
 }
 
 /// Whether `list` holds `keyword`, ignoring ASCII case.
@@ -553,11 +637,11 @@ fn describe(value: &ComponentValue<'_>) -> String {
         ComponentValue::Token(Token::Ident(ident)) => format!("`{ident}`"),
         ComponentValue::Function(function) => format!("`{}()`", function.name),
         ComponentValue::Token(Token::Comma) => "a comma".to_owned(),
-        ComponentValue::Token(
-            Token::Number(_) | Token::Percentage(_) | Token::Dimension { .. },
-        ) => "a number".to_owned(),
+        ComponentValue::Token(Token::Number(_)) => "a number".to_owned(),
+        ComponentValue::Token(Token::Percentage(_)) => "a percentage".to_owned(),
+        ComponentValue::Token(Token::Dimension { .. }) => "a dimension".to_owned(),
         ComponentValue::Block(_) => "a bracketed block".to_owned(),
-        ComponentValue::Token(_) => "an unexpected token".to_owned(),
+        ComponentValue::Token(_) => "another token".to_owned(),
     }
 }
 
