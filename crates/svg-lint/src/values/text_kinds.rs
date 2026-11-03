@@ -848,8 +848,50 @@ mod tests {
                 "text/html; charset=\"utf-8\"x",
                 "text/html; charset=utf 8",
                 "text/html charset=utf-8",
-                "text/html;\ncharset=utf-8",
                 "text/html; a=\"\\",
+            ],
+        );
+    }
+
+    // Claim: "For a white space character (#x20, #xD, #xA, #x9), append a
+    // space character (#x20) to the normalized value."
+    // Claim: "Note that if the unnormalized attribute value contains a
+    // character reference to a white space character other than space
+    // (#x20), the normalized value contains the referenced character itself
+    // (#xD, #xA or #x9). This contrasts with the case where the unnormalized
+    // value contains a white space character (not a reference), which is
+    // replaced with a space character (#x20) in the normalized value"
+    // https://www.w3.org/TR/xml/#AVNormalize
+    // Claim: "parameters = *( OWS ";" OWS [ parameter ] )"
+    // https://www.rfc-editor.org/rfc/rfc9110#section-5.6.6
+    // Claim: "OWS = *( SP / HTAB )"
+    // https://www.rfc-editor.org/rfc/rfc9110#section-5.6.3
+    // (the check sees references decoded, so a line break may be a literal
+    // one, which XML delivers as a space; it is taken as a space)
+    #[test]
+    fn media_type_xml_normalized_line_breaks() {
+        accepts(
+            check_media_type,
+            &[
+                "text/html;\ncharset=utf-8",
+                "text/html\n; charset=utf-8",
+                "text/html;\r\n charset=utf-8",
+                "text/html;\n     charset=utf-8",
+                "text/html;\rcharset=utf-8",
+                "text/plain; a=\"b\nc\"",
+                "text/plain; a=\"b\\\nc\"",
+            ],
+        );
+        rejects(
+            check_media_type,
+            &[
+                "\ntext/html",
+                "text/html\n",
+                "text\n/html",
+                "text/\nhtml",
+                "text/html\ncharset=utf-8",
+                "text/html; charset\n=utf-8",
+                "text/html; charset=\nutf-8",
             ],
         );
     }
@@ -866,6 +908,72 @@ mod tests {
             &["identity", "table", "discrete", "linear", "gamma"],
         );
         rejects(check_media_type, &["lineer", "matrix"]);
+    }
+
+    // Claim: "type = "identity | table | discrete | linear | gamma""
+    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
+    // Claim: "Using the CSS Value Definition Syntax [css-values]. This is the
+    // notation used to define the syntax for most attributes in this
+    // specification and is the default."
+    // https://svgwg.org/svg2-draft/types.html#syntax
+    // Claim: "When any other attribute defined using the CSS Value
+    // Definition Syntax is parsed, this is done by parsing the attribute's
+    // value according to the grammar given in attribute definition table."
+    // https://svgwg.org/svg2-draft/types.html#attribute-css-value
+    // Claim: "Keywords are identifiers and are interpreted ASCII
+    // case-insensitively (i.e., [a-z] and [A-Z] are equivalent)."
+    // https://drafts.csswg.org/css-values-4/#keywords
+    // (the transfer function type is parsed as CSS, so case variants,
+    // white space, comments and escapes are accepted; a function the check
+    // does not model is accepted as well)
+    #[test]
+    fn media_type_transfer_function_types_parse_as_css() {
+        accepts(
+            check_media_type,
+            &[
+                "Linear",
+                "GAMMA",
+                "Identity",
+                " table ",
+                "\ndiscrete\n",
+                "linear/**/",
+                "/* c */ gamma",
+                "\\6c inear",
+                "var(--t)",
+            ],
+        );
+        rejects(
+            check_media_type,
+            &[
+                "lineer",
+                "Lineer",
+                "linear gamma",
+                "linear,",
+                "'linear'",
+                "\"gamma\"",
+                "#linear",
+            ],
+        );
+    }
+
+    // Claim: "type = "identity | table | discrete | linear | gamma""
+    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
+    // (a value without "/" cannot be a MIME type; the reason names the
+    // transfer function types too, since `type` on feFuncR/G/B/A reaches
+    // this check)
+    #[test]
+    fn media_type_reason_names_transfer_function_types() {
+        for value in ["lineer", "matrix", "text"] {
+            let reason = check_media_type(value).unwrap_or_default();
+            assert!(
+                reason.contains("identity, table, discrete, linear, gamma"),
+                "{value:?}: {reason:?}"
+            );
+        }
+        accepts(check_media_type, &["linear", "text/html"]);
+        rejects(check_media_type, &["text/"]);
+        let reason = check_media_type("text/").unwrap_or_default();
+        assert!(!reason.contains("gamma"), "{reason:?}");
     }
 
     // ----- MediaQueryList (media on <style>) -----
@@ -1077,9 +1185,47 @@ mod tests {
                 "(a])",
                 "(a})",
                 "foo(a])",
-                "(\"bad\nstring\")",
+                "(\"bad\u{c}string\")",
                 "(width: url(a b))",
                 "screen and (color))",
+            ],
+        );
+    }
+
+    // Claim: "For a white space character (#x20, #xD, #xA, #x9), append a
+    // space character (#x20) to the normalized value."
+    // https://www.w3.org/TR/xml/#AVNormalize
+    // Claim: "<general-enclosed> = [ <function-token> <any-value>? ) ] | [ (
+    // <any-value>? ) ]"
+    // https://drafts.csswg.org/mediaqueries-4/#typedef-general-enclosed
+    // Claim: "<media-type> = <ident>"
+    // https://drafts.csswg.org/mediaqueries-4/#typedef-media-type
+    // (the check sees references decoded, so a line break may be a literal
+    // one, which XML delivers as a space: a line break in a string is then
+    // not a bad string, and a backslash before it escapes a space)
+    #[test]
+    fn media_query_xml_normalized_line_breaks() {
+        accepts(
+            check_media_query_list,
+            &[
+                "(width: \"a\nb\")",
+                "(x: \"a\r\nb\")",
+                "(x: 'a\rb')",
+                "a\\\nb",
+                "screen\nand (color)",
+                "screen,\nprint",
+                "\nscreen\n",
+                "foo(\"a\nb\")",
+            ],
+        );
+        rejects(
+            check_media_query_list,
+            &[
+                "screen\nprint",
+                "\n,\n",
+                "(a\n])",
+                "screen\nand\n",
+                "(\"bad\u{c}string\")",
             ],
         );
     }
