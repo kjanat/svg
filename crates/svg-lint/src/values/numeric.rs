@@ -110,7 +110,7 @@ fn xsd_decimal_fraction(value: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::invalid_reason;
+    use crate::values::invalid_reason_for;
     use svg_data::AttributeValues;
 
     type Check = fn(&str) -> Option<String>;
@@ -140,14 +140,14 @@ mod tests {
         assert!(kind(values), "{attr} on <{element}> is {values:?}");
         for value in valid {
             assert_eq!(
-                invalid_reason(values, value),
+                invalid_reason_for(attr, values, value),
                 None,
                 "{attr}={value:?} on <{element}> must be valid"
             );
         }
         for value in invalid {
             assert!(
-                invalid_reason(values, value).is_some(),
+                invalid_reason_for(attr, values, value).is_some(),
                 "{attr}={value:?} on <{element}> must be invalid"
             );
         }
@@ -304,8 +304,6 @@ mod tests {
     // Claim: "A negative value is an error (see Error handling)."
     // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
     #[test]
-    #[ignore = "the Number check receives no attribute name, so it cannot tell pathLength or \
-                stroke-miterlimit from k1 or dx, which allow negatives"]
     fn negative_miterlimit_and_path_length_are_invalid() {
         for (attr, element) in [
             ("pathLength", "path"),
@@ -327,8 +325,6 @@ mod tests {
     // Claim: "pathLength <number>"
     // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
     #[test]
-    #[ignore = "the Number check receives no attribute name, so it cannot tell these from the ARIA \
-                numbers, which may be empty"]
     fn empty_number_is_invalid_outside_aria() {
         for (attr, element) in [
             ("stroke-miterlimit", "path"),
@@ -343,8 +339,6 @@ mod tests {
     // digits, optionally prefixed with a U+002D HYPHEN-MINUS character (-)."
     // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-integer
     #[test]
-    #[ignore = "the Integer check receives no attribute name, so it cannot tell tabindex from the \
-                ARIA integers, which may be empty"]
     fn empty_tabindex_is_invalid() {
         assert_attr("tabindex", "g", is_integer, &["0"], &["", " "]);
     }

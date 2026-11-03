@@ -12,6 +12,7 @@
 //! space's grammar.
 
 mod color;
+mod constraints;
 mod css_grammar;
 mod declarations;
 mod geometry;
@@ -26,7 +27,7 @@ mod tokens;
 
 use std::borrow::Cow;
 
-use svg_data::AttributeValues;
+use svg_data::{AttributeApplicability, AttributeDef, AttributeValues, SpecSnapshotId};
 
 /// Why `value` is invalid for `values`, or `None` when it is valid or its
 /// value space has no check.
@@ -67,6 +68,72 @@ pub fn invalid_reason(values: &AttributeValues, value: &str) -> Option<String> {
         }
         AttributeValues::FreeText | AttributeValues::Unresolved => None,
     }
+}
+
+/// The transfer function elements. Filter Effects defines their attributes
+/// in the `feComponentTransfer` section, and the catalog keys their
+/// element-scoped values on that element rather than on the children that
+/// carry them.
+const TRANSFER_FUNCTION_ELEMENTS: &[&str] = &["feFuncR", "feFuncG", "feFuncB", "feFuncA"];
+
+/// The value space of `def` on `element` under `profile`, or `None` when the
+/// attribute does not apply there.
+///
+/// The catalog's value space describes the attribute where it applies. On
+/// any other element (`path` on a mesh-gradient `<stop>`, a removed feature)
+/// the same name has no spec-defined value to check against.
+pub fn values_for<'a>(
+    def: &'a AttributeDef,
+    element: &str,
+    profile: SpecSnapshotId,
+) -> Option<&'a AttributeValues> {
+    let scoped_on = |name: &str| {
+        def.element_values
+            .iter()
+            .find(|values| values.element == name)
+            .map(|values| &values.values)
+    };
+    let scoped = scoped_on(element).or_else(|| {
+        TRANSFER_FUNCTION_ELEMENTS
+            .contains(&element)
+            .then(|| scoped_on("feComponentTransfer"))
+            .flatten()
+    });
+    let applies = match def.applicability {
+        AttributeApplicability::Global => true,
+        AttributeApplicability::Elements(elements) => elements.contains(&element),
+        AttributeApplicability::None => false,
+    };
+    scoped.or_else(|| applies.then(|| def.values_for_profile(profile)))
+}
+
+/// Why `value` is invalid for the attribute `attr` with value space `values`:
+/// the value space's check, then the rules the spec adds for `attr` alone
+/// (see [`constraints`]).
+pub fn invalid_reason_for(attr: &str, values: &AttributeValues, value: &str) -> Option<String> {
+    if attr == "d"
+        && matches!(values, AttributeValues::CssGrammar { grammar, .. } if *grammar == D_PROPERTY_GRAMMAR)
+    {
+        return d_attribute(value);
+    }
+    invalid_reason(values, value).or_else(|| constraints::check(attr, values, value))
+}
+
+/// The catalog's grammar for the `d` property.
+const D_PROPERTY_GRAMMAR: &str = "none | <string>";
+
+/// The `d` presentation attribute holds path data, not the CSS `<string>` of
+/// the `d` property: "d will become a presentation attribute (no name change)
+/// with path data string as value", and "The contents of the \<string> value
+/// must match the svg-path EBNF grammar"
+/// (<https://svgwg.org/svg2-draft/paths.html#TheDProperty>). `none` and the
+/// CSS-wide keywords are the property's own values and are accepted.
+fn d_attribute(value: &str) -> Option<String> {
+    let keyword = syntax::microsyntax::strip_ascii_whitespace(value);
+    if keyword.eq_ignore_ascii_case("none") || syntax::cascade::is_css_wide_keyword_value(value) {
+        return None;
+    }
+    path::check_path_data(value)
 }
 
 /// The attribute value as XML delivers it: `raw` is the value node's source
@@ -133,6 +200,78 @@ mod tests {
         assert_eq!(attribute_value_text("'a'"), "a");
         assert_eq!(attribute_value_text("\"&lt;&amp;&#65;&#x42;\""), "<&AB");
         assert_eq!(attribute_value_text("\"&bogus; &\""), "&bogus; &");
+    }
+
+    fn d_values() -> AttributeValues {
+        let Some(def) = svg_data::attribute("d") else {
+            panic!("d is not in the catalog");
+        };
+        def.values_for_element(Some("path")).clone()
+    }
+
+    // Claim: "The contents of the <string> value must match the svg-path EBNF
+    // grammar defined below"
+    // https://svgwg.org/svg2-draft/paths.html#TheDProperty
+    #[test]
+    fn d_attribute_is_checked_as_path_data() {
+        let values = d_values();
+        for value in ["M0 0L10 10", " m 1,2 3,4z ", "", "none", "inherit"] {
+            assert_eq!(invalid_reason_for("d", &values, value), None, "{value:?}");
+        }
+        for value in ["c 1 1", "M0 0 L", "M 0 0 X 1"] {
+            assert!(
+                invalid_reason_for("d", &values, value).is_some(),
+                "{value:?}"
+            );
+        }
+    }
+
+    /// The value space of `attr` on `element` in the latest profile.
+    fn latest(attr: &str, element: &str) -> Option<&'static AttributeValues> {
+        let Some(def) = svg_data::attribute(attr) else {
+            panic!("{attr} is not in the catalog");
+        };
+        values_for(def, element, SpecSnapshotId::LATEST)
+    }
+
+    #[test]
+    fn attributes_have_no_value_space_off_their_elements() {
+        assert!(matches!(
+            latest("path", "animateMotion"),
+            Some(AttributeValues::PathData)
+        ));
+        assert!(latest("path", "stop").is_none());
+    }
+
+    // Claim: "type = "identity | table | discrete | linear | gamma""
+    // https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
+    // Claim: "When any other attribute defined using the CSS Value
+    // Definition Syntax is parsed, this is done by parsing the attribute's
+    // value according to the grammar given in attribute definition table."
+    // https://svgwg.org/svg2-draft/types.html#attribute-css-value
+    // Claim: "Keywords are identifiers and are interpreted ASCII
+    // case-insensitively (i.e., [a-z] and [A-Z] are equivalent)."
+    // https://drafts.csswg.org/css-values-4/#keywords
+    #[test]
+    fn transfer_function_attributes_use_the_component_transfer_values() {
+        for element in TRANSFER_FUNCTION_ELEMENTS {
+            let Some(values) = latest("type", element) else {
+                panic!("type has no value space on <{element}>");
+            };
+            for value in ["linear", "GAMMA", " table ", "/* c */ discrete", "var(--t)"] {
+                assert_eq!(invalid_reason_for("type", values, value), None, "{value:?}");
+            }
+            for value in ["lineer", "text/html", "linear gamma", "'linear'"] {
+                assert!(
+                    invalid_reason_for("type", values, value).is_some(),
+                    "{value:?}"
+                );
+            }
+            assert!(matches!(
+                latest("slope", element),
+                Some(AttributeValues::Number)
+            ));
+        }
     }
 
     #[test]

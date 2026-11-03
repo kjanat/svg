@@ -468,20 +468,25 @@ fn check_attribute_value(
     attr_name: &str,
     def: &svg_data::AttributeDef,
 ) {
-    let Some(value_node) = attr_node.child_by_field_name("value") else {
+    // Typed attributes can nest the node that carries the value field one
+    // level down (`animate_motion_attribute` wraps a `d_attribute`).
+    let value_node = attr_node.child_by_field_name("value").or_else(|| {
+        let mut cursor = attr_node.walk();
+        attr_node
+            .named_children(&mut cursor)
+            .find_map(|child| child.child_by_field_name("value"))
+    });
+    let Some(value_node) = value_node else {
         return;
     };
     let Ok(raw) = std::str::from_utf8(&ctx.source[value_node.byte_range()]) else {
         return;
     };
-    let scoped = def
-        .element_values
-        .iter()
-        .find(|values| values.element == elem_name)
-        .map(|values| &values.values);
-    let values = scoped.unwrap_or_else(|| def.values_for_profile(ctx.options.profile));
+    let Some(values) = crate::values::values_for(def, elem_name, ctx.options.profile) else {
+        return;
+    };
     let value = crate::values::attribute_value_text(raw);
-    if let Some(reason) = crate::values::invalid_reason(values, &value) {
+    if let Some(reason) = crate::values::invalid_reason_for(attr_name, values, &value) {
         push_diag_in_tag(
             &mut ctx.diagnostics,
             &mut ctx.suppressions,

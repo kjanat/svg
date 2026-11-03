@@ -10,7 +10,7 @@
 //!   `false` is never a reason to reject a value.
 //! - `<whole-value>` notations (CSS Values 5 §8.1,
 //!   <https://drafts.csswg.org/css-values-5/#whole-value>): "All properties
-//!   implicitly accept a <whole-value> as their entire value, just as they
+//!   implicitly accept a \<whole-value> as their entire value, just as they
 //!   accept the CSS-wide keywords as their entire value."
 //!   [`is_whole_value`] finds a value that is one of them.
 //! - Arbitrary substitution functions (CSS Values 5 Appendix A,

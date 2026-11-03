@@ -180,50 +180,14 @@ fn is_alphanum(s: &str) -> bool {
 
 // ----- MediaType -----
 
-/// Filter Effects 1 transfer function types (`type` on `feFuncR`, `feFuncG`,
-/// `feFuncB` and `feFuncA`), which reach this check because the catalog
-/// scopes them to `feComponentTransfer`.
-const TRANSFER_FUNCTION_TYPES: &[&str] = &["identity", "table", "discrete", "linear", "gamma"];
-
 /// `MediaType`: a MIME type.
 ///
 /// A valid MIME type string: RFC 9110 `media-type = type "/" subtype
-/// parameters`, with line breaks taken as spaces. The transfer function
-/// types of `feFunc*` are accepted too (see [`is_transfer_function_type`]).
+/// parameters`, with line breaks taken as spaces.
 pub fn check_media_type(value: &str) -> Option<String> {
-    if is_transfer_function_type(value) {
-        return None;
-    }
     let value = line_breaks_as_spaces(value);
     let problem = media_type_problem(&value)?;
-    if value.contains('/') {
-        return Some(format!("not a valid MIME type string: {problem}"));
-    }
-    Some(format!(
-        "not a valid MIME type string: {problem}; on feFuncR, feFuncG, feFuncB and feFuncA, type \
-         is one of {}",
-        TRANSFER_FUNCTION_TYPES.join(", ")
-    ))
-}
-
-/// Whether `value` parses as CSS to one transfer function type: SVG 2
-/// parses an attribute in CSS Value Definition Syntax as CSS, so keywords
-/// match ASCII case-insensitively and white space, comments and escapes are
-/// allowed. A value that is a single function (`var()` and the like) is
-/// not modelled and is accepted.
-fn is_transfer_function_type(value: &str) -> bool {
-    let list = parse_component_values(value);
-    if list.depth_limited {
-        return true;
-    }
-    let mut parts = list.significant();
-    match (parts.next(), parts.next()) {
-        (Some(ComponentValue::Function(_)), None) => true,
-        (Some(only), None) => only.ident().is_some_and(|ident| {
-            find_ascii_case_insensitive(ident, TRANSFER_FUNCTION_TYPES).is_some()
-        }),
-        _ => false,
-    }
+    Some(format!("not a valid MIME type string: {problem}"))
 }
 
 /// `value` with each line break (CR LF, CR or LF) replaced by a space, as
@@ -941,86 +905,6 @@ mod tests {
                 "text/html; charset=\nutf-8",
             ],
         );
-    }
-
-    // Claim: "type = "identity | table | discrete | linear | gamma""
-    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
-    // (the catalog scopes these keywords to feComponentTransfer, so `type` on
-    // the feFuncR/G/B/A children falls back to the media type value space; the
-    // check accepts them rather than report a valid transfer function type)
-    #[test]
-    fn media_type_accepts_transfer_function_types() {
-        accepts(
-            check_media_type,
-            &["identity", "table", "discrete", "linear", "gamma"],
-        );
-        rejects(check_media_type, &["lineer", "matrix"]);
-    }
-
-    // Claim: "type = "identity | table | discrete | linear | gamma""
-    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
-    // Claim: "Using the CSS Value Definition Syntax [css-values]. This is the
-    // notation used to define the syntax for most attributes in this
-    // specification and is the default."
-    // https://svgwg.org/svg2-draft/types.html#syntax
-    // Claim: "When any other attribute defined using the CSS Value
-    // Definition Syntax is parsed, this is done by parsing the attribute's
-    // value according to the grammar given in attribute definition table."
-    // https://svgwg.org/svg2-draft/types.html#attribute-css-value
-    // Claim: "Keywords are identifiers and are interpreted ASCII
-    // case-insensitively (i.e., [a-z] and [A-Z] are equivalent)."
-    // https://drafts.csswg.org/css-values-4/#keywords
-    // (the transfer function type is parsed as CSS, so case variants,
-    // white space, comments and escapes are accepted; a function the check
-    // does not model is accepted as well)
-    #[test]
-    fn media_type_transfer_function_types_parse_as_css() {
-        accepts(
-            check_media_type,
-            &[
-                "Linear",
-                "GAMMA",
-                "Identity",
-                " table ",
-                "\ndiscrete\n",
-                "linear/**/",
-                "/* c */ gamma",
-                "\\6c inear",
-                "var(--t)",
-            ],
-        );
-        rejects(
-            check_media_type,
-            &[
-                "lineer",
-                "Lineer",
-                "linear gamma",
-                "linear,",
-                "'linear'",
-                "\"gamma\"",
-                "#linear",
-            ],
-        );
-    }
-
-    // Claim: "type = "identity | table | discrete | linear | gamma""
-    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomponenttransfer-type
-    // (a value without "/" cannot be a MIME type; the reason names the
-    // transfer function types too, since `type` on feFuncR/G/B/A reaches
-    // this check)
-    #[test]
-    fn media_type_reason_names_transfer_function_types() {
-        for value in ["lineer", "matrix", "text"] {
-            let reason = check_media_type(value).unwrap_or_default();
-            assert!(
-                reason.contains("identity, table, discrete, linear, gamma"),
-                "{value:?}: {reason:?}"
-            );
-        }
-        accepts(check_media_type, &["linear", "text/html"]);
-        rejects(check_media_type, &["text/"]);
-        let reason = check_media_type("text/").unwrap_or_default();
-        assert!(!reason.contains("gamma"), "{reason:?}");
     }
 
     // ----- MediaQueryList (media on <style>) -----

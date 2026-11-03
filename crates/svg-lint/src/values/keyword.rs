@@ -476,7 +476,7 @@ impl Rule {
         match self {
             Self::One(keywords) => expected_one_of(keywords),
             Self::Several { keywords, max } => {
-                format!("expected one to {max} of {}", keywords.join(", "))
+                format!("expected up to {max} of {}", keywords.join(", "))
             }
             Self::FontWeight => {
                 "expected normal, bold, bolder, lighter or a number from 1 to 1000".to_owned()

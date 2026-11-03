@@ -34,7 +34,7 @@ pub fn check_length(value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::invalid_reason;
+    use crate::values::invalid_reason_for;
     use svg_data::AttributeValues;
 
     fn assert_length(valid: &[&str], invalid: &[&str]) {
@@ -59,14 +59,14 @@ mod tests {
         );
         for value in valid {
             assert_eq!(
-                invalid_reason(values, value),
+                invalid_reason_for(attr, values, value),
                 None,
                 "{attr}={value:?} on <{element}> must be valid"
             );
         }
         for value in invalid {
             assert!(
-                invalid_reason(values, value).is_some(),
+                invalid_reason_for(attr, values, value).is_some(),
                 "{attr}={value:?} on <{element}> must be invalid"
             );
         }
@@ -224,8 +224,6 @@ mod tests {
     // Claim: "A negative value for 'r' is invalid"
     // https://svgwg.org/svg2-draft/geometry.html#RProperty
     #[test]
-    #[ignore = "the Length check receives no attribute name, so it cannot tell r or fr from cx or \
-                x, which allow negatives"]
     fn negative_radius_is_invalid() {
         for (attr, element) in [
             ("r", "radialGradient"),
