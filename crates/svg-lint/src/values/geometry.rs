@@ -984,7 +984,7 @@ mod tests {
     // Claim: "In addition to the property-specific values listed in their
     // definitions, all properties defined in this specification also accept
     // the CSS-wide keywords as their property value."
-    // https://drafts.csswg.org/css-values-4/#common-keywords
+    // https://drafts.csswg.org/css-transforms-1/#css-values
     // Claim: "Like keywords, function names are ASCII case-insensitive."
     // https://drafts.csswg.org/css-values-4/#functional-notations
     // Claim: "Note that this allows CSS comments and escapes to be used in
@@ -1141,11 +1141,15 @@ mod tests {
 
     // Claim: "The <meetOrSlice> parameter is optional and, if provided, is
     // separated from the <align> value by one or more spaces"
-    // https://svgwg.org/svg2-draft/coords.html#DataTypeAlign
+    // https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
+    // (the paragraph has no id of its own; it follows the <align> list).
     // Claim: "When any other attribute defined using the CSS Value Definition
     // Syntax is parsed, this is done by parsing the attribute's value
     // according to the grammar given in attribute definition table."
     // https://svgwg.org/svg2-draft/types.html#attribute-css-value
+    // The second claim is what accepts `xMinYMin/**/slice`: the value is
+    // parsed as CSS, where a comment separates the two keywords, so the
+    // check does not insist on a space.
     #[test]
     fn preserve_aspect_ratio_separators() {
         assert_valid_pars(&[
@@ -1192,11 +1196,190 @@ mod tests {
         assert!(check_preserve_aspect_ratio("defer defer none", &svg11, MEET_OR_SLICE).is_some());
     }
 
-    // Claim: "Like keywords, function names are ASCII case-insensitive."
-    // https://drafts.csswg.org/css-values-4/#functional-notations
-    // Accept-only: arbitrary substitution functions are left to CSS.
+    // Claim: "When any other attribute defined using the CSS Value Definition
+    // Syntax is parsed, this is done by parsing the attribute's value
+    // according to the grammar given in attribute definition table."
+    // https://svgwg.org/svg2-draft/types.html#attribute-css-value
+    // preserveAspectRatio is not a presentation attribute, so it is never
+    // parsed as a property value: var() and the other substitution functions
+    // are not substituted and cannot match `<align> <meetOrSlice>?`.
     #[test]
-    fn preserve_aspect_ratio_unmodelled_constructs_are_accepted() {
-        assert_valid_pars(&["var(--par)", "xMidYMid var(--mode)", "VAR(--x)"]);
+    fn preserve_aspect_ratio_has_no_substitution_functions() {
+        assert_valid_pars(&["xMidYMid meet", "xMidYMid/**/meet", "none"]);
+        assert_invalid_pars(&[
+            "var(--par)",
+            "xMidYMid var(--mode)",
+            "VAR(--x)",
+            "env(--x)",
+            "attr(data-par)",
+            "inherit",
+        ]);
+    }
+
+    // Claim: "preserveAspectRatio <align> <meetOrSlice>?"
+    // https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
+    // Helper, not a spec claim: the diagnostic names what it found.
+    #[test]
+    fn preserve_aspect_ratio_messages() {
+        let Some(trailing) = par("xMidYMid meet !important") else {
+            panic!("a trailing token must be reported");
+        };
+        assert!(
+            !trailing.contains("unexpected an unexpected"),
+            "garbled message: {trailing}"
+        );
+        let Some(dimension) = par("xMidYMid 10px") else {
+            panic!("a dimension after the alignment must be reported");
+        };
+        assert!(dimension.contains("dimension"), "{dimension}");
+        let Some(percentage) = par("50%") else {
+            panic!("a percentage must be reported");
+        };
+        assert!(percentage.contains("percentage"), "{percentage}");
+        assert_valid_pars(&["xMidYMid meet"]);
+    }
+
+    // Claim: "transform-mix() is, itself, a <transform-function>."
+    // https://drafts.csswg.org/css-values-5/#transform-mix
+    // Claim: "transform-interpolate() is, itself, a <transform-function>."
+    // https://drafts.csswg.org/css-values-5/#transform-interpolate
+    // Claim: "These are attributes whose name matches (or is similar to) a
+    // given CSS property and whose value is parsed as a value of that
+    // property."
+    // https://svgwg.org/svg2-draft/styling.html#TermPresentationAttribute
+    // Their arguments are not modelled; the function token is required.
+    #[test]
+    fn values5_transform_functions() {
+        let valid = [
+            "transform-mix(rotate(10deg) 50%)",
+            "translate(1px) transform-mix(rotate(10deg) 50%, scale(2) 25%)",
+            "transform-interpolate(0.5, 0%: rotate(0deg), 100%: rotate(90deg))",
+            "TRANSFORM-MIX(rotate(10deg) 50%) rotate(1deg)",
+        ];
+        let invalid = [
+            "transform-mix (rotate(10deg) 50%)",
+            "transform-mix(rotate(10deg) 50%), scale(2)",
+            "transform-mix(rotate(10deg) 50%) bogus(1)",
+        ];
+        for attr in ["transform", "gradientTransform", "patternTransform"] {
+            let functions = catalog_functions(attr);
+            for value in valid {
+                assert_eq!(
+                    check_transform(value, functions),
+                    None,
+                    "{attr}={value:?} must be valid"
+                );
+            }
+            for value in invalid {
+                assert!(
+                    check_transform(value, functions).is_some(),
+                    "{attr}={value:?} must be invalid"
+                );
+            }
+        }
+    }
+
+    // Claim: "<transform-list> = <transform-function>+"
+    // https://drafts.csswg.org/css-transforms-1/#typedef-transform-list
+    // Claim: "transforms: transform | transform comma-wsp? transforms" with
+    // "<number-token> defined by the CSS Syntax module [CSS-SYNTAX-3]."
+    // https://drafts.csswg.org/css-transforms-1/#svg-syntax
+    // A comma between functions is legacy syntax only, and the legacy
+    // arguments are unitless numbers of the six SVG functions.
+    #[test]
+    fn commas_between_css_functions() {
+        assert_valid_transforms(&[
+            "translate(10px) rotate(45deg)",
+            "translate(10px)rotate(45deg)",
+            "translate(1px)/**/rotate(1deg)",
+            "translate(1,2), rotate(3)",
+            "translate(1 2),scale(2)",
+        ]);
+        assert_invalid_transforms(&[
+            "translate(10px), rotate(45deg)",
+            "rotate(1deg),scale(2)",
+            "translate(1px)  ,  translate(2px)",
+            "translateX(1),translateY(2)",
+            "skewX(1deg),skewY(2deg)",
+            "translate(1, 2), translateX(3)",
+        ]);
+    }
+
+    // Claim: "matrix: "matrix" wsp* "(" wsp* number comma-wsp? number
+    // comma-wsp? number comma-wsp? number comma-wsp? number comma-wsp? number
+    // wsp* ")""
+    // https://drafts.csswg.org/css-transforms-1/#svg-syntax
+    // Claim: "matrix() = matrix( <number>#{6} )"
+    // https://drafts.csswg.org/css-transforms-1/#funcdef-transform-matrix
+    // A list is in one grammar or the other: space-separated arguments are
+    // legacy only, units are CSS only.
+    #[test]
+    fn mixed_legacy_and_css_lists() {
+        assert_valid_transforms(&[
+            "translate(10px) matrix(1, 0, 0, 1, 0, 0)",
+            "translate(10) matrix(1 0 0 1 0 0)",
+            "rotate(45deg) translate(1, 2)",
+        ]);
+        assert_invalid_transforms(&[
+            "translate(10px) matrix(1 0 0 1 0 0)",
+            "matrix(1 0 0 1 0 0) translate(10px)",
+            "rotate(45deg) translate(1 2)",
+            "scale(50%) rotate(45 10 10)",
+        ]);
+    }
+
+    // Claim: "rotate: "rotate" wsp* "(" wsp* number ( comma-wsp? number
+    // comma-wsp? number )? wsp* ")""
+    // https://drafts.csswg.org/css-transforms-1/#svg-syntax
+    // Claim: "<eof-token> <)-token> Discard a token from input. Return
+    // function."
+    // https://drafts.csswg.org/css-syntax-3/#consume-function
+    // The legacy grammar needs the `)` and has no comments; only CSS parsing
+    // closes a function at the end of input or drops comments, and the CSS
+    // functions take comma-separated arguments.
+    #[test]
+    fn legacy_arguments_need_legacy_text() {
+        assert_valid_transforms(&[
+            "translate(10",
+            "rotate(45deg",
+            "translate(1, /**/ 2)",
+            "translate (10)",
+            "rotate(45, 10, 10)",
+        ]);
+        assert_invalid_transforms(&[
+            "rotate(45 10 10",
+            "translate(10 20",
+            "rotate(45 /*c*/ 10 10)",
+            "translate(1 /**/ 2)",
+            "translate/**/(10)",
+        ]);
+    }
+
+    // Claim: "translate: "translate" wsp* "(" wsp* number ( comma-wsp number
+    // )? wsp* ")"" and "transforms: transform | transform comma-wsp+
+    // transforms"
+    // https://www.w3.org/TR/SVG11/coords.html#TransformAttribute
+    // Claim: "<number-token> defined by the CSS Syntax module
+    // [CSS-SYNTAX-3]."
+    // https://drafts.csswg.org/css-transforms-1/#svg-syntax
+    // Only SVG 1.1 has numbers ending in a dot, and SVG 1.1 requires a
+    // separator between numbers and between functions.
+    #[test]
+    fn trailing_dot_numbers_need_svg11_separators() {
+        assert_valid_transforms(&[
+            "translate(1. 2)",
+            "translate(1.,2.)",
+            "translate(1.)  rotate(2)",
+            "translate(-10-20), scale(2)",
+            "translate(1.5.5)",
+            "scale(1.e2) rotate(3.)",
+        ]);
+        assert_invalid_transforms(&[
+            "translate(1..2)",
+            "translate(1.-2)",
+            "translate(1.)rotate(2)",
+            "translate(-10-20),,scale(2)",
+            "translate(1.e2.5)",
+        ]);
     }
 }
