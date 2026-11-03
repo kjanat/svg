@@ -566,8 +566,12 @@ mod tests {
     // "number::= fractional-constant exponent?"
     // "fractional-constant::= (digit* "." digit+) | digit+"
     // "exponent::= ("e" | "E") sign? digit+"
-    // "Authors and authoring tools must not use the disallowed number format."
     // https://svgwg.org/svg2-draft/paths.html#PathDataBNF
+    //
+    // The SVG 2 ban on a trailing decimal point ("Authors and authoring tools
+    // must not use the disallowed number format.") is not enforced here: the
+    // check is not told the profile, and SVG 1.1 allows it (see
+    // `claim_svg11_trailing_decimal_point`).
     #[test]
     fn claim_number_production() {
         assert_valid(
@@ -584,9 +588,6 @@ mod tests {
         assert_invalid(
             check_path_data,
             &[
-                "M23. 5",
-                "M10.,20",
-                "M 1 2.",
                 "M . 5",
                 "M 1e 5",
                 "M ++1 2",
@@ -594,6 +595,43 @@ mod tests {
                 "M 50% 2",
                 "M Infinity 2",
             ],
+        );
+    }
+
+    // "fractional-constant:
+    //     digit-sequence? "." digit-sequence
+    //     | digit-sequence ".""
+    // "floating-point-constant:
+    //     fractional-constant exponent?
+    //     | digit-sequence exponent"
+    // https://www.w3.org/TR/SVG11/paths.html#PathDataBNF
+    // 'animateMotion'.path = "<path-data>" "The motion path, expressed in the
+    //  same format and interpreted the same way as the 'd' attribute on the
+    //  'path' element."
+    // https://www.w3.org/TR/SVG11/animate.html#PathAttribute
+    //
+    // The catalog maps `path` to `PathData` under the SVG 1.1 profile too, and
+    // the check is not told the profile, so the SVG 1.1 number with a trailing
+    // decimal point must be accepted.
+    #[test]
+    fn claim_svg11_trailing_decimal_point() {
+        assert_valid(
+            check_path_data,
+            &[
+                "M23. 5",
+                "M10.,20",
+                "M 1 2.",
+                "M1.e5 2",
+                "M1.E-5 2.e+3",
+                "M1..5",
+                "M10. 20. L30. 40.",
+                "M0 0 A1. 1. 0. 0 1 5. 5.",
+                "M-1.-2.",
+            ],
+        );
+        assert_invalid(
+            check_path_data,
+            &["M . 5", "M1.. 5", "M 1.e 5", "M1.2.3.", "M +. 5", "M1..5."],
         );
     }
 
@@ -650,7 +688,9 @@ mod tests {
         );
     }
 
-    // animateMotion: "path | svg-path [EBNF]"
+    // animateMotion path, Value: "svg-path [EBNF]"
+    // "The motion path, expressed in the same format and interpreted the same
+    //  way as the 'd' geometric property for the 'path element' element."
     // https://w3c.github.io/svgwg/specs/animations/#AnimateMotionElementPathAttribute
     // textPath: "A path data string describing the path onto which the
     //  typographic characters will be rendered."
