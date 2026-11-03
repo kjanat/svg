@@ -263,10 +263,7 @@ mod tests {
             ("pointsAtY", "feSpotLight"),
             ("pointsAtZ", "feSpotLight"),
             ("limitingConeAngle", "feSpotLight"),
-            ("pathLength", "path"),
-            ("pathLength", "circle"),
             ("version", "svg"),
-            ("stroke-miterlimit", "path"),
         ];
         for (attr, element) in usages {
             assert_attr(
@@ -277,6 +274,21 @@ mod tests {
                 &["1px", "10%", "auto", "1 2", "1,2"],
             );
         }
+        // Negative values are invalid for these (see the next tests), so only
+        // non-negative values are asserted valid here.
+        for (attr, element) in [
+            ("pathLength", "path"),
+            ("pathLength", "circle"),
+            ("stroke-miterlimit", "path"),
+        ] {
+            assert_attr(
+                attr,
+                element,
+                is_number,
+                &["0", "1.5", "1e2", " 2 "],
+                &["1px", "10%", "auto", "1 2", "1,2"],
+            );
+        }
         assert_attr(
             "version",
             "svg",
@@ -284,6 +296,57 @@ mod tests {
             &["1.1", "1.0", "1.2"],
             &["1.1 Tiny", "SVG 1.1"],
         );
+    }
+
+    // Claim: "A negative value for 'stroke-miterlimit' is invalid and must be
+    // ignored."
+    // https://svgwg.org/svg2-draft/painting.html#StrokeMiterlimitProperty
+    // Claim: "A negative value is an error (see Error handling)."
+    // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
+    #[test]
+    #[ignore = "the Number check receives no attribute name, so it cannot tell pathLength or \
+                stroke-miterlimit from k1 or dx, which allow negatives"]
+    fn negative_miterlimit_and_path_length_are_invalid() {
+        for (attr, element) in [
+            ("pathLength", "path"),
+            ("pathLength", "circle"),
+            ("stroke-miterlimit", "path"),
+        ] {
+            assert_attr(attr, element, is_number, &["0", "4"], &["-3", "-0.5"]);
+        }
+    }
+
+    // Claim: "Let grammar be the grammar given in the attribute definition
+    // table's Value column. ... Return the result of parsing value with
+    // grammar."
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // Claim: "Value: <number>"
+    // https://svgwg.org/svg2-draft/painting.html#StrokeMiterlimitProperty
+    // Claim: "k1 = "<number>""
+    // https://drafts.fxtf.org/filter-effects-1/#element-attrdef-fecomposite-k1
+    // Claim: "pathLength <number>"
+    // https://svgwg.org/svg2-draft/paths.html#PathLengthAttribute
+    #[test]
+    #[ignore = "the Number check receives no attribute name, so it cannot tell these from the ARIA \
+                numbers, which may be empty"]
+    fn empty_number_is_invalid_outside_aria() {
+        for (attr, element) in [
+            ("stroke-miterlimit", "path"),
+            ("k1", "feComposite"),
+            ("pathLength", "path"),
+        ] {
+            assert_attr(attr, element, is_number, &["1"], &["", "  "]);
+        }
+    }
+
+    // Claim: "A string is a valid integer if it consists of one or more ASCII
+    // digits, optionally prefixed with a U+002D HYPHEN-MINUS character (-)."
+    // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-integer
+    #[test]
+    #[ignore = "the Integer check receives no attribute name, so it cannot tell tabindex from the \
+                ARIA integers, which may be empty"]
+    fn empty_tabindex_is_invalid() {
+        assert_attr("tabindex", "g", is_integer, &["0"], &["", " "]);
     }
 
     // Claim: "all properties accept the CSS-wide keywords, which represent

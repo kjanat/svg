@@ -970,9 +970,12 @@ mod tests {
     }
 
     // Claim: "[ <display-outside> || <display-inside> ] | <display-listitem> |
-    // <display-internal> | <display-box> | <display-legacy> | grid-lanes |
-    // inline-grid-lanes | <display-outside> || [ <display-inside> | math ]"
+    // <display-internal> | <display-box> | <display-legacy>"
     // https://drafts.csswg.org/css-display-4/#propdef-display
+    // Claim: "Name: display New values: grid-lanes | inline-grid-lanes"
+    // https://drafts.csswg.org/css-grid-3/#valdef-display-grid-lanes
+    // Claim: "Name: display New values: <display-outside> || [ <display-inside> | math ]"
+    // https://w3c.github.io/mathml-core/#new-display-math-value
     // Claim: "<display-listitem> = <display-outside>? && [ flow | flow-root ]? && list-item"
     // https://drafts.csswg.org/css-display-4/#typedef-display-listitem
     #[test]
@@ -1079,10 +1082,14 @@ mod tests {
         );
     }
 
+    // Claim: "For historical reasons, a font-stretch property exists which is
+    // a legacy name alias and functions in the identical way to the
+    // font-width."
+    // https://drafts.csswg.org/css-fonts-4/#propdef-font-stretch
     // Claim: "normal | <percentage [0,∞]> | ultra-condensed | extra-condensed |
     // condensed | semi-condensed | semi-expanded | expanded | extra-expanded |
     // ultra-expanded"
-    // https://drafts.csswg.org/css-fonts-4/#propdef-font-stretch
+    // https://drafts.csswg.org/css-fonts-4/#propdef-font-width
     #[test]
     fn font_stretch_grammar() {
         assert_attr(
@@ -1127,6 +1134,48 @@ mod tests {
         );
     }
 
+    // Claim: "normal | italic | left | right | oblique <angle [-90deg,90deg]>?"
+    // https://drafts.csswg.org/css-fonts-4/#propdef-font-style
+    // Claim: "Fractional and negative values are accepted; however, values less
+    // than -90deg or values greater than 90deg are invalid."
+    // https://drafts.csswg.org/css-fonts-4/#valdef-font-style-oblique-angle--90deg-90deg
+    // Claim: "If the value is outside the allowed range, then unless otherwise
+    // specified, the declaration is invalid and must be ignored."
+    // https://drafts.csswg.org/css-values-4/#numeric-ranges
+    // Claim: "numeric functions returning out-of-range values never cause a
+    // declaration to become invalid. Instead, the value of a numeric function
+    // is clamped to the range allowed in the context it is used at computed
+    // value time if possible, and at used value time otherwise."
+    // https://drafts.csswg.org/css-values-4/#functional-numeric
+    // A bare <number> (the presentation attribute's stand-in for <angle>) has
+    // no range in the substituted grammar, so it is accepted at any value.
+    #[test]
+    fn font_style_oblique_angle_range() {
+        assert_attr(
+            "font-style",
+            &[
+                "oblique 90deg",
+                "oblique -90deg",
+                "oblique 90DEG",
+                "oblique 100grad",
+                "oblique -100grad",
+                "oblique 0.25turn",
+                "oblique 1.5rad",
+                "oblique calc(91deg)",
+                "oblique 91",
+            ],
+            &[
+                "oblique 91deg",
+                "oblique -91deg",
+                "oblique 90.5deg",
+                "oblique 101grad",
+                "oblique 1.6rad",
+                "oblique 0.26turn",
+                "oblique -1turn",
+            ],
+        );
+    }
+
     // Claim: "auto | 0deg | 90deg | 0 | 90"
     // https://drafts.csswg.org/css-writing-modes-4/#propdef-glyph-orientation-vertical
     // Claim: "the obsolete SVG glyph-orientation-vertical property, which was
@@ -1140,6 +1189,41 @@ mod tests {
             &["auto", "0", "90", "0deg", "90deg", "90DEG", "180", "270deg"],
             &["upright", "auto 90", "90px", "90%"],
         );
+    }
+
+    // Claim: "auto | 0deg | 90deg | 0 | 90"
+    // https://drafts.csswg.org/css-writing-modes-4/#propdef-glyph-orientation-vertical
+    // Claim: "UAs must ignore and treat as invalid any other values for the
+    // glyph-orientation-vertical property"
+    // https://drafts.csswg.org/css-writing-modes-4/#propdef-glyph-orientation-vertical
+    // Claim: "the obsolete SVG glyph-orientation-vertical property, which was
+    // defined to accept an auto keyword as well as <angle> and <integer>
+    // values representing multiples of 90°."
+    // https://drafts.csswg.org/css-writing-modes-4/#propdef-glyph-orientation-vertical
+    // Claim: "Note: The 180deg and 270deg values, the radian and gradian
+    // values, and the glyph-orientation-horizontal property are not mapped"
+    // https://drafts.csswg.org/css-writing-modes-4/#propdef-glyph-orientation-vertical
+    #[test]
+    fn glyph_orientation_vertical_is_a_multiple_of_90_degrees() {
+        let valid = [
+            "0",
+            "90",
+            "180",
+            "270",
+            "-90deg",
+            "360deg",
+            "90.0",
+            "100grad",
+            "0.25turn",
+            "3.14159rad",
+            "1.5708rad",
+            "0rad",
+        ];
+        let invalid = [
+            "45deg", "1rad", "45", "100deg", "89deg", "50grad", "0.1turn",
+        ];
+        assert_attr("glyph-orientation-vertical", &valid, &invalid);
+        assert_usage("glyph-orientation-vertical", None, SVG11, &valid, &invalid);
     }
 
     // Claim: "Using the CSS Value Definition Syntax [css-values]. This is the

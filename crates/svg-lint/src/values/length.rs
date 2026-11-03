@@ -185,10 +185,8 @@ mod tests {
         for (attr, element) in [
             ("cx", "radialGradient"),
             ("cy", "radialGradient"),
-            ("r", "radialGradient"),
             ("fx", "radialGradient"),
             ("fy", "radialGradient"),
-            ("fr", "radialGradient"),
             ("x1", "linearGradient"),
             ("y1", "linearGradient"),
             ("x2", "linearGradient"),
@@ -208,6 +206,33 @@ mod tests {
                 &["0", "0.5", "50%", "10px", "-2"],
                 &["center", "50% 50%", "", "1,"],
             );
+        }
+        // Negative values are invalid for r and fr (see the next test).
+        for attr in ["r", "fr"] {
+            assert_attr(
+                attr,
+                "radialGradient",
+                &["0", "0.5", "50%", "10px"],
+                &["center", "50% 50%", "", "1,"],
+            );
+        }
+    }
+
+    // Claim: "A negative value is an error (see Error processing)."
+    // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementRAttribute
+    // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFRAttribute
+    // Claim: "A negative value for 'r' is invalid"
+    // https://svgwg.org/svg2-draft/geometry.html#RProperty
+    #[test]
+    #[ignore = "the Length check receives no attribute name, so it cannot tell r or fr from cx or \
+                x, which allow negatives"]
+    fn negative_radius_is_invalid() {
+        for (attr, element) in [
+            ("r", "radialGradient"),
+            ("fr", "radialGradient"),
+            ("r", "circle"),
+        ] {
+            assert_attr(attr, element, &["0", "5"], &["-2", "-5%", "-1px"]);
         }
     }
 }
