@@ -173,7 +173,8 @@ fn is_digits(subtag: &str) -> bool {
 /// alphanumerics.
 fn is_langtag(subtags: &[&str]) -> bool {
     let at = |index: usize| subtags.get(index).copied();
-    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA (comments
+    // dropped; see the claims in the tests)
     let Some(language) = at(0).filter(|language| language.len() >= 2 && is_alpha(language)) else {
         return false;
     };
@@ -570,11 +571,18 @@ mod tests {
         );
     }
 
+    // Claims quote the RFC 5646 ABNF (Figure 1) verbatim, ABNF ";" comments
+    // included, with line breaks folded to single spaces.
     // Claim: "langtag = language ["-" script] ["-" region] *("-" variant)
     // *("-" extension) ["-" privateuse]"
-    // Claim: "language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA"
-    // Claim: "extlang = 3ALPHA *2("-" 3ALPHA)"
-    // Claim: "variant = 5*8alphanum / (DIGIT 3alphanum)"
+    // Claim: "language = 2*3ALPHA ; shortest ISO 639 code ["-" extlang] ;
+    // sometimes followed by ; extended language subtags / 4ALPHA ; or reserved
+    // for future use / 5*8ALPHA ; or registered language subtag"
+    // Claim: "extlang = 3ALPHA ; selected ISO 639 codes *2("-" 3ALPHA) ;
+    // permanently reserved"
+    // Claim: "script = 4ALPHA ; ISO 15924 code"
+    // Claim: "region = 2ALPHA ; ISO 3166-1 code / 3DIGIT ; UN M.49 code"
+    // Claim: "variant = 5*8alphanum ; registered variants / (DIGIT 3alphanum)"
     // Claim: "extension = singleton 1*("-" (2*8alphanum))"
     // Claim: "privateuse = "x" 1*("-" (1*8alphanum))"
     // https://www.rfc-editor.org/rfc/rfc5646#section-2.1
@@ -627,6 +635,42 @@ mod tests {
         );
     }
 
+    // Claim: "region = 2ALPHA ; ISO 3166-1 code / 3DIGIT ; UN M.49 code"
+    // Claim: "variant = 5*8alphanum ; registered variants / (DIGIT 3alphanum)"
+    // https://www.rfc-editor.org/rfc/rfc5646#section-2.1
+    #[test]
+    fn region_is_two_letters_or_three_digits() {
+        accepts(
+            check_comma_token_list,
+            &["en-US", "es-419", "en-001", "de-1996", "zh-Hant-TW"],
+        );
+        rejects(
+            check_comma_token_list,
+            &["en-12", "en-1a", "en-US-12", "en-Latn-12", "en-U5"],
+        );
+    }
+
+    // Claim: "singleton = DIGIT ; 0 - 9 / %x41-57 ; A - W / %x59-5A ; Y - Z /
+    // %x61-77 ; a - w / %x79-7A ; y - z"
+    // Claim (comments before singleton): "; Single alphanumerics ; "x"
+    // reserved for private use"
+    // https://www.rfc-editor.org/rfc/rfc5646#section-2.1
+    #[test]
+    fn singleton_is_any_alphanumeric_but_x() {
+        accepts(
+            check_comma_token_list,
+            &[
+                "en-0-abc",
+                "en-9-ab",
+                "en-A-ab",
+                "en-w-ab",
+                "en-Y-ab",
+                "en-z-ab-x-p",
+            ],
+        );
+        rejects(check_comma_token_list, &["en-x-", "en-x", "en-_-ab"]);
+    }
+
     // Claim: "At all times, language tags and their subtags, including private
     // use and extensions, are to be treated as case insensitive"
     // https://www.rfc-editor.org/rfc/rfc5646#section-2.1.1
@@ -638,12 +682,22 @@ mod tests {
         );
     }
 
-    // Claim: "irregular = "en-GB-oed" / "i-ami" / "i-bnn" / "i-default" /
-    // "i-enochian" / "i-hak" / "i-klingon" / "i-lux" / "i-mingo" / "i-navajo"
-    // / "i-pwn" / "i-tao" / "i-tay" / "i-tsu" / "sgn-BE-FR" / "sgn-BE-NL" /
-    // "sgn-CH-DE""
-    // Claim: "regular = "art-lojban" / "cel-gaulish" / "no-bok" / "no-nyn" /
-    // "zh-guoyu" / "zh-hakka" / "zh-min" / "zh-min-nan" / "zh-xiang""
+    // Claim: "grandfathered = irregular ; non-redundant tags registered /
+    // regular ; during the RFC 3066 era"
+    // Claim (the RFC's page break between "i-mingo" and "i-navajo" dropped):
+    // "irregular = "en-GB-oed" ; irregular tags do not match / "i-ami" ; the
+    // 'langtag' production and / "i-bnn" ; would not otherwise be /
+    // "i-default" ; considered 'well-formed' / "i-enochian" ; These tags are
+    // all valid, / "i-hak" ; but most are deprecated / "i-klingon" ; in favor
+    // of more modern / "i-lux" ; subtags or subtag / "i-mingo" ; combination
+    // / "i-navajo" / "i-pwn" / "i-tao" / "i-tay" / "i-tsu" / "sgn-BE-FR" /
+    // "sgn-BE-NL" / "sgn-CH-DE""
+    // Claim: "regular = "art-lojban" ; these tags match the 'langtag' /
+    // "cel-gaulish" ; production, but their subtags / "no-bok" ; are not
+    // extended language / "no-nyn" ; or variant subtags: their meaning /
+    // "zh-guoyu" ; is defined by their registration / "zh-hakka" ; and all of
+    // these are deprecated / "zh-min" ; in favor of a more modern /
+    // "zh-min-nan" ; subtag or sequence of subtags / "zh-xiang""
     // https://www.rfc-editor.org/rfc/rfc5646#section-2.1
     #[test]
     fn grandfathered_language_tags() {
@@ -723,6 +777,23 @@ mod tests {
                 "https://example.com/ok https://:80/",
                 "https://[::1/",
             ],
+        );
+    }
+
+    // A scheme-relative ping token takes the document's scheme, but its
+    // authority fails to parse whatever that scheme is.
+    // Claim (authority state): "If atSignSeen is true and buffer is the empty
+    // string, host-missing validation error, return failure."
+    // https://url.spec.whatwg.org/#authority-state
+    // Claim (host parser): "If input does not end with U+005D (]),
+    // IPv6-unclosed validation error, return failure."
+    // https://url.spec.whatwg.org/#concept-host-parser
+    #[test]
+    fn scheme_relative_ping_tokens_must_parse() {
+        accepts(check_url_token_list, &["//cdn.example/p", "///p"]);
+        rejects(
+            check_url_token_list,
+            &["//:80/p", "//[::1/x", "//user@/x", "/ok //:80/p"],
         );
     }
 

@@ -436,8 +436,15 @@ mod tests {
 
     // Claim: "An invalid URL does not make an SVG document non-conforming."
     // https://svgwg.org/svg2-draft/linking.html#linkRefAttrs
-    // Only a parse *failure* is reported; a value that parses with validation
-    // errors (spaces, backslashes, unescaped code points) is accepted.
+    // Only a parse *failure*, whose result the next claim defines, is
+    // reported; a value that parses with validation errors (spaces,
+    // backslashes, unescaped code points) is accepted.
+    // Claim: "When an attribute fails to parse according to the specified CSS
+    // Value Definition Syntax, ABNF or EBNF grammar, or if parsing according to
+    // the URL Standard or by the prose describing how to parse the attribute
+    // indicates failure, the attribute is assumed to have been specified as
+    // the given initial value."
+    // https://svgwg.org/svg2-draft/types.html#attribute-url
     // Claim (path state): "If c is not a URL code point and not U+0025 (%),
     // invalid-URL-unit validation error."
     // https://url.spec.whatwg.org/#path-state
@@ -714,14 +721,90 @@ mod tests {
         );
     }
 
+    // A scheme-relative value reaches an authority (or, against a "file"
+    // base, the file host state) whatever the document's URL is, unless that
+    // URL has an opaque path, which fails anyway.
+    // Claim (no scheme state): "If base is null, or base has an opaque path
+    // and c is not U+0023 (#), missing-scheme-non-relative-URL validation
+    // error, return failure."
+    // https://url.spec.whatwg.org/#no-scheme-state
+    // Claim (relative slash state): "If url is special and c is U+002F (/) or
+    // U+005C (\), then: [...] Set state to special authority ignore slashes
+    // state." Claim: "Otherwise, if c is U+002F (/), then set state to
+    // authority state."
+    // https://url.spec.whatwg.org/#relative-slash-state
+    // Claim (file host state): "Let host be the result of host parsing buffer
+    // with url is not special." Claim: "If host is failure, then return
+    // failure."
+    // https://url.spec.whatwg.org/#file-host-state
+    // Claim (authority state): "If atSignSeen is true and buffer is the empty
+    // string, host-missing validation error, return failure."
+    // https://url.spec.whatwg.org/#authority-state
+    // Claim (host parser): "If input does not end with U+005D (]),
+    // IPv6-unclosed validation error, return failure."
+    // https://url.spec.whatwg.org/#concept-host-parser
+    #[test]
+    fn scheme_relative_authority_fails_whatever_the_base() {
+        accepts(
+            check_url,
+            &[
+                "//cdn.example.com/x.svg",
+                "//host:8080/p",
+                "///x",
+                "///:80/x",
+                "//C:/x",
+                "//C|/x",
+                "//[::1]/x",
+                "//exa mple.com/",
+                "\\\\:80/x",
+            ],
+        );
+        rejects(
+            check_url,
+            &[
+                "//:80/p",
+                "//[::1/x",
+                "//user@/x",
+                "//host:99999/",
+                "//[g::]/",
+            ],
+        );
+    }
+
+    // Claim: "When an attribute fails to parse according to the specified CSS
+    // Value Definition Syntax, ABNF or EBNF grammar, or if parsing according to
+    // the URL Standard or by the prose describing how to parse the attribute
+    // indicates failure, the attribute is assumed to have been specified as
+    // the given initial value."
+    // https://svgwg.org/svg2-draft/types.html#attribute-url
+    // A parse failure is reported for what it does (the reference is dropped),
+    // not as making the document non-conforming.
+    #[test]
+    fn href_parse_failure_falls_back_to_the_initial_value() {
+        let reason = check_url("http://:80/");
+        assert!(
+            reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("initial value")),
+            "{reason:?} says the attribute falls back to its initial value"
+        );
+        assert_eq!(check_url("http://example.com/"), None);
+    }
+
     // Claim (URL reference): "An URL reference is an Internationalized
     // Resource Identifier, as defined in Internationalized Resource
     // Identifiers [rfc3987]."
     // https://svgwg.org/svg2-draft/linking.html#TermURLReference
-    // The URL parser takes any scalar value string, so an IRI is checked by
-    // the same parse.
+    // Claim: "ihost          = IP-literal / IPv4address / ireg-name"
+    // Claim: "ireg-name      = *( iunreserved / pct-encoded / sub-delims )"
+    // https://www.rfc-editor.org/rfc/rfc3987#section-2.2
+    // Claim: "port           = *DIGIT"
+    // Claim: "IPvFuture      = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )"
+    // https://www.rfc-editor.org/rfc/rfc3987#section-2.2
+    // An IRI is checked against the RFC 3987 grammar, not the URL parser:
+    // values the URL parser fails on can still be well-formed IRIs.
     #[test]
-    fn iri_permits_non_ascii_and_fails_like_a_url() {
+    fn iri_is_not_held_to_the_url_parser() {
         accepts(
             check_iri,
             &[
@@ -729,10 +812,70 @@ mod tests {
                 "画像.png",
                 "#ünï",
                 "",
-                "a b",
+                "http://",
+                "http://[v1.x]/",
+                "http://[V1F.a:b!$]/",
+                "http://example.com:99999/",
+                "http://999.999.999.999/",
+                "http://1.2.3.4.5/",
+                "http://08/",
+                "http://a%25b/",
+                "http://a@b@example.com/",
+                "//host:/x",
             ],
         );
-        rejects(check_iri, &["http://", "http://exa mple/", "http://[::1/"]);
+    }
+
+    // Claim: "The value of the href attribute is a [Legacy extended IRIs]
+    // (LEIRI)."
+    // https://www.w3.org/TR/xlink11/#link-locators
+    // The IRI-typed attributes are SVG 1.1's XLink ones, whose LEIRIs also
+    // allow space, "<", ">", '"', "{", "}", "|", "\", "^", "`" and controls,
+    // so only the structure of the authority is checked.
+    #[test]
+    fn iri_allows_leiri_characters() {
+        accepts(
+            check_iri,
+            &["a b", "http://exa mple/", "http://a{b}/<c>", "http://a\\b/"],
+        );
+    }
+
+    // Claim: "iauthority     = [ iuserinfo "@" ] ihost [ ":" port ]"
+    // Claim: "irelative-part = "//" iauthority ipath-abempty"
+    // https://www.rfc-editor.org/rfc/rfc3987#section-2.2
+    // Claim: "IP-literal     = "[" ( IPv6address / IPvFuture  ) "]""
+    // Claim: "port           = *DIGIT"
+    // https://www.rfc-editor.org/rfc/rfc3987#section-2.2
+    #[test]
+    fn iri_authority_has_a_well_formed_host_and_port() {
+        accepts(
+            check_iri,
+            &[
+                "http://[::1]/",
+                "http://[2001:db8::1]:8080/p",
+                "//[::ffff:1.2.3.4]",
+                "foo://host:1234",
+            ],
+        );
+        rejects(
+            check_iri,
+            &[
+                "http://[::1/",
+                "//[::1/x",
+                "http://[g::]/",
+                "http://[1::2::3]/",
+                "http://[v.x]/",
+                "http://[vg.x]/",
+                "http://[v1.]/",
+                "http://[v1x]/",
+                "http://[::1]x/",
+                "http://[::1]:8o/",
+                "http://a]b/",
+                "http://a[b/",
+                "http://host:8o/",
+                "//host:x/",
+            ],
+        );
     }
 
     #[test]
