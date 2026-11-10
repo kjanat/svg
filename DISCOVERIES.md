@@ -138,3 +138,44 @@
 - Lifecycle declaration pages are read in name order (as for dated editions);
   the first of two agreeing declarations is recorded, so manifest order would
   change the recorded source (`XLinkRefAttrs` vs `types.html`).
+
+## svg-lint Value Checks
+
+- Typed attribute rules in tree-sitter-svg reject invalid values outright, so
+  the value lint never sees them: `id="a b"`, `preserveAspectRatio="xMidYMid
+  crop"` and `x="1 two"` parse as `ERROR` nodes. Recovery can spill out of the
+  attribute (`<text x="1 two">` reports an unknown `<two>` element). Only values
+  the grammar accepts structurally reach `values::invalid_reason_for`.
+- Some typed attributes wrap the node that carries the `value` field:
+  `animate_motion_attribute` contains a `d_attribute`. Read the value field one
+  level down, or every `<animateMotion>` attribute goes unchecked.
+- The catalog's `d` value space is the `d` property grammar `none | <string>`,
+  but the presentation attribute holds bare path data (paths.bs #TheDProperty).
+  `values::invalid_reason_for` routes `d` to the path data check.
+- The catalog keys the transfer function attributes (`type`, `slope`,
+  `intercept`, `amplitude`, `exponent`, `offset`) on `feComponentTransfer` (from
+  the Filter Effects anchor ids) instead of on `feFuncR/G/B/A`.
+  `values::values_for` maps the children to that key until the regen fixes it.
+- The catalog gives `path` no `<stop>` bearer (mesh gradients were deferred),
+  yet the svgwg example images still use `<stop path="c ...">`. Value checks run
+  only where the attribute's applicability includes the element.
+- `AttributeValues::Boolean` covers both HTML boolean attributes (`async`,
+  `defer`: empty or the attribute name, never `true`/`false`) and ARIA
+  `true`/`false` states, and ARIA allows `""` for every non-required state.
+  Checks that share a kind across HTML, ARIA and SVG accept the union and leave
+  per-attribute rules to `values/constraints.rs`.
+- Catalog enum lists for presentation attributes are narrower than the CSS
+  grammars (`display` lacks `flex`, `grid`, `contents`, ...). The keyword check
+  must not treat the catalog list as the whole value space for a CSS property.
+- `rules/mod.rs` skips `xml:*` attributes (except `xml:space`) before the value
+  lint, so the `xml:lang` language tag check never runs.
+- CSS Cascade 5 adds a sixth CSS-wide keyword, `revert-rule`; CSS Values 5 adds
+  math functions (`progress()`, `random()`, `calc-mix()`) and `<whole-value>`
+  notations (`first-valid()`, `cycle()`) that every property accepts. SVG 2
+  `wsp` includes U+000C, unlike XML `S`.
+- A stale or truncated `svg-data` build output (here after a container restart
+  mid-build) makes every element unknown, `<svg>` included, and fails about 150
+  svg-lint tests at once. `touch crates/svg-data/build.rs` regenerates it.
+- Worktrees sharing one `CARGO_TARGET_DIR` overwrite each other's
+  `target/debug/svg-lint`; copy the binary out right after building before a
+  corpus sweep.

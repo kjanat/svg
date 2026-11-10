@@ -15,6 +15,7 @@ directives, and reports byte-accurate diagnostics for the LSP.
 | Diagnostic model             | `src/types.rs`              | Codes, severity, payload                        |
 | Suppression regression tests | `src/lib.rs`                | Semantic regression suite                       |
 | Namespace resolution         | `src/namespaces.rs`         | Scope folding; `resolves_to_svg_namespace`      |
+| Attribute value checks       | `src/values/`               | One module per value kind; `syntax/` is shared  |
 
 ## CONVENTIONS
 
@@ -33,6 +34,10 @@ directives, and reports byte-accurate diagnostics for the LSP.
   the scope folding in `src/rules/mod.rs`.
 - Messages and codes are user-facing contract; LSP and integration tests depend
   on them.
+
+- Value checks return `Some(reason)` only for values the spec makes invalid.
+  Anything a check does not model is accepted. Tests carry the quoted spec
+  claim and URL above them.
 
 ## ANTI-PATTERNS
 
