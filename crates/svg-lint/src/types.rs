@@ -192,6 +192,8 @@ pub enum DiagnosticCode {
     DuplicateId,
     /// Reference target such as `url(#id)` is missing a definition.
     MissingReferenceDefinition,
+    /// Attribute value outside the value space the spec defines for it.
+    InvalidAttributeValue,
     /// A tracked browser ships a partial implementation of this feature.
     /// Shared across elements and attributes — the element/attribute
     /// distinction isn't a meaningful axis for this advisory signal.
@@ -221,6 +223,7 @@ impl DiagnosticCode {
         Self::UnknownAttribute,
         Self::DuplicateId,
         Self::MissingReferenceDefinition,
+        Self::InvalidAttributeValue,
         Self::PartialImplementation,
         Self::PrefixRequired,
         Self::BehindFlag,
@@ -250,6 +253,7 @@ impl DiagnosticCode {
             Self::UnknownAttribute => "UnknownAttribute",
             Self::DuplicateId => "DuplicateId",
             Self::MissingReferenceDefinition => "MissingReferenceDefinition",
+            Self::InvalidAttributeValue => "InvalidAttributeValue",
             Self::PartialImplementation => "PartialImplementation",
             Self::PrefixRequired => "PrefixRequired",
             Self::BehindFlag => "BehindFlag",
@@ -276,6 +280,7 @@ impl FromStr for DiagnosticCode {
             "UnknownAttribute" => Ok(Self::UnknownAttribute),
             "DuplicateId" => Ok(Self::DuplicateId),
             "MissingReferenceDefinition" => Ok(Self::MissingReferenceDefinition),
+            "InvalidAttributeValue" => Ok(Self::InvalidAttributeValue),
             "PartialImplementation" => Ok(Self::PartialImplementation),
             "PrefixRequired" => Ok(Self::PrefixRequired),
             "BehindFlag" => Ok(Self::BehindFlag),

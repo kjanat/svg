@@ -15,6 +15,7 @@ mod namespaces;
 mod rules;
 /// Public diagnostic data structures returned by the linter.
 pub mod types;
+mod values;
 mod version;
 
 pub use namespaces::{resolves_to_svg_namespace, tag_chain_resolves_to_svg_namespace};

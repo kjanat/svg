@@ -19,6 +19,7 @@ usage, and ID uniqueness against the SVG spec.
 | `ExperimentalElement`        | Hint     | Element marked experimental                       |
 | `ExperimentalAttribute`      | Hint     | Attribute marked experimental                     |
 | `MissingReferenceDefinition` | Warning  | `url(#id)` target has no matching definition      |
+| `InvalidAttributeValue`      | Warning  | Value outside the attribute's spec value space    |
 | `UnusedSuppression`          | Warning  | Suppression comment did not suppress anything     |
 
 ## Install

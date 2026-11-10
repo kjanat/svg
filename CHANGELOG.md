@@ -18,6 +18,13 @@ When bumping the workspace version after a catalog refresh:
 
 ### Added
 
+- Report attribute values outside their spec value space as
+  `InvalidAttributeValue` warnings in `svg-lint` (and so in the language
+  server). Every catalog value kind has a check, from keywords, numbers,
+  lengths, colors, paint, transforms and path data to CSS value grammars,
+  language tags, media types, media queries and `style` declarations. Each
+  check is tested against quoted spec claims, and anything a check does not
+  model is accepted rather than reported.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
