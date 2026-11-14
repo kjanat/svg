@@ -8,7 +8,7 @@ use url::Url;
 
 use crate::{
     clipboard::svg_data_uri,
-    compat::{CompatOverride, Outcome},
+    compat::CompatOverride,
     hover_settings::{BrowserDetail, HoverSettings, Section, browser_label},
     positions::byte_offset_for_row_col,
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
@@ -53,6 +53,45 @@ pub fn format_custom_property_hover(
     )
 }
 
+/// Length of the longest run of backticks in `text`.
+fn longest_backtick_run(text: &str) -> usize {
+    let mut longest = 0;
+    let mut run = 0;
+    for byte in text.bytes() {
+        if byte == b'`' {
+            run += 1;
+            longest = longest.max(run);
+        } else {
+            run = 0;
+        }
+    }
+    longest
+}
+
+/// Make a link label safe to write between brackets.
+///
+/// A path is prose to Markdown, not a name: a bracket ends the label early
+/// and a paired `*` or `_` turns `theme*dark*.css` into `themedark.css`.
+/// Backslash-escaping every ASCII punctuation character is always legal and
+/// always renders the character itself, which is all a filename needs; the
+/// plain-text path unwraps the same escapes when it copies a label.
+fn escape_link_label(label: &str) -> String {
+    escape_metadata(label)
+}
+
+/// Make a link destination safe to write between parentheses.
+///
+/// Parentheses are legal in a path and in a URI, and an unpaired one closes
+/// the destination early — for a Markdown client as much as a plain-text one,
+/// which is why this belongs here rather than in the conversion.
+fn escape_link_target(target: &str) -> String {
+    if target.contains(['(', ')']) {
+        target.replace('(', "%28").replace(')', "%29")
+    } else {
+        target.to_owned()
+    }
+}
+
 fn format_definition_hover(
     definitions: impl Iterator<Item = (String, HoverSourceLink)>,
     fallback_label: &str,
@@ -64,14 +103,20 @@ fn format_definition_hover(
             if trimmed.is_empty() {
                 let _ = write!(section, "`{fallback_label}`");
             } else {
-                section.push_str("```css\n");
+                // The snippet is CSS the user wrote, and a comment in it may
+                // contain a run of backticks. A fence has to be longer than
+                // anything it wraps or the preview ends early, in any client.
+                let fence = "`".repeat(longest_backtick_run(trimmed).max(2) + 1);
+                section.push_str(&fence);
+                section.push_str("css\n");
                 section.push_str(trimmed);
-                section.push_str("\n```");
+                section.push('\n');
+                section.push_str(&fence);
             }
             section.push_str("\nDefined in [");
-            section.push_str(&source.label);
+            section.push_str(&escape_link_label(&source.label));
             section.push_str("](");
-            section.push_str(&source.target);
+            section.push_str(&escape_link_target(&source.target));
             section.push(')');
             section
         })
@@ -324,11 +369,80 @@ impl CompatMarkdownBuilder {
 /// Build the `[MDN Reference](…) · [Spec](…)` link list. Keeps both call
 /// sites from duplicating the tiny `spec_url` fallback.
 fn hover_link_list(mdn_url: &str, spec_url: Option<&str>) -> Vec<String> {
-    let mut links = vec![format!("[MDN Reference]({mdn_url})")];
-    if let Some(spec_url) = spec_url {
+    // A link with an empty destination is not a link. Most attributes carry no
+    // MDN page, and `[MDN Reference]()` was written for every one of them.
+    let mut links = Vec::new();
+    if !mdn_url.is_empty() {
+        links.push(format!("[MDN Reference]({mdn_url})"));
+    }
+    if let Some(spec_url) = spec_url.filter(|url| !url.is_empty()) {
         links.push(format!("[Spec]({spec_url})"));
     }
     links
+}
+
+/// Render an element's content model as one line, in the shape the attribute
+/// hover uses for a value grammar.
+///
+/// The catalog has carried `content_model` since the elements were ingested,
+/// but only `completion.rs` ever read it, so an element hover said nothing
+/// about what may go inside the element.
+fn content_model_line(el: &svg_data::ElementDef, profile: SpecSnapshotId) -> Option<String> {
+    // The catalog's model is the union across editions. Completion already
+    // asks `allowed_children_with_profile` for the ones this profile has, and
+    // the hover must not name a child the same document would then reject:
+    // `<filter>` has no `feDropShadow` in SVG 1.1.
+    let allowed = || {
+        svg_data::allowed_children_with_profile(profile, el.name)
+            .iter()
+            .map(|child| format!("`{}`", child.element.name))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    };
+    let body = match &el.content_model {
+        svg_data::ContentModel::Children { categories, .. } => {
+            let mut parts = categories
+                .iter()
+                .map(|category| category_label(*category).to_owned())
+                .collect::<Vec<_>>();
+            let named = allowed();
+            if !named.is_empty() {
+                parts.push(named);
+            }
+            if parts.is_empty() {
+                return None;
+            }
+            parts.join(" | ")
+        }
+        svg_data::ContentModel::ChildrenSet(_) => {
+            let named = allowed();
+            if named.is_empty() {
+                "empty".to_owned()
+            } else {
+                named
+            }
+        }
+        svg_data::ContentModel::Void => "empty".to_owned(),
+        svg_data::ContentModel::AnySvg => "any SVG element".to_owned(),
+        svg_data::ContentModel::Foreign => "foreign namespace".to_owned(),
+        svg_data::ContentModel::Text => "character data".to_owned(),
+    };
+    Some(format!("Children: {body}"))
+}
+
+const fn category_label(category: svg_data::ElementCategory) -> &'static str {
+    match category {
+        svg_data::ElementCategory::Animation => "animation",
+        svg_data::ElementCategory::Descriptive => "descriptive",
+        svg_data::ElementCategory::Shape => "shape",
+        svg_data::ElementCategory::Structural => "structural",
+        svg_data::ElementCategory::PaintServer => "paint server",
+        svg_data::ElementCategory::Gradient => "gradient",
+        svg_data::ElementCategory::Container => "container",
+        svg_data::ElementCategory::FilterPrimitive => "filter primitive",
+        svg_data::ElementCategory::LightSource => "light source",
+        svg_data::ElementCategory::TextContentChild => "text content child",
+    }
 }
 
 /// Render the attribute value-constraint block as zero, one, or two lines
@@ -389,7 +503,9 @@ fn value_constraints_lines(values: &svg_data::AttributeValues) -> Vec<String> {
                 lines.push(format!("Keywords: `{}`", keywords.join("` | `")));
             }
             let types = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Type);
-            if !types.is_empty() {
+            // A grammar that is a single type reference lists that same type,
+            // so `<number-optional-number>` was printed twice in a row.
+            if !types.is_empty() && types.as_slice() != [grammar.to_owned()] {
                 lines.push(format!("Types: `{}`", types.join("` | `")));
             }
             let functions = css_graph_node_text(graph, svg_data::CssGrammarNodeKind::Function);
@@ -448,6 +564,12 @@ pub fn format_element_hover_with_profile(
     }
     if settings.shows(Section::Description) {
         builder.description(el.description.to_owned());
+    }
+
+    if settings.shows(Section::Values)
+        && let Some(line) = content_model_line(el, profile)
+    {
+        builder.value_constraints(vec![line]);
     }
 
     if settings.shows(Section::Status)
@@ -960,18 +1082,6 @@ fn format_baseline<T>(baseline: &svg_data::compat_model::Baseline<&str, T>) -> S
             line.push_str(" (upstream status missing)");
         }
     }
-    for (label, date) in [
-        ("Newly Available", baseline.low_date),
-        ("Widely Available", baseline.high_date),
-    ] {
-        if let Some(date) = date {
-            let text = date.date.map_or_else(
-                || format!("date not recognized (raw: {})", escape_metadata(date.raw)),
-                |parsed| format!("{}{parsed}", format_baseline_qualifier(date.qualifier)),
-            );
-            let _ = write!(line, "\n\n{label} date: {text}");
-        }
-    }
     line
 }
 
@@ -1066,8 +1176,16 @@ fn append_compat_details(
         builder.baseline(format_baseline(&baseline.as_ref()));
     }
     if settings.shows(Section::Browsers)
-        && let Some(line) = format_browser_support_line(facts.browser_support.as_ref(), settings)
+        && let Some(mut line) =
+            format_browser_support_line(facts.browser_support.as_ref(), settings)
     {
+        // The versions are the ones this build shipped with rather than a fresh
+        // fetch. Which source fell back, and whether it failed or was switched
+        // off, is a diagnostic; what a reader needs from a hover is the one
+        // word that qualifies the numbers next to it.
+        if settings.shows(Section::Sources) && rt.is_some_and(CompatOverride::is_offline) {
+            line.push_str(" (offline)");
+        }
         builder.browser_chips(line);
     }
     if settings.shows(Section::BrowserDetails)
@@ -1094,9 +1212,6 @@ fn append_compat_details(
         if !lines.is_empty() {
             builder.baseline(format!("Web Features support: {}", lines.join(" · ")));
         }
-    }
-    if settings.shows(Section::Sources) {
-        append_provenance(builder, rt);
     }
 }
 
@@ -1315,25 +1430,6 @@ fn reconciled_status(
         (None, profile) => profile,
     }
 }
-fn append_provenance(builder: &mut CompatMarkdownBuilder, runtime: Option<&CompatOverride>) {
-    let Some(runtime) = runtime else { return };
-    for source in &runtime.sources {
-        let state = match source.outcome {
-            Outcome::Loaded => "loaded",
-            Outcome::Absent => "no data",
-            Outcome::Unknown => "unknown status",
-            Outcome::Failed => "refresh failed; bundled facts retained (stale)",
-            Outcome::Disabled => "refresh disabled; bundled facts",
-        };
-        builder.status(format!(
-            "{} {}: {state}. Context: `{}`. Source: <{}>",
-            source.source,
-            source.version.as_deref().unwrap_or("(version unavailable)"),
-            source.key,
-            source.url
-        ));
-    }
-}
 
 /// Render the verdict status line — one or more reason tags joined by
 /// ` · `. This consolidates the old split between `**Deprecated**` and
@@ -1436,8 +1532,805 @@ fn format_browser_support_line(
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
+/// Render hover Markdown as readable plain text.
+///
+/// A client that does not advertise `markdown` in `textDocument.hover.
+/// contentFormat` is only promised plain text, and handing it Markdown leaves
+/// the syntax on screen. This is not a Markdown renderer; it handles the
+/// constructs these hovers actually emit, which were read off generated hover
+/// output rather than guessed at.
+///
+/// Two rules keep it from rewriting the thing the hover is about. A code span
+/// or fenced block carries its content through literally, as Markdown itself
+/// does, so a CSS rule the user wrote is never reinterpreted as markup. And a
+/// delimiter is only markup when it is actually paired: `--_accent` keeps its
+/// underscore because nothing closes it, while `_Widely Available_` loses both
+/// of its.
+pub fn to_plain_text(markdown: &str) -> String {
+    let bytes = markdown.as_bytes();
+    let mut out = String::with_capacity(markdown.len());
+    let mut at = 0;
+    // Each of these records that a delimiter can no longer close anywhere
+    // ahead. Without them the scan restarts at every candidate, which is
+    // quadratic in a CSS definition whose size and shape the user controls.
+    let mut brackets_can_close = true;
+    let mut autolinks_can_close = true;
+    let mut code_can_close = true;
+    let mut emphasis_dead_until = 0;
+    let mut emphasis_close = None;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'<' if autolinks_can_close => {
+                // `metadata_link` writes a URL as an autolink, which is the
+                // right thing and which this has to undo rather than read
+                // through: a destination is literal, so `…/_draft_` keeps its
+                // underscores instead of losing them to emphasis.
+                match autolink_end(bytes, at) {
+                    Some(close) => {
+                        out.push_str(&markdown[at + 1..close]);
+                        at = close + 1;
+                        continue;
+                    }
+                    None if !bytes[at..].contains(&b'>') => autolinks_can_close = false,
+                    None => {}
+                }
+            }
+            b'>' if at_line_start(bytes, at) => {
+                // Every verdict headline is generated as a block quote, so a
+                // plain-text client would read the marker as part of the
+                // sentence rather than as the shape it is.
+                at += 1;
+                if bytes.get(at) == Some(&b' ') {
+                    at += 1;
+                }
+                continue;
+            }
+            b'-' if at_line_start(bytes, at) => {
+                // `format_definition_hover` separates multiple definitions with
+                // a thematic break. The blank lines around it already do that
+                // job in plain text; the rule itself is only markup.
+                if let Some(after) = thematic_break_end(bytes, at) {
+                    at = after;
+                    continue;
+                }
+                // Every browser note is written as a list item, and the marker
+                // is the same kind of thing as the block quote's `>`: shape, not
+                // text. A `-` not followed by a space is a character.
+                if bytes.get(at + 1) == Some(&b' ') {
+                    at += 2;
+                    continue;
+                }
+            }
+            b'\\' if bytes.get(at + 1).is_some_and(u8::is_ascii_punctuation) => {
+                // Metadata is escaped for Markdown before it ever gets here,
+                // so the backslash is markup and the character after it is not.
+                out.push(char::from(bytes[at + 1]));
+                at += 2;
+                continue;
+            }
+            // A fence is a block: three or more backticks starting a line.
+            // The same run in the middle of one opens a code span instead,
+            // which is how a flag value containing backticks is written.
+            b'`' if opens_fence(bytes, at) => {
+                at = copy_fenced_block(markdown, at, &mut out);
+                continue;
+            }
+            b'`' if code_can_close => {
+                let width = backtick_run(bytes, at);
+                if let Some(close) = closing_run(bytes, at + width, width) {
+                    // A code span has no inline markup inside it, and carries
+                    // one space in from each end when it has both.
+                    out.push_str(trim_code_span(&markdown[at + width..close]));
+                    at = close + width;
+                    continue;
+                }
+                code_can_close = false;
+            }
+            b'~' if bytes[at..].starts_with(b"~~") => {
+                at += 2;
+                continue;
+            }
+            b'*' if bytes[at..].starts_with(b"**") => {
+                at += 2;
+                continue;
+            }
+            b'_' => {
+                if emphasis_close == Some(at) {
+                    emphasis_close = None;
+                    at += 1;
+                    continue;
+                }
+                // Only a real opener is worth scanning for a partner, and
+                // only a scan that ran and found nothing says anything about
+                // the openers after it — one rejected for sitting inside a
+                // word tells us nothing at all.
+                if emphasis_close.is_none()
+                    && opens_emphasis(bytes, at)
+                    && at >= emphasis_dead_until
+                {
+                    if let Some(close) = emphasis_span(bytes, at) {
+                        emphasis_close = Some(close);
+                        at += 1;
+                        continue;
+                    }
+                    // The candidates ahead of any later opener are a subset of
+                    // the ones just rejected, so stop looking until the next
+                    // line begins.
+                    emphasis_dead_until = line_end(bytes, at);
+                }
+            }
+            b'!' | b'[' if brackets_can_close => match copy_link(markdown, at, &mut out) {
+                LinkScan::Found { after, .. } => {
+                    at = after;
+                    continue;
+                }
+                LinkScan::Unclosed => brackets_can_close = false,
+                LinkScan::NotALink => {}
+            },
+            _ => {}
+        }
+        // `at` only ever lands on a character boundary: every branch above
+        // matches ASCII, and the fallback advances by one whole character.
+        let next = markdown[at..].chars().next().unwrap_or('\u{fffd}');
+        out.push(next);
+        at += next.len_utf8();
+    }
+    out
+}
+
+/// Copy a fenced block's content verbatim, dropping the fences and the
+/// language tag that rides on the opening one. Returns where to resume.
+fn copy_fenced_block(source: &str, open: usize, out: &mut String) -> usize {
+    let bytes = source.as_bytes();
+    let width = backtick_run(bytes, open);
+    // The opening fence owns the rest of its line: `css` is a tag, not content.
+    let mut at = line_end(bytes, open + width);
+    at += usize::from(at < bytes.len());
+    let mut line = at;
+    while line < bytes.len() {
+        // Only a line that is nothing but backticks, at least as many as
+        // opened the block, closes it. A CSS comment carrying a run of them
+        // is content — which is the whole promise of a verbatim preview.
+        let run = backtick_run(bytes, line);
+        let ends = line_end(bytes, line);
+        if run >= width && source[line + run..ends].trim().is_empty() {
+            // The content already ends with the newline before the fence, so
+            // the one after the fence would be a second blank line.
+            out.push_str(&source[at..line]);
+            return ends + usize::from(ends < bytes.len());
+        }
+        line = ends + 1;
+    }
+    // Unterminated: the rest of the text is content.
+    out.push_str(&source[at..]);
+    bytes.len()
+}
+
+/// Whether the backticks at `at` open a fenced block rather than a code span.
+///
+/// A fence begins a line with three or more, and `CommonMark` forbids its info
+/// string from carrying backticks — which is exactly what separates it from a
+/// long inline delimiter. `metadata_code` reaches for one of those whenever a
+/// browser flag value contains a backtick of its own, and on a line that
+/// starts with it the two are otherwise indistinguishable.
+fn opens_fence(bytes: &[u8], at: usize) -> bool {
+    let width = backtick_run(bytes, at);
+    at_line_start(bytes, at)
+        && width >= 3
+        && !bytes[at + width..line_end(bytes, at)].contains(&b'`')
+}
+
+/// Where the next run of exactly `width` backticks begins at or after `from`.
+///
+/// A code span closes on a run of its own length and no other, so a longer run
+/// inside it is content — which is the point of `metadata_code` choosing a
+/// delimiter longer than anything it wraps.
+fn closing_run(bytes: &[u8], from: usize, width: usize) -> Option<usize> {
+    let mut at = from;
+    while at < bytes.len() {
+        if bytes[at] == b'`' {
+            let run = backtick_run(bytes, at);
+            if run == width {
+                return Some(at);
+            }
+            at += run;
+        } else {
+            at += 1;
+        }
+    }
+    None
+}
+
+/// Drop the one space a code span carries in from each end, as `CommonMark`
+/// does, so `` ` a ` `` reads as `a` rather than as padded text.
+fn trim_code_span(content: &str) -> &str {
+    content
+        .strip_prefix(' ')
+        .and_then(|rest| rest.strip_suffix(' '))
+        .filter(|inner| !inner.trim().is_empty())
+        .unwrap_or(content)
+}
+
+/// How many backticks run from `at`.
+fn backtick_run(bytes: &[u8], at: usize) -> usize {
+    bytes[at..].iter().take_while(|&&byte| byte == b'`').count()
+}
+
+/// Index of the newline ending the line containing `from`, or the end.
+fn line_end(bytes: &[u8], from: usize) -> usize {
+    (from..bytes.len())
+        .find(|&at| bytes[at] == b'\n')
+        .unwrap_or(bytes.len())
+}
+
+/// Where the emphasis opened by the `_` at `open` closes, if it closes at all
+/// on this line.
+///
+/// `CommonMark` asks that an opener be followed by something other than space
+/// and a closer preceded by the same, which is what keeps `--_accent` and
+/// `._icon` intact: nothing there closes what they appear to open.
+fn emphasis_span(bytes: &[u8], open: usize) -> Option<usize> {
+    let solid = |byte: Option<&u8>| byte.is_some_and(|byte| !byte.is_ascii_whitespace());
+    // Walk to the closer or the end of the line, whichever comes first.
+    // Computing the line end up front would scan the whole line for every
+    // underscore on it, even one whose partner is the very next byte.
+    (open + 2..bytes.len())
+        .take_while(|&at| bytes[at] != b'\n')
+        // An escaped underscore is a character, so it cannot close emphasis
+        // any more than it can open it.
+        .find(|&at| {
+            bytes[at] == b'_'
+                && bytes[at - 1] != b'\\'
+                && solid(Some(&bytes[at - 1]))
+                && !intraword(bytes, at)
+        })
+}
+
+/// Where the autolink opened at `at` closes, if it is one.
+///
+/// `CommonMark` asks for a scheme, then anything but a space or another angle
+/// bracket, then `>`. Anything else beginning with `<` is just a character —
+/// `a < b` is arithmetic, not markup.
+fn autolink_end(bytes: &[u8], open: usize) -> Option<usize> {
+    let scheme_start = open + 1;
+    if !bytes.get(scheme_start).is_some_and(u8::is_ascii_alphabetic) {
+        return None;
+    }
+    let mut at = scheme_start + 1;
+    while bytes
+        .get(at)
+        .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
+    {
+        at += 1;
+    }
+    if bytes.get(at) != Some(&b':') || at == scheme_start + 1 {
+        return None;
+    }
+    while at < bytes.len() {
+        match bytes[at] {
+            b'>' => return Some(at),
+            byte if byte.is_ascii_whitespace() || byte == b'<' => return None,
+            _ => at += 1,
+        }
+    }
+    None
+}
+
+/// Whether the `_` at `at` can open emphasis at all: it must be followed by
+/// something other than space, and must not sit inside a word.
+fn opens_emphasis(bytes: &[u8], at: usize) -> bool {
+    bytes
+        .get(at + 1)
+        .is_some_and(|byte| !byte.is_ascii_whitespace())
+        && !intraword(bytes, at)
+}
+
+/// Whether the delimiter at `at` sits inside a word, where `CommonMark` says
+/// an underscore is neither an opener nor a closer.
+///
+/// This is what keeps prose intact: the catalog describes `media_query_list`,
+/// and treating its underscores as emphasis leaves a plain-text reader with
+/// `mediaquerylist`.
+fn intraword(bytes: &[u8], at: usize) -> bool {
+    let word = |byte: Option<&u8>| byte.is_some_and(u8::is_ascii_alphanumeric);
+    word(at.checked_sub(1).map(|before| &bytes[before])) && word(bytes.get(at + 1))
+}
+
+/// Drop backslashes that escape ASCII punctuation.
+fn unescape_punctuation(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains('\\') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character == '\\'
+            && let Some(escaped) = characters.clone().next()
+            && escaped.is_ascii_punctuation()
+        {
+            out.push(escaped);
+            characters.next();
+        } else {
+            out.push(character);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// Whether `at` begins a line.
+/// Where a thematic break starting at `at` ends, if that whole line is one.
+///
+/// Only a run of `-` counts. `*` and `_` runs would collide with the emphasis
+/// delimiters, and the one thematic break these hovers write is the `---` that
+/// joins definitions. A dash in prose cannot reach here: `escape_metadata`
+/// backslashes it, and CSS rides through its fence literally.
+fn thematic_break_end(bytes: &[u8], at: usize) -> Option<usize> {
+    let end = line_end(bytes, at);
+    let mut dashes = 0usize;
+    for &byte in &bytes[at..end] {
+        match byte {
+            b'-' => dashes += 1,
+            b' ' | b'\t' => {}
+            _ => return None,
+        }
+    }
+    if dashes < 3 {
+        return None;
+    }
+    // The break came with a blank line on each side. One of them is already
+    // written, and the other would leave a gap where the rule used to be.
+    let mut after = end + usize::from(end < bytes.len());
+    after += usize::from(bytes.get(after) == Some(&b'\n'));
+    Some(after)
+}
+
+const fn at_line_start(bytes: &[u8], at: usize) -> bool {
+    at == 0 || bytes[at - 1] == b'\n'
+}
+
+/// What a scan for `[text](target)` found.
+enum LinkScan<'a> {
+    Found {
+        text: &'a str,
+        target: &'a str,
+        after: usize,
+    },
+    /// A `]` closed the text but no `(` followed, so this is not a link.
+    NotALink,
+    /// No `]` appears anywhere after the `[`, so nothing later can be one.
+    Unclosed,
+}
+
+/// Copy the link or image beginning at `at`, if there is one, and report how
+/// the scan went so the caller can stop looking when nothing ahead can close.
+///
+/// An image becomes the alt text that describes it — the Baseline badges carry
+/// a two-kilobyte data URI — while a link keeps its text and gains its target.
+fn copy_link<'a>(source: &'a str, at: usize, out: &mut String) -> LinkScan<'a> {
+    let bytes = source.as_bytes();
+    let image = bytes[at] == b'!';
+    if image && bytes.get(at + 1) != Some(&b'[') {
+        return LinkScan::NotALink;
+    }
+    let scan = read_link(source, at + usize::from(image));
+    if let LinkScan::Found { text, target, .. } = scan {
+        // The label is escaped where it is written, so the escapes come back
+        // off here rather than reaching a reader who never saw the brackets.
+        out.push_str(&unescape_punctuation(text));
+        if !image && !target.is_empty() {
+            out.push_str(" (");
+            out.push_str(target);
+            out.push(')');
+        }
+    }
+    scan
+}
+
+/// Split `[text](target)` starting at the `[`. Nested parentheses in the
+/// target are counted, since a `data:` URI can carry them.
+fn read_link(source: &str, open: usize) -> LinkScan<'_> {
+    let bytes = source.as_bytes();
+    let Some(text_end) =
+        (open + 1..bytes.len()).find(|&at| bytes[at] == b']' && bytes[at - 1] != b'\\')
+    else {
+        return LinkScan::Unclosed;
+    };
+    if bytes.get(text_end + 1) != Some(&b'(') {
+        return LinkScan::NotALink;
+    }
+    let mut depth = 1usize;
+    let mut at = text_end + 2;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return LinkScan::Found {
+                        text: &source[open + 1..text_end],
+                        target: &source[text_end + 2..at],
+                        after: at + 1,
+                    };
+                }
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    LinkScan::NotALink
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn plain_text_drops_markdown_syntax_but_keeps_the_words() {
+        assert_eq!(
+            super::to_plain_text("**Baseline** `stroke-width` is fine"),
+            "Baseline stroke-width is fine"
+        );
+    }
+
+    #[test]
+    fn plain_text_keeps_a_link_and_where_it_goes() {
+        assert_eq!(
+            super::to_plain_text("See [the spec](https://www.w3.org/TR/SVG2/) for more"),
+            "See the spec (https://www.w3.org/TR/SVG2/) for more"
+        );
+    }
+
+    #[test]
+    fn plain_text_reduces_an_image_to_what_it_describes() {
+        // The Baseline badges are images, and their target is a long data or
+        // shields URI that says nothing to a reader. The alt text is the part
+        // that carries the meaning.
+        assert_eq!(
+            super::to_plain_text("![Baseline Widely available](https://example.invalid/b.svg)"),
+            "Baseline Widely available"
+        );
+    }
+
+    #[test]
+    fn plain_text_drops_italics_and_strikethrough() {
+        // Baseline lines are italic and deprecated descriptions are struck
+        // through; both were left on screen by the first version of this.
+        assert_eq!(
+            super::to_plain_text("![Baseline icon](data:x) _Widely Available since 2018_"),
+            "Baseline icon Widely Available since 2018"
+        );
+        assert_eq!(
+            super::to_plain_text("~~Use `stroke-width` instead~~"),
+            "Use stroke-width instead"
+        );
+    }
+
+    #[test]
+    fn plain_text_never_renames_a_css_identifier() {
+        // Class and custom-property hovers quote CSS the user wrote. An
+        // identifier that opens with an underscore closes nothing, and
+        // dropping it would name a different symbol than the one hovered.
+        assert_eq!(
+            super::to_plain_text("`--_accent` is defined here"),
+            "--_accent is defined here"
+        );
+        assert_eq!(
+            super::to_plain_text("Defined as:\n```css\n._icon { fill: red }\n```\n"),
+            "Defined as:\n._icon { fill: red }\n"
+        );
+        assert_eq!(
+            super::to_plain_text("`.trailing_` and `._leading`"),
+            ".trailing_ and ._leading"
+        );
+        // A code span carries its content through as written, so markup
+        // characters inside one are content rather than syntax.
+        assert_eq!(
+            super::to_plain_text("`a **b** _c_ ~~d~~`"),
+            "a **b** _c_ ~~d~~"
+        );
+    }
+
+    #[test]
+    fn plain_text_unwraps_markdown_escapes() {
+        // Metadata is escaped for Markdown before it reaches the converter, so
+        // a plain-text client would otherwise read the backslashes as prose.
+        assert_eq!(
+            super::to_plain_text("Chrome 1\\. See note\\_1\\."),
+            "Chrome 1. See note_1."
+        );
+    }
+
+    #[test]
+    fn an_escaped_delimiter_neither_opens_nor_closes() {
+        // The escape is unwrapped before anything reads the character, and the
+        // scan for a partner skips escaped candidates, so emphasis cannot
+        // close on one and leave the real closer stranded.
+        assert_eq!(super::to_plain_text(r"_foo\_bar_"), "foo_bar");
+        assert_eq!(super::to_plain_text(r"\_notemphasis\_"), "_notemphasis_");
+        assert_eq!(super::to_plain_text(r"\*not bold\*"), "*not bold*");
+    }
+
+    #[test]
+    fn plain_text_keeps_words_that_contain_underscores() {
+        // The catalog describes `media_query_list`, and an underscore inside a
+        // word is neither an opener nor a closer in CommonMark. Reading them
+        // as emphasis leaves a plain-text reader with `mediaquerylist`.
+        assert_eq!(
+            super::to_plain_text("A media_query_list value"),
+            "A media_query_list value"
+        );
+        assert_eq!(
+            super::to_plain_text("_emphasis_ around media_query_list text"),
+            "emphasis around media_query_list text"
+        );
+        // This one needs the opener check specifically: without it the word's
+        // first underscore opens, and the closer of the real emphasis later in
+        // the line closes it, swallowing everything between.
+        assert_eq!(
+            super::to_plain_text("media_query_list and _real_ emphasis"),
+            "media_query_list and real emphasis"
+        );
+    }
+
+    #[test]
+    fn plain_text_drops_the_blockquote_marker() {
+        // Every verdict headline is generated as a block quote, so this is on
+        // the common path rather than an edge of it.
+        assert_eq!(
+            super::to_plain_text("> \u{2713} `rect` — safe to use"),
+            "\u{2713} rect — safe to use"
+        );
+        // A `>` that is not a marker is a character like any other.
+        assert_eq!(super::to_plain_text("a > b"), "a > b");
+    }
+
+    #[test]
+    fn a_fence_is_closed_only_by_a_line_of_backticks() {
+        // A CSS comment may carry a run of backticks. It is content, and the
+        // preview promises it verbatim.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                "/*\n``` a line of backticks inside a comment\n*/\n.a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "sheet.css".to_owned(),
+                    target: "file:///sheet.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.contains("``` a line of backticks inside a comment")
+                && plain.contains(".a { fill: red }"),
+            "the whole rule should survive: {plain}"
+        );
+    }
+
+    #[test]
+    fn two_definitions_are_separated_without_a_visible_rule() {
+        // `format_definition_hover` joins definitions with a thematic break,
+        // so any class defined in two sheets carries one.
+        let link = |name: &str| super::HoverSourceLink {
+            label: format!("{name}.css"),
+            target: format!("file:///{name}.css"),
+        };
+        let hover = super::format_definition_hover(
+            [
+                (".a { fill: red }".to_owned(), link("base")),
+                (".a { fill: blue }".to_owned(), link("theme")),
+            ]
+            .into_iter(),
+            ".a",
+        );
+        assert!(
+            hover.contains("\n---\n"),
+            "the Markdown carries the rule: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            !plain.contains("---"),
+            "the rule is markup and should not survive: {plain}"
+        );
+        // Both definitions do, still told apart by a blank line.
+        assert!(
+            plain.contains(".a { fill: red }")
+                && plain.contains(".a { fill: blue }")
+                && plain.contains("base.css")
+                && plain.contains("theme.css"),
+            "both definitions should survive: {plain}"
+        );
+        assert!(
+            !plain.contains("\n\n\n"),
+            "dropping the rule should not leave a gap: {plain}"
+        );
+    }
+
+    #[test]
+    fn an_autolink_gives_up_its_brackets_and_keeps_its_url() {
+        // `metadata_link` writes http and https targets this way, and a
+        // discouraged feature carries one by default, so this is the common
+        // path rather than an edge of it.
+        assert_eq!(
+            super::to_plain_text(&super::metadata_link("https://example.com/retirement")),
+            "https://example.com/retirement"
+        );
+
+        // A destination is literal. Reading through it loses the underscores
+        // and hands the reader a URL that does not resolve.
+        assert_eq!(
+            super::to_plain_text("<https://example.com/_draft_>"),
+            "https://example.com/_draft_"
+        );
+
+        assert_eq!(
+            super::to_plain_text("see <https://a.example/x> and <https://b.example/y>"),
+            "see https://a.example/x and https://b.example/y"
+        );
+
+        // An angle bracket that opens no link is a character like any other.
+        assert_eq!(super::to_plain_text("a < b and c > d"), "a < b and c > d");
+        assert_eq!(super::to_plain_text("<not a url>"), "<not a url>");
+        assert_eq!(
+            super::to_plain_text("<https://unclosed"),
+            "<https://unclosed"
+        );
+    }
+
+    #[test]
+    fn a_code_span_is_closed_by_a_run_of_its_own_length() {
+        // `metadata_code` wraps a value in a delimiter longer than anything
+        // inside it, so a flag value carrying backticks needs the whole run
+        // matched rather than the first backtick found.
+        let wrapped = super::metadata_code("a`b");
+        assert_eq!(super::to_plain_text(&wrapped), "a`b");
+        assert_eq!(super::to_plain_text(&super::metadata_code("a``b")), "a``b");
+
+        // Three backticks mid-line open a span, not a block; only a line that
+        // begins with them is a fence.
+        assert_eq!(
+            super::to_plain_text("value ```x``` and more"),
+            "value x and more"
+        );
+        assert_eq!(super::to_plain_text("plain `code` here"), "plain code here");
+    }
+
+    #[test]
+    fn a_link_label_carries_its_brackets() {
+        // A path may contain either bracket, and one of them would end the
+        // label early — leaving the whole construct visible.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "theme]dark.css:1".to_owned(),
+                    target: "file:///theme%5Ddark.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(
+            hover.contains(r"[theme\]dark\.css\:1]("),
+            "the label should be escaped where it is written: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.contains("theme]dark.css:1 (file:///theme%5Ddark.css)"),
+            "and read back with the bracket and without the escape: {plain}"
+        );
+    }
+
+    #[test]
+    fn a_link_target_carries_its_parentheses() {
+        // Parentheses are legal in a path, and an unpaired one would close the
+        // destination early — in a Markdown client as much as here.
+        let hover = super::format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                super::HoverSourceLink {
+                    label: "sheet.css".to_owned(),
+                    target: "file:///themes/dark(2)/sheet.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(
+            hover.contains("file:///themes/dark%282%29/sheet.css"),
+            "the destination should be escaped where it is written: {hover}"
+        );
+        let plain = super::to_plain_text(&hover);
+        assert!(
+            plain.ends_with("file:///themes/dark%282%29/sheet.css)"),
+            "and survive the conversion whole: {plain}"
+        );
+    }
+
+    #[test]
+    fn plain_text_stays_linear_against_hostile_delimiters() {
+        // Every delimiter that has to search for a partner gets the same
+        // treatment as the bracket: a failed scan settles it for what follows
+        // rather than restarting at each candidate. These inputs collapse to
+        // little or nothing — a run of backticks is a run of empty code spans,
+        // and `_ _` pairs are empty emphasis — so what is under test is the
+        // time, not the text.
+        for hostile in [
+            "`".repeat(200_000),
+            "_".repeat(200_000),
+            format!("{}tail", "_ ".repeat(100_000)),
+            format!("`{}", "x".repeat(200_000)),
+        ] {
+            let started = std::time::Instant::now();
+            let _ = super::to_plain_text(&hostile);
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(2),
+                "conversion should stay linear, took {:?}",
+                started.elapsed()
+            );
+        }
+    }
+
+    #[test]
+    fn plain_text_keeps_an_underscore_that_is_part_of_a_word() {
+        // A custom property may be named with one, and dropping it would
+        // rename the thing the hover is about.
+        assert_eq!(
+            super::to_plain_text("`--brand_accent` is defined here"),
+            "--brand_accent is defined here"
+        );
+    }
+
+    #[test]
+    fn plain_text_unwraps_a_fenced_block_without_leaving_its_language() {
+        // Dropping the backticks alone leaves `css` behind as a stray word on
+        // its own line, which reads as part of the definition.
+        assert_eq!(
+            super::to_plain_text("Defined as:\n```css\n.a { fill: red }\n```\n"),
+            "Defined as:\n.a { fill: red }\n"
+        );
+    }
+
+    #[test]
+    fn plain_text_does_not_rescan_for_every_unclosed_bracket() {
+        // A CSS definition the user controls can carry many `[` and no `]`.
+        // Restarting the search at each one is quadratic; the whole point is
+        // that the first failed scan settles it for the rest.
+        let hostile = "[".repeat(200_000);
+        let started = std::time::Instant::now();
+        let out = super::to_plain_text(&hostile);
+        assert_eq!(out, hostile, "unpaired brackets are just characters");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "conversion should stay linear, took {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn plain_text_counts_parentheses_inside_a_target() {
+        // A data URI can carry parentheses, so the closing one has to be the
+        // matching one rather than the first.
+        assert_eq!(
+            super::to_plain_text("[swatch](data:image/svg+xml,%3Csvg%20fill%3Drgb(1,2,3)%3E)"),
+            "swatch (data:image/svg+xml,%3Csvg%20fill%3Drgb(1,2,3)%3E)"
+        );
+    }
+
+    #[test]
+    fn plain_text_leaves_unpaired_brackets_alone() {
+        // A bracket that opens nothing is just a bracket, and dropping it
+        // would lose a character the document actually contains.
+        assert_eq!(
+            super::to_plain_text("an [unclosed link"),
+            "an [unclosed link"
+        );
+        assert_eq!(super::to_plain_text("array[0] of them"), "array[0] of them");
+    }
+
+    #[test]
+    fn plain_text_passes_multi_byte_characters_through() {
+        assert_eq!(
+            super::to_plain_text("**élan** — `stroke` ✓"),
+            "élan — stroke ✓"
+        );
+    }
     #[test]
     fn baseline_containers_embed_exact_official_assets_at_icon_size()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -1578,8 +2471,9 @@ mod tests {
             }
             if case["name"] == "both-milestones" {
                 assert!(hover.contains("Widely Available since 2022"));
-                assert!(hover.contains("Newly Available date: 2020-01-15"));
-                assert!(hover.contains("Widely Available date: 2022-07-15"));
+                // The year on the Baseline line is the whole date story; the
+                // two dated paragraphs that used to follow it restated it.
+                assert!(!hover.contains("Available date:"), "{hover}");
                 assert!(!hover.contains("Widely Available since 2020"));
             }
             if case["name"] == "newly-undated" {
@@ -1587,7 +2481,7 @@ mod tests {
             }
             if case["name"] == "malformed-dates" {
                 assert!(hover.contains("_Widely Available_"));
-                assert!(hover.contains("date not recognized"));
+                assert!(!hover.contains("date not recognized"), "{hover}");
             }
         }
         Ok(())
@@ -1632,6 +2526,7 @@ mod tests {
     use svg_data::ProfileLookup;
 
     use super::*;
+    use crate::compat::Outcome;
 
     fn bv_unknown() -> BrowserVersion {
         BrowserVersion {
@@ -1799,13 +2694,208 @@ mod tests {
         Ok(())
     }
 
+    fn element_facts(el: &svg_data::ElementDef) -> Facts {
+        Facts::from(svg_data::CompatFacts {
+            deprecated: el.deprecated,
+            experimental: el.experimental,
+            standard_track: el.standard_track,
+            baseline: el.baseline,
+            discouraged: el.discouraged,
+            browser_support: el.browser_support,
+        })
+    }
+
+    fn element_hover(name: &str, rt: Option<&CompatOverride>, settings: &HoverSettings) -> String {
+        element_hover_in(name, SpecSnapshotId::LATEST, rt, settings)
+    }
+
+    fn element_hover_in(
+        name: &str,
+        profile: SpecSnapshotId,
+        rt: Option<&CompatOverride>,
+        settings: &HoverSettings,
+    ) -> String {
+        let Some(element) = svg_data::element(name) else {
+            panic!("missing {name} element");
+        };
+        format_element_hover_with_profile(element, profile, None, rt, None, settings)
+    }
+
+    /// An override whose two sources carry their real names, so a test can
+    /// fail one and not the other.
+    fn named_override(facts: Facts) -> CompatOverride {
+        let mut runtime = test_override(facts);
+        runtime.sources[0].source = "@mdn/browser-compat-data";
+        runtime.sources[1].source = "web-features";
+        runtime
+    }
+
+    fn attribute_hover(name: &str) -> String {
+        let Some(attribute) = svg_data::attribute(name) else {
+            panic!("missing {name} attribute");
+        };
+        format_attribute_hover_with_profile_name(
+            attribute,
+            name,
+            crate::hover::AttributeHoverContext {
+                element_name: None,
+                profile: SpecSnapshotId::LATEST,
+                profile_lifecycle: None,
+                rt: None,
+                native: None,
+                settings: &HoverSettings::default(),
+            },
+        )
+    }
+
+    #[test]
+    fn a_refresh_that_did_not_happen_is_one_word_on_the_browser_line()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let element = svg_data::element("feGaussianBlur").ok_or("feGaussianBlur")?;
+        let settings = HoverSettings::default();
+        let mut runtime = named_override(element_facts(element));
+
+        let fresh = element_hover("feGaussianBlur", Some(&runtime), &settings);
+        assert!(!fresh.contains("(offline)"), "{fresh}");
+
+        // The marker sits on the browser row, and that row is BCD's. A failed
+        // Web Features refresh leaves the browser versions exactly as fresh as
+        // they were, so it must not qualify them.
+        runtime.sources[1].outcome = Outcome::Failed;
+        let baseline_stale = element_hover("feGaussianBlur", Some(&runtime), &settings);
+        assert!(!baseline_stale.contains("(offline)"), "{baseline_stale}");
+        runtime.sources[1].outcome = Outcome::Loaded;
+        // The provenance block that used to follow the browser line is gone
+        // in the fresh case too: "loaded" said nothing, the key restated the
+        // element under the cursor, and the URL had no label.
+        for gone in ["loaded", "Context:", "Source:", "unpkg.com"] {
+            assert!(!fresh.contains(gone), "{gone}: {fresh}");
+        }
+
+        for outcome in [Outcome::Failed, Outcome::Disabled] {
+            runtime.sources[0].outcome = outcome.clone();
+            let offline = element_hover("feGaussianBlur", Some(&runtime), &settings);
+            let browsers = offline
+                .lines()
+                .find(|line| line.starts_with("Chrome "))
+                .ok_or("browser line")?;
+            assert!(browsers.ends_with(" (offline)"), "{outcome:?}: {offline}");
+            assert_eq!(offline.matches("(offline)").count(), 1, "{offline}");
+        }
+
+        // Dropping the sources section drops the marker with it.
+        let mut quiet = HoverSettings::default();
+        quiet
+            .sections
+            .retain(|section| *section != Section::Sources);
+        let silent = element_hover("feGaussianBlur", Some(&runtime), &quiet);
+        assert!(!silent.contains("(offline)"), "{silent}");
+        Ok(())
+    }
+
+    #[test]
+    fn a_link_with_no_destination_is_not_written() {
+        // stdDeviation has no MDN page; every such attribute was handed
+        // `[MDN Reference]()`, a link to nowhere.
+        let attribute = attribute_hover("stdDeviation");
+        assert!(!attribute.contains("[MDN Reference]"), "{attribute}");
+        assert!(attribute.contains("[Spec](https://"), "{attribute}");
+        // One that has a page keeps it.
+        let element = element_hover("feGaussianBlur", None, &HoverSettings::default());
+        assert!(element.contains("[MDN Reference](https://"), "{element}");
+    }
+
+    #[test]
+    fn types_are_not_listed_when_they_are_the_grammar() {
+        // A grammar that is a single type reference lists that same type,
+        // which printed `<number-optional-number>` twice in a row.
+        let repeated = attribute_hover("baseFrequency");
+        assert!(
+            repeated.contains("Grammar: `<number-optional-number>`"),
+            "{repeated}"
+        );
+        assert!(!repeated.contains("Types:"), "{repeated}");
+        // Where the type list adds something, it stays.
+        let distinct = attribute_hover("alignment-baseline");
+        assert!(
+            distinct.contains("Types: `<baseline-metric>`"),
+            "{distinct}"
+        );
+    }
+
+    #[test]
+    fn element_hover_names_what_may_go_inside() {
+        let settings = HoverSettings::default();
+        for (name, expected) in [
+            ("feGaussianBlur", "Children: `animate` | `script` | `set`"),
+            ("a", "Children: any SVG element"),
+            ("foreignObject", "Children: foreign namespace"),
+            ("script", "Children: character data"),
+        ] {
+            let hover = element_hover(name, None, &settings);
+            assert!(hover.contains(expected), "{name}: {hover}");
+        }
+        let mut without = HoverSettings::default();
+        without
+            .sections
+            .retain(|section| *section != Section::Values);
+        let hover = element_hover("feGaussianBlur", None, &without);
+        assert!(!hover.contains("Children:"), "{hover}");
+
+        // The list is the active profile's, not the union's: SVG 1.1 has no
+        // `feDropShadow`, and completion in that profile does not offer it.
+        let latest = element_hover_in("filter", SpecSnapshotId::LATEST, None, &settings);
+        assert!(latest.contains("`feDropShadow`"), "{latest}");
+        let svg11 = element_hover_in("filter", SpecSnapshotId::Svg11Rec20110816, None, &settings);
+        assert!(!svg11.contains("feDropShadow"), "{svg11}");
+        assert!(svg11.contains("`feGaussianBlur`"), "{svg11}");
+    }
+
+    #[test]
+    fn a_label_is_escaped_whole() {
+        // Asterisks pair as emphasis, and a Markdown client would show the
+        // stylesheet as `themedark.css`. Every punctuation character is
+        // escaped where the label is written; the plain-text path takes the
+        // escapes back off.
+        let hover = format_definition_hover(
+            std::iter::once((
+                ".a { fill: red }".to_owned(),
+                HoverSourceLink {
+                    label: "theme*dark*.css:1".to_owned(),
+                    target: "file:///theme*dark*.css".to_owned(),
+                },
+            )),
+            ".a",
+        );
+        assert!(hover.contains("[theme\\*dark\\*\\.css\\:1]("), "{hover}");
+        let plain = to_plain_text(&hover);
+        assert!(plain.contains("theme*dark*.css:1"), "{plain}");
+        assert!(!plain.contains("themedark"), "{plain}");
+    }
+
+    #[test]
+    fn a_list_marker_is_shape_not_text() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(to_plain_text("- Edge: note"), "Edge: note");
+        assert_eq!(to_plain_text("a - b"), "a - b");
+        assert_eq!(to_plain_text("-x"), "-x");
+        // Every browser note is emitted as a list item.
+        let element = svg_data::element("feTurbulence").ok_or("feTurbulence")?;
+        let facts = element_facts(element);
+        let support = facts.browser_support.as_ref().ok_or("support")?;
+        let notes = format_browser_notes_list(Some(support), &HoverSettings::default())
+            .ok_or("feTurbulence has an Edge note")?;
+        assert!(notes.iter().all(|line| line.starts_with("- ")), "{notes:?}");
+        let plain = to_plain_text(&notes.join("\n"));
+        assert!(plain.lines().all(|line| !line.starts_with("- ")), "{plain}");
+        Ok(())
+    }
+
     fn test_override(facts: Facts) -> CompatOverride {
         CompatOverride {
             facts,
             sources: std::array::from_fn(|_| crate::compat::Provenance {
                 source: "fixture",
                 version: Some("1".to_owned()),
-                url: "https://example.com/data".to_owned(),
                 key: "fixture".to_owned(),
                 outcome: Outcome::Loaded,
             }),
