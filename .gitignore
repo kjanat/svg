@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 !/samples/mdn
 distribution/npm/dist/
 distribution/npm/downloads/
+runtime-results/
