@@ -54,11 +54,11 @@
 
 - `textDocument.hover.contentFormat` and
   `textDocument.completion.completionItem.documentationFormat` are **ordered by
-  client preference**, not sets. A client advertising `["plaintext",
-  "markdown"]` understands both and would rather have text, so asking whether
-  Markdown is a member picks the wrong one. Take the first advertised format the
-  server can produce, and negotiate the two independently — a client may prefer
-  different kinds for hover and for completion docs.
+  client preference**, not sets. A client advertising
+  `["plaintext", "markdown"]` understands both and would rather have text, so
+  asking whether Markdown is a member picks the wrong one. Take the first
+  advertised format the server can produce, and negotiate the two independently
+  — a client may prefer different kinds for hover and for completion docs.
 
 - Hover text is generated Markdown whose escaping is deliberate, and a consumer
   that renders it down must undo the generator's choice rather than guess from

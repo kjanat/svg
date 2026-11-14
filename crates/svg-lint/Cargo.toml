@@ -12,10 +12,6 @@ keywords             = ["diagnostics", "lint", "svg", "validation"]
 categories           = ["development-tools"]
 include              = ["/README.md", "/src/*", "/tests/*"]
 
-[features]
-default = ["cli"]
-cli     = ["clap", "serde_json"]
-
 [lib]
 name = "svg_lint"
 path = "src/lib.rs"
@@ -44,6 +40,10 @@ optional  = true
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[features]
+default = ["cli"]
+cli     = ["clap", "serde_json"]
 
 [lints]
 workspace = true

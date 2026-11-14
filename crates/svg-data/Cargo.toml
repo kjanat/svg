@@ -13,9 +13,6 @@ categories.workspace = true
 build                = "build.rs"
 include              = ["/README.md", "/build.rs", "/data/*", "/src/*"]
 
-[features]
-drift-cli = ["ureq"]
-
 [[bin]]
 name              = "svgwg-drift"
 path              = "src/bin/svgwg-drift.rs"
@@ -31,6 +28,9 @@ ureq       = { workspace = true, optional = true }
 schemars   = { workspace = true }
 serde      = { workspace = true }
 serde_json = { workspace = true }
+
+[features]
+drift-cli = ["ureq"]
 
 [lints]
 workspace = true

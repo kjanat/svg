@@ -121,8 +121,8 @@ and `links`. `values` is the attribute's value grammar, and on an element the
 children it permits. When both are enabled, discouragement takes the place of
 the Baseline badge. `web_features_support` shows that package's independently
 resolved browser versions; the normal browser row uses BCD. `sources` adds
-`(offline)` to the browser row when a refresh failed or is disabled, and nothing
-otherwise.
+`(offline)` to the browser row when the BCD refresh failed or is disabled, and
+nothing otherwise.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
@@ -143,8 +143,8 @@ and user-supplied HTML are outside this settings contract.
 Hover and completion documentation are returned in the format the client
 advertises at initialization — `textDocument.hover.contentFormat` and
 `textDocument.completion.completionItem.documentationFormat`. A client that
-advertises `markdown` gets Markdown. One that advertises neither is promised
-only plain text by the protocol, so it gets plain text: emphasis and code
+lists `markdown` first gets Markdown; one that lists `plaintext` first gets
+plain text. Empty or absent format lists also get plain text: emphasis and code
 delimiters are dropped, a link keeps its text and gains its target in
 parentheses, and an image becomes the alt text that describes it. The two are
 negotiated independently, so a client may have one and not the other.
@@ -165,9 +165,10 @@ other products. The Status line identifies svg's assessment: Caution/Avoid is
 project advice, separate from upstream Baseline and specification validity.
 
 Startup refresh is enabled by default. `svg.runtime_compat: false` keeps the
-bundled snapshot. A failed source refresh retains its bundled facts, and the
-hover's browser row says `(offline)`; a successful source load with no facts
-clears that source's old values. The server refreshes once per session.
+bundled snapshot. A failed source refresh retains its bundled facts. When BCD
+fails to refresh, the hover's browser row says `(offline)`; a successful source
+load with no facts clears that source's old values. The server refreshes once
+per session.
 
 See the
 [compatibility guide](https://github.com/kjanat/svg/blob/master/docs/baseline.md)

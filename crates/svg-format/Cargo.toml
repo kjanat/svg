@@ -11,10 +11,6 @@ keywords             = ["format", "pretty-print", "svg", "tree-sitter"]
 categories           = ["development-tools", "text-editors"]
 include              = ["/README.md", "/src/*", "/tests/*"]
 
-[features]
-default = ["cli"]
-cli     = ["clap"]
-
 [lib]
 name = "svg_format"
 path = "src/lib.rs"
@@ -34,6 +30,10 @@ tree-sitter-svg-path.workspace = true
 workspace = true
 features  = ["derive"]
 optional  = true
+
+[features]
+default = ["cli"]
+cli     = ["clap"]
 
 [lints]
 workspace = true
