@@ -210,7 +210,7 @@ impl VersionsEnvelope {
         let versions = value
             .pointer("/_embedded/version-history")
             .and_then(serde_json::Value::as_array)
-            .map(|array| {
+            .map_or_default(|array| {
                 array
                     .iter()
                     .filter_map(|version| {
@@ -222,8 +222,7 @@ impl VersionsEnvelope {
                             })
                     })
                     .collect()
-            })
-            .unwrap_or_default();
+            });
         Ok(Self { series, versions })
     }
 }

@@ -1,16 +1,17 @@
 [package]
-name                 = "svg-lint"
-version.workspace    = true
-authors.workspace    = true
-edition.workspace    = true
-description          = "Structural linting for SVG"
-readme               = "README.md"
-homepage             = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-lint"
-repository.workspace = true
-license.workspace    = true
-keywords             = ["diagnostics", "lint", "svg", "validation"]
-categories           = ["development-tools"]
-include              = ["/README.md", "/src/*", "/tests/*"]
+name                   = "svg-lint"
+version.workspace      = true
+authors.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Structural linting for SVG"
+readme                 = "README.md"
+homepage               = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-lint"
+repository.workspace   = true
+license.workspace      = true
+keywords               = ["diagnostics", "lint", "svg", "validation"]
+categories             = ["development-tools"]
+include                = ["/README.md", "/src/*", "/tests/*"]
 
 [features]
 default = ["cli"]

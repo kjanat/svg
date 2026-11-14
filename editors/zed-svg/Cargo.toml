@@ -1,12 +1,16 @@
 [package]
-name              = "zed-svg"
-version.workspace = true
-edition           = "2024"
-exclude           = ["/grammars"]
-publish           = false
+name                   = "zed-svg"
+version.workspace      = true
+edition                = "2024"
+rust-version.workspace = true
+exclude                = ["/grammars"]
+publish                = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
 zed_extension_api = "0.7.0"
+
+# The editor extension keeps its own lint policy rather than the server policy.
+[lints]

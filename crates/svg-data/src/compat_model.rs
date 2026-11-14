@@ -317,13 +317,12 @@ pub fn resolve_discouraged(features: Option<&Value>, compat_key: &str) -> Vec<Di
                 advice
                     .get(key)
                     .and_then(Value::as_array)
-                    .map(|list| {
+                    .map_or_else(Vec::new, |list| {
                         list.iter()
                             .filter_map(Value::as_str)
                             .map(str::to_owned)
                             .collect()
                     })
-                    .unwrap_or_default()
             };
             Some(Discouraged {
                 feature_id: id.clone(),
