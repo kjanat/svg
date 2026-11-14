@@ -1275,3 +1275,46 @@ fn path_preview_modes_follow_configuration_and_markup_support() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn path_preview_precision_fallbacks_keep_geometry_and_summary() -> TestResult {
+    let mut server = TestServer::start_with_initialize_options(
+        &json!({"svg":{"runtime_compat":false,"hover":{"path_preview":"svg"}}}),
+    )?;
+    for (index, (path, summary)) in [
+        (
+            "M0 0 A1e20 1e20 0 0 1 1 -1",
+            "2 commands · 1 subpath · 1 × 1 units",
+        ),
+        (
+            "M0 0 A100 100 0 1 1 0.000001 0",
+            "2 commands · 1 subpath · 200 × 200 units",
+        ),
+        (
+            "M1e8 1e8 l2 0 l0 100 z",
+            "4 commands · 1 subpath · 2 × 100 units",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let uri = format!("file:///preview-precision-{index}.svg");
+        let source = format!(r#"<svg><path d="{path}"/></svg>"#);
+        server.open(&uri, &source)?;
+        let column = u32::try_from(source.find(path).ok_or("path value")?)?;
+        let response = server.request(
+            "textDocument/hover",
+            &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}}),
+        )?;
+        let text = response["result"]["contents"]["value"]
+            .as_str()
+            .ok_or("preview")?;
+        assert!(text.contains(summary), "{path}: {text}");
+        assert!(!text.contains("data:image"), "{path}: {text}");
+        assert!(
+            text.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)),
+            "{path}: {text}"
+        );
+    }
+    server.shutdown_and_exit()
+}

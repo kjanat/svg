@@ -128,11 +128,11 @@ failed or is disabled, and nothing otherwise.
 above the catalog entry, whether the cursor sits on the attribute name or inside
 its value. `svg.hover.path_preview` selects the renderer:
 
-| Mode                | Behavior                                                                                                                                                                                                                                                                                     |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `braille` (default) | A text outline, usable in terminal clients and editors without hover image support. Requires Unicode braille patterns (U+2800–U+28FF).                                                                                                                                                       |
-| `svg`               | The original path commands in a self-contained SVG image, with a fitted viewport and a blue outline. Opt in when your client renders SVG data URIs in Markdown hovers. Plaintext-only clients receive braille; geometry whose SVG viewport cannot be represented also falls back to braille. |
-| `off`               | No path preview; attribute documentation remains available.                                                                                                                                                                                                                                  |
+| Mode                | Behavior                                                                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `braille` (default) | A text outline, usable in terminal clients and editors without hover image support. Requires Unicode braille patterns (U+2800–U+28FF).                                                                                                                                                            |
+| `svg`               | The original path commands in a self-contained SVG image, with a fitted viewport and a blue outline. Opt in when your client renders SVG data URIs in Markdown hovers. Plaintext-only clients receive braille; geometry that exceeds browser precision or size limits also falls back to braille. |
+| `off`               | No path preview; attribute documentation remains available.                                                                                                                                                                                                                                       |
 
 These modes apply at initialization and through configuration updates. Dropping
 `path_sketch` from the `sections` allowlist disables the preview in every mode.
@@ -142,9 +142,8 @@ and the extent in user units.
 
 Invalid path data, non-finite or unrepresentable geometry, and values over 32
 KiB produce no preview. Preview generation may also omit a path when an
-intermediate calculation exceeds the floating-point range, including the
-extreme-radius case tracked in [#63](https://github.com/kjanat/svg/issues/63).
-No external rasterizer is required.
+intermediate calculation exceeds the floating-point range. No external
+rasterizer is required.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,

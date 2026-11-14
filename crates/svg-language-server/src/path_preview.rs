@@ -20,6 +20,12 @@ const GRID_ROWS: usize = 8;
 const CURVE_STEPS: u32 = 24;
 /// Largest arc sweep covered by one flattened chord.
 const ARC_STEP: f64 = std::f64::consts::FRAC_PI_8;
+/// Chromium's `gfx::SizeF` clamps viewBox dimensions at this threshold to zero.
+/// <https://chromium.googlesource.com/chromium/src/+/main/ui/gfx/geometry/size_f.h#106>
+const MIN_SVG_VIEWPORT_DIMENSION: f32 = 8.0 * f32::EPSILON;
+/// Chromium's CSS length limit: `(i32::MAX / 64 - 2)` converted to f32.
+/// <https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/core/css/css_primitive_value.cc#49>
+const MAX_SVG_STROKE_WIDTH: f64 = 33_554_428.0;
 /// Cap on the path data a hover will parse at all. Sketching runs on the
 /// request path with its own parse of the value, so the work has to stay
 /// bounded by something other than the document's size; artwork past this is
@@ -146,7 +152,7 @@ pub fn sketch(path_data: &str) -> Option<Sketch> {
 /// Flattened geometry of one `d` value.
 struct Outline {
     origin: Point,
-    collapsed_arc_vectors: bool,
+    svg_arc_precision_loss: bool,
     polylines: Vec<Vec<Point>>,
     commands: usize,
     /// Counted as the path grammar defines them rather than taken from
@@ -215,8 +221,8 @@ struct Pen {
     /// but `M1e308 0 l1e308 1` overflows from finite operands), or a bare
     /// coordinate pair continues a command that cannot take one.
     invalid: bool,
-    /// A near-complete arc whose endpoint directions round to one vector.
-    collapsed_arc_vectors: bool,
+    /// Arc angles that lose the intended sweep at browser precision.
+    svg_arc_precision_loss: bool,
     /// The absolute point the first coordinate named, subtracted from every
     /// absolute coordinate after it. Curve and arc arithmetic then happens
     /// near zero, where a coordinate carries its full precision, instead of
@@ -603,14 +609,13 @@ impl Pen {
         // same offsets instead of quotients of extreme numbers.
         let from = Point::new(offset.x - arm.y, offset.y + arm.x);
         let to = Point::new(-offset.x - arm.y, -offset.y + arm.x);
-        let mut sweep = angle_between(from, to);
-        if !arc.sweep && sweep > 0.0 {
-            sweep -= std::f64::consts::TAU;
-        } else if arc.sweep && sweep < 0.0 {
-            sweep += std::f64::consts::TAU;
-        }
-        if arc.large && sweep == 0.0 {
-            self.collapsed_arc_vectors = true;
+        let mut sweep = arc_sweep(from, to, arc.sweep);
+        if sweep == 0.0 {
+            self.svg_arc_precision_loss = true;
+            if !arc.large {
+                self.line_to(end);
+                return;
+            }
             // The endpoints are closer than the radii can express, so the two
             // ends of the sweep are the same point and the angle between them
             // is zero either way. A large arc over an offset that small is a
@@ -621,6 +626,12 @@ impl Pen {
                 -std::f64::consts::TAU
             };
         }
+        // Browser angle arithmetic can lose the gap before f64 does, turning
+        // a near-complete circle into a dot. Keep braille within one relative
+        // single-precision rounding step of a full turn.
+        self.svg_arc_precision_loss |= arc.large
+            && std::f64::consts::TAU - sweep.abs()
+                <= std::f64::consts::TAU * f64::from(f32::EPSILON);
 
         // Walk out from the start rather than out from the centre. A point on
         // the arc is the centre plus a radius, and for radii far larger than
@@ -842,7 +853,7 @@ impl Pen {
         self.flush();
         Some(Outline {
             origin: self.origin.unwrap_or_default(),
-            collapsed_arc_vectors: self.collapsed_arc_vectors,
+            svg_arc_precision_loss: self.svg_arc_precision_loss,
             polylines: self.polylines,
             commands: self.commands,
             subpaths: self.subpaths,
@@ -1223,7 +1234,7 @@ fn quarter_turn_sin_cos(degrees: f64) -> Option<(f64, f64)> {
     })
 }
 
-/// Signed angle from `from` to `to`, as SVG 2 appendix B.2.4 defines it.
+/// Sweep from `from` to `to` in the requested SVG direction.
 ///
 /// Taken as `atan2(cross, dot)` rather than a signed `acos` of the normalized
 /// dot product: for a shallow sweep the cosine rounds to exactly one and `acos`
@@ -1233,10 +1244,17 @@ fn quarter_turn_sin_cos(degrees: f64) -> Option<(f64, f64)> {
     clippy::suboptimal_flops,
     reason = "both cross-product terms must round equally so identical vectors yield zero"
 )]
-fn angle_between(from: Point, to: Point) -> f64 {
+fn arc_sweep(from: Point, to: Point, positive: bool) -> f64 {
     let cross = from.x * to.y - from.y * to.x;
     let dot = from.x.mul_add(to.x, from.y * to.y);
-    cross.atan2(dot)
+    let angle = cross.atan2(dot);
+    if positive && angle < 0.0 {
+        angle + std::f64::consts::TAU
+    } else if !positive && angle > 0.0 {
+        angle - std::f64::consts::TAU
+    } else {
+        angle
+    }
 }
 
 /// Numeric equality, spelled through `partial_cmp` so it reads as deliberate
@@ -1266,8 +1284,8 @@ fn arc_steps(sweep: f64) -> u32 {
     reason = "check browser float precision"
 )]
 fn svg_preview(path_data: &str, outline: &Outline) -> Option<String> {
-    // Chromium renders these extreme arcs blank; keep the corrected braille.
-    if outline.collapsed_arc_vectors {
+    // Chromium loses these arc sweeps; keep the correctly sampled braille.
+    if outline.svg_arc_precision_loss {
         return None;
     }
     let (min, max) = bounds(&outline.polylines)?;
@@ -1278,11 +1296,20 @@ fn svg_preview(path_data: &str, outline: &Outline) -> Option<String> {
     let y = outline.origin.y + min.y - padding;
     let width = padding.mul_add(2.0, max.x - min.x);
     let height = padding.mul_add(2.0, max.y - min.y);
+    let stroke = span / 128.0;
     if ![x, y, width, height].iter().all(|v| v.is_finite())
         || width <= 0.0
         || height <= 0.0
         || x + width <= x
         || y + height <= y
+    {
+        return None;
+    }
+    // An empty browser viewBox loses scaling; a clamped stroke becomes too
+    // thin after scaling. Both cases can leave a valid path invisible.
+    if width as f32 <= MIN_SVG_VIEWPORT_DIMENSION
+        || height as f32 <= MIN_SVG_VIEWPORT_DIMENSION
+        || stroke > MAX_SVG_STROKE_WIDTH
     {
         return None;
     }
@@ -1292,8 +1319,19 @@ fn svg_preview(path_data: &str, outline: &Outline) -> Option<String> {
     if ![left, top, right, bottom].iter().all(|v| v.is_finite()) || right <= left || bottom <= top {
         return None;
     }
+    // Padding can keep the viewport distinct even when the actual shape
+    // collapses. Check each nonzero geometric extent independently as well.
+    let [left, top, right, bottom] = [
+        outline.origin.x + min.x,
+        outline.origin.y + min.y,
+        outline.origin.x + max.x,
+        outline.origin.y + max.y,
+    ]
+    .map(|v| v as f32);
+    if (max.x > min.x && right <= left) || (max.y > min.y && bottom <= top) {
+        return None;
+    }
     let data = quick_xml::escape::escape(path_data);
-    let stroke = span / 128.0;
     Some(format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="256" height="128" viewBox="{x} {y} {width} {height}"><rect x="{x}" y="{y}" width="{width}" height="{height}" fill="#fff"/><path d="{data}" fill="none" stroke="#2563eb" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/></svg>"##
     ))
@@ -1482,17 +1520,37 @@ mod tests {
 
     #[test]
     fn large_origins_keep_braille_when_browser_coordinates_collapse() -> TestResult {
-        let local = sketch("M0 0 l20 0 l0 20 z").ok_or("local path should sketch")?;
-        let translated =
-            sketch("M1e16 1e16 l20 0 l0 20 z").ok_or("translated path should sketch")?;
-        assert!(local.svg.is_some());
-        assert!(translated.svg.is_none());
-        assert_eq!(local.art, translated.art);
+        for (origin, commands) in [("1e16 1e16", "l20 0 l0 20 z"), ("1e8 1e8", "l2 0 l0 100 z")] {
+            let local = sketch(&format!("M0 0 {commands}")).ok_or("local path should sketch")?;
+            let translated =
+                sketch(&format!("M{origin} {commands}")).ok_or("translated path should sketch")?;
+            assert!(local.svg.is_some());
+            assert!(translated.svg.is_none(), "origin {origin}: {commands}");
+            assert_eq!(local.art, translated.art);
+        }
         Ok(())
     }
 
     fn art(path_data: &str) -> Result<String, Box<dyn std::error::Error>> {
         Ok(sketch(path_data).ok_or("path data should sketch")?.art)
+    }
+
+    #[test]
+    fn svg_scale_limits_keep_the_braille_geometry_visible() -> TestResult {
+        let expected = art("M0 0 L1 1")?;
+        for extent in ["1e-40", "1e-7", "1e35"] {
+            let preview = sketch(&format!("M0 0 L{extent} {extent}")).ok_or("scaled line")?;
+            assert_eq!(preview.art, expected);
+            assert!(
+                preview.svg.is_none(),
+                "browser loses line at scale {extent}"
+            );
+        }
+        for extent in ["1e-6", "1", "1e9"] {
+            let preview = sketch(&format!("M0 0 L{extent} {extent}")).ok_or("supported scale")?;
+            assert!(preview.svg.is_some(), "supported SVG scale {extent}");
+        }
+        Ok(())
     }
 
     #[test]
@@ -2300,6 +2358,42 @@ mod tests {
             "the arc should hug its one-unit chord, got {} x {}",
             sketch.width,
             sketch.height
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shallow_diagonal_arcs_keep_their_endpoint_chord() -> TestResult {
+        for endpoint in ["1 1", "1 -1"] {
+            let chord = sketch(&format!("M0 0 L{endpoint}")).ok_or("chord")?;
+            for sweep in [0, 1] {
+                let preview = sketch(&format!("M0 0 A1e20 1e20 0 0 {sweep} {endpoint}"))
+                    .ok_or("shallow arc")?;
+                assert_eq!((preview.width, preview.height), (1.0, 1.0));
+                assert_eq!(preview.art, chord.art);
+                assert!(preview.svg.is_none());
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn near_complete_arcs_use_braille_before_browser_angles_collapse() -> TestResult {
+        for sweep in [0, 1] {
+            let preview = sketch(&format!("M0 0 A100 100 0 1 {sweep} 0.000001 0"))
+                .ok_or("near-complete circle")?;
+            assert!((preview.width - 200.0).abs() < 1e-9);
+            assert!((preview.height - 200.0).abs() < 1e-9);
+            assert!(
+                preview.svg.is_none(),
+                "browser collapses this circle to a dot"
+            );
+        }
+        assert!(
+            sketch("M0 0 A100 100 0 1 1 1 0")
+                .ok_or("ordinary arc")?
+                .svg
+                .is_some()
         );
         Ok(())
     }
