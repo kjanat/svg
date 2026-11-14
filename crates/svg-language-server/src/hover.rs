@@ -1,4 +1,5 @@
 use std::{fmt::Write as _, sync::LazyLock};
+use svg_path_preview::Sketch;
 
 use svg_data::browser_compat::{BrowserSupport, BrowserVersion};
 use svg_data::effective_compat::{self, Facts};
@@ -10,7 +11,6 @@ use crate::{
     clipboard::svg_data_uri,
     compat::CompatOverride,
     hover_settings::{BrowserDetail, HoverSettings, Section, browser_label},
-    path_preview::Sketch,
     positions::byte_offset_for_row_col,
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
 };

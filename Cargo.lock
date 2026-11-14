@@ -1123,6 +1123,7 @@ dependencies = [
  "svg-data",
  "svg-format",
  "svg-lint",
+ "svg-path-preview",
  "svg-references",
  "svg-tree",
  "tempfile",
@@ -1133,7 +1134,6 @@ dependencies = [
  "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-svg",
- "tree-sitter-svg-path",
  "ureq",
  "url",
 ]
@@ -1149,6 +1149,16 @@ dependencies = [
  "svg-tree",
  "tree-sitter",
  "tree-sitter-svg",
+]
+
+[[package]]
+name = "svg-path-preview"
+version = "0.3.0"
+dependencies = [
+ "quick-xml",
+ "tree-sitter",
+ "tree-sitter-svg",
+ "tree-sitter-svg-path",
 ]
 
 [[package]]

@@ -72,6 +72,7 @@ cargo install --git https://github.com/kjanat/svg svg-language-server
 | `crates/svg-color`                   | Color extraction and color presentation helpers                        |
 | `crates/svg-data`                    | Generated SVG catalog from spec, BCD, and web-features data            |
 | `crates/svg-data-regen`              | Deterministic catalog regeneration pipeline                            |
+| `crates/svg-path-preview`            | Path geometry, bounds, and braille/SVG previews                        |
 | `crates/svg-references`              | Symbol extraction for `id`, CSS class, and custom property definitions |
 | `crates/svg-tree`                    | Shared tree-sitter helpers and tree utilities                          |
 | `grammars/tree-sitter-svg`           | Tree-sitter grammar for SVG                                            |
@@ -97,6 +98,8 @@ graph BT
   svg-language-server --> svg-data
   svg-language-server --> svg-format
   svg-language-server --> svg-lint
+  svg-language-server --> svg-path-preview
+  svg-path-preview --> tree-sitter-svg-path
   svg-language-server --> svg-references
   svg-language-server --> svg-tree
   zed-svg --> svg-language-server
@@ -211,6 +214,7 @@ crates/
   svg-lint/             diagnostics engine
   svg-color/            color parsing, extraction, and presentation
   svg-data/             generated SVG catalog
+  svg-path-preview/     path geometry and preview rendering
   svg-references/       definition/reference analysis
   svg-tree/             shared tree-sitter helpers and tree utilities
 grammars/

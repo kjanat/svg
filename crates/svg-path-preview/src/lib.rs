@@ -109,6 +109,7 @@ pub struct Sketch {
 
 /// The spelling of a `d_attribute`'s name, for callers that need to decide
 /// whether it applies to the element that carries it.
+#[must_use]
 pub fn attribute_name<'a>(attribute: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
     descendant_of_kind_any(attribute, &["d_attribute_name"])?
         .utf8_text(source)
@@ -122,6 +123,7 @@ pub fn attribute_name<'a>(attribute: Node<'_>, source: &'a [u8]) -> Option<&'a s
 /// value carrying a character reference (`d="M0 0&#32;L10 10"`, which XML
 /// resolves to whitespace before SVG ever sees it) splits into a payload plus
 /// an error node, and reading the payload alone would sketch only the prefix.
+#[must_use]
 pub fn sketch_for_attribute(attribute: Node<'_>, source: &[u8]) -> Option<Sketch> {
     let quoted = descendant_of_kind_any(
         attribute,
@@ -142,6 +144,7 @@ pub fn sketch_for_attribute(attribute: Node<'_>, source: &[u8]) -> Option<Sketch
 }
 
 /// Sketch raw path data, or return `None` when it does not parse or draws nothing.
+#[must_use]
 pub fn sketch(path_data: &str) -> Option<Sketch> {
     let outline = flatten(path_data)?;
     let mut sketch = render(&outline)?;
