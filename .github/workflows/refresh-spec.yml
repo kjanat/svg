@@ -232,13 +232,13 @@ jobs:
       - uses: taiki-e/install-action@v2
         if: &AnyOne needs.check.outputs.any == '1'
         with: { tool: just }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: *AnyOne
         with: { node-version-file: package.json }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         if: *AnyOne
         with: { bun-version-file: package.json }
-      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: *AnyOne
       - uses: denoland/setup-deno@v2
         if: *AnyOne

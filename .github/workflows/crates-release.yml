@@ -36,13 +36,13 @@ jobs:
     steps:
       # Resolve default-branch helpers once; publish jobs reuse this exact SHA.
       # This does not change the workflow YAML GitHub selected for this run.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
       - name: record helper and release source revisions
         id: identity
@@ -50,7 +50,7 @@ jobs:
         run: |
           import runpy
           runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
@@ -70,7 +70,7 @@ jobs:
           helper-sha: ${{ steps.identity.outputs.helper_sha }}
       - name: retain verified archives and report
         id: artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verified-crates-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/verified-crates
@@ -89,13 +89,13 @@ jobs:
     strategy: { max-parallel: 1, fail-fast: true, matrix: { include: "${{ fromJSON(needs.setup.outputs.crates) }}" } }
     env: { HAS_CRATES_TOKEN: "${{ secrets.CARGO_REGISTRY_TOKEN != '' }}" }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.setup.outputs.helper_sha }}
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
       - name: check helper and release source revisions
         id: identity
@@ -106,12 +106,12 @@ jobs:
         run: |
           import runpy
           runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
       - name: download this run's verified packages
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.setup.outputs.artifact_id }}
           path: ${{ runner.temp }}/verified-crates
@@ -120,7 +120,7 @@ jobs:
       - name: mint crates.io token (trusted publishing)
         if: env.HAS_CRATES_TOKEN != 'true'
         id: auth
-        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1
 
       - name: cargo publish
         uses: ./.github/actions/crates-publish

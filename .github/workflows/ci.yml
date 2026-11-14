@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with: { node-version-file: package.json }
       - name: Resolve pinned Node major
         run: echo "NODE_MAJOR=$(jq -r '.volta.node | split(".")[0]' package.json)" >> "${GITHUB_ENV}"
