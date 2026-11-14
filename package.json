@@ -23,8 +23,8 @@
 		"distribution/npm/scripts"
 	],
 	"scripts": {
-		"fmt": "dprint fmt",
-		"fmt:update": "dprint config update -yr",
+		"fmt": "bunx @kjanat/fmt",
+		"fmt:update": "bunx @kprint/kprint config update -yr",
 		"postinstall": "bun run --filter '*' postinstall",
 		"lint": "bun run --filter '*' lint",
 		"prepare": "bun run --filter '*' prepare && importmapify",
@@ -53,7 +53,7 @@
 		"@types/node": "^26",
 		"@kjanat/dreamcli": "^4",
 		"@types/deno": "^2",
-		"dprint": "^0.57",
+		"@kprint/kprint": "^0.62",
 		"ansispeck": "^0.4",
 		"tar": "^7.5",
 		"node-addon-api": "^8.9",

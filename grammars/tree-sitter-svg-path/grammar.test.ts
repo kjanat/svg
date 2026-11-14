@@ -1,5 +1,5 @@
 /**
- * Drift guard: the svg_path grammar derives its command token from a hardcoded
+ * Drift guard: the svg_path grammar derives its command token from a generated
  * letter set (constants.js) to stay standalone — no catalog JSON is pulled into
  * grammar.js. This test fails if that set ever diverges from the svg-data
  * catalog (tokens.path_command_letters) it mirrors.

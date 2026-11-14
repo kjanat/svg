@@ -28,19 +28,20 @@ jobs:
         run: cargo test --workspace
 
   format:
-    name: dprint check
+    name: kprint check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: kjanat/install-dprint@v2
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: package.json }
       - uses: taiki-e/install-action@v2
         with: { tool: "just,tombi,rust+rustfmt" }
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
-      - run: dprint check
+      - run: bunx '@kprint/kprint' check
 
   npm-facade:
     name: npm facade (glibc + musl)

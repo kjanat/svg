@@ -2,42 +2,50 @@ name: Tree-sitter SVG
 
 on:
   pull_request:
-    paths:
+    paths: &Paths
+      - ".github/workflows/refresh-spec.yml"
       - ".github/workflows/tree-sitter-svg.yml"
-      - "grammars/tree-sitter-svg/**"
-  push:
-    branches: [master]
-    paths:
-      - ".github/workflows/tree-sitter-svg.yml"
-      - "grammars/tree-sitter-svg/**"
-  workflow_dispatch: {}
+      - "bun.lock"
+      - "crates/svg-data-regen/**"
+      - "crates/svg-data/data/**"
+      - "editors/zed-svg/languages/**"
+      - "grammars/**"
+      - "justfile"
+      - "package.json"
+      - "scripts/generate-grammars.ts"
+  push: { branches: [master], paths: *Paths }
+  workflow_dispatch: null
 
 permissions: { contents: read }
 concurrency:
   group: tree-sitter-svg-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
+defaults: { run: { working-directory: grammars/tree-sitter-svg } }
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions: { contents: read }
-    defaults: { run: { working-directory: grammars/tree-sitter-svg } }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: kjanat/runner@master
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with: { node-version-file: grammars/tree-sitter-svg/.node-version }
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      - uses: kjanat/runner@v0.26.2
+      - uses: taiki-e/install-action@just
+      - uses: actions/setup-node@v7
+        with: { node-version-file: package.json }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: package.json }
+      - uses: astral-sh/setup-uv@v10.1.0
       - uses: denoland/setup-deno@v2
-        with: { deno-version: v2.x }
-      - run: |
-          runner --pm bun install --frozen --keep-going \
-            typecheck \
-            test:corpus \
-            test:fuzz \
-            parse:examples \
-            test \
-            test:bun \
-            test:regex
+      - name: Install workspace dependencies
+        working-directory: .
+        run: bun install --frozen-lockfile
+      - name: Check all generated grammars and their consumers
+        working-directory: .
+        run: just check-grammars
+      - run: runner run --pm bun --sequential --keep-going
+          typecheck
+          test:corpus
+          test:fuzz
+          parse:examples
+          test
+          test:bun
+          test:regex

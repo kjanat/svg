@@ -48,7 +48,7 @@
 		"*.wasm"
 	],
 	"scripts": {
-		"fmt": "dprint fmt",
+		"fmt": "bunx @kjanat/fmt",
 		"generate": "tree-sitter generate",
 		"postinstall": "node scripts/ensure-native.mjs",
 		"lint": "biome check",
@@ -68,8 +68,8 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "catalog:",
+		"@kprint/kprint": "catalog:",
 		"@types/bun": "catalog:",
-		"dprint": "catalog:",
 		"node-gyp": "catalog:",
 		"prebuildify": "catalog:",
 		"runner-run": "catalog:",

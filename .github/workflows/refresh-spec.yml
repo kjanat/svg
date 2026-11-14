@@ -34,8 +34,8 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
 
           $runSentinel = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --json > report.json }
-          $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
-          $acceptExit = { param($code, $name); switch ($code -in 0, 1, 2) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
+          $setOutput   = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
+          $acceptExit  = { param($code, $name); switch ($code -in 0, 1, 2) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runSentinel
           $code = $LASTEXITCODE
@@ -52,8 +52,8 @@ jobs:
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
 
-          $runCompat = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --compat-drift --json > compat-report.json }
-          $setOutput = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
+          $runCompat  = { cargo run --quiet --package svg-data --features drift-cli --bin svgwg-drift -- --compat-drift --json > compat-report.json }
+          $setOutput  = { param([System.Collections.IDictionary]$kv); foreach ($key in $kv.Keys) { "{0}={1}" -f $key, $kv[$key] >> $env:GITHUB_OUTPUT } }
           $acceptExit = { param($code, $name); switch ($code -in 0, 1) { $true { $global:LASTEXITCODE = 0 } default { "::error::{0} failed to run (exit {1})" -f $name, $code; exit $code } } }
 
           &$runCompat
@@ -102,11 +102,11 @@ jobs:
           $add = { param($l); $lines.Add([string]$l) }
 
           &$add @"
-          | Source | Drifted entries |
-          | --- | --- |
-          | W3C published editions | ``$published`` |
-          | Compat packages | ``$compat`` |
-          | Tracked svgwg inputs | ``$tracked`` |
+          | Source                 | Drifted entries |
+          | ---------------------- | --------------- |
+          | W3C published editions | ``$published``  |
+          | Compat packages        | ``$compat``     |
+          | Tracked svgwg inputs   | ``$tracked``    |
 
           Resolved svgwg HEAD: w3c/svgwg@$headCommit
           "@
@@ -116,7 +116,7 @@ jobs:
             &$add '**Compat packages behind npm `latest`**'
             &$add ''
             &$add '| Package | Baked | Latest |'
-            &$add '| --- | --- | --- |'
+            &$add '| ------- | ----- | ------ |'
             foreach ($d in $compatReport.drift) {
               &$add ('| `{0}` | `{1}` | `{2}` |' -f $d.name, $d.baked, $d.latest)
             }
@@ -218,7 +218,7 @@ jobs:
     needs: check
     if: needs.check.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions: { contents: write, issues: write, pull-requests: write }
     env:
       CHECK_OUTPUTS_JSON: ${{ toJson(needs.check.outputs) }}
@@ -229,38 +229,40 @@ jobs:
         with: { persist-credentials: false }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: kjanat/install-dprint@v2
-        if: needs.check.outputs.any == '1'
+      - uses: taiki-e/install-action@v2
+        if: &AnyOne needs.check.outputs.any == '1'
+        with: { tool: just }
+      - uses: actions/setup-node@v6
+        if: *AnyOne
+        with: { node-version-file: package.json }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: *AnyOne
+        with: { bun-version-file: package.json }
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        if: *AnyOne
+      - uses: denoland/setup-deno@v2
+        if: *AnyOne
+        with: { deno-version: v2.x }
+      - name: Install grammar dependencies
+        if: *AnyOne
+        run: bun install --frozen-lockfile
 
-      - name: Regenerate spec catalog
-        if: needs.check.outputs.any == '1'
+      - name: Regenerate catalog and grammars, and validate consumers
+        if: *AnyOne
         run: |
           $ErrorActionPreference = "Stop"
           $check = ConvertFrom-Json $env:CHECK_OUTPUTS_JSON | Select-Object -Property head_commit
           $assertOk = { param($name); if ($LASTEXITCODE -ne 0) { "::error::{0} failed (exit {1})" -f $name, $LASTEXITCODE; exit $LASTEXITCODE } }
 
-          # svg-data-regen fetches svgwg at the given ref, resolves BCD/
-          # web-features to whatever's currently npm `latest`, and writes the
-          # full derived catalog (including schemas) - one call covers
-          # published, compat, and tracked drift alike; see issue #22.
-          "Regenerating spec catalog from svgwg@{0}..." -f $check.head_commit
-          cargo run --quiet --package svg-data-regen -- $check.head_commit
-          &$assertOk "svg-data-regen"
-
-          "Normalising regenerated catalog files to repo style..."
-          dprint fmt "crates/svg-data/data/**"
-          &$assertOk "dprint fmt"
-
-      - name: Gate refresh on repro + provenance tests
-        if: needs.check.outputs.any == '1'
-        run: |
-          $ErrorActionPreference = "Stop"
-          $testSvgData = { param($package); cargo test --package $package }
-          &$testSvgData "svg-data"
-          if ($LASTEXITCODE -ne 0) { "::error::cargo test -p svg-data failed (exit {0})" -f $LASTEXITCODE; exit $LASTEXITCODE }
+          # Use the same complete refresh operation as local development.
+          # This generates standalone grammar inputs and parsers, checks them,
+          # and tests all Rust consumers before any refresh PR can be opened.
+          "Regenerating catalog and grammars from svgwg@{0}..." -f $check.head_commit
+          just regen $check.head_commit
+          &$assertOk "just regen"
 
       - name: Ensure label exists
-        if: needs.check.outputs.any == '1'
+        if: *AnyOne
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
@@ -278,9 +280,8 @@ jobs:
 
       - name: Resolve tracking issue
         id: issue
-        if: needs.check.outputs.any == '1'
-        env:
-          DRIFT_DIGEST: ${{ needs.check.outputs.digest }}
+        if: *AnyOne
+        env: { DRIFT_DIGEST: "${{ needs.check.outputs.digest }}" }
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -325,7 +326,7 @@ jobs:
 
       - name: Build auto-refresh pull request body
         id: pr
-        if: needs.check.outputs.any == '1'
+        if: *AnyOne
         env:
           DRIFT_DIGEST: ${{ needs.check.outputs.digest }}
           HEAD_COMMIT: ${{ needs.check.outputs.head_commit }}
@@ -356,7 +357,7 @@ jobs:
 
           ---
 
-          ``svg-data-regen`` re-fetched svgwg at w3c/svgwg@$($env:HEAD_COMMIT), BCD, and web-features, and rewrote the derived catalog with fresh provenance. ``cargo test -p svg-data`` (repro + provenance gates) passed in the generating job. Review the catalog diff before merging.
+          ``just regen`` re-fetched svgwg at w3c/svgwg@$($env:HEAD_COMMIT) and upstream packages, refreshed the catalog and all dependent grammar artifacts, and passed ``just check-grammars`` and ``cargo test --workspace``. Review the generated changes before merging.
 
           Closes #$($env:ISSUE_NUMBER)
           "@
@@ -371,7 +372,7 @@ jobs:
 
       - name: Open auto-refresh pull request
         id: cpr
-        if: needs.check.outputs.any == '1'
+        if: *AnyOne
         uses: peter-evans/create-pull-request@v8
         with:
           # A PAT (or fine-grained token) with `contents: write` +
