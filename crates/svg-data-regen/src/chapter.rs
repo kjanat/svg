@@ -428,11 +428,7 @@ impl PropdefFields {
             name,
             dfn_for,
             id,
-            keywords: self
-                .value
-                .as_deref()
-                .map(value_keywords)
-                .unwrap_or_default(),
+            keywords: self.value.as_deref().map_or_default(value_keywords),
             value: self.value.clone(),
             initial: self.initial.clone(),
             applies_to: self.applies_to.clone(),
@@ -1506,7 +1502,7 @@ fn property_from_attrdef(
     initial: Option<String>,
     animation_type: Option<String>,
 ) -> PropertyValueDef {
-    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
+    let keywords = value.as_deref().map_or_default(value_keywords);
     PropertyValueDef {
         name,
         dfn_for,
@@ -1560,7 +1556,7 @@ fn extract_animate_motion_coordinate_values(dom: &tl::VDom) -> Vec<PropertyValue
 }
 
 fn synthetic_attrdef(name: &str, dfn_for: &str, value: Option<String>) -> PropertyValueDef {
-    let keywords = value.as_deref().map(value_keywords).unwrap_or_default();
+    let keywords = value.as_deref().map_or_default(value_keywords);
     PropertyValueDef {
         name: name.to_owned(),
         dfn_for: Some(dfn_for.to_owned()),

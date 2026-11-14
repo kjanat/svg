@@ -1,16 +1,17 @@
 [package]
-name                 = "svg-references"
-version.workspace    = true
-authors.workspace    = true
-edition.workspace    = true
-description          = "Shared SVG/CSS symbol extraction for references and definitions"
-readme               = "README.md"
-homepage             = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-references"
-repository.workspace = true
-license.workspace    = true
-keywords             = ["css", "references", "svg", "tree-sitter"]
-categories           = ["development-tools"]
-include              = ["/README.md", "/src/*"]
+name                   = "svg-references"
+version.workspace      = true
+authors.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Shared SVG/CSS symbol extraction for references and definitions"
+readme                 = "README.md"
+homepage               = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-references"
+repository.workspace   = true
+license.workspace      = true
+keywords               = ["css", "references", "svg", "tree-sitter"]
+categories             = ["development-tools"]
+include                = ["/README.md", "/src/*"]
 
 [dependencies]
 tree-sitter.workspace     = true

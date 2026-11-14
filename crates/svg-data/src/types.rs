@@ -939,32 +939,6 @@ impl AttributeDef {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::AttributeApplicability;
-
-    #[test]
-    fn attribute_applicability_distinguishes_global_scoped_and_none() {
-        assert!(AttributeApplicability::Global.includes("circle", true));
-        assert!(!AttributeApplicability::Global.includes("circle", false));
-        assert!(AttributeApplicability::Elements(&["circle"]).includes("circle", false));
-        assert!(!AttributeApplicability::Elements(&["circle"]).includes("rect", true));
-        assert!(!AttributeApplicability::None.includes("circle", true));
-    }
-
-    #[test]
-    fn empty_scoped_applicability_maps_to_none() {
-        assert_eq!(
-            AttributeApplicability::only(&[]),
-            AttributeApplicability::None
-        );
-        assert_eq!(
-            AttributeApplicability::only(&["circle"]),
-            AttributeApplicability::Elements(&["circle"])
-        );
-    }
-}
-
 /// Outcome of a profile-aware element/attribute lookup.
 ///
 /// # Examples
@@ -1127,4 +1101,30 @@ pub enum DeclaredStatus {
     Obsolete,
     /// Removed from the specification.
     Removed,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AttributeApplicability;
+
+    #[test]
+    fn attribute_applicability_distinguishes_global_scoped_and_none() {
+        assert!(AttributeApplicability::Global.includes("circle", true));
+        assert!(!AttributeApplicability::Global.includes("circle", false));
+        assert!(AttributeApplicability::Elements(&["circle"]).includes("circle", false));
+        assert!(!AttributeApplicability::Elements(&["circle"]).includes("rect", true));
+        assert!(!AttributeApplicability::None.includes("circle", true));
+    }
+
+    #[test]
+    fn empty_scoped_applicability_maps_to_none() {
+        assert_eq!(
+            AttributeApplicability::only(&[]),
+            AttributeApplicability::None
+        );
+        assert_eq!(
+            AttributeApplicability::only(&["circle"]),
+            AttributeApplicability::Elements(&["circle"])
+        );
+    }
 }

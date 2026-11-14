@@ -259,7 +259,7 @@ fn css_value_completions(custom_properties: &[svg_references::NamedSpan]) -> Vec
         }
         let reference = format!("var({})", property.name);
         items.push(detailed_completion_item(
-            reference.clone(),
+            reference,
             CompletionItemKind::VARIABLE,
             "CSS custom property",
         ));

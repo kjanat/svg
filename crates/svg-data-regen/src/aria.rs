@@ -149,15 +149,13 @@ fn section_value_space(segment: &str) -> Fallible<Option<CatalogAttributeValues>
 }
 
 fn query_token_cells(dom: &tl::VDom, parser: &tl::Parser, selector: &str) -> Vec<String> {
-    dom.query_selector(selector)
-        .map(|handles| {
-            handles
-                .filter_map(|handle| handle.get(parser).and_then(|node| node.as_tag()))
-                .map(|tag| aria_token(&normalize_ws(&tag.inner_text(parser))))
-                .filter(|token| !token.is_empty())
-                .collect()
-        })
-        .unwrap_or_default()
+    dom.query_selector(selector).map_or_default(|handles| {
+        handles
+            .filter_map(|handle| handle.get(parser).and_then(|node| node.as_tag()))
+            .map(|tag| aria_token(&normalize_ws(&tag.inner_text(parser))))
+            .filter(|token| !token.is_empty())
+            .collect()
+    })
 }
 
 /// Strip the `(default)` marker WAI-ARIA appends to a default token.

@@ -1,15 +1,16 @@
 [package]
-name                 = "svg-format"
-version.workspace    = true
-authors.workspace    = true
-edition.workspace    = true
-description          = "Structural formatter for SVG documents"
-homepage             = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-format"
-repository.workspace = true
-license.workspace    = true
-keywords             = ["format", "pretty-print", "svg", "tree-sitter"]
-categories           = ["development-tools", "text-editors"]
-include              = ["/README.md", "/src/*", "/tests/*"]
+name                   = "svg-format"
+version.workspace      = true
+authors.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Structural formatter for SVG documents"
+homepage               = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-format"
+repository.workspace   = true
+license.workspace      = true
+keywords               = ["format", "pretty-print", "svg", "tree-sitter"]
+categories             = ["development-tools", "text-editors"]
+include                = ["/README.md", "/src/*", "/tests/*"]
 
 [features]
 default = ["cli"]

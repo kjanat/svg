@@ -1,17 +1,18 @@
 [package]
-name                 = "svg-data"
-version.workspace    = true
-authors.workspace    = true
-edition.workspace    = true
-description          = "Structured SVG specification data, extracted from canonical upstream"
-readme               = "README.md"
-homepage.workspace   = true
-repository.workspace = true
-license.workspace    = true
-keywords.workspace   = true
-categories.workspace = true
-build                = "build.rs"
-include              = ["/README.md", "/build.rs", "/data/*", "/src/*"]
+name                   = "svg-data"
+version.workspace      = true
+authors.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Structured SVG specification data, extracted from canonical upstream"
+readme                 = "README.md"
+homepage.workspace     = true
+repository.workspace   = true
+license.workspace      = true
+keywords.workspace     = true
+categories.workspace   = true
+build                  = "build.rs"
+include                = ["/README.md", "/build.rs", "/data/*", "/src/*"]
 
 [features]
 drift-cli = ["ureq"]
