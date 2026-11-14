@@ -45,7 +45,7 @@
 	"packageManager": "bun@1.4.4",
 	"volta": {
 		"node": "26.4.0",
-		"npm": "11.17.0"
+		"npm": "11.21.2"
 	},
 	"catalog": {
 		"@biomejs/biome": "^2.5",
