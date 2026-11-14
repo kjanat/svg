@@ -114,8 +114,8 @@ This usually means your package manager skipped ${cyan('optionalDependencies')}
 Workarounds:
 ${indent}- reinstall without: ${cyan('--no-optional')} / ${cyan('--omit=optional')}
 ${indent}- bun + ${cyan('minimumReleaseAge')}: add the platform packages (not just ${bold(pkgName)}) to ${
-		cyan('minimumReleaseAgeExcludes')
-	} — a fresh release is otherwise age-gated
+	cyan('minimumReleaseAgeExcludes')
+} — a fresh release is otherwise age-gated
 ${indent}- install from source: ${cyan(`cargo install --git=${repo}/ ${name}`)}
 ${indent}- file an issue if your platform is unsupported: ${link(issues, issues)}${detail}
 `;

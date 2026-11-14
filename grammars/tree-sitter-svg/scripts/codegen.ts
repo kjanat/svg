@@ -27,8 +27,17 @@ function displayPath(path: string): string {
 }
 
 const data = JSON.parse(await readFile(sourcePath, 'utf8')) as CatalogTreeSitter;
+const output = `${JSON.stringify(data, null, '\t')}\n`;
 
-await writeFile(outPath, `${JSON.stringify(data, null, '\t')}\n`);
+if (process.argv.includes('--check')) {
+	if (await readFile(outPath, 'utf8') !== output) {
+		throw new Error(`${displayPath(outPath)} is stale; run just generate-grammars`);
+	}
+	console.log(`grammar data current -> ${displayPath(outPath)}`);
+	process.exit(0);
+}
+
+await writeFile(outPath, output);
 
 console.log(`grammar data written -> ${displayPath(outPath)}`);
 console.log(`source -> ${displayPath(sourcePath)}`);

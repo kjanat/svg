@@ -1,5 +1,5 @@
 /**
- * Drift guard: the svg_paint grammar hardcodes the CSS color-space / hue /
+ * Drift guard: the svg_paint grammar generates the CSS color-space / hue /
  * angle token sets (constants.js) to stay standalone — no catalog JSON is
  * pulled into the grammar. This test fails if those copies ever diverge from
  * the svg-data catalog they mirror.

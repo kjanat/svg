@@ -59,13 +59,14 @@
   introduced a clippy ICE — "unexpected rigid alias in layout_of after
   normalization" inside `clippy::large_futures`'s `layout_of` query — that
   panics specifically on `svg-language-server`'s async LSP handlers (opaque
-  RPITIT/async-fn types from `tower-lsp-server`/`tokio`). Bisected with `rustup
-  toolchain install nightly-YYYY-MM-DD` + `cargo +nightly-YYYY-MM-DD clippy -p
-  svg-language-server --lib`: `nightly-2026-08-21` (rustc built 2026-08-20) is
-  clean, `nightly-2026-08-22` (rustc built 2026-08-21) ICEs. Reproduces
-  identically on unmodified `master`, so it's a toolchain regression, not a code
-  bug. Pinned `rust-toolchain.toml` to `nightly-2026-08-21` until upstream fixes
-  it; re-bisect forward periodically to find a fixed nightly and un-pin.
+  RPITIT/async-fn types from `tower-lsp-server`/`tokio`). Bisected with
+  `rustup toolchain install nightly-YYYY-MM-DD` +
+  `cargo +nightly-YYYY-MM-DD clippy -p svg-language-server --lib`:
+  `nightly-2026-08-21` (rustc built 2026-08-20) is clean, `nightly-2026-08-22`
+  (rustc built 2026-08-21) ICEs. Reproduces identically on unmodified `master`,
+  so it's a toolchain regression, not a code bug. Pinned `rust-toolchain.toml`
+  to `nightly-2026-08-21` until upstream fixes it; re-bisect forward
+  periodically to find a fixed nightly and un-pin.
 
 ## svg-data Catalog
 
@@ -89,17 +90,17 @@
 - `font-stretch` is a known source-of-truth trap. Current repo data keeps it as
   a normal SVG presentation attribute
   (`Svg2EditorsDraft20250914/element_attribute_matrix.json` includes it;
-  generated catalog currently says `spec_lifecycle: Stable`, `deprecated:
-  false`), while newer MDN / CSS Fonts 4 prose says it was renamed to
-  `font-width` and retained as a legacy alias. Useful quotes: SVG 2 styling
+  generated catalog currently says `spec_lifecycle: Stable`,
+  `deprecated: false`), while newer MDN / CSS Fonts 4 prose says it was renamed
+  to `font-width` and retained as a legacy alias. Useful quotes: SVG 2 styling
   lists `font-stretch` among presentation attributes and required CSS properties
-  (`https://svgwg.org/svg2-draft/styling.html`); CSS Fonts 3 calls it `Font
-  width: the font-stretch property`
+  (`https://svgwg.org/svg2-draft/styling.html`); CSS Fonts 3 calls it
+  `Font width: the font-stretch property`
   (`https://www.w3.org/TR/css-fonts-3/#font-stretch-prop`); CSS Fonts 4 says
-  `For historical reasons, a font-stretch property exists ... and functions in
-  the identical way to the font-width.` Do not mark `font-stretch` deprecated
-  from MDN prose alone; first decide whether the repo should follow pinned SVG 2
-  / CSS Fonts 3 data, or add first-class alias/replacement metadata.
+  `For historical reasons, a font-stretch property exists ... and functions in the identical way to the font-width.`
+  Do not mark `font-stretch` deprecated from MDN prose alone; first decide
+  whether the repo should follow pinned SVG 2 / CSS Fonts 3 data, or add
+  first-class alias/replacement metadata.
 
 ## svgwg Upstream Layout
 
@@ -113,12 +114,12 @@
 - The conversion is checkable: regenerating with the old pipeline at
   w3c/svgwg@8b6274e (last HTML commit) and with the new one at @09d59ab (the
   converted sources, same content) gives the same catalog apart from provenance
-  URLs and six descriptions that lose old-source link artifacts (`'style
-  element' element` became `'style' element`). Repeat that comparison after any
-  change to `bikeshed.rs`.
+  URLs and six descriptions that lose old-source link artifacts
+  (`'style element' element` became `'style' element`). Repeat that comparison
+  after any change to `bikeshed.rs`.
 
-- Bikeshed renders property links without quotes (`'fill'` shorthand and `<a
-  class="property">fill</a>`), and the converted source wraps element and
+- Bikeshed renders property links without quotes (`'fill'` shorthand and
+  `<a class="property">fill</a>`), and the converted source wraps element and
   attribute links in curly quotes (`‘<{rect}>’`). Lowering puts straight quotes
   around every such name; the lifecycle extractor's `'name' property` patterns
   depend on that.
@@ -142,10 +143,11 @@
 ## svg-lint Value Checks
 
 - Typed attribute rules in tree-sitter-svg reject invalid values outright, so
-  the value lint never sees them: `id="a b"`, `preserveAspectRatio="xMidYMid
-  crop"` and `x="1 two"` parse as `ERROR` nodes. Recovery can spill out of the
-  attribute (`<text x="1 two">` reports an unknown `<two>` element). Only values
-  the grammar accepts structurally reach `values::invalid_reason_for`.
+  the value lint never sees them: `id="a b"`,
+  `preserveAspectRatio="xMidYMid crop"` and `x="1 two"` parse as `ERROR` nodes.
+  Recovery can spill out of the attribute (`<text x="1 two">` reports an unknown
+  `<two>` element). Only values the grammar accepts structurally reach
+  `values::invalid_reason_for`.
 - Some typed attributes wrap the node that carries the `value` field:
   `animate_motion_attribute` contains a `d_attribute`. Read the value field one
   level down, or every `<animateMotion>` attribute goes unchecked.

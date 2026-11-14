@@ -100,6 +100,7 @@ for (const carrier of carriers) {
 await Bun.$`cargo check --workspace`;
 await Bun.$`bun install --lockfile-only --ignore-scripts`;
 await Bun.$`uv lock`;
+await Bun.$`just generate-grammars`;
 await Bun.$`just verify`;
 await Bun.$`git add Cargo.toml Cargo.lock bun.lock uv.lock grammars editors/zed-svg/extension.toml tree-sitter.json`;
 await Bun.$`git commit -m ${`chore(release): ${tag}`}`;

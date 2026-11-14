@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - uses: taiki-e/install-action@43aecc8d72668fbcfe75c31400bc4f890f1c5853 # v2
+      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
         with: { tool: rust+clippy }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
@@ -46,11 +46,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
 
       - name: create github release
-        uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1
+        uses: taiki-e/create-gh-release-action@045e5c0ed9c50cc1f96de7e891a09ad3daea245f # v1.12.0
         # allow-missing-changelog: prerelease tags (v0.1.0-rc.1) have no
         # changelog section; the auto-generated notes are appended regardless.
         with: { token: "${{ github.token }}", changelog: CHANGELOG.md, draft: true, branch: master, allow-missing-changelog: true }
@@ -66,7 +66,7 @@ jobs:
     permissions: { contents: read }
     outputs: { include: "${{ steps.gen.outputs.include }}" }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -90,24 +90,24 @@ jobs:
       CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner == 'windows-11-arm' && 'false' || 'true' }}
       CARGO_NET_RETRY: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
 
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
       - name: install nightly rust (tier-3 build-std)
         if: matrix.build-tool == 'cargo-build-std'
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # nightly
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
         with: { toolchain: nightly, components: rust-src }
 
       # Tier-2/3 cross targets: installs the cross C toolchain and exports
       # CARGO_TARGET_*_LINKER so host cargo can link the target.
       - name: setup cross toolchain
         if: contains(fromJSON('["cargo-cross-toolchain", "cargo-build-std"]'), matrix.build-tool)
-        uses: taiki-e/setup-cross-toolchain-action@3d9770ce98eb7dbcf378563182a5e8031165f75b # v1
+        uses: taiki-e/setup-cross-toolchain-action@12b7ad4acfa95a1476779d6c06699b96ec1691f8 # v1.42.0
         with: { target: "${{ matrix.target }}" }
 
       - name: build and upload binaries (taiki-e)
@@ -156,10 +156,10 @@ jobs:
     permissions: { contents: write }
     env: { RELEASE_TAG: "${{ github.ref_name }}" }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: latest }
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -180,7 +180,7 @@ jobs:
         run: tar -cf distribution/npm/dist.tar -C distribution/npm dist downloads
 
       - name: upload dist artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
   runtime-smoke:

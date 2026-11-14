@@ -16,19 +16,19 @@ alias cmt := commit
 default:
     just --list --unsorted
 
-# rewrite tracked files to dprint style
+# rewrite tracked files with the shared formatter
 [arg("diff", long="diff", short="d", value="--diff")]
 [arg("staged", long="staged", value="--staged")]
 [group('format')]
 format diff="" staged="" *FILES:
-    dprint fmt {{ diff }} {{ staged }} {{ FILES }}
+    bunx '@kjanat/fmt' {{ diff }} {{ staged }} {{ FILES }}
 
 # fail if any file needs formatting
 [arg("list-different", long="list-different", short="l", value="--list-different")]
 [arg("staged", long="staged", short="s", value="--staged")]
 [group('format')]
 format-check staged="" list-different="" *FILES:
-    dprint check {{ staged }} {{ list-different }} {{ FILES }}
+    bunx '@kprint/kprint' check {{ staged }} {{ list-different }} {{ FILES }}
 
 # install svg-language-server to cargo bin
 [arg("profile", long="profile", short="p")]
@@ -118,15 +118,30 @@ build-release *ARGS:
 run-lsp *ARGS:
     cargo run -p svg-language-server -- {{ ARGS }}
 
-# regenerate spec data: fetch canonical svgwg + extract (default-branch HEAD, or pinned REF: branch/tag/SHA)
+# refresh the catalog and every dependent grammar, then validate consumers
 [group('spec')]
-regen REF="":
-    cargo run -p svg-data-regen -- {{ REF }}
+regen *ARGS:
+    cargo run -p svg-data-regen -- {{ ARGS }}
+    just generate-grammars
+    bunx '@kjanat/fmt' 'crates/svg-data/data/**' 'grammars/*/grammar.json' 'grammars/*/constants.js'
+    just check-grammars
+    cargo test --workspace
 
 # regen, printing the element/property/term named NAME as a JSON sample (optional pinned REF)
 [group('spec')]
 regen-sample NAME REF="":
-    REGEN_SAMPLE='{{ NAME }}' cargo run -p svg-data-regen -- {{ REF }}
+    REGEN_SAMPLE='{{ NAME }}' just regen {{ REF }}
+
+# regenerate standalone grammar inputs and parsers from the local catalog (offline)
+[group('grammar')]
+generate-grammars:
+    bun scripts/generate-grammars.ts
+
+# verify generated artifacts without rewriting them, then test every grammar
+[group('grammar')]
+check-grammars:
+    bun scripts/generate-grammars.ts --check
+    CI=1 bun run --filter 'tree-sitter-svg*' --if-present --parallel test:grammar test:corpus
 
 # run the svg-data-regen parser tests (offline, no network)
 [group('spec')]
@@ -162,6 +177,7 @@ test-deno *ARGS:
 [group('verify')]
 verify:
     just format-check
+    just check-grammars
     just typecheck
     just baseline-icons-check
     just release-config-check

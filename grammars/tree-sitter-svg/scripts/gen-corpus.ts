@@ -2,17 +2,15 @@
 /**
  * Catalog-seeded corpus generator.
  *
- * Emits one minimal, valid corpus case per SVG element defined in the catalog,
- * exercising the typed attribute buckets the element actually carries. The
+ * Emits a corpus case for every element/attribute/sample combination, using
+ * element-specific value definitions and retaining distinct value forms. The
  * expected syntax tree for every case is CAPTURED from the built grammar
  * (`tree-sitter parse --no-ranges`) rather than hand-authored, so the generated
- * file always reflects what the parser really produces. A case is only kept if
- * its snippet parses cleanly (no ERROR / MISSING); attributes that would push a
- * snippet into recovery are dropped and the element falls back to its bare form.
+ * file always reflects what the parser really produces. Missing samples and
+ * parse errors fail generation instead of silently dropping coverage.
  *
  * Sources of truth:
  *   - crates/svg-data/data/catalog.core.json        (elements, attrs, enums)
- *   - crates/svg-data/data/catalog.tree-sitter.json (attribute -> bucket map)
  *
  * Output (deterministic, regenerable):
  *   - test/corpus/generated_catalog_elements.txt
@@ -24,17 +22,18 @@
 
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
-import { argv } from 'node:process';
+import { argv, execPath } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const grammarRoot = resolve(scriptDir, '..');
 const repoRoot = resolve(grammarRoot, '../..');
 const corePath = resolve(repoRoot, 'crates/svg-data/data/catalog.core.json');
-const treeSitterPath = resolve(repoRoot, 'crates/svg-data/data/catalog.tree-sitter.json');
 const outPath = resolve(grammarRoot, 'test/corpus/generated_catalog_elements.txt');
+const cli = createRequire(import.meta.url).resolve('tree-sitter-cli/cli.js');
 
 const GENERATED_HEADER = [
 	'; GENERATED FILE - DO NOT EDIT BY HAND.',
@@ -58,6 +57,10 @@ type AttributeValues =
 	| { readonly kind: 'url_token_list' }
 	| { readonly kind: 'language_tag' }
 	| { readonly kind: 'integer' }
+	| { readonly kind: 'number' }
+	| { readonly kind: 'id_list' }
+	| { readonly kind: 'paint' }
+	| { readonly kind: 'unresolved' }
 	| { readonly kind: 'media_type' }
 	| { readonly kind: 'media_query_list' }
 	| { readonly kind: 'css_declaration_list' }
@@ -97,39 +100,6 @@ type CoreCatalog = {
 	readonly attributes: readonly CoreAttribute[];
 };
 
-type TreeSitterCatalog = {
-	readonly attribute_buckets: Record<string, readonly string[]>;
-};
-
-/**
- * Canonical, bucket-level sample values. Keyed by BUCKET, never by attribute
- * name, so the routing stays category-driven and free of per-name allowlists.
- * The `keyword` bucket has no single valid value (each attribute owns its enum),
- * so it is resolved from the core catalog per attribute instead.
- */
-const BUCKET_SAMPLE: Readonly<Record<string, string>> = {
-	color: 'red',
-	length: '5',
-	length_list: '1 2 3',
-	length_list_or_none: '4 2',
-	number: '0.5',
-	number_optional_number: '2 3',
-	number_list: '0 1 0 1 0',
-	number_or_percentage: '0.5',
-	coordinate_pair_list: '0,0 1,1',
-	path_data: 'M0 0 L1 1',
-	view_box: '0 0 10 10',
-	functional_iri: 'url(#f)',
-	css_text: 'sans-serif',
-};
-
-const SYNTAX_FIRST_BUCKETS = new Set([
-	'coordinate_pair_list',
-	'path_data',
-	'view_box',
-	'functional_iri',
-]);
-
 function displayPath(path: string): string {
 	const rel = relative(repoRoot, path);
 	return rel === '' || rel.startsWith('..') ? path : rel;
@@ -137,38 +107,6 @@ function displayPath(path: string): string {
 
 function readJson<T>(path: string): T {
 	return JSON.parse(readFileSync(path, 'utf8')) as T;
-}
-
-/**
- * Build a name -> bucket index from the tree-sitter catalog. An attribute name
- * appears in exactly one bucket; the first match wins if the catalog ever lists
- * a name twice (it should not).
- */
-function buildBucketIndex(catalog: TreeSitterCatalog): Map<string, string> {
-	const index = new Map<string, string>();
-	for (const [bucket, names] of Object.entries(catalog.attribute_buckets)) {
-		for (const name of names) {
-			if (!index.has(name)) {
-				index.set(name, bucket);
-			}
-		}
-	}
-	return index;
-}
-
-/**
- * Resolve a deterministic, valid sample value for a keyword-bucket attribute.
- * Enums use their first (alphabetically stable) member. Free-text and
- * css_grammar keyword spaces have no guaranteed literal we can synthesise here,
- * so they yield `null` and the attribute is skipped for that element (the
- * capture step would otherwise have to guess).
- */
-function keywordSample(attr: CoreAttribute | undefined): string | null {
-	const values = attr?.values;
-	if (values?.kind === 'enum' && values.values.length > 0) {
-		return [...values.values].sort()[0] ?? null;
-	}
-	return null;
 }
 
 function valuesForElement(attr: CoreAttribute | undefined, elementName: string): AttributeValues | undefined {
@@ -190,37 +128,81 @@ function firstKeyword(values: AttributeValues): string | null {
 	return keywords[0] ?? null;
 }
 
-function cssGrammarSample(values: Extract<AttributeValues, { readonly kind: 'css_grammar' }>): string | null {
+export function cssGrammarSample(values: Extract<AttributeValues, { readonly kind: 'css_grammar' }>): string | null {
+	return cssGrammarSamples(values)[0] ?? null;
+}
+
+/** Representative forms for the value grammars used by element attributes. */
+function cssGrammarSamples(values: Extract<AttributeValues, { readonly kind: 'css_grammar' }>): string[] {
 	const grammar = values.grammar.toLowerCase();
-	const keyword = firstKeyword(values);
-	if (keyword !== null) {
-		return keyword;
+	if (grammar === '[<min-x>,? <min-y>,? <width>,? <height>]') return ['0 0 10 10', '0,0,10,10'];
+	if (grammar === '<align> <meetorslice>?') return ['none', 'xMidYMid', 'xMidYMid meet', 'xMidYMid slice'];
+	const typeSamples: Readonly<Record<string, readonly string[]>> = {
+		'<number>': ['0.5'],
+		'<integer>': ['1'],
+		'<length>': ['5', '5px'],
+		'<length-percentage>': ['5', '5px', '50%'],
+		'<angle>': ['5deg'],
+		'<number-optional-number>': ['2 3', '2'],
+		'<points>': ['0,0', '0,0 1,1'],
+		'<blend-mode>': [
+			'normal',
+			'multiply',
+			'screen',
+			'overlay',
+			'darken',
+			'lighten',
+			'color-dodge',
+			'color-burn',
+			'hard-light',
+			'soft-light',
+			'difference',
+			'exclusion',
+			'hue',
+			'saturation',
+			'color',
+			'luminosity',
+		],
+		'<filter-primitive-reference>': ['source'],
+		'<xml-name>': ['target'],
+		'<string>': ['M0 0 L1 1'],
+		'<value>': ['0.5'],
+		'<url>': ['url(#f)'],
+		'<iri>': ['url(#f)'],
+		'<color>': ['red'],
+		'<paint>': ['red', 'none', 'url(#f)'],
+	};
+	// Multipliers apply to the preceding type or bracketed group, not to every
+	// alternative in the grammar (e.g. <number>+ | <angle>).
+	const groups: { start: number; end: number }[] = [];
+	const openings: number[] = [];
+	for (const token of grammar.matchAll(/<[^>]+>|\[|\]/g)) {
+		if (token[0] === '[') openings.push(token.index);
+		if (token[0] === ']') {
+			const start = openings.pop();
+			if (start === undefined) throw new Error(`Unbalanced CSS grammar: ${values.grammar}`);
+			groups.push({ start, end: token.index });
+		}
 	}
-	if (grammar.includes('<number-optional-number>')) {
-		return '2 3';
+	if (openings.length) throw new Error(`Unbalanced CSS grammar: ${values.grammar}`);
+	const multiplierAfter = (end: number): string | undefined => grammar.slice(end).match(/^\s*([+#?])/)?.[1];
+	const samples: string[] = [];
+	for (const token of grammar.matchAll(/<[^>]+>/g)) {
+		const type = token[0];
+		const forms = typeSamples[type];
+		if (forms === undefined) throw new Error(`No samples for ${type} in CSS grammar: ${values.grammar}`);
+		const multipliers = new Set([
+			multiplierAfter(token.index + type.length),
+			...groups.filter(group => group.start < token.index && token.index < group.end).map(group => multiplierAfter(group.end + 1)),
+		]);
+		samples.push(...forms);
+		if (multipliers.has('+')) samples.push(type === '<number>' ? '0 1 0' : forms.map(value => `${value} ${value}`).join(' '));
+		if (multipliers.has('#')) samples.push(type === '<number>' ? '0, 1, 0' : forms.map(value => `${value}, ${value}`).join(', '));
 	}
-	if (grammar.includes('<number>') && (grammar.includes('+') || grammar.includes('#'))) {
-		return '0 1 0';
+	for (const node of values.graph.nodes ?? []) {
+		if (node.kind === 'keyword' && node.text !== undefined) samples.push(node.text);
 	}
-	if (grammar.includes('<length') && (grammar.includes('+') || grammar.includes('#'))) {
-		return '1 2 3';
-	}
-	if (grammar.includes('<number>')) {
-		return '0.5';
-	}
-	if (grammar.includes('<integer>')) {
-		return '1';
-	}
-	if (grammar.includes('<length') || grammar.includes('<angle>')) {
-		return '5';
-	}
-	if (grammar.includes('<url') || grammar.includes('<iri')) {
-		return 'url(#f)';
-	}
-	if (grammar.includes('<color') || grammar.includes('<paint')) {
-		return 'red';
-	}
-	return null;
+	return [...new Set(samples)];
 }
 
 function semanticSample(values: AttributeValues | undefined): string | null {
@@ -233,6 +215,7 @@ function semanticSample(values: AttributeValues | undefined): string | null {
 		case 'transform':
 			return 'translate(1 2)';
 		case 'color':
+		case 'paint':
 			return 'red';
 		case 'length':
 			return '5';
@@ -250,6 +233,10 @@ function semanticSample(values: AttributeValues | undefined): string | null {
 			return 'en';
 		case 'integer':
 			return '1';
+		case 'number':
+			return '0.5';
+		case 'id_list':
+			return 'first second';
 		case 'media_type':
 			return 'text/css';
 		case 'media_query_list':
@@ -276,6 +263,12 @@ function semanticSample(values: AttributeValues | undefined): string | null {
 			return cssGrammarSample(values);
 		case 'free_text':
 			return 'text';
+		case 'unresolved':
+			return null;
+		default: {
+			const unsupported: never = values;
+			throw new Error(`Unsupported catalog values: ${JSON.stringify(unsupported)}`);
+		}
 	}
 }
 
@@ -298,45 +291,23 @@ function attributeSemanticSample(
 	return semanticSample(values);
 }
 
-/**
- * Pick one representative attribute per distinct bucket the element carries.
- * Deterministic: buckets are visited in catalog-key order, and within a bucket
- * the alphabetically-first attribute name on the element wins.
- */
-function selectAttributes(
-	element: CoreElement,
-	bucketIndex: Map<string, string>,
-	coreByName: Map<string, CoreAttribute>,
-): { name: string; value: string }[] {
-	const perBucket = new Map<string, { name: string; value: string }>();
-	for (const name of [...(element.attrs ?? [])].sort()) {
-		const bucket = bucketIndex.get(name);
-		if (bucket === undefined || perBucket.has(bucket)) {
-			continue;
-		}
-		const attr = coreByName.get(name);
-		let value: string | null;
-		if (bucket === 'keyword') {
-			value = keywordSample(attr);
-		} else if (SYNTAX_FIRST_BUCKETS.has(bucket)) {
-			value = BUCKET_SAMPLE[bucket]
-				?? attributeSemanticSample(name, element.name, valuesForElement(attr, element.name));
-		} else {
-			value = attributeSemanticSample(name, element.name, valuesForElement(attr, element.name))
-				?? BUCKET_SAMPLE[bucket]
-				?? null;
-		}
-		if (value !== null) {
-			perBucket.set(bucket, { name, value });
-		}
+export function attributeSamples(attribute: CoreAttribute, elementName: string): string[] {
+	const values = valuesForElement(attribute, elementName);
+	let samples: string[];
+	if (values?.kind === 'enum') {
+		samples = [...values.values].sort();
+	} else if (values?.kind === 'css_grammar') {
+		samples = cssGrammarSamples(values);
+	} else if (values?.kind === 'boolean') {
+		samples = ['false', 'true'];
+	} else if (values?.kind === 'number_or_percentage') {
+		samples = ['0.5', '50%'];
+	} else {
+		const sample = attributeSemanticSample(attribute.name, elementName, values);
+		samples = sample === null ? [] : [sample];
 	}
-
-	const chosen: { name: string; value: string }[] = [];
-	for (const attr of perBucket.values()) {
-		chosen.push(attr);
-	}
-	chosen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-	return chosen;
+	if (samples.length === 0) throw new Error(`No samples for ${elementName}.${attribute.name} (${values?.kind ?? 'missing values'})`);
+	return [...new Set(samples)];
 }
 
 function attrString(attrs: readonly { name: string; value: string }[]): string {
@@ -374,10 +345,11 @@ function parseSnippet(snippet: string, workdir: string): ParseResult {
 	writeFileSync(file, `${snippet}\n`);
 
 	const summaryResult = spawnSync(
-		'tree-sitter',
-		['parse', '--json-summary', '--quiet', file],
+		execPath,
+		[cli, 'parse', '--config-path', join(workdir, 'config.json'), '--scope', 'source.svg', '--json-summary', '--quiet', file],
 		{ cwd: grammarRoot, encoding: 'utf8' },
 	);
+	if (summaryResult.error) throw summaryResult.error;
 	const summaryRaw = summaryResult.stdout;
 	const jsonStart = summaryRaw.indexOf('{');
 	if (jsonStart === -1) {
@@ -388,44 +360,57 @@ function parseSnippet(snippet: string, workdir: string): ParseResult {
 	const summary = JSON.parse(summaryRaw.slice(jsonStart)) as {
 		parse_summaries: { successful: boolean }[];
 	};
-	const summarySuccessful = summary.parse_summaries.every((s) => s.successful);
+	const summarySuccessful = summaryResult.status === 0 && summary.parse_summaries.length === 1
+		&& summary.parse_summaries.every((s) => s.successful);
 
 	const sexpResult = spawnSync(
-		'tree-sitter',
-		['parse', '--no-ranges', file],
+		execPath,
+		[cli, 'parse', '--config-path', join(workdir, 'config.json'), '--scope', 'source.svg', '--no-ranges', file],
 		{ cwd: grammarRoot, encoding: 'utf8' },
 	);
+	if (sexpResult.error) throw sexpResult.error;
 	const sexp = sexpResult.stdout.trimEnd();
 
-	const clean = summarySuccessful && !/\b(ERROR|MISSING)\b/.test(sexp)
+	const clean = summarySuccessful && sexpResult.status === 0 && sexp.length > 0 && !/\b(ERROR|MISSING)\b/.test(sexp)
 		&& !sexp.includes('erroneous');
 	return { successful: clean, sexp };
 }
 
 type GeneratedCase = { title: string; input: string; sexp: string };
 
-function generateCase(
+export function elementSnippets(
 	element: CoreElement,
-	bucketIndex: Map<string, string>,
 	coreByName: Map<string, CoreAttribute>,
-	workdir: string,
-): GeneratedCase {
-	const typedAttrs = selectAttributes(element, bucketIndex, coreByName);
-
-	const typedSnippet = buildSnippet(element, typedAttrs);
-	const typed = parseSnippet(typedSnippet, workdir);
-	if (typedAttrs.length > 0 && typed.successful) {
-		return { title: `Element ${element.name} (typed attributes)`, input: typedSnippet, sexp: typed.sexp };
+): Omit<GeneratedCase, 'sexp'>[] {
+	const attributes = [...(element.attrs ?? [])].sort().map(name => {
+		const attribute = coreByName.get(name);
+		if (attribute === undefined) throw new Error(`Missing catalog attribute: ${element.name}.${name}`);
+		return { name, samples: attributeSamples(attribute, element.name) };
+	});
+	const primary = attributes.map(({ name, samples }) => ({ name, value: samples[0]! }));
+	const cases = [{
+		title: `Element ${element.name}${primary.length ? ' (typed attributes)' : ''}`,
+		input: buildSnippet(element, primary),
+	}];
+	// Keep the combined case and test each attribute/value independently as well.
+	const seen = new Set(cases.map(testCase => testCase.input));
+	for (const { name, samples } of attributes) {
+		for (const value of samples) {
+			const input = buildSnippet(element, [{ name, value }]);
+			if (seen.has(input)) continue;
+			seen.add(input);
+			cases.push({ title: `Element ${element.name} (${name}="${value}")`, input });
+		}
 	}
+	return cases;
+}
 
-	const bareSnippet = buildSnippet(element, []);
-	const bare = parseSnippet(bareSnippet, workdir);
-	if (!bare.successful) {
-		throw new Error(
-			`bare snippet for <${element.name}> does not parse cleanly: ${bareSnippet}\n${bare.sexp}`,
-		);
-	}
-	return { title: `Element ${element.name}`, input: bareSnippet, sexp: bare.sexp };
+function generateCases(element: CoreElement, coreByName: Map<string, CoreAttribute>, workdir: string): GeneratedCase[] {
+	return elementSnippets(element, coreByName).map(testCase => {
+		const parsed = parseSnippet(testCase.input, workdir);
+		if (!parsed.successful) throw new Error(`${testCase.title} does not parse cleanly: ${testCase.input}\n${parsed.sexp}`);
+		return { ...testCase, sexp: parsed.sexp };
+	});
 }
 
 function renderCorpus(cases: readonly GeneratedCase[]): string {
@@ -439,23 +424,14 @@ function main(): void {
 	const checkMode = argv.includes('--check');
 
 	const core = readJson<CoreCatalog>(corePath);
-	const treeSitter = readJson<TreeSitterCatalog>(treeSitterPath);
-
-	const bucketIndex = buildBucketIndex(treeSitter);
 	const coreByName = new Map(core.attributes.map((a) => [a.name, a]));
 
 	const elements = [...core.elements].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 	const workdir = mkdtempSync(join(tmpdir(), 'svg-gen-corpus-'));
-	let typedCount = 0;
 	try {
-		const cases = elements.map((element) => {
-			const generated = generateCase(element, bucketIndex, coreByName, workdir);
-			if (generated.title.includes('typed')) {
-				typedCount += 1;
-			}
-			return generated;
-		});
+		writeFileSync(join(workdir, 'config.json'), JSON.stringify({ 'parser-directories': [dirname(grammarRoot)] }));
+		const cases = elements.flatMap(element => generateCases(element, coreByName, workdir));
 
 		const rendered = renderCorpus(cases);
 
@@ -475,17 +451,17 @@ function main(): void {
 				return;
 			}
 			console.log(`generated corpus up to date -> ${displayPath(outPath)}`);
-			console.log(`cases: ${cases.length} (${typedCount} typed, ${cases.length - typedCount} bare)`);
+			console.log(`cases: ${cases.length} (${elements.length} elements, all element attributes and sampled variants)`);
 			return;
 		}
 
 		writeFileSync(outPath, rendered);
 		console.log(`generated corpus written -> ${displayPath(outPath)}`);
 		console.log(`source -> ${displayPath(corePath)}`);
-		console.log(`cases: ${cases.length} (${typedCount} typed, ${cases.length - typedCount} bare)`);
+		console.log(`cases: ${cases.length} (${elements.length} elements, all element attributes and sampled variants)`);
 	} finally {
 		rmSync(workdir, { recursive: true, force: true });
 	}
 }
 
-main();
+if (import.meta.main) main();

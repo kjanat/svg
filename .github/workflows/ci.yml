@@ -28,19 +28,20 @@ jobs:
         run: cargo test --workspace
 
   format:
-    name: dprint check
+    name: kprint check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: kjanat/install-dprint@v2
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: package.json }
       - uses: taiki-e/install-action@v2
         with: { tool: "just,tombi,rust+rustfmt" }
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
-      - run: dprint check
+      - uses: kjanat/dprint-check@v3
 
   npm-facade:
     name: npm facade (glibc + musl)
@@ -49,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with: { node-version-file: package.json }
       - name: Resolve pinned Node major
         run: echo "NODE_MAJOR=$(jq -r '.volta.node | split(".")[0]' package.json)" >> "${GITHUB_ENV}"
@@ -57,10 +58,9 @@ jobs:
         env: { EXPECT_LIBC: glibc }
         run: node --test "distribution/npm/facade/test/*.test.mjs"
       - name: Resolver tests (musl host)
-        run: |
-          docker run --rm --volume "${PWD}:/work" --workdir /work \
-            --env EXPECT_LIBC=musl "node:${NODE_MAJOR}-alpine" \
-            node --test "distribution/npm/facade/test/*.test.mjs"
+        run: docker run --rm --volume "${PWD}:/work" --workdir /work
+          --env EXPECT_LIBC=musl "node:${NODE_MAJOR}-alpine"
+          node --test "distribution/npm/facade/test/*.test.mjs"
 
   deno:
     name: Deno typecheck

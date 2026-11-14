@@ -6,7 +6,5 @@ description: >-
   bumps the same files at release time.
 
 runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: node "${GITHUB_ACTION_PATH}/check.mjs"
+  using: node24
+  main: check.mjs
