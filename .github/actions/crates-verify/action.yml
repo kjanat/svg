@@ -22,4 +22,5 @@ runs:
       run: |
         import os
         import runpy
+
         runpy.run_path(os.path.join(os.environ["GITHUB_ACTION_PATH"], "verify.py"), run_name="__main__")

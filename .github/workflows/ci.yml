@@ -94,6 +94,7 @@ jobs:
         shell: python
         run: |
           import unittest
+
           suite = unittest.defaultTestLoader.discover(".github/tests", pattern="test_crates.py")
           result = unittest.TextTestRunner(verbosity=2).run(suite)
           if not result.wasSuccessful():
@@ -107,6 +108,7 @@ jobs:
           import runpy
           import subprocess
           import tomllib
+
           with open("Cargo.toml", "rb") as manifest:
               version = tomllib.load(manifest)["workspace"]["package"]["version"]
           os.environ.update(
