@@ -454,8 +454,7 @@ fn diagnostics_version_tracks_document_changes() -> TestResult {
 fn diagnostics_slice(notification: &Value) -> &[Value] {
     notification["params"]["diagnostics"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or_default()
+        .map_or_default(Vec::as_slice)
 }
 
 #[test]

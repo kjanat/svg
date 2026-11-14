@@ -1446,9 +1446,7 @@ fn build_element(
         experimental: compat.is_some_and(|facts| facts.experimental),
         standard_track: compat.and_then(|facts| facts.standard_track),
         baseline: compat.and_then(|facts| facts.baseline.clone()),
-        discouraged: compat
-            .map(|facts| facts.discouraged.clone())
-            .unwrap_or_default(),
+        discouraged: compat.map_or_default(|facts| facts.discouraged.clone()),
         browser_support: compat.and_then(|facts| facts.browser_support.clone()),
         content_model,
         attrs,

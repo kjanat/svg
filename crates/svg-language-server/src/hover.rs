@@ -789,8 +789,7 @@ fn profile_unsupported_attribute_verdict(
 ) -> svg_data::CompatVerdict {
     let mut reasons =
         svg_data::compat_verdict_for_attribute_on_element(attr, element_name, profile)
-            .map(|verdict| verdict.reasons)
-            .unwrap_or_default();
+            .map_or_default(|verdict| verdict.reasons);
 
     if let Some(last_seen) = last_known_before_profile(profile, known_in)
         && !reasons
