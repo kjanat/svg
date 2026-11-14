@@ -564,16 +564,18 @@ impl Pen {
         // keeps the product finite where the factor itself is not. Keep the
         // powers of two separate too: `rx / smaller` can overflow even when
         // the corrected radius is finite. A common factor leaves the direction
-        // alone either way. Dividing by `smaller` before restoring the
-        // difference's own scale keeps the comparison itself in range when
-        // no correction is needed at all.
-        let offset = if (scale / smaller) * magnitude / 2.0 > 1.0 {
+        // alone either way. The comparison needs the same scale-safe product:
+        // an overflowing `scale / smaller` would otherwise shrink valid radii.
+        let offset = if multiply_divide(scale, magnitude, smaller) > 2.0 {
             let half_span = multiply_divide(scale, magnitude, 2.0);
             rx = multiply_divide(rx, half_span, smaller);
             ry = multiply_divide(ry, half_span, smaller);
             toward
         } else {
-            Point::new(unit.x * (scale / rx) / 2.0, unit.y * (scale / ry) / 2.0)
+            Point::new(
+                multiply_divide(scale, unit.x.abs(), rx).copysign(unit.x) / 2.0,
+                multiply_divide(scale, unit.y.abs(), ry).copysign(unit.y) / 2.0,
+            )
         };
 
         // At most one now, and zero only where halving the difference
@@ -2037,6 +2039,22 @@ mod tests {
         }
         assert!(multiply_divide(f64::MAX, 2.0, 1.0).is_infinite());
         assert_eq!(multiply_divide(smallest, smallest, 1.0), 0.0);
+    }
+
+    #[test]
+    fn sufficient_arc_radii_are_not_shrunk_by_an_overflowing_comparison() -> TestResult {
+        for (large, expected_width) in [(0, 1e159), (1, 2e160)] {
+            for sweep in [0, 1] {
+                let path = format!("M0 0 A1e160 1e-150 0 {large} {sweep} 1e159 0");
+                let preview = sketch(&path).ok_or_else(|| format!("no preview for {path}"))?;
+                assert!(
+                    (preview.width / expected_width - 1.0).abs() < 1e-12,
+                    "{path}: expected width {expected_width}, got {}",
+                    preview.width
+                );
+            }
+        }
+        Ok(())
     }
 
     #[test]
