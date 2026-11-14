@@ -28,10 +28,11 @@ When bumping the workspace version after a catalog refresh:
 - Show what an element may contain in its hover, as a `Children:` line under
   the same `values` section that carries an attribute's grammar, filtered to
   the active profile as completion already is.
-- Sketch the geometry of a `d` or `animateMotion` `path` value in hover, as a
-  braille-dot outline above the catalog entry, alongside its command and
-  subpath counts and its extent. Opt out by dropping `path_sketch` from
-  `svg.hover.sections`, which is an allowlist.
+- Preview the geometry of a `d` or `animateMotion` `path` value in hover,
+  alongside its command and subpath counts and extent. Choose `svg`, `braille`
+  (default), or `off` with `svg.hover.path_preview`; SVG previews fall back to
+  braille in plaintext hovers. Dropping `path_sketch` from the
+  `svg.hover.sections` allowlist also disables previews.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs

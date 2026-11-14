@@ -15,17 +15,17 @@ use crate::{
     stylesheets::{ClassDefinitionHover, CustomPropertyDefinitionHover},
 };
 
-/// Render a path sketch as a fenced block, so the braille grid keeps its
-/// column alignment in clients that reflow prose.
-pub fn format_path_sketch(sketch: &Sketch) -> String {
+/// Render geometry as an SVG image or a fenced braille block, with its summary.
+pub fn format_path_preview(sketch: &Sketch, svg: bool) -> String {
     let commands = plural(sketch.commands, "command");
     let subpaths = plural(sketch.subpaths, "subpath");
     let width = round_extent(sketch.width);
     let height = round_extent(sketch.height);
-    format!(
-        "```text\n{}\n```\n\n{commands} · {subpaths} · {width} × {height} units",
-        sketch.art
-    )
+    let preview = sketch.svg.as_deref().filter(|_| svg).map_or_else(
+        || format!("```text\n{}\n```", sketch.art),
+        |image| format!("![Path preview]({})", svg_data_uri(image)),
+    );
+    format!("{preview}\n\n{commands} · {subpaths} · {width} × {height} units")
 }
 
 fn plural(count: usize, noun: &str) -> String {
@@ -2969,12 +2969,13 @@ mod tests {
     fn path_sketch_summary_keeps_small_extents_visible() {
         let sketch = Sketch {
             art: "\u{2801}".to_owned(),
+            svg: None,
             commands: 2,
             subpaths: 1,
             width: 0.001,
             height: 0.0,
         };
-        let summary = format_path_sketch(&sketch);
+        let summary = format_path_preview(&sketch, false);
         assert!(
             summary.contains("1.00e-3 × 0 units"),
             "a drawn extent must not round away to zero: {summary}"
@@ -2986,15 +2987,16 @@ mod tests {
     fn path_sketch_summary_trims_whole_extents() {
         let sketch = Sketch {
             art: "\u{2801}".to_owned(),
+            svg: None,
             commands: 1,
             subpaths: 1,
             width: 20.0,
             height: 10.5,
         };
         assert!(
-            format_path_sketch(&sketch).contains("20 × 10.5 units"),
+            format_path_preview(&sketch, false).contains("20 × 10.5 units"),
             "{}",
-            format_path_sketch(&sketch)
+            format_path_preview(&sketch, false)
         );
     }
 }

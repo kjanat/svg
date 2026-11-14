@@ -1186,3 +1186,92 @@ fn path_sketch_cache_survives_the_cursor_and_not_an_edit() -> TestResult {
     );
     server.shutdown_and_exit()
 }
+
+#[test]
+fn path_preview_modes_follow_configuration_and_markup_support() -> TestResult {
+    use base64::Engine as _;
+    let path = "M10 20 C10 0 30 0 30 20";
+    let source = format!(r#"<svg><path d="{path}"/></svg>"#);
+    let uri = "file:///preview-modes.svg";
+    let column = u32::try_from(source.find("C10").ok_or("curve")?)?;
+    let params = json!({"textDocument":{"uri":uri},"position":{"line":0,"character":column}});
+    for markdown in [true, false] {
+        let capabilities = if markdown {
+            support::markdown_capabilities()
+        } else {
+            json!({})
+        };
+        let mut server = TestServer::start_with(
+            &json!({"svg":{"runtime_compat":false,"hover":{"path_preview":"svg"}}}),
+            &capabilities,
+        )?;
+        server.open(uri, &source)?;
+        let response = server.request("textDocument/hover", &params)?;
+        let text = response["result"]["contents"]["value"]
+            .as_str()
+            .ok_or("preview")?;
+        assert_eq!(
+            response["result"]["contents"]["kind"],
+            if markdown { "markdown" } else { "plaintext" }
+        );
+        if markdown {
+            let encoded = text
+                .strip_prefix("![Path preview](data:image/svg+xml;base64,")
+                .and_then(|text| text.split_once(')'))
+                .ok_or("SVG image")?
+                .0;
+            let svg =
+                String::from_utf8(base64::engine::general_purpose::STANDARD.decode(encoded)?)?;
+            assert!(
+                svg.contains(&format!(r#"d="{path}""#)),
+                "original curve commands: {svg}"
+            );
+            assert!(
+                svg.contains(r#"viewBox="9 4 22 17""#),
+                "bounds include curve extrema and padding: {svg}"
+            );
+        } else {
+            assert!(
+                text.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)),
+                "{text}"
+            );
+            assert!(!text.contains("data:") && !text.contains("```"), "{text}");
+        }
+        assert!(
+            text.contains("2 commands · 1 subpath · 20 × 15 units"),
+            "{text}"
+        );
+
+        // The same cached geometry follows live mode changes without an edit.
+        server.change_configuration(&json!({"svg":{"hover":{"path_preview":"braille"}}}))?;
+        let response = server.request("textDocument/hover", &params)?;
+        let text = response["result"]["contents"]["value"]
+            .as_str()
+            .ok_or("braille")?;
+        assert!(
+            text.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)),
+            "{text}"
+        );
+        assert!(!text.contains("data:"), "{text}");
+        server.change_configuration(&json!({"svg":{"hover":{"path_preview":"off"}}}))?;
+        assert!(server.request("textDocument/hover", &params)?["result"].is_null());
+        let name = u32::try_from(source.find(" d=").ok_or("attribute")? + 1)?;
+        let response = server.request(
+            "textDocument/hover",
+            &json!({"textDocument":{"uri":uri},"position":{"line":0,"character":name}}),
+        )?;
+        let text = response["result"]["contents"]["value"]
+            .as_str()
+            .ok_or("catalog")?;
+        assert!(
+            text.contains("MDN Reference") && !text.contains("commands"),
+            "{text}"
+        );
+        server.change_configuration(
+            &json!({"svg":{"hover":{"path_preview":"svg","sections":["description"]}}}),
+        )?;
+        assert!(server.request("textDocument/hover", &params)?["result"].is_null());
+        server.shutdown_and_exit()?;
+    }
+    Ok(())
+}

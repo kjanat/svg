@@ -1,14 +1,10 @@
-//! Braille-dot sketches of path data, for hover previews.
+//! Path geometry previews for hover: a portable braille outline and an SVG image.
 //!
-//! The sketch is text rather than an image, so it survives editors that cannot
-//! render images in a hover popup (Helix, terminal clients) and needs no
-//! rasterizer process. Geometry comes from the `tree-sitter-svg-path` grammar
-//! the rest of the workspace already parses `d` with, not from a second
-//! hand-rolled path parser.
+//! Geometry comes from the workspace's `tree-sitter-svg-path` grammar. The
+//! image retains the original commands; flattened geometry provides its bounds
+//! and the braille raster. Neither renderer needs an external process.
 //!
-//! A braille cell carries 2x4 dots, and dots in a monospace cell are close to
-//! square, so a cell grid twice as wide as it is tall yields a roughly square
-//! dot grid.
+//! A braille cell carries 2x4 dots, approximately square in a monospace font.
 
 use tree_sitter::{Node, Parser};
 
@@ -92,6 +88,8 @@ impl Point {
 pub struct Sketch {
     /// Braille rows, top to bottom, joined by newlines.
     pub art: String,
+    /// Original path in a self-contained SVG, when its viewport is representable.
+    pub svg: Option<String>,
     /// Drawing commands, counting implicit repeats as separate commands.
     pub commands: usize,
     /// Subpaths, one per `M`/`m` plus any resumed after a close, including
@@ -140,11 +138,14 @@ pub fn sketch_for_attribute(attribute: Node<'_>, source: &[u8]) -> Option<Sketch
 /// Sketch raw path data, or return `None` when it does not parse or draws nothing.
 pub fn sketch(path_data: &str) -> Option<Sketch> {
     let outline = flatten(path_data)?;
-    render(&outline)
+    let mut sketch = render(&outline)?;
+    sketch.svg = svg_preview(path_data, &outline);
+    Some(sketch)
 }
 
 /// Flattened geometry of one `d` value.
 struct Outline {
+    origin: Point,
     polylines: Vec<Vec<Point>>,
     commands: usize,
     /// Counted as the path grammar defines them rather than taken from
@@ -832,6 +833,7 @@ impl Pen {
         }
         self.flush();
         Some(Outline {
+            origin: self.origin.unwrap_or_default(),
             polylines: self.polylines,
             commands: self.commands,
             subpaths: self.subpaths,
@@ -1213,6 +1215,41 @@ fn arc_steps(sweep: f64) -> u32 {
     (chords as u32).max(2)
 }
 
+/// Keep the original curve commands; the flattened geometry supplies only bounds.
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "check browser float precision"
+)]
+fn svg_preview(path_data: &str, outline: &Outline) -> Option<String> {
+    let (min, max) = bounds(&outline.polylines)?;
+    let span = (max.x - min.x).max(max.y - min.y);
+    let span = if span > 0.0 { span } else { 1.0 };
+    let padding = span * 0.05;
+    let x = outline.origin.x + min.x - padding;
+    let y = outline.origin.y + min.y - padding;
+    let width = padding.mul_add(2.0, max.x - min.x);
+    let height = padding.mul_add(2.0, max.y - min.y);
+    if ![x, y, width, height].iter().all(|v| v.is_finite())
+        || width <= 0.0
+        || height <= 0.0
+        || x + width <= x
+        || y + height <= y
+    {
+        return None;
+    }
+    // Chromium loses small shapes at large origins when these bounds collapse
+    // to the same single-precision coordinate. Keep the local-frame braille.
+    let [left, top, right, bottom] = [x, y, x + width, y + height].map(|v| v as f32);
+    if ![left, top, right, bottom].iter().all(|v| v.is_finite()) || right <= left || bottom <= top {
+        return None;
+    }
+    let data = quick_xml::escape::escape(path_data);
+    let stroke = span / 128.0;
+    Some(format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="256" height="128" viewBox="{x} {y} {width} {height}"><rect x="{x}" y="{y}" width="{width}" height="{height}" fill="#fff"/><path d="{data}" fill="none" stroke="#2563eb" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/></svg>"##
+    ))
+}
+
 /// Rasterize flattened polylines onto the braille grid.
 fn render(outline: &Outline) -> Option<Sketch> {
     let (min, max) = bounds(&outline.polylines)?;
@@ -1251,6 +1288,7 @@ fn render(outline: &Outline) -> Option<Sketch> {
 
     Some(Sketch {
         art: grid.into_art()?,
+        svg: None,
         commands: outline.commands,
         subpaths: outline.subpaths,
         width,
@@ -1392,6 +1430,17 @@ mod tests {
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn large_origins_keep_braille_when_browser_coordinates_collapse() -> TestResult {
+        let local = sketch("M0 0 l20 0 l0 20 z").ok_or("local path should sketch")?;
+        let translated =
+            sketch("M1e16 1e16 l20 0 l0 20 z").ok_or("translated path should sketch")?;
+        assert!(local.svg.is_some());
+        assert!(translated.svg.is_none());
+        assert_eq!(local.art, translated.art);
+        Ok(())
+    }
 
     fn art(path_data: &str) -> Result<String, Box<dyn std::error::Error>> {
         Ok(sketch(path_data).ok_or("path data should sketch")?.art)

@@ -33,6 +33,16 @@ pub enum BrowserDetail {
     ImplementationLinks,
 }
 
+/// Renderer for path geometry. SVG images require explicit client opt-in.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PathPreview {
+    Svg,
+    #[default]
+    Braille,
+    Off,
+}
+
 /// Settings under `svg.hover`. Browser IDs are the identifiers published by BCD.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -41,6 +51,7 @@ pub struct HoverSettings {
     pub sections: Vec<Section>,
     pub browser_details: Vec<BrowserDetail>,
     pub browser_history: bool,
+    pub path_preview: PathPreview,
 }
 
 impl Default for HoverSettings {
@@ -70,6 +81,7 @@ impl Default for HoverSettings {
                 BrowserDetail::VersionRemoved,
             ],
             browser_history: false,
+            path_preview: PathPreview::default(),
         }
     }
 }
@@ -122,6 +134,7 @@ mod tests {
     fn invalid_preferences_are_reported_instead_of_silently_ignored() {
         for hover in [
             serde_json::json!({"sections":["typo"]}),
+            serde_json::json!({"path_preview":"auto"}),
             serde_json::json!({"browsers":"chrome"}),
             serde_json::json!({"browser_history":"yes"}),
             serde_json::json!({"template":"custom"}),
