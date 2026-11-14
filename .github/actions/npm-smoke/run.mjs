@@ -178,10 +178,12 @@ try {
 				if (process.platform === 'win32') {
 					const shim = readFileSync(linked, 'utf8').replaceAll('\\', '/');
 					assert(candidates.some(candidate => shim.includes(candidate.relative)), `npm shim does not point into the artifact: ${linked}\n${shim}`);
-				} else {assert(
+				} else {
+					assert(
 						candidates.some(candidate => realpathSync(candidate.path) === realpathSync(linked)),
 						'npm command link does not point into the artifact',
-					);}
+					);
+				}
 				checkVersion(`${label} linked ${command}`, linked, []);
 			}
 		}

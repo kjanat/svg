@@ -97,8 +97,8 @@ repository if you're using a recognized framework or common build setup.
 - **Framework preset**: Optimized configuration for supported frameworks like
   Next.js or Fresh.
   [Learn more about framework integrations](https://docs.deno.com/deploy/reference/frameworks/).
-- **Install command**: Shell command for installing dependencies, such as `npm
-  install` or `deno install`.
+- **Install command**: Shell command for installing dependencies, such as
+  `npm install` or `deno install`.
 - **Build command**: Shell command for building the project, often a task from
   `package.json` or `deno.json`, such as `deno task build` or `npm run build`.
 - **Pre-deploy command**: Shell command that runs after the build is complete
