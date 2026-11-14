@@ -1278,15 +1278,12 @@ fn format_browser_note(note: &str) -> String {
     let mut text = String::new();
     loop {
         match reader.read_event() {
-            Ok(Event::Text(value)) => match value.decode() {
-                Ok(value) => text.push_str(&value),
-                Err(_) => return escape_metadata(note),
-            },
+            Ok(Event::Text(value)) => text.push_str(&value),
             Ok(Event::GeneralRef(reference)) => {
                 if let Ok(Some(c)) = reference.resolve_char_ref() {
                     text.push(c);
-                } else if let Ok(name) = reference.decode() {
-                    match name.as_ref() {
+                } else {
+                    match reference.as_ref() {
                         "amp" => text.push('&'),
                         "lt" => text.push('<'),
                         "gt" => text.push('>'),
@@ -1300,7 +1297,7 @@ fn format_browser_note(note: &str) -> String {
                 }
             }
             Ok(Event::Start(tag) | Event::Empty(tag))
-                if matches!(tag.name().as_ref(), b"br" | b"p" | b"li") =>
+                if matches!(tag.name().as_ref(), "br" | "p" | "li") =>
             {
                 text.push(' ');
             }
@@ -2415,36 +2412,36 @@ mod tests {
             let mut root_seen = false;
             loop {
                 match reader.read_event()? {
-                    Event::Start(tag) if tag.name().as_ref() == b"svg" => {
+                    Event::Start(tag) if tag.name().as_ref() == "svg" => {
                         root_seen = true;
                         assert_eq!(
                             tag.try_get_attribute("width")?
                                 .ok_or("width")?
                                 .value
                                 .as_ref(),
-                            b"18"
+                            "18"
                         );
                         assert_eq!(
                             tag.try_get_attribute("height")?
                                 .ok_or("height")?
                                 .value
                                 .as_ref(),
-                            b"10"
+                            "10"
                         );
                         assert_eq!(
                             tag.try_get_attribute("viewBox")?
                                 .ok_or("viewBox")?
                                 .value
                                 .as_ref(),
-                            b"0 0 18 10"
+                            "0 0 18 10"
                         );
                     }
-                    Event::Empty(tag) if tag.name().as_ref() == b"image" => {
+                    Event::Empty(tag) if tag.name().as_ref() == "image" => {
                         let class = tag.try_get_attribute("class")?.ok_or("theme")?;
                         let href = tag.try_get_attribute("href")?.ok_or("embedded asset")?;
-                        let uri = std::str::from_utf8(&href.value)?;
+                        let uri = href.value.as_ref();
                         embedded.push((
-                            String::from_utf8(class.value.to_vec())?,
+                            class.value.into_owned(),
                             base64::engine::general_purpose::STANDARD.decode(
                                 uri.strip_prefix("data:image/svg+xml;base64,")
                                     .ok_or("embedded data URI")?,
