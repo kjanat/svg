@@ -3,11 +3,59 @@
 	"extends": [
 		"config:recommended"
 	],
+	"customManagers": [
+		{
+			"customType": "regex",
+			"description": "Python targets for Pyright and ty.",
+			"managerFilePatterns": ["/^pyproject\\.toml$/"],
+			"matchStrings": ["(?:pythonVersion|python-version)\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+)\""],
+			"depNameTemplate": "python",
+			"datasourceTemplate": "python-version"
+		},
+		{
+			"customType": "regex",
+			"description": "Ruff's compact Python target.",
+			"managerFilePatterns": ["/^pyproject\\.toml$/"],
+			"matchStrings": ["target-version\\s*=\\s*\"py(?<currentValue>(?<major>\\d)(?<minor>\\d+))\""],
+			"currentValueTemplate": "{{{major}}}.{{{minor}}}",
+			"autoReplaceStringTemplate": "target-version = \"py{{{replace '\\.' '' newValue}}}\"",
+			"depNameTemplate": "python",
+			"datasourceTemplate": "python-version"
+		},
+		{
+			"customType": "regex",
+			"description": "Python wheel build selectors for every SVG grammar.",
+			"managerFilePatterns": ["/^grammars\\/tree-sitter-svg(?:-[^/]+)?\\/pyproject\\.toml$/"],
+			"matchStrings": ["build\\s*=\\s*\"cp(?<currentValue>(?<major>\\d)(?<minor>\\d+))-\\*\""],
+			"currentValueTemplate": "{{{major}}}.{{{minor}}}",
+			"autoReplaceStringTemplate": "build = \"cp{{{replace '\\.' '' newValue}}}-*\"",
+			"depNameTemplate": "python",
+			"datasourceTemplate": "python-version"
+		}
+	],
 	"packageRules": [
 		{
 			"description": "No update PRs for GitHub Actions.",
 			"matchManagers": ["github-actions"],
 			"enabled": false
+		},
+		{
+			"description": "Use Python releases for the interpreter pin, matching the package minimums and tool targets.",
+			"matchManagers": ["pyenv"],
+			"matchPackageNames": ["python"],
+			"overrideDatasource": "python-version"
+		},
+		{
+			"description": "Update the interpreter, package minimums, analysis targets, wheel selectors, and uv lockfile together.",
+			"matchDatasources": ["python-version"],
+			"matchPackageNames": ["python"],
+			"extractVersion": "^(?<version>\\d+\\.\\d+)(?:\\.\\d+)?$",
+			"versioning": "pep440",
+			"rangeStrategy": "bump",
+			"groupName": "Python",
+			"groupSlug": "python",
+			"separateMajorMinor": false,
+			"separateMinorPatch": false
 		}
 	]
 }
