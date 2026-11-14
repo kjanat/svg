@@ -146,6 +146,7 @@ pub fn sketch(path_data: &str) -> Option<Sketch> {
 /// Flattened geometry of one `d` value.
 struct Outline {
     origin: Point,
+    collapsed_arc_vectors: bool,
     polylines: Vec<Vec<Point>>,
     commands: usize,
     /// Counted as the path grammar defines them rather than taken from
@@ -214,6 +215,8 @@ struct Pen {
     /// but `M1e308 0 l1e308 1` overflows from finite operands), or a bare
     /// coordinate pair continues a command that cannot take one.
     invalid: bool,
+    /// A near-complete arc whose endpoint directions round to one vector.
+    collapsed_arc_vectors: bool,
     /// The absolute point the first coordinate named, subtracted from every
     /// absolute coordinate after it. Curve and arc arithmetic then happens
     /// near zero, where a coordinate carries its full precision, instead of
@@ -603,6 +606,7 @@ impl Pen {
             sweep += std::f64::consts::TAU;
         }
         if arc.large && sweep == 0.0 {
+            self.collapsed_arc_vectors = true;
             // The endpoints are closer than the radii can express, so the two
             // ends of the sweep are the same point and the angle between them
             // is zero either way. A large arc over an offset that small is a
@@ -834,6 +838,7 @@ impl Pen {
         self.flush();
         Some(Outline {
             origin: self.origin.unwrap_or_default(),
+            collapsed_arc_vectors: self.collapsed_arc_vectors,
             polylines: self.polylines,
             commands: self.commands,
             subpaths: self.subpaths,
@@ -1188,8 +1193,12 @@ fn quarter_turn_sin_cos(degrees: f64) -> Option<(f64, f64)> {
 /// dot product: for a shallow sweep the cosine rounds to exactly one and `acos`
 /// collapses the angle to zero, which would flatten an arc whose ends are close
 /// together — the near-complete circle of `A1e8 1e8 0 1 1 1 0` among them.
+#[expect(
+    clippy::suboptimal_flops,
+    reason = "both cross-product terms must round equally so identical vectors yield zero"
+)]
 fn angle_between(from: Point, to: Point) -> f64 {
-    let cross = from.x.mul_add(to.y, -(from.y * to.x));
+    let cross = from.x * to.y - from.y * to.x;
     let dot = from.x.mul_add(to.x, from.y * to.y);
     cross.atan2(dot)
 }
@@ -1221,6 +1230,10 @@ fn arc_steps(sweep: f64) -> u32 {
     reason = "check browser float precision"
 )]
 fn svg_preview(path_data: &str, outline: &Outline) -> Option<String> {
+    // Chromium renders these extreme arcs blank; keep the corrected braille.
+    if outline.collapsed_arc_vectors {
+        return None;
+    }
     let (min, max) = bounds(&outline.polylines)?;
     let span = (max.x - min.x).max(max.y - min.y);
     let span = if span > 0.0 { span } else { 1.0 };
@@ -2192,6 +2205,23 @@ mod tests {
             sketch.width,
             sketch.height
         );
+        Ok(())
+    }
+
+    #[test]
+    fn near_complete_arcs_keep_their_extent_when_direction_vectors_coincide() -> TestResult {
+        for sweep in [0, 1] {
+            let preview = sketch(&format!("M0 0 A1e20 1e20 0 1 {sweep} 1 -1"))
+                .ok_or("near-complete circle")?;
+            assert!(preview.svg.is_none(), "collapsed arc angles need braille");
+            assert!(
+                (preview.width / 2e20 - 1.0).abs() < 1e-12
+                    && (preview.height / 2e20 - 1.0).abs() < 1e-12,
+                "sweep {sweep} should span the circle, got {} x {}",
+                preview.width,
+                preview.height
+            );
+        }
         Ok(())
     }
 
