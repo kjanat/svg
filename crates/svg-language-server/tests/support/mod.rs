@@ -142,7 +142,7 @@ impl TestServer {
         Self::start_with(&Value::Null, capabilities)
     }
 
-    fn start_with(initialization_options: &Value, capabilities: &Value) -> TestResult<Self> {
+    pub fn start_with(initialization_options: &Value, capabilities: &Value) -> TestResult<Self> {
         let mut child = Command::new(server_binary()?)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

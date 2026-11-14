@@ -37,6 +37,21 @@
   `d` attribute value. The `d` attribute uses `path_attribute_name` node kind,
   not `attribute_name`.
 
+- The host grammar no longer keeps that sub-grammar: `d`/`path` values are one
+  opaque `path_data_payload` token under `d_attribute` → `d_attribute_value` →
+  `{double,single}_quoted_path_data`. Any feature that needs structured segments
+  parses the payload text again with `tree_sitter_svg_path` (`svg-format`'s
+  `wrap_d_value` and the LSP's `path_preview` both do). The host tree alone
+  cannot answer questions about commands or coordinates.
+
+- In the `svg_path` grammar, a bare coordinate pair becomes an
+  `implicit_lineto_segment` with **no command child**; its relativity comes from
+  the case of the last explicit command letter (`M 0 0 10 10` is an absolute
+  lineto, `m 0 0 10 10` a relative one). Consumers that default such segments to
+  absolute silently misplace every implicit lineto. Trailing argument groups of
+  `C/S/Q/T/A/H/V` are instead repeats *inside* the segment node, so they need
+  the opposite treatment: iterate the argument children.
+
 - Generated exact attribute-name buckets can still conflict lexically. If a name
   moves between generated buckets (for example timing attrs from
   `keyword_attribute` to `css_text_attribute`), branch order in `grammar.js`
