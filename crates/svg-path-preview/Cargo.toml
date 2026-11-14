@@ -1,0 +1,25 @@
+[package]
+name                   = "svg-path-preview"
+version.workspace      = true
+authors.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "SVG path geometry, bounds, and braille and SVG previews"
+readme                 = "README.md"
+homepage               = "https://github.com/kjanat/svg/tree/HEAD/crates/svg-path-preview"
+repository.workspace   = true
+license.workspace      = true
+keywords               = ["geometry", "path", "preview", "svg"]
+categories             = ["graphics", "parsing"]
+include                = ["/README.md", "/src/*"]
+
+[dependencies]
+quick-xml.workspace            = true
+tree-sitter.workspace          = true
+tree-sitter-svg-path.workspace = true
+
+[dev-dependencies]
+tree-sitter-svg.workspace = true
+
+[lints]
+workspace = true
