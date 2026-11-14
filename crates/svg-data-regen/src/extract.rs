@@ -203,7 +203,7 @@ pub fn extract_definitions(xml: &str, anchor_base: Option<String>) -> Fallible<D
             }
             Event::Text(text) if in_content_model => {
                 if let Context::Element(current) = &mut context {
-                    let prose = text.xml10_content()?;
+                    let prose = text.xml10_content();
                     append_content_model(current, prose.trim());
                 }
             }
@@ -225,13 +225,13 @@ fn start_element(
     in_content_model: &mut bool,
 ) -> Fallible<()> {
     match element.local_name().as_ref() {
-        b"element" => *context = Context::Element(parse_element_head(element)?),
-        b"attributecategory" => {
+        "element" => *context = Context::Element(parse_element_head(element)?),
+        "attributecategory" => {
             *context = Context::AttributeCategory(parse_attribute_category_head(element)?);
         }
-        b"contentmodel" => *in_content_model = true,
+        "contentmodel" => *in_content_model = true,
         // A nested attribute inside an element/category opened as a container.
-        b"attribute" => route_attribute(parse_attribute_ref(element)?, defs, context),
+        "attribute" => route_attribute(parse_attribute_ref(element)?, defs, context),
         _ => {}
     }
     Ok(())
@@ -244,26 +244,26 @@ fn empty_element(
     context: &mut Context,
 ) -> Fallible<()> {
     match element.local_name().as_ref() {
-        b"element" => {
+        "element" => {
             // An element with no children (no inline content model or attrs).
             defs.elements.push(parse_element_head(element)?);
         }
-        b"attribute" => route_attribute(parse_attribute_ref(element)?, defs, context),
-        b"property" => defs.properties.push(PropertyDef {
-            name: required(element, b"name")?,
-            href: xml_attribute(element, b"href")?,
+        "attribute" => route_attribute(parse_attribute_ref(element)?, defs, context),
+        "property" => defs.properties.push(PropertyDef {
+            name: required(element, "name")?,
+            href: xml_attribute(element, "href")?,
         }),
-        b"elementcategory" => defs.element_categories.push(ElementCategory {
-            name: required(element, b"name")?,
-            href: xml_attribute(element, b"href")?,
-            elements: comma_list(element, b"elements")?,
+        "elementcategory" => defs.element_categories.push(ElementCategory {
+            name: required(element, "name")?,
+            href: xml_attribute(element, "href")?,
+            elements: comma_list(element, "elements")?,
         }),
-        b"attributecategory" => defs
+        "attributecategory" => defs
             .attribute_categories
             .push(parse_attribute_category_head(element)?),
-        b"term" => defs.terms.push(glossary_entry(element)?),
-        b"symbol" => defs.symbols.push(glossary_entry(element)?),
-        b"interface" => defs.interfaces.push(glossary_entry(element)?),
+        "term" => defs.terms.push(glossary_entry(element)?),
+        "symbol" => defs.symbols.push(glossary_entry(element)?),
+        "interface" => defs.interfaces.push(glossary_entry(element)?),
         _ => {}
     }
     Ok(())
@@ -277,13 +277,13 @@ fn end_element(
     in_content_model: &mut bool,
 ) {
     match element.local_name().as_ref() {
-        b"contentmodel" => *in_content_model = false,
-        b"element" => {
+        "contentmodel" => *in_content_model = false,
+        "element" => {
             if let Context::Element(current) = std::mem::replace(context, Context::Top) {
                 defs.elements.push(current);
             }
         }
-        b"attributecategory" => {
+        "attributecategory" => {
             if let Context::AttributeCategory(current) = std::mem::replace(context, Context::Top) {
                 defs.attribute_categories.push(current);
             }
@@ -295,16 +295,16 @@ fn end_element(
 /// Parse an `<element>`'s own attributes (not its children).
 fn parse_element_head(element: &BytesStart) -> Fallible<ElementDef> {
     Ok(ElementDef {
-        name: required(element, b"name")?,
-        href: xml_attribute(element, b"href")?,
+        name: required(element, "name")?,
+        href: xml_attribute(element, "href")?,
         content_model: parse_content_model_kind(element)?,
         content_model_description: None,
-        allowed_element_categories: comma_list(element, b"elementcategories")?,
-        allowed_elements: comma_list(element, b"elements")?,
-        attribute_categories: comma_list(element, b"attributecategories")?,
-        common_attributes: comma_list(element, b"attributes")?,
-        geometry_properties: comma_list(element, b"geometryproperties")?,
-        interfaces: comma_list(element, b"interfaces")?,
+        allowed_element_categories: comma_list(element, "elementcategories")?,
+        allowed_elements: comma_list(element, "elements")?,
+        attribute_categories: comma_list(element, "attributecategories")?,
+        common_attributes: comma_list(element, "attributes")?,
+        geometry_properties: comma_list(element, "geometryproperties")?,
+        interfaces: comma_list(element, "interfaces")?,
         attributes: Vec::new(),
     })
 }
@@ -312,7 +312,7 @@ fn parse_element_head(element: &BytesStart) -> Fallible<ElementDef> {
 /// Parse the `contentmodel` attribute into a typed kind, erroring on an
 /// unrecognised value rather than silently dropping it.
 fn parse_content_model_kind(element: &BytesStart) -> Fallible<Option<ContentModelKind>> {
-    let Some(raw) = xml_attribute(element, b"contentmodel")? else {
+    let Some(raw) = xml_attribute(element, "contentmodel")? else {
         return Ok(None);
     };
     let kind = match raw.as_str() {
@@ -332,24 +332,24 @@ fn parse_content_model_kind(element: &BytesStart) -> Fallible<Option<ContentMode
 /// Build an [`AttributeRef`] from an `<attribute>` tag's attributes.
 fn parse_attribute_ref(element: &BytesStart) -> Fallible<AttributeRef> {
     Ok(AttributeRef {
-        name: required(element, b"name")?,
-        href: xml_attribute(element, b"href")?,
-        animatable: match xml_attribute(element, b"animatable")?.as_deref() {
+        name: required(element, "name")?,
+        href: xml_attribute(element, "href")?,
+        animatable: match xml_attribute(element, "animatable")?.as_deref() {
             Some("yes") => Some(true),
             Some("no") => Some(false),
             _ => None,
         },
-        elements: comma_list(element, b"elements")?,
+        elements: comma_list(element, "elements")?,
     })
 }
 
 /// Build an [`AttributeCategory`] from an `<attributecategory>` tag.
 fn parse_attribute_category_head(element: &BytesStart) -> Fallible<AttributeCategory> {
     Ok(AttributeCategory {
-        name: required(element, b"name")?,
-        href: xml_attribute(element, b"href")?,
+        name: required(element, "name")?,
+        href: xml_attribute(element, "href")?,
         attributes: Vec::new(),
-        presentation_attributes: comma_list(element, b"presentationattributes")?,
+        presentation_attributes: comma_list(element, "presentationattributes")?,
     })
 }
 
@@ -380,21 +380,20 @@ fn append_content_model(element: &mut ElementDef, prose: &str) {
 /// Build a [`GlossaryEntry`] from a `<term>`/`<symbol>`/`<interface>` tag.
 fn glossary_entry(element: &BytesStart) -> Fallible<GlossaryEntry> {
     Ok(GlossaryEntry {
-        name: required(element, b"name")?,
-        href: xml_attribute(element, b"href")?,
+        name: required(element, "name")?,
+        href: xml_attribute(element, "href")?,
     })
 }
 
 /// The value of a required attribute, erroring if it is absent.
-fn required(element: &BytesStart, key: &[u8]) -> Fallible<String> {
+fn required(element: &BytesStart, key: &str) -> Fallible<String> {
     xml_attribute(element, key)?.ok_or_else(|| {
-        let key = String::from_utf8_lossy(key).into_owned();
         Box::<dyn std::error::Error>::from(format!("definitions entity missing `{key}`"))
     })
 }
 
 /// Parse a comma-separated attribute value into trimmed, non-empty names.
-fn comma_list(element: &BytesStart, key: &[u8]) -> Fallible<Vec<String>> {
+fn comma_list(element: &BytesStart, key: &str) -> Fallible<Vec<String>> {
     let Some(raw) = xml_attribute(element, key)? else {
         return Ok(Vec::new());
     };

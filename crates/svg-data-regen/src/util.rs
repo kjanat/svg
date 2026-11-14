@@ -36,7 +36,7 @@ pub fn normalize_html_ws(text: &str) -> String {
 
 /// The unescaped value of quick-xml attribute `key` (matched by local name) on
 /// `element`, if present.
-pub fn xml_attribute(element: &BytesStart, key: &[u8]) -> Fallible<Option<String>> {
+pub fn xml_attribute(element: &BytesStart, key: &str) -> Fallible<Option<String>> {
     for attr in element.attributes() {
         let attr = attr?;
         if attr.key.local_name().as_ref() == key {

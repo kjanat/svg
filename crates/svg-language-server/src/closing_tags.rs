@@ -5,7 +5,7 @@ use tower_lsp_server::ls_types::{
 };
 use tree_sitter::{Node, Tree};
 
-use crate::positions::{position_for_byte_offset, u32_from_usize};
+use crate::positions::position_for_byte_offset;
 
 /// `Some` owns a closing-tag context, including one with no valid suggestion.
 /// This prevents the normal child/attribute completion path from leaking into it.
@@ -104,7 +104,7 @@ fn open_tags_before<'tree>(
             // Missing delimiters inserted by error recovery do not open or close
             // an element. Only explicit tags before the requested edit count.
             if node
-                .child(u32_from_usize(node.child_count().saturating_sub(1)))
+                .child(node.child_count().saturating_sub(1))
                 .is_some_and(|last| last.kind() == ">" && !last.is_missing())
             {
                 if node.kind() == "start_tag" {
