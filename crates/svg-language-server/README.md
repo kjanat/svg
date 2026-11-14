@@ -115,14 +115,36 @@ For example, show mobile browser support with selected details:
 | `svg.hover.browser_details` | `notes`, `partial_implementation`, `prefix`, `alternative_name`, `flags`, `version_removed` | Fields shown in `browser_details`. Also accepts `version_last` and `implementation_links`.                                                                           |
 | `svg.hover.browser_history` | `false`                                                                                     | Show all original support statements in `browser_details`, including historical and conditional implementations. Otherwise show the selected current implementation. |
 
-Available sections: `description`, `status`, `values`, `baseline`,
-`discouraged`, `browsers`, `browser_details`, `web_features_support`, `sources`,
-and `links`. `values` is the attribute's value grammar, and on an element the
-children it permits. When both are enabled, discouragement takes the place of
-the Baseline badge. `web_features_support` shows that package's independently
-resolved browser versions; the normal browser row uses BCD. `sources` adds
-`(offline)` to the browser row when the BCD refresh failed or is disabled, and
-nothing otherwise.
+Available sections: `path_sketch`, `description`, `status`, `values`,
+`baseline`, `discouraged`, `browsers`, `browser_details`,
+`web_features_support`, `sources`, and `links`. `values` is the attribute's
+value grammar, and on an element the children it permits. When both are enabled,
+discouragement takes the place of the Baseline badge. `web_features_support`
+shows that package's independently resolved browser versions; the normal browser
+row uses BCD. `sources` adds `(offline)` to the browser row when the BCD refresh
+failed or is disabled, and nothing otherwise.
+
+`path_sketch` previews the geometry of a `d` (or `animateMotion` `path`) value
+above the catalog entry, whether the cursor sits on the attribute name or inside
+its value. `svg.hover.path_preview` selects the renderer:
+
+| Mode                | Behavior                                                                                                                                                                                                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `braille` (default) | A text outline, usable in terminal clients and editors without hover image support. Requires Unicode braille patterns (U+2800–U+28FF).                                                                                                                                                       |
+| `svg`               | The original path commands in a self-contained SVG image, with a fitted viewport and a blue outline. Opt in when your client renders SVG data URIs in Markdown hovers. Plaintext-only clients receive braille; geometry whose SVG viewport cannot be represented also falls back to braille. |
+| `off`               | No path preview; attribute documentation remains available.                                                                                                                                                                                                                                  |
+
+These modes apply at initialization and through configuration updates. Dropping
+`path_sketch` from the `sections` allowlist disables the preview in every mode.
+The image shows the path's geometry independently of document fills, strokes,
+transforms, and other styling. Both renderers include command and subpath counts
+and the extent in user units.
+
+Invalid path data, non-finite or unrepresentable geometry, and values over 32
+KiB produce no preview. Preview generation may also omit a path when an
+intermediate calculation exceeds the floating-point range, including the
+extreme-radius case tracked in [#63](https://github.com/kjanat/svg/issues/63).
+No external rasterizer is required.
 
 Product IDs also include `firefox_android`, `samsunginternet_android`,
 `webview_android`, `webview_ios`, `opera`, `opera_android`, `ie`, `oculus`,
