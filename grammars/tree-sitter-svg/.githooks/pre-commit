@@ -5,7 +5,7 @@ set -euo pipefail
 tree-sitter generate
 
 # Format
-dprint fmt .
+bunx '@kjanat/fmt' .
 
 # Re-stage only generated files that now differ from the index
 mapfile -d '' changed < <(git diff --name-only -z -- src/)
