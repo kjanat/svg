@@ -561,14 +561,16 @@ impl Pen {
         // half-difference measured in radii; the endpoints then sit exactly
         // one radius from the centre, whatever the factor was. Scaling each
         // radius through `smaller` rather than multiplying it by that factor
-        // keeps the product finite where the factor itself is not, and a
-        // common factor leaves the direction alone either way. Dividing by
-        // `smaller` before restoring the difference's own scale keeps the
-        // comparison itself in range when no correction is needed at all.
+        // keeps the product finite where the factor itself is not. Keep the
+        // powers of two separate too: `rx / smaller` can overflow even when
+        // the corrected radius is finite. A common factor leaves the direction
+        // alone either way. Dividing by `smaller` before restoring the
+        // difference's own scale keeps the comparison itself in range when
+        // no correction is needed at all.
         let offset = if (scale / smaller) * magnitude / 2.0 > 1.0 {
-            let half_span = scale * magnitude / 2.0;
-            rx = (rx / smaller) * half_span;
-            ry = (ry / smaller) * half_span;
+            let half_span = multiply_divide(scale, magnitude, 2.0);
+            rx = multiply_divide(rx, half_span, smaller);
+            ry = multiply_divide(ry, half_span, smaller);
             toward
         } else {
             Point::new(unit.x * (scale / rx) / 2.0, unit.y * (scale / ry) / 2.0)
@@ -844,6 +846,38 @@ impl Pen {
             subpaths: self.subpaths,
         })
     }
+}
+
+/// Compute `a * b / divisor` for nonnegative finite operands and a positive
+/// divisor without overflowing or underflowing an intermediate. Only the final
+/// result may leave the representable range.
+fn multiply_divide(a: f64, b: f64, divisor: f64) -> f64 {
+    if a == 0.0 || b == 0.0 {
+        return 0.0;
+    }
+    let (a, a_exponent) = binary_parts(a);
+    let (b, b_exponent) = binary_parts(b);
+    let (divisor, divisor_exponent) = binary_parts(divisor);
+    let fraction = a * b / divisor;
+    let exponent = a_exponent + b_exponent - divisor_exponent;
+    // Fractions stay in [1/2, 4). Restore the exponent in two exact power-of-two
+    // steps so a subnormal result or an exponent just above 1023 is rounded
+    // only when the final multiplication reaches its actual magnitude.
+    let normal_exponent = exponent.clamp(-1022, 1023);
+    (fraction * 2.0f64.powi(exponent - normal_exponent)) * 2.0f64.powi(normal_exponent)
+}
+
+/// Split a positive finite value into a fraction in [1, 2) and a binary exponent.
+fn binary_parts(value: f64) -> (f64, i32) {
+    let (normal, adjustment) = if value.is_subnormal() {
+        (value * 2.0f64.powi(52), -52)
+    } else {
+        (value, 0)
+    };
+    let bits = normal.to_bits();
+    let fraction = f64::from_bits((bits & 0x000f_ffff_ffff_ffff) | 1.0f64.to_bits());
+    let exponent = (bits >> 52) as i32 - 1023 + adjustment;
+    (fraction, exponent)
 }
 
 /// Arc parameters as written in the path data, before endpoint conversion.
@@ -1983,6 +2017,50 @@ mod tests {
         // Both extents are subnormal, so an absolute units-per-dot factor
         // overflows and collapses the diagonal onto a single dot.
         assert_eq!(art("M0 0 L1e-310 1e-310")?, art("M0 0 L1 1")?);
+        Ok(())
+    }
+
+    #[test]
+    fn radius_products_preserve_the_representable_range() {
+        let smallest = f64::from_bits(1);
+        for (a, b, divisor, expected) in [
+            (smallest, 0.5, smallest, 0.5),
+            (smallest, smallest, smallest, smallest),
+            (1e-300, 1e-300, 1e-300, 1e-300),
+            (f64::MIN_POSITIVE, 0.5, 1.0, f64::MIN_POSITIVE / 2.0),
+            (f64::MAX, 1.0, f64::MAX, 1.0),
+            (f64::MAX, 2.0, 2.0, f64::MAX),
+            (0.0, f64::MAX, smallest, 0.0),
+        ] {
+            let actual = multiply_divide(a, b, divisor);
+            assert_eq!(actual, expected, "{a} * {b} / {divisor}");
+        }
+        assert!(multiply_divide(f64::MAX, 2.0, 1.0).is_infinite());
+        assert_eq!(multiply_divide(smallest, smallest, 1.0), 0.0);
+    }
+
+    #[test]
+    fn corrected_arc_radii_stay_finite_across_extreme_ratios() -> TestResult {
+        for (radii, rotation, endpoint, width, height) in [
+            ("1e100 1e-300", 0, "0 1e-200", 5e199, 1e-200),
+            ("1e-300 1e100", 0, "1e-200 0", 1e-200, 5e199),
+            ("1e100 1e-300", 90, "1e-200 0", 1e-200, 5e199),
+            ("1e100 1e-300", 0, "0 1e-100", 5e299, 1e-100),
+        ] {
+            for large in [0, 1] {
+                for sweep in [0, 1] {
+                    let path = format!("M0 0 A{radii} {rotation} {large} {sweep} {endpoint}");
+                    let preview = sketch(&path).ok_or_else(|| format!("no preview for {path}"))?;
+                    assert!(
+                        (preview.width / width - 1.0).abs() < 1e-12
+                            && (preview.height / height - 1.0).abs() < 1e-12,
+                        "{path}: expected {width} x {height}, got {} x {}",
+                        preview.width,
+                        preview.height
+                    );
+                }
+            }
+        }
         Ok(())
     }
 
