@@ -41,7 +41,7 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
-      - run: bunx '@kprint/kprint' check
+      - uses: kjanat/dprint-check@v3
 
   npm-facade:
     name: npm facade (glibc + musl)
@@ -58,10 +58,9 @@ jobs:
         env: { EXPECT_LIBC: glibc }
         run: node --test "distribution/npm/facade/test/*.test.mjs"
       - name: Resolver tests (musl host)
-        run: |
-          docker run --rm --volume "${PWD}:/work" --workdir /work \
-            --env EXPECT_LIBC=musl "node:${NODE_MAJOR}-alpine" \
-            node --test "distribution/npm/facade/test/*.test.mjs"
+        run: docker run --rm --volume "${PWD}:/work" --workdir /work
+          --env EXPECT_LIBC=musl "node:${NODE_MAJOR}-alpine";
+          node --test "distribution/npm/facade/test/*.test.mjs"
 
   deno:
     name: Deno typecheck
