@@ -10,7 +10,7 @@ repository.workspace   = true
 license.workspace      = true
 keywords               = ["format", "pretty-print", "svg", "tree-sitter"]
 categories             = ["development-tools", "text-editors"]
-include                = ["/README.md", "/src/*", "/tests/*"]
+include                = ["/README.md", "/src/*", "/tests/*", "/examples/*"]
 
 [features]
 default = ["cli"]

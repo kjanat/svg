@@ -128,6 +128,9 @@ Embedded languages are injected via [`queries/injections.scm`]:
 | `outline.scm`     | Symbol outline / code folding with id context      |
 | `brackets.scm`    | Bracket matching and rainbow pairs                 |
 
+For `wasm32-unknown-unknown`, use Tree-sitter 0.27 or newer. Its C runtime
+routes parser and scanner allocations through Rust's global allocator.
+
 <!--
 ## Installation
 
@@ -159,7 +162,7 @@ console.log(tree.rootNode.type); // source_file
 
 ```toml
 [dependencies]
-tree-sitter = "0.26"
+tree-sitter = "0.27"
 tree-sitter-svg = "0.1"
 ```
 

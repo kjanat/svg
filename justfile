@@ -83,6 +83,13 @@ test *ARGS:
 test-svg-format:
     cargo test -p svg-format
 
+# build every grammar for bare Wasm and run the formatter allocation regression
+[group('rust')]
+test-wasm:
+    cargo build -p tree-sitter-svg-paint -p tree-sitter-svg-transform --target wasm32-unknown-unknown
+    cargo build -p svg-format --example wasm_allocations --no-default-features --target wasm32-unknown-unknown --release
+    node -e 'const fs = require("node:fs"); WebAssembly.instantiate(fs.readFileSync("target/wasm32-unknown-unknown/release/examples/wasm_allocations.wasm")).then(({ instance }) => { instance.exports.main(); console.log("Wasm allocator regression passed"); });'
+
 # test svg-lint only (fast loop)
 [group('rust')]
 test-svg-lint:

@@ -48,30 +48,30 @@
 		"npm": "12.2.2"
 	},
 	"catalog": {
-		"@biomejs/biome": "^2.5",
-		"@types/bun": "^1.4",
-		"@types/node": "^26",
-		"@kjanat/dreamcli": "^4",
+		"@biomejs/biome": "^2.6.7",
+		"@types/bun": "^1.4.4",
+		"@types/node": "^26.6.6",
+		"@kjanat/dreamcli": "^4.2.0",
 		"@types/deno": "^2",
 		"@kprint/kprint": "^0.62",
-		"ansispeck": "^0.4",
-		"tar": "^7.5",
+		"ansispeck": "^0.4.3",
+		"tar": "^7.5.23",
 		"node-addon-api": "^8.9",
-		"node-gyp": "^13",
+		"node-gyp": "^13.1.0",
 		"node-gyp-build": "^4",
 		"prebuildify": "^6",
-		"runner-run": "^0.26",
+		"runner-run": "^0.28.0",
 		"tree-sitter": "^0.25",
-		"tree-sitter-cli": "^0.26",
+		"tree-sitter-cli": "^0.27.2",
 		"typescript": "^7"
 	},
 	"catalogs": {
 		"deno": {
-			"@mdn/browser-compat-data": "^8.0.11",
+			"@mdn/browser-compat-data": "^8.1.9",
 			"importmapify": "^1.7.0",
-			"preact": "^10.23.1",
-			"preact-render-to-string": "^6",
-			"web-features": "^3.23.0"
+			"preact": "^11.2.0",
+			"preact-render-to-string": "^6.8.3",
+			"web-features": "^3.46.0"
 		}
 	}
 }

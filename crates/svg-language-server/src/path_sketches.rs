@@ -248,7 +248,13 @@ mod tests {
         assert!(weak_doc.upgrade().is_none(), "closed document retained");
         let weak_sketch = Arc::downgrade(&sketch);
         drop(sketch);
-        assert!(weak_sketch.upgrade().is_none(), "late sketch retained");
+        // Publishing wakes waiters before the worker drops its sending channel.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while weak_sketch.upgrade().is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
         Ok(())
     }
 
