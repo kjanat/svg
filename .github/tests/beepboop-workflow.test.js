@@ -128,3 +128,12 @@ test('approved sources are bound to the trusted dispatched revision before execu
 		}
 	}
 });
+
+test('preparation installs the workflow validator before running the complete preflight', () => {
+	const job = steps(prepare.jobs.prepare);
+	const install = job.findIndex(step => step.run?.includes('actionlint_1.17.1_linux_amd64.tar.gz'));
+	const verify = job.findIndex(step => step.run === 'just verify');
+	expect(install).toBeGreaterThanOrEqual(0);
+	expect(verify).toBeGreaterThan(install);
+	expect(job[install].run).toContain('sha256sum --check');
+});

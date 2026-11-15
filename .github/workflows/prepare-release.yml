@@ -31,7 +31,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - uses: taiki-e/install-action@v2
-        with: { tool: "just,tombi,rust+clippy+rustfmt" }
+        with: { tool: "just,tombi,shellcheck,rust+clippy+rustfmt" }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: package.json }
       - uses: actions/setup-node@v7
@@ -40,6 +40,16 @@ jobs:
       - uses: denoland/setup-deno@v2
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
+      - name: Install pinned workflow validator
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          tool_dir="${RUNNER_TEMP}/actionlint"
+          mkdir -p "${tool_dir}"
+          gh release download v1.17.1 --repo kjanat/actionlint --pattern actionlint_1.17.1_linux_amd64.tar.gz --dir "${tool_dir}"
+          cd "${tool_dir}"
+          echo '6bfe0f49f0e108b9b23732baf7de63bfa4d89174fa40f9cb98feb9676df3318f  actionlint_1.17.1_linux_amd64.tar.gz' | sha256sum --check -
+          tar -xzf actionlint_1.17.1_linux_amd64.tar.gz
+          echo "${tool_dir}" >> "${GITHUB_PATH}"
       - name: Refresh lockfiles and generated grammar versions
         env: { RELEASE_VERSION: "${{ fromJSON(steps.begin.outputs.context).version }}" }
         run: |

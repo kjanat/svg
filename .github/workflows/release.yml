@@ -96,7 +96,10 @@ jobs:
         with: { token: "${{ steps.automation.outputs.token }}" }
         env:
           BEEPBOOP_EXECUTION_ID: ${{ needs.beepboop.outputs.execution-id }}
-          "${{ insert }}": ${{ fromJSON(steps.automation.outputs.gitId || '{}') }}
+          GIT_AUTHOR_NAME: ${{ fromJSON(steps.automation.outputs.gitId).GIT_AUTHOR_NAME }}
+          GIT_AUTHOR_EMAIL: ${{ fromJSON(steps.automation.outputs.gitId).GIT_AUTHOR_EMAIL }}
+          GIT_COMMITTER_NAME: ${{ fromJSON(steps.automation.outputs.gitId).GIT_COMMITTER_NAME }}
+          GIT_COMMITTER_EMAIL: ${{ fromJSON(steps.automation.outputs.gitId).GIT_COMMITTER_EMAIL }}
 
       - name: append GitHub auto-generated notes
         uses: $/.github/actions/append-release-notes
