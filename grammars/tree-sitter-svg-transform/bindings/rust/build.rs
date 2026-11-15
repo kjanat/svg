@@ -17,20 +17,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                      {err}"
                 )
             })?;
-        let wasm_src = std::env::var("DEP_TREE_SITTER_LANGUAGE_WASM_SRC")
-            .map(std::path::PathBuf::from)
-            .map_err(|err| {
-                format!(
-                    "DEP_TREE_SITTER_LANGUAGE_WASM_SRC must be set by the language crate: {err}"
-                )
-            })?;
-
+        // Tree-sitter 0.27 supplies the C runtime, including a Rust-backed
+        // allocator. The scanner-only stdlib would use a separate, uninitialized heap.
         c_config.include(&wasm_headers);
-        c_config.files([
-            wasm_src.join("stdio.c"),
-            wasm_src.join("stdlib.c"),
-            wasm_src.join("string.c"),
-        ]);
     }
 
     let parser_path = src_dir.join("parser.c");

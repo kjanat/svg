@@ -157,9 +157,12 @@ console.log(tree.rootNode.type); // source_file
 
 ### Rust
 
+For `wasm32-unknown-unknown`, use Tree-sitter 0.27 or newer. Its C runtime
+routes parser and scanner allocations through Rust's global allocator.
+
 ```toml
 [dependencies]
-tree-sitter = "0.26"
+tree-sitter = "0.27"
 tree-sitter-svg = "0.1"
 ```
 
