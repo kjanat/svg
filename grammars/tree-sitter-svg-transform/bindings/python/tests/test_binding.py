@@ -6,5 +6,11 @@ from tree_sitter import Language, Parser
 
 
 class TestLanguage(TestCase):
-    def test_can_load_grammar(self) -> None:
-        _ = Parser(Language(tree_sitter_svg_transform.language()))
+    def test_can_parse_input(self) -> None:
+        parser = Parser(Language(tree_sitter_svg_transform.language()))
+        source = b"translate(10 20) rotate(45)"
+        # tree-sitter 0.25 exposes a partially unknown parse overload on Python 3.15.
+        tree = parser.parse(source)  # pyright: ignore[reportUnknownMemberType]
+        self.assertFalse(tree.root_node.has_error)
+        self.assertEqual(tree.root_node.end_byte, len(source))
+        self.assertGreater(tree.root_node.named_child_count, 0)

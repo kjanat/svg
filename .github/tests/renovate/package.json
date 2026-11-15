@@ -1,0 +1,7 @@
+{
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"renovate": "^44.239.1"
+	}
+}

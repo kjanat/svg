@@ -90,6 +90,17 @@ test-wasm:
     cargo build -p svg-format --example wasm_allocations --no-default-features --target wasm32-unknown-unknown --release
     node -e 'const fs = require("node:fs"); WebAssembly.instantiate(fs.readFileSync("target/wasm32-unknown-unknown/release/examples/wasm_allocations.wasm")).then(({ instance }) => { instance.exports.main(); console.log("Wasm allocator regression passed"); });'
 
+# lint/typecheck Python, then build and test the four installed grammar wheels
+[group('grammar')]
+check-python:
+    uv run --locked --all-packages --all-groups python scripts/check-python.py
+
+# exercise Renovate's extraction, replacement, grouping and uv artifact updates
+[group('grammar')]
+check-python-updates:
+    bun install --cwd .github/tests/renovate --frozen-lockfile --ignore-scripts
+    node --test .github/tests/renovate/python.test.mjs
+
 # test svg-lint only (fast loop)
 [group('rust')]
 test-svg-lint:
@@ -184,6 +195,8 @@ test-deno *ARGS:
 [group('verify')]
 verify:
     just format-check
+    just check-python
+    just check-python-updates
     just check-grammars
     just typecheck
     just baseline-icons-check
