@@ -110,3 +110,21 @@ test('dispatched source checkouts cannot populate default-branch Rust caches', (
 		expect(steps(job).some(step => step.uses?.startsWith('Swatinem/rust-cache@'))).toBe(false);
 	}
 });
+
+test('approved sources are bound to the trusted dispatched revision before execution', () => {
+	for (const job of [release.jobs.beepboop, prepare.jobs.prepare]) {
+		expect(steps(job).some(step => step.run?.includes('test "${APPROVED_SOURCE}" = "${DISPATCHED_SOURCE}"'))).toBe(true);
+	}
+	for (const job of [
+		release.jobs.verify,
+		release.jobs.matrix,
+		release.jobs['create-release'],
+		release.jobs['build-and-upload'],
+		release.jobs['build-dist'],
+		prepare.jobs.prepare,
+	]) {
+		for (const step of steps(job).filter(step => step.uses?.startsWith('actions/checkout@'))) {
+			expect(step.with.ref).toBe('${{ github.sha }}');
+		}
+	}
+});

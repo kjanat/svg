@@ -18,9 +18,17 @@ jobs:
           execution-id: ${{ inputs.beepboop_execution_id }}
           stream: main
           operation: prepare
+      - name: Bind approved source to the dispatched revision
+        env:
+          APPROVED_SOURCE: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
+          DISPATCHED_SOURCE: ${{ github.sha }}
+          DISPATCHED_REF: ${{ github.ref }}
+        run: |
+          test "${DISPATCHED_REF}" = refs/heads/master
+          test "${APPROVED_SOURCE}" = "${DISPATCHED_SOURCE}"
       - uses: actions/checkout@v7
         with:
-          ref: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: taiki-e/install-action@v2
         with: { tool: "just,tombi,rust+clippy+rustfmt" }
