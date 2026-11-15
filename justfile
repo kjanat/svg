@@ -226,7 +226,7 @@ release-config-check:
 # exercise packaged crate verification, release wiring and publication retries
 [group('release')]
 release-package-test:
-    bun test ./.github/tests/crates-release.test.ts ./.github/tests/beepboop-workflow.test.js
+    bun test ./.github/tests/crates-release.test.ts ./.github/tests/beepboop-workflow.test.js ./.github/tests/release-notes.test.js
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
     bash .github/tests/crates-publish.sh
 

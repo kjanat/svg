@@ -13,11 +13,15 @@ end_marker='<!-- generated-notes-end -->'
 
 # Beepboop owns the existing draft release. Update it in place, retaining its ID.
 version="${RELEASE_TAG#v}"
-our_body=$(awk -v heading="## [${version}]" '
+if ! our_body=$(awk -v heading="## [${version}]" '
 	index($0, heading) == 1 { found = 1; next }
 	found && /^## / { exit }
 	found { print }
-' CHANGELOG.md)
+	END { if (!found) exit 1 }
+' CHANGELOG.md); then
+	printf 'error: changelog section for %s is missing\n' "${version}" >&2
+	exit 1
+fi
 gen_body="$(gh api \
 	"repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
 	-f tag_name="${RELEASE_TAG}" --jq .body)"
