@@ -1,3 +1,7 @@
+[install]
+# node-gyp writes shared node-addon-api makefiles across the workspace.
+concurrentScripts = 1
+
 [test]
 # The worker suite runs under Deno; Zed downloads contain separate checkouts.
 pathIgnorePatterns = ["workers/svg-compat/**", "editors/zed-svg/grammars/**"]
