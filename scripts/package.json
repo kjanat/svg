@@ -1,6 +1,7 @@
 {
 	"name": "scripts",
 	"version": "",
+	"private": true,
 	"scripts": {
 		"typecheck": "deno check"
 	},
