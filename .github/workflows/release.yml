@@ -43,7 +43,6 @@ jobs:
         with: { ref: "${{ needs.beepboop.outputs.source-sha }}", persist-credentials: false }
       - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
         with: { tool: rust+clippy }
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
 

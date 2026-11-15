@@ -104,3 +104,9 @@ test('release publication preserves the Beepboop draft and composed release note
 	expect(publish).toBeGreaterThanOrEqual(0);
 	expect(record).toBeGreaterThan(publish);
 });
+
+test('dispatched source checkouts cannot populate default-branch Rust caches', () => {
+	for (const job of [release.jobs.verify, prepare.jobs.prepare]) {
+		expect(steps(job).some(step => step.uses?.startsWith('Swatinem/rust-cache@'))).toBe(false);
+	}
+});

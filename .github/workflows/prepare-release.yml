@@ -32,7 +32,6 @@ jobs:
       - uses: denoland/setup-deno@v2
       - uses: mlugg/setup-zig@v2
         with: { version: 0.16.0 }
-      - uses: Swatinem/rust-cache@v2
       - name: Refresh lockfiles and generated grammar versions
         env: { RELEASE_VERSION: "${{ fromJSON(steps.begin.outputs.context).version }}" }
         run: |
