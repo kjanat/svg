@@ -713,11 +713,30 @@ mod tests {
     // Claim: "Keywords are identifiers and are interpreted ASCII
     // case-insensitively (i.e., [a-z] and [A-Z] are equivalent)."
     // https://drafts.csswg.org/css-values-4/#keywords
+    // SVG 1.1 defines color-interpolation as "auto | sRGB | linearRGB".
+    // https://www.w3.org/TR/SVG11/painting.html#ColorInterpolationProperty
+    #[test]
+    fn legacy_color_interpolation_keywords() {
+        assert_usage(
+            "color-interpolation",
+            None,
+            SVG11,
+            &["auto", "sRGB", "linearRGB"],
+            &["displayP3"],
+        );
+    }
+
     #[test]
     fn property_keywords_match_ascii_case_insensitively() {
         assert_attr("fill-rule", &["EVENODD", "NonZero"], &["even-odd"]);
         assert_attr("clip-rule", &["evenOdd"], &["nonzero2"]);
-        assert_attr("color-interpolation", &["SRGB", "linearrgb"], &["rgb"]);
+        assert_usage(
+            "color-interpolation",
+            None,
+            SVG11,
+            &["SRGB", "linearrgb"],
+            &["rgb"],
+        );
         assert_attr("shape-rendering", &["crispedges"], &["crisp"]);
         assert_attr("pointer-events", &["VISIBLEPAINTED"], &["painted-visible"]);
         assert_attr("text-anchor", &["Middle"], &["center"]);
@@ -865,11 +884,6 @@ mod tests {
     fn single_keyword_property_grammars() {
         assert_attr("clip-rule", &["nonzero", "evenodd"], &["odd"]);
         assert_attr("fill-rule", &["nonzero", "evenodd"], &["winding"]);
-        assert_attr(
-            "color-interpolation",
-            &["auto", "sRGB", "linearRGB"],
-            &["displayP3"],
-        );
         assert_attr(
             "color-interpolation-filters",
             &["auto", "sRGB", "linearRGB"],

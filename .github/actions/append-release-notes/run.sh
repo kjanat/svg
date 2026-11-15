@@ -11,8 +11,17 @@ GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
 start_marker='<!-- generated-notes-start -->'
 end_marker='<!-- generated-notes-end -->'
 
-our_body="$(gh release view "${RELEASE_TAG}" \
-	--repo "${GITHUB_REPOSITORY}" --json body --jq .body)"
+# Beepboop owns the existing draft release. Update it in place, retaining its ID.
+version="${RELEASE_TAG#v}"
+if ! our_body=$(awk -v heading="## [${version}]" '
+	index($0, heading) == 1 { found = 1; next }
+	found && /^## / { exit }
+	found { print }
+	END { if (!found) exit 1 }
+' CHANGELOG.md); then
+	printf 'error: changelog section for %s is missing\n' "${version}" >&2
+	exit 1
+fi
 gen_body="$(gh api \
 	"repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
 	-f tag_name="${RELEASE_TAG}" --jq .body)"

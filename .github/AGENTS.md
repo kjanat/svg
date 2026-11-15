@@ -30,7 +30,7 @@ target/package catalog is `distribution/npm/targets.json`; the procedure is
 - Use the Python shell for Python-only workflow steps. Keep Python entry points
   with shebangs executable in Git.
 - `just release-config-check` checks workflow/script syntax;
-  `just release-package-test` and `just release-runtime-test` check behavior.
+  `just release-package-test` checks behavior.
   `just verify` includes all three.
 - Runtime coverage comes from `targets.json` runtime metadata. Smoke jobs
   consume the producer's archives and npm artifact after transfer and must not

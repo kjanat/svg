@@ -16,6 +16,8 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
 ### Added
 
 - Report attribute values outside their spec value space as
@@ -33,12 +35,41 @@ When bumping the workspace version after a catalog refresh:
   (default), or `off` with `svg.hover.path_preview`; SVG previews fall back to
   braille in plaintext hovers. Dropping `path_sketch` from the
   `svg.hover.sections` allowlist also disables previews.
+- Provide path preview geometry through the transport-free `svg-path-preview`
+  Rust crate.
 - Preserve explicit SVG deprecation, obsoletion and removal declarations with
   edition-specific source links, including element-local attribute status.
 - Add `svg-data-regen --recorded-packages` to reprocess the recorded npm inputs
   without upgrading browser compatibility or Webref packages.
 
+### Changed
+
+- **Breaking for Rust source builds:** require Rust 1.99, up from 1.96.
+- **Breaking for Python packages:** require Python 3.15 or newer for all four
+  grammar bindings, up from Python 3.13.
+- Require Tree-sitter 0.27 or newer for `wasm32-unknown-unknown` consumers.
+- Prepare release versions through Beepboop as manually merged pull requests.
+  Publish signed version tags after explicit Beepboop approval, then run the
+  existing binary, archive, installed-package and runtime publication gates.
+- Use Beepboop's GitHub App for repository-writing automation and runtime
+  credential grants for crates.io and npm publication. Spec refresh pull
+  requests use the App identity in place of a personal access token.
+- Include Python analysis, installed-wheel checks, and real Renovate upgrade
+  regressions in routine verification and CI.
+
 ### Fixed
+
+- Route bare Wasm parser and scanner allocations through Rust's global
+  allocator instead of linking an uninitialized scanner-only C heap.
+- Reclaim path previews with their document state and bound cold computation.
+  Share simultaneous requests and keep the language server responsive while a
+  preview is computed, including when a waiting hover is cancelled.
+- Resolve SVG type productions from their pinned specification sources when
+  Webref retains a type anchor without its grammar, keeping marker attributes
+  in the URL-valued parser bucket after an upstream CSS refresh.
+- Preserve CSS sizing values for width and height when specification changes
+  leave the catalog with a length fallback.
+- Resolve workspace catalogs before packing npm archives.
 
 - Answer hovers and completion documentation in the markup kind the client
   advertised, in the order it advertised, rather than always Markdown. A client
@@ -339,7 +370,8 @@ When bumping the workspace version after a catalog refresh:
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
 
-[Unreleased]: https://github.com/kjanat/svg/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kjanat/svg/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kjanat/svg/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/kjanat/svg/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/kjanat/svg/compare/v0.1.2...v0.2.0

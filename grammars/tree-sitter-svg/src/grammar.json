@@ -4788,10 +4788,6 @@
           },
           {
             "type": "STRING",
-            "value": "color-interpolation"
-          },
-          {
-            "type": "STRING",
             "value": "color-interpolation-filters"
           },
           {
@@ -5324,6 +5320,10 @@
           {
             "type": "STRING",
             "value": "block-size"
+          },
+          {
+            "type": "STRING",
+            "value": "color-interpolation"
           },
           {
             "type": "STRING",

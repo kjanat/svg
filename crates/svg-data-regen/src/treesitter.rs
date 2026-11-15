@@ -30,7 +30,7 @@ use crate::{
     fetch,
     npm::package_source,
     paths::PathsGrammarFacts,
-    util::{boxed, compile_regex, normalize_html_ws, page_url, tag_open_end},
+    util::{boxed, compile_regex, has_class, normalize_html_ws, page_url, tag_open_end},
 };
 use regex::Regex;
 use serde::Deserialize;
@@ -260,7 +260,39 @@ pub fn fetch_grammar_projection_inputs(
     let source = package_source(WEBREF_CSS_PACKAGE, WEBREF_CSS_DATA_PATH)?;
     let css_json: WebrefCssJson =
         serde_json::from_str(&fetch::url_text(&source.url, "application/json")?)?;
-    let css = WebrefCssIndex::from_json(&css_json);
+    let mut css = WebrefCssIndex::from_json(&css_json);
+    // Webref may retain an SVG type's anchor without its production. Resolve
+    // those URL-valued aliases from the same pinned SVG sources as the catalog.
+    let prefix = format!(
+        "https://{}.github.io/{}/svg2-draft/",
+        repo_slug.split('/').next().unwrap_or("w3c"),
+        repo_slug.split('/').nth(1).unwrap_or("svgwg")
+    );
+    let chapters: BTreeSet<String> = EXPECTED_FUNCTIONAL_IRI_ATTRIBUTES
+        .iter()
+        .filter_map(|name| css.property_syntax(name))
+        .flat_map(syntax_type_refs)
+        .filter_map(|name| css.types.get(&name))
+        .filter(|feature| feature.syntax().is_none())
+        .filter_map(|feature| feature.href.as_deref())
+        .filter_map(|href| href.strip_prefix(&prefix))
+        .filter_map(|href| href.split('#').next()?.strip_suffix(".html"))
+        .map(str::to_owned)
+        .collect();
+    let (directory, filename) = paths_chapter
+        .rsplit_once('/')
+        .unwrap_or(("", paths_chapter));
+    let extension = filename
+        .rsplit_once('.')
+        .map_or("bs", |(_, extension)| extension);
+    for chapter in chapters {
+        let path = if directory.is_empty() {
+            format!("{chapter}.{extension}")
+        } else {
+            format!("{directory}/{chapter}.{extension}")
+        };
+        css.add_svg_productions(&fetch::raw_file(repo_slug, commit_sha, &path)?)?;
+    }
 
     let (length_units, length_page) = css_units(&css, "length")?;
     let (angle_units, angle_page) = css_units(&css, "angle")?;
@@ -836,6 +868,31 @@ struct WebrefCssIndex {
 }
 
 impl WebrefCssIndex {
+    fn add_svg_productions(&mut self, html: &str) -> Fallible<()> {
+        let document = tl::parse(html, tl::ParserOptions::default())?;
+        for tag in document.nodes().iter().filter_map(tl::Node::as_tag) {
+            if tag.name().as_utf8_str() != "p" || !has_class(tag, "svg-prod") {
+                continue;
+            }
+            let text = normalize_html_ws(&tag.inner_text(document.parser()));
+            let Some((name, syntax)) = text.split_once('=') else {
+                continue;
+            };
+            let Some(name) = name
+                .trim()
+                .strip_prefix('<')
+                .and_then(|name| name.strip_suffix('>'))
+            else {
+                continue;
+            };
+            if let Some(feature) = self.types.get_mut(name)
+                && feature.syntax().is_none()
+            {
+                feature.syntax = Some(syntax.trim().to_owned());
+            }
+        }
+        Ok(())
+    }
     fn from_json(json: &WebrefCssJson) -> Self {
         Self {
             types: index_features(&json.types),
@@ -1547,6 +1604,24 @@ mod tests {
             Ok(document) => document,
             Err(error) => panic!("projection: {error}"),
         }
+    }
+
+    #[test]
+    fn resolves_svg_marker_aliases_when_webref_omits_their_production() {
+        let json: WebrefCssJson = serde_json::from_str(r#"{
+            "types": [{"name": "marker-ref", "href": "https://w3c.github.io/svgwg/svg2-draft/painting.html#DataTypeMarkerRef"}],
+            "properties": [{"name": "marker-start", "syntax": "none | <marker-ref>"}]
+        }"#).unwrap_or_else(|error| panic!("fixture: {error}"));
+        let mut css_index = WebrefCssIndex::from_json(&json);
+        css_index.add_svg_productions(r#"<p class="definition svg-prod"><dfn id="DataTypeMarkerRef" data-dfn-type="type">&lt;marker-ref></dfn> = <a href="https://www.w3.org/TR/css3-values/#url-value">&lt;url></a></p>"#)
+            .unwrap_or_else(|error| panic!("production: {error}"));
+        let inputs = GrammarProjectionInputs {
+            css: css_index,
+            ..GrammarProjectionInputs::for_tests()
+        };
+        let attribute = attribute("marker-start", css("<marker-ref>"));
+        let document = panic_projection(build_tree_sitter_document(&[attribute], &inputs, false));
+        assert_eq!(document.attribute_buckets.functional_iri, ["marker-start"]);
     }
 
     #[test]

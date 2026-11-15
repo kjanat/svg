@@ -2,26 +2,61 @@
 
 ## Routine release flow
 
-1. Ensure `bun` and `uv` are installed locally.
-2. Refresh spec data with `just regen [ref]`. This updates the catalog,
-   standalone grammar data, path/paint constants, all four parsers, and the
-   catalog-seeded corpus, then validates the generated artifacts, grammar
-   consumers, and Rust workspace. Automated spec refresh uses this same command
-   before opening its PR. For an existing local catalog,
-   `just generate-grammars` regenerates grammar artifacts offline;
-   `just check-grammars` verifies them without rewriting tracked files and runs
-   the grammar tests. It is also part of `just verify`.
-3. Run `just release-local <version>`.
-4. Review the generated commit and local tag.
-5. Push the branch and tag:
-   - `git push origin <branch>`
-   - `git push origin v<version>`
-6. GitHub Actions (`release.yml`) verifies (clippy + tests), drafts the GitHub
-   Release, builds every target in `distribution/npm/targets.json`, uploads
-   `svg-<tag>-<target>.tar.gz` archives with `.sha256` checksums, builds the npm
-   package trees, transfers and runtime-tests the artifacts, publishes the
-   release, then hands off to `npm-release.yml` to publish the platform packages
-   and the facades (`svg-language-server`, `svg-lint`, `svg-format`).
+1. Refresh the catalog with `just regen [ref]`. This updates the catalog,
+   grammar inputs, parsers and corpus, then validates the grammar consumers and
+   Rust workspace. `just generate-grammars` regenerates from the recorded
+   catalog offline; `just check-grammars` checks that output without rewriting.
+2. Start version preparation with `beepboop release minor` (or an explicit
+   version). Beepboop derives the next version from the shared package
+   manifests. The preparation workflow updates every version carrier and
+   lockfile, regenerates grammar metadata, and runs `just verify` before
+   submitting its version PR. Review the release notes and merge that PR
+   manually.
+3. Approve publication in Beepboop. `release.yml` checks GitHub's cryptographic
+   verification of the exact release commit, then asks Beepboop to sign and
+   publish its version tag.
+4. The dispatched release operation verifies sources, creates its signed tag,
+   drafts the release, builds the target matrix, packages the archives and npm
+   artifacts, and runs the distributed runtime checks. Successful validation
+   publishes the GitHub release and starts the npm and crates.io publishers.
+
+For a manually prepared release PR, update the shared carriers in
+`.github/actions/version-check/carriers.mjs`, refresh the lockfiles, run
+`just generate-grammars` and `just verify`, and include its changelog section.
+`scripts/release-prepare.ts` remains a local convenience that also commits and
+creates a signed tag; use it only when preparing a local tag is intended.
+
+### Beepboop activation
+
+The release stream lives in `.github/beepboop.json`. It preserves the required
+publication set and optional experimental targets. Version PRs use manual
+merges, and publication requires explicit approval in Beepboop.
+
+After merging the configuration, refresh the repository inventory with
+`beepboop repositories discover kjanat/svg`. Authorize these runtime grants with
+your enrolled security key:
+
+```sh
+beepboop secrets grant kjanat/svg crates-io --stream main --operation promote --environment crates-io
+beepboop secrets grant kjanat/svg npm-token --stream main --operation promote --environment npm
+beepboop secrets grant kjanat/svg crates-io --stream main --operation crates-backfill --environment crates-io
+beepboop secrets grant kjanat/svg npm-token --stream main --operation npm-backfill --environment npm
+```
+
+The normal release grants apply to the approved `promote` operation in
+`release.yml` on `refs/heads/master`. The parent workflow explicitly calls npm
+publishing; App-created release events therefore cannot start a duplicate
+publication run. Recovery runs on the current default branch use the dedicated
+backfill bindings. Every publisher retrieves its credential inside its existing
+GitHub environment, after the package and runtime verification gates. Dry runs
+preserve verification while skipping registry credential retrieval.
+
+The `crates-io` alias must permit first publication of `svg-path-preview` as
+well as updates of the existing crates. The `npm-token` alias supplies the
+existing npm publishing commands. Beepboop stores and scopes these credentials;
+GitHub Actions exchanges OIDC identities for the authorized runtime values. Spec
+refresh uses `actions/token` and `actions/pull-request` with repository scopes
+for contents, pull requests and issues.
 
 ## Pipeline layout
 
@@ -38,11 +73,10 @@
 - `.github/workflows/runtime-smoke-ci.yml` — validates that same artifact
   handoff on PRs and `master`, using existing released binaries and the current
   npm templates. It does not compile binaries or publish anything.
-- `.github/workflows/crates-release.yml` — publishes the 11 publishable
+- `.github/workflows/crates-release.yml` — publishes the 12 publishable
   workspace crates to crates.io in dependency order
-  (`cargo publish --workspace`). Bootstrap auth via the `CARGO_REGISTRY_TOKEN`
-  secret in the `crates-io` environment; delete it once every crate has a
-  trusted publisher configured and OIDC takes over.
+  (`cargo publish --workspace`). Authentication uses the Beepboop `crates-io`
+  runtime alias through the environment-protected publishing jobs.
 - `.github/actions/*/action.yml` — composite subactions holding all multi-step
   logic (asset packaging/verification, archive download, npm smoke/derive/
   publish, matrix generation).
@@ -107,7 +141,7 @@ retains a JSON report for 14 days. Failed, absent, skipped, or unconfigured
 checks never count as successful runtime execution. These are startup/version
 checks, not a claim of full application testing on every platform.
 
-`just release-runtime-test` covers policy, archive integrity, version matching,
+`just release-package-test` covers policy, archive integrity, version matching,
 permissions, stage reporting, and workflow gates. It is included in
 `just verify`. PR runtime validation builds npm trees from the latest published
 release's binaries using current templates, then transfers them to all eight
@@ -177,23 +211,16 @@ References:
 [Cargo package verification](https://doc.rust-lang.org/cargo/commands/cargo-package.html)
 and [checkout revision selection](https://github.com/actions/checkout#usage).
 
-## npm bootstrap
+## Registry authentication
 
-The long-term path is trusted publishing from GitHub Actions using OIDC
-(`npm publish --provenance`, `id-token: write`).
+npm publishing uses the Beepboop `npm-token` alias and retains
+`npm publish --provenance`. crates.io publishing uses the `crates-io` alias,
+including the first `svg-path-preview` publication. Both aliases are delivered
+at runtime through the configured operation/ref/environment grants above.
 
-Because npm trusted publishers are configured per existing package, the first
-publish of each new package name may require a temporary `NPM_TOKEN` secret in
-GitHub Actions. Once the first publish exists:
-
-1. Configure trusted publishers for the facades (`svg-language-server`,
-   `svg-lint`, `svg-format`) and every `@svg-toolkit/*` platform package.
-2. Point each package at this repository and the stable workflow file
-   `.github/workflows/npm-release.yml`.
-3. Remove the temporary `NPM_TOKEN` secret so later releases rely on OIDC only.
-
-The platform-package scope is set in `distribution/npm/targets.json` (`scope`);
-it must be a scope the publishing npm account owns.
+The npm platform scope is set in `distribution/npm/targets.json`. Preserve
+`.github/workflows/npm-release.yml` and the crates publishing workflow paths
+when changing registry integration.
 
 ## Notes
 

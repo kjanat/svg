@@ -1418,7 +1418,7 @@ mod tests {
     // https://svgwg.org/svg2-draft/geometry.html#Sizing
     #[test]
     fn css_wide_keywords_alone() {
-        let grammar = real("width", None, "auto | <length-percentage>");
+        let grammar = real("width", Some("mask"), "auto | <length-percentage>");
         valid(
             grammar,
             &["inherit", "INITIAL", " unset ", "revert", "revert-layer"],
@@ -1438,7 +1438,7 @@ mod tests {
     #[test]
     fn presentation_attributes_accept_unitless_lengths_and_angles() {
         for attr in ["width", "height"] {
-            let grammar = real(attr, None, "auto | <length-percentage>");
+            let grammar = real(attr, Some("mask"), "auto | <length-percentage>");
             valid(
                 grammar,
                 &["100", "0", "-1.5e2", "100px", "50%", "auto", "10PX"],
@@ -1480,7 +1480,7 @@ mod tests {
             let reason = check("-5", grammar).unwrap_or_default();
             assert!(reason.contains("range"), "{reason}");
         }
-        let width = real("width", None, "auto | <length-percentage>");
+        let width = real("width", Some("mask"), "auto | <length-percentage>");
         valid(width, &["-5", "-1px"]);
     }
 
@@ -1490,7 +1490,7 @@ mod tests {
     // https://svgwg.org/svg2-draft/styling.html#PresentationAttributes
     #[test]
     fn important_makes_a_presentation_attribute_invalid() {
-        let grammar = real("width", None, "auto | <length-percentage>");
+        let grammar = real("width", Some("mask"), "auto | <length-percentage>");
         invalid(
             grammar,
             &["10px !important", "auto !important", "auto!important"],
@@ -1833,7 +1833,8 @@ mod tests {
             ("block-size", "auto | <box-size> | <anchor-size()>"),
             ("min-width", "auto | <box-size> | <anchor-size()>"),
         ] {
-            let grammar = real(attr, None, quoted);
+            let element = matches!(attr, "width" | "height").then_some("mask");
+            let grammar = real(attr, element, quoted);
             valid(
                 grammar,
                 &[
@@ -1979,7 +1980,7 @@ mod tests {
     // https://drafts.csswg.org/css-values-4/#component-whitespace
     #[test]
     fn values_are_parsed_as_component_values() {
-        let grammar = real("width", None, "auto | <length-percentage>");
+        let grammar = real("width", Some("mask"), "auto | <length-percentage>");
         valid(
             grammar,
             &["  auto  ", "/* c */ 5px", "\t10\n", "\\61uto", "5px/**/"],
@@ -1992,7 +1993,7 @@ mod tests {
     // https://svgwg.org/svg2-draft/types.html#attribute-css-value
     #[test]
     fn escapes_and_comments_in_presentation_attributes() {
-        let grammar = real("width", None, "auto | <length-percentage>");
+        let grammar = real("width", Some("mask"), "auto | <length-percentage>");
         valid(grammar, &["10\\px/**/"]);
         invalid(grammar, &["10\\qx"]);
     }
@@ -2012,7 +2013,7 @@ mod tests {
     // Accept-only: the stub accepts these too.
     #[test]
     fn functions_and_substitutions_accept() {
-        let width = real("width", None, "auto | <length-percentage>");
+        let width = real("width", Some("mask"), "auto | <length-percentage>");
         valid(
             width,
             &[
@@ -2056,6 +2057,7 @@ mod tests {
             ("border-style", None, "solid dashed"),
             ("clip-path", None, "url(#c)"),
             ("color-profile", None, "sRGB"),
+            ("color-interpolation", None, "oklab"),
             ("content", None, "'x' / 'alt'"),
             ("cursor", None, "url(c.svg), pointer"),
             ("dominant-baseline", None, "hanging"),

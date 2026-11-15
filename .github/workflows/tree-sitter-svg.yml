@@ -6,6 +6,7 @@ on:
       - ".github/workflows/refresh-spec.yml"
       - ".github/workflows/tree-sitter-svg.yml"
       - "bun.lock"
+      - "bunfig.toml"
       - "crates/svg-data-regen/**"
       - "crates/svg-data/data/**"
       - "editors/zed-svg/languages/**"

@@ -1,17 +1,20 @@
 ---
 name: npm-release
-run-name: "npm publish ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}"
+run-name: "npm publish ${{ inputs.tag }}"
 
 on:
-  workflow_call: { inputs: { tag: { required: true, type: string }, run-id: { required: true, type: string } } }
-  release: { types: [published] }
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      run-id: { required: true, type: string }
+      beepboop-execution-id: { required: false, type: string }
   workflow_dispatch:
     inputs:
       tag: { description: Release tag to publish (e.g. v0.1.0), required: true, type: string }
       run-id:
         description: |-
           Producer run ID that created the dist artifact for this tag.
-          Find it via `gh run list --workflow=release.yml --branch=<tag> --status=success`.
+          Find the approved version in `gh run list --workflow=release.yml --branch=master --status=success`.
           A successful runtime-smoke-ci.yml recovery run for the same tag is also supported.
         required: true
         type: string
@@ -26,22 +29,22 @@ on:
 
 permissions: { contents: read }
 
-# Serialize publish runs per tag across all three triggers without
+# Serialize publish runs per tag across both entry points without
 # cancelling an in-flight publish.
 concurrency:
-  group: "npm-release-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}"
+  group: "npm-release-${{ inputs.tag }}"
   cancel-in-progress: false
 
 env:
   REGISTRY: https://registry.npmjs.org/
   # Trusted trigger metadata only.
-  RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+  RELEASE_TAG: ${{ inputs.tag }}
 
 jobs:
   setup:
     name: verify dist
     runs-on: ubuntu-latest
-    if: startsWith(inputs.tag, 'v') || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
+    if: startsWith(inputs.tag, 'v')
     permissions: { contents: read, actions: read }
     outputs:
       run-id: ${{ steps.resolve.outputs.run-id }}
@@ -95,16 +98,36 @@ jobs:
     permissions: { contents: read, actions: read }
     uses: $/.github/workflows/runtime-smoke.yml
     with:
-      tag: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+      tag: ${{ inputs.tag }}
       run-id: ${{ needs.setup.outputs.run-id }}
       report-prefix: npm-runtime
+
+  beepboop:
+    name: register publisher operation
+    needs: [setup, runtime-smoke]
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    outputs: { execution-id: "${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}" }
+    steps:
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env: { RELEASE_TAG: "${{ env.RELEASE_TAG }}" }
+        run: echo "version=${RELEASE_TAG#v}" >> "${GITHUB_OUTPUT}"
+      - uses: kjanat/beepboop/actions/begin@v1
+        id: begin
+        if: inputs.beepboop-execution-id == '' && needs.setup.outputs.dry-run != 'true'
+        with:
+          stream: main
+          operation: npm-backfill
+          version: ${{ steps.version.outputs.version }}
 
   # Tree-sitter grammar node packages, published from the tag's sources —
   # independent of the dist artifact, so this runs parallel to the platform
   # wave.
   grammars:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, runtime-smoke]
+    needs: [setup, runtime-smoke, beepboop]
     if: needs.setup.outputs.grammars != '[]'
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write }
@@ -125,6 +148,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { registry-url: "${{ env.REGISTRY }}" }
 
+      - uses: kjanat/beepboop/actions/credentials@v1
+        id: credentials
+        if: needs.setup.outputs.dry-run != 'true'
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          aliases: '["npm-token"]'
+
       - name: publish to npm
         id: publish
         uses: $/.github/actions/grammar-publish
@@ -135,11 +165,11 @@ jobs:
           dist-tag: ${{ needs.setup.outputs.dist-tag }}
           dry-run: ${{ needs.setup.outputs.dry-run }}
           source-dir: source
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
   scoped:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, runtime-smoke]
+    needs: [setup, runtime-smoke, beepboop]
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
@@ -160,6 +190,13 @@ jobs:
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
+      - uses: kjanat/beepboop/actions/credentials@v1
+        id: credentials
+        if: needs.setup.outputs.dry-run != 'true'
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          aliases: '["npm-token"]'
+
       - name: publish to npm
         id: publish
         uses: $/.github/actions/npm-publish
@@ -169,12 +206,12 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
   # Facades after platforms so their optionalDependencies resolve on install.
   facades:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, scoped]
+    needs: [setup, scoped, beepboop]
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
@@ -194,6 +231,13 @@ jobs:
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
+      - uses: kjanat/beepboop/actions/credentials@v1
+        id: credentials
+        if: needs.setup.outputs.dry-run != 'true'
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          aliases: '["npm-token"]'
+
       - name: publish to npm
         id: publish
         uses: $/.github/actions/npm-publish
@@ -203,12 +247,12 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
   # Unscoped alias shims after their canonical facades.
   shims:
     name: publish ${{ matrix.pkg }}
-    needs: [setup, facades]
+    needs: [setup, facades, beepboop]
     if: needs.setup.outputs.shims != '[]'
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write, actions: read }
@@ -229,6 +273,13 @@ jobs:
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
+      - uses: kjanat/beepboop/actions/credentials@v1
+        id: credentials
+        if: needs.setup.outputs.dry-run != 'true'
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          aliases: '["npm-token"]'
+
       - name: publish to npm
         id: publish
         uses: $/.github/actions/npm-publish
@@ -238,13 +289,13 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
   # Bundle last: its exact-pinned dependencies are the shims above. A skipped
   # shims job (no shims defined) must not skip the bundle with it.
   bundles:
     name: publish ${{ needs.setup.outputs.bundle }}
-    needs: [setup, facades, shims]
+    needs: [setup, facades, shims, beepboop]
     if: >-
       !cancelled() && needs.setup.outputs.bundle != '' &&
       needs.facades.result == 'success' &&
@@ -267,6 +318,13 @@ jobs:
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ needs.setup.outputs.run-id }}", token: "${{ github.token }}" }
 
+      - uses: kjanat/beepboop/actions/credentials@v1
+        id: credentials
+        if: needs.setup.outputs.dry-run != 'true'
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          aliases: '["npm-token"]'
+
       - name: publish to npm
         id: publish
         uses: $/.github/actions/npm-publish
@@ -276,4 +334,4 @@ jobs:
           dry-run: ${{ needs.setup.outputs.dry-run }}
           registry: ${{ env.REGISTRY }}
           only-package: ${{ needs.setup.outputs.bundle }}
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}

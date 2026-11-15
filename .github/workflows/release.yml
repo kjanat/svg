@@ -1,4 +1,4 @@
-# Tag-push (v*) pipeline. Multi-step logic lives in .github/actions/*.
+# Beepboop-approved dispatch pipeline. Multi-step logic lives in .github/actions/*.
 #
 #   verify ────────────────── cargo clippy + cargo test
 #     ├─ create-release ───── draft GH release + notes
@@ -14,60 +14,107 @@
 #                              → per-package publish matrix → facades (actions/npm-publish)
 ---
 name: release
-run-name: "release ${{ github.ref_name }}"
-on: { push: { tags: [v*] } }
-# Serialize runs per tag without cancelling an active publish mid-flight.
-concurrency: { group: "release-${{ github.ref }}", cancel-in-progress: false }
+run-name: ${{ inputs.beepboop_title || github.workflow }}
+on:
+  workflow_dispatch:
+    inputs:
+      beepboop_execution_id: { required: true, type: string }
+      beepboop_title: { required: false, type: string }
+# Serialize approved releases without cancelling an active publish mid-flight.
+concurrency: { group: release, cancel-in-progress: false }
 permissions: { contents: read }
 env: { CARGO_TERM_COLOR: always }
 
 jobs:
   version-check:
+    needs: beepboop
     name: versions
     permissions: { contents: read }
     uses: $/.github/workflows/version-check.yml
+    with: { ref: "${{ github.sha }}", expected-version: "${{ needs.beepboop.outputs.version }}" }
 
   verify:
+    needs: beepboop
     name: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
       - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
         with: { tool: rust+clippy }
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
 
+  beepboop:
+    name: register approved release
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    outputs:
+      execution-id: ${{ steps.begin.outputs.execution-id }}
+      source-sha: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
+      version: ${{ fromJSON(steps.begin.outputs.context).version }}
+      tag: v${{ fromJSON(steps.begin.outputs.context).version }}
+    steps:
+      - uses: kjanat/beepboop/actions/begin@v1
+        id: begin
+        with:
+          execution-id: ${{ inputs.beepboop_execution_id }}
+          stream: main
+          operation: promote
+      - name: Bind approved source to the dispatched revision
+        env:
+          APPROVED_SOURCE: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
+          DISPATCHED_SOURCE: ${{ github.sha }}
+          DISPATCHED_REF: ${{ github.ref }}
+        run: |
+          test "${DISPATCHED_REF}" = refs/heads/master
+          test "${APPROVED_SOURCE}" = "${DISPATCHED_SOURCE}"
+
   create-release:
     name: create draft release
-    needs: [verify, version-check]
+    needs: [verify, version-check, beepboop]
     runs-on: ubuntu-latest
-    permissions: { contents: write }
+    permissions: { contents: read, id-token: write }
     steps:
+      - uses: kjanat/beepboop/actions/token@v1
+        id: automation
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
-      - name: create github release
-        uses: taiki-e/create-gh-release-action@045e5c0ed9c50cc1f96de7e891a09ad3daea245f # v1.12.0
-        # allow-missing-changelog: prerelease tags (v0.1.0-rc.1) have no
-        # changelog section; the auto-generated notes are appended regardless.
-        with: { token: "${{ github.token }}", changelog: CHANGELOG.md, draft: true, branch: master, allow-missing-changelog: true }
+      - name: Require a verified signature on the exact release commit
+        env:
+          GH_TOKEN: ${{ steps.automation.outputs.token }}
+          SOURCE_SHA: ${{ needs.beepboop.outputs.source-sha }}
+        run: |
+          verified=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}" --jq '.commit.verification.verified')
+          test "${verified}" = true
+      - uses: kjanat/beepboop/actions/publish-refs@v1
+        with: { token: "${{ steps.automation.outputs.token }}" }
+        env:
+          BEEPBOOP_EXECUTION_ID: ${{ needs.beepboop.outputs.execution-id }}
+          GIT_AUTHOR_NAME: ${{ fromJSON(steps.automation.outputs.gitId).GIT_AUTHOR_NAME }}
+          GIT_AUTHOR_EMAIL: ${{ fromJSON(steps.automation.outputs.gitId).GIT_AUTHOR_EMAIL }}
+          GIT_COMMITTER_NAME: ${{ fromJSON(steps.automation.outputs.gitId).GIT_COMMITTER_NAME }}
+          GIT_COMMITTER_EMAIL: ${{ fromJSON(steps.automation.outputs.gitId).GIT_COMMITTER_EMAIL }}
 
       - name: append GitHub auto-generated notes
         uses: $/.github/actions/append-release-notes
-        with: { tag: "${{ github.ref_name }}", token: "${{ github.token }}" }
+        with: { tag: "${{ needs.beepboop.outputs.tag }}", token: "${{ steps.automation.outputs.token }}" }
 
   matrix:
     name: build matrix
-    needs: [verify, version-check]
+    needs: [verify, version-check, beepboop]
     runs-on: ubuntu-latest
     permissions: { contents: read }
     outputs: { include: "${{ steps.gen.outputs.include }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -77,11 +124,11 @@ jobs:
 
   build-and-upload:
     name: ${{ matrix.target }}
-    needs: [matrix, create-release]
+    needs: [matrix, create-release, beepboop]
     runs-on: ${{ matrix.runner }}
     # Tier-3 build-std legs compile core+std from source.
     timeout-minutes: 60
-    permissions: { contents: write }
+    permissions: { contents: read, id-token: write }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.matrix.outputs.include) }}" } }
     continue-on-error: ${{ matrix.experimental }}
     env:
@@ -90,8 +137,13 @@ jobs:
       CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner == 'windows-11-arm' && 'false' || 'true' }}
       CARGO_NET_RETRY: 10
     steps:
+      - uses: kjanat/beepboop/actions/token@v1
+        id: automation
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
@@ -114,7 +166,8 @@ jobs:
         if: contains(fromJSON('["cargo", "cross", "cargo-cross-toolchain"]'), matrix.build-tool)
         uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1
         with:
-          token: ${{ github.token }}
+          token: ${{ steps.automation.outputs.token }}
+          ref: refs/tags/${{ needs.beepboop.outputs.tag }}
           bin: svg-language-server,svg-lint,svg-format
           target: ${{ matrix.target }}
           build-tool: ${{ matrix.build-tool == 'cargo-cross-toolchain' && 'cargo' || matrix.build-tool }}
@@ -136,28 +189,33 @@ jobs:
         if: matrix.build-tool == 'cargo-build-std'
         uses: $/.github/actions/package-asset
         with:
-          tag: ${{ github.ref_name }}
+          tag: ${{ needs.beepboop.outputs.tag }}
           target: ${{ matrix.target }}
           bin-dir: ${{ github.workspace }}/target/${{ matrix.target }}/release
-          token: ${{ github.token }}
+          token: ${{ steps.automation.outputs.token }}
 
       - name: verify asset uploaded
         uses: $/.github/actions/verify-asset
         with:
-          tag: ${{ github.ref_name }}
+          tag: ${{ needs.beepboop.outputs.tag }}
           target: ${{ matrix.target }}
-          token: ${{ github.token }}
+          token: ${{ steps.automation.outputs.token }}
 
   build-dist:
     name: build dist
-    needs: build-and-upload
+    needs: [build-and-upload, beepboop]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions: { contents: write }
-    env: { RELEASE_TAG: "${{ github.ref_name }}" }
+    permissions: { contents: read, id-token: write }
+    env: { RELEASE_TAG: "${{ needs.beepboop.outputs.tag }}" }
     steps:
+      - uses: kjanat/beepboop/actions/token@v1
+        id: automation
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: latest }
@@ -168,7 +226,7 @@ jobs:
 
       - name: download and verify release archives
         uses: $/.github/actions/download-archives
-        with: { tag: "${{ github.ref_name }}", token: "${{ github.token }}" }
+        with: { tag: "${{ needs.beepboop.outputs.tag }}", token: "${{ steps.automation.outputs.token }}" }
 
       - name: build npm packages
         run: node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
@@ -185,34 +243,41 @@ jobs:
 
   runtime-smoke:
     name: validate distributed runtimes
-    needs: build-dist
+    needs: [build-dist, beepboop]
     permissions: { contents: read, actions: read }
     uses: $/.github/workflows/runtime-smoke.yml
     with:
-      tag: ${{ github.ref_name }}
+      tag: ${{ needs.beepboop.outputs.tag }}
       run-id: ${{ github.run_id }}
       report-prefix: release-runtime
 
   publish-release:
     name: publish github release
-    needs: [build-dist, runtime-smoke]
+    needs: [build-dist, runtime-smoke, beepboop]
     runs-on: ubuntu-latest
-    permissions: { contents: write }
-    env: { GH_TOKEN: "${{ github.token }}", RELEASE_TAG: "${{ github.ref_name }}" }
-    steps: [run: 'gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false']
+    permissions: { contents: read, id-token: write }
+    env: { RELEASE_TAG: "${{ needs.beepboop.outputs.tag }}" }
+    steps:
+      - uses: kjanat/beepboop/actions/token@v1
+        id: automation
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          permission-contents: write
+      - run: gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false
+        env: { GH_TOKEN: "${{ steps.automation.outputs.token }}" }
+      - uses: kjanat/beepboop/actions/publish-release@v1
+        with: { execution-id: "${{ needs.beepboop.outputs.execution-id }}" }
 
   call-npm-release:
     name: npm publish
-    needs: [publish-release]
+    needs: [publish-release, beepboop]
     permissions: { contents: read, id-token: write, actions: read }
     uses: $/.github/workflows/npm-release.yml
-    with: { tag: "${{ github.ref_name }}", run-id: "${{ github.run_id }}" }
-    secrets: inherit
+    with: { tag: "${{ needs.beepboop.outputs.tag }}", run-id: "${{ github.run_id }}", beepboop-execution-id: "${{ needs.beepboop.outputs.execution-id }}" }
 
   call-crates-release:
     name: crates publish
-    needs: [publish-release]
+    needs: [publish-release, beepboop]
     permissions: { contents: read, id-token: write }
     uses: $/.github/workflows/crates-release.yml
-    with: { tag: "${{ github.ref_name }}" }
-    secrets: inherit
+    with: { tag: "${{ needs.beepboop.outputs.tag }}", beepboop-execution-id: "${{ needs.beepboop.outputs.execution-id }}" }

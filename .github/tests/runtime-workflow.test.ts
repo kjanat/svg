@@ -9,7 +9,7 @@ const dependencies = (job: any): string[] => [job.needs ?? []].flat();
 const stepsText = (job: any) => job.steps.map((s: any) => s.run ?? s.uses ?? '').join('\n');
 
 test('GitHub release publication waits for the required runtime gate', () => {
-	expect(dependencies(release.jobs['runtime-smoke'])).toEqual(['build-dist']);
+	expect(dependencies(release.jobs['runtime-smoke'])).toEqual(['build-dist', 'beepboop']);
 	expect(dependencies(release.jobs['publish-release'])).toContain('runtime-smoke');
 	expect(release.jobs['runtime-smoke']['continue-on-error']).toBeUndefined();
 	expect(dependencies(release.jobs['call-npm-release'])).toContain('publish-release');
@@ -17,7 +17,7 @@ test('GitHub release publication waits for the required runtime gate', () => {
 });
 
 test('every npm entry point gates both publishing roots, preserving publication order', () => {
-	expect(Object.keys(npm.on).sort()).toEqual(['release', 'workflow_call', 'workflow_dispatch']);
+	expect(Object.keys(npm.on).sort()).toEqual(['workflow_call', 'workflow_dispatch']);
 	expect(dependencies(npm.jobs['runtime-smoke'])).toEqual(['setup']);
 	for (const name of ['grammars', 'scoped']) expect(dependencies(npm.jobs[name])).toContain('runtime-smoke');
 	expect(dependencies(npm.jobs.facades)).toContain('scoped');

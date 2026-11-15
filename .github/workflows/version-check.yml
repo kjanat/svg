@@ -2,7 +2,10 @@
 name: version-check
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      ref: { type: string, required: false, default: "" }
+      expected-version: { type: string, required: false, default: "" }
 
 permissions: { contents: read }
 
@@ -13,5 +16,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { ref: "${{ inputs.ref }}", persist-credentials: false }
       - uses: $/.github/actions/version-check
+      - name: Match the approved release version
+        if: inputs.expected-version != ''
+        env: { EXPECTED_VERSION: "${{ inputs.expected-version }}" }
+        run: |
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; import {workspaceVersion} from "./.github/actions/version-check/carriers.mjs"; if(workspaceVersion(readFileSync("Cargo.toml", "utf8")) !== process.env.EXPECTED_VERSION) process.exit(1)'

@@ -37,7 +37,8 @@ test('both entry points verify packages and permit a no-upload dry run', () => {
 		expect(workflow.on[event].inputs['dry-run']).toMatchObject({ type: 'boolean', default: false });
 	}
 	expect(setup.if).toBeUndefined();
-	expect(publish.needs).toBe('setup');
+	expect(publish.needs).toEqual(['setup', 'beepboop']);
+	expect(workflow.jobs.beepboop.needs).toBe('setup');
 	expect(publish.if).toBe('inputs.dry-run != true');
 	expect(setup.permissions).toEqual({ contents: 'read' });
 	expect(publish.permissions).toEqual({ contents: 'read', 'id-token': 'write' });

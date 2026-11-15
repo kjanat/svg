@@ -1,8 +1,7 @@
 name: append release notes
 description: >-
   Append GitHub's auto-generated notes to the draft release body.
-  release:published never fires for token-created releases, so the final
-  body is assembled here.
+  Assemble the curated changelog and generated notes before publication.
 
 inputs:
   tag:

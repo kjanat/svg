@@ -116,6 +116,20 @@ pub fn invalid_reason_for(attr: &str, values: &AttributeValues, value: &str) -> 
     {
         return d_attribute(value);
     }
+    // SVG delegates width/height to CSS sizing through prose. When the catalog
+    // supplies their shared Length fallback, retain the CSS sizing grammar:
+    // https://svgwg.org/svg2-draft/geometry.html#Sizing
+    if matches!(attr, "width" | "height") && matches!(values, AttributeValues::Length) {
+        return css_grammar::check_css_grammar(
+            value,
+            "auto | <length-percentage>",
+            &svg_data::CssGrammarGraph {
+                root: 0,
+                nodes: &[],
+                edges: &[],
+            },
+        );
+    }
     invalid_reason(values, value).or_else(|| constraints::check(attr, values, value))
 }
 
