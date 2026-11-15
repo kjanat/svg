@@ -72,6 +72,38 @@ mod tests {
         }
     }
 
+    // SVG sizing delegates width/height to CSS and defines element-specific
+    // handling of auto: https://svgwg.org/svg2-draft/geometry.html#Sizing
+    #[test]
+    fn sizing_keeps_css_values_when_the_catalog_uses_the_length_fallback() {
+        for attr in ["width", "height"] {
+            assert_attr(
+                attr,
+                "rect",
+                &[
+                    "auto",
+                    "AUTO",
+                    "\\61uto/**/",
+                    "5px",
+                    "10%",
+                    "max-content",
+                    "MIN-CONTENT",
+                    "fit-content",
+                    "stretch",
+                    "contain",
+                ],
+                &[
+                    "none",
+                    "auto !important",
+                    "automatic",
+                    "wide",
+                    "max-content 10px",
+                ],
+            );
+        }
+        assert_attr("cx", "circle", &["5"], &["auto"]);
+    }
+
     // Claim: "Value: <length-percentage>" for cx, cy, r, x and y
     // https://svgwg.org/svg2-draft/geometry.html#CxProperty
     // https://svgwg.org/svg2-draft/geometry.html#CyProperty

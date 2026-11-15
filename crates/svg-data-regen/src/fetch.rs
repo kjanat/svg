@@ -59,7 +59,8 @@ fn get_text(url: &str, accept: &str) -> Fallible<String> {
         .get(url)
         .header("User-Agent", USER_AGENT)
         .header("Accept", accept)
-        .call()?;
+        .call()
+        .map_err(|error| crate::util::boxed(format!("fetching {url}: {error}")))?;
     let body = response
         .body_mut()
         .with_config()

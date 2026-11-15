@@ -10,7 +10,7 @@
 			"https://drafts.csswg.org/css-values-4/"
 		],
 		"svg_clock_value_syntax": "https://svgwg.org/specs/animations/",
-		"paths_html": "https://raw.githubusercontent.com/w3c/svgwg/7d2a72609cbf3cc6d8478ffb25ee5ed87a30ace0/master/paths.bs"
+		"paths_html": "https://raw.githubusercontent.com/w3c/svgwg/6b20ffd12f694383d50275a165764e06f310fefc/master/paths.bs"
 	},
 	"attribute_buckets": {
 		"keyword": [
@@ -38,7 +38,6 @@
 			"calcMode",
 			"clip-rule",
 			"clipPathUnits",
-			"color-interpolation",
 			"color-interpolation-filters",
 			"crossorigin",
 			"decoding",
@@ -279,6 +278,7 @@
 			"autofocus",
 			"begin",
 			"block-size",
+			"color-interpolation",
 			"color-profile",
 			"defer",
 			"download",

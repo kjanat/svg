@@ -218,7 +218,7 @@ commit model="openai/gpt-5.4" variant="medium" message='':
 [group('release')]
 release-config-check:
     jq -e '(.binaries | length > 0) and ([.facades[].bin] - .binaries == []) and ([.targets[] | select(.experimental and .tier != 3)] == [])' distribution/npm/targets.json > /dev/null
-    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml .github/workflows/ci.yml .github/workflows/runtime-smoke.yml .github/workflows/runtime-smoke-ci.yml
+    actionlint .github/workflows/release.yml .github/workflows/npm-release.yml .github/workflows/crates-release.yml .github/workflows/ci.yml .github/workflows/runtime-smoke.yml .github/workflows/runtime-smoke-ci.yml .github/workflows/prepare-release.yml .github/workflows/refresh-spec.yml .github/workflows/version-check.yml
     shellcheck -x -o all --shell=bash .github/actions/*/run.sh
     node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
     ! grep -riEl 'not (yet )?published|not on (crates\.io|npm)( yet)?|coming soon' crates/*/README.md grammars/*/README.md distribution/npm/facade/*/README.md README.md
@@ -226,7 +226,7 @@ release-config-check:
 # exercise packaged crate verification, release wiring and publication retries
 [group('release')]
 release-package-test:
-    bun test ./.github/tests/crates-release.test.ts
+    bun test ./.github/tests/crates-release.test.ts ./.github/tests/beepboop-workflow.test.js
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
     bash .github/tests/crates-publish.sh
 

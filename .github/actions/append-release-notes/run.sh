@@ -11,8 +11,13 @@ GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
 start_marker='<!-- generated-notes-start -->'
 end_marker='<!-- generated-notes-end -->'
 
-our_body="$(gh release view "${RELEASE_TAG}" \
-	--repo "${GITHUB_REPOSITORY}" --json body --jq .body)"
+# Beepboop owns the existing draft release. Update it in place, retaining its ID.
+version="${RELEASE_TAG#v}"
+our_body=$(awk -v heading="## [${version}]" '
+	index($0, heading) == 1 { found = 1; next }
+	found && /^## / { exit }
+	found { print }
+' CHANGELOG.md)
 gen_body="$(gh api \
 	"repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
 	-f tag_name="${RELEASE_TAG}" --jq .body)"

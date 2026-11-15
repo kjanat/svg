@@ -18667,7 +18667,7 @@
     },
     {
       "name": "color-interpolation",
-      "description": "The SVG user agent performs color interpolations and compositing at various points as it processes SVG content. The 'color-interpolation' property controls which color space is used for the following graphics operations:",
+      "description": "The SVG user agent interpolates colors at various points as it processes SVG content. The 'color-interpolation' property specifies the interpolation color space used for the following graphics operations: [css-color-4]",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/color-interpolation",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#ColorInterpolationProperty",
       "standard_track": true,
@@ -18832,12 +18832,119 @@
         ]
       },
       "values": {
-        "kind": "enum",
-        "values": [
-          "auto",
-          "linearRGB",
-          "sRGB"
-        ]
+        "kind": "css_grammar",
+        "grammar": "auto | sRGB | linearRGB | <color-interpolation-method>",
+        "graph": {
+          "root": 0,
+          "nodes": [
+            {
+              "id": 0,
+              "kind": "root"
+            },
+            {
+              "id": 1,
+              "kind": "keyword",
+              "text": "auto"
+            },
+            {
+              "id": 2,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 3,
+              "kind": "keyword",
+              "text": "sRGB"
+            },
+            {
+              "id": 4,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 5,
+              "kind": "keyword",
+              "text": "linearRGB"
+            },
+            {
+              "id": 6,
+              "kind": "operator",
+              "text": "|"
+            },
+            {
+              "id": 7,
+              "kind": "type",
+              "text": "<color-interpolation-method>"
+            }
+          ],
+          "edges": [
+            {
+              "from": 0,
+              "to": 1,
+              "kind": "contains"
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "kind": "contains"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 3,
+              "kind": "contains"
+            },
+            {
+              "from": 2,
+              "to": 3,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 4,
+              "kind": "contains"
+            },
+            {
+              "from": 3,
+              "to": 4,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 5,
+              "kind": "contains"
+            },
+            {
+              "from": 4,
+              "to": 5,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 6,
+              "kind": "contains"
+            },
+            {
+              "from": 5,
+              "to": 6,
+              "kind": "next"
+            },
+            {
+              "from": 0,
+              "to": 7,
+              "kind": "contains"
+            },
+            {
+              "from": 6,
+              "to": 7,
+              "kind": "next"
+            }
+          ]
+        }
       },
       "applicability": {
         "kind": "elements",
@@ -39685,60 +39792,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "auto | <length-percentage>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "keyword",
-              "text": "auto"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<length-percentage>"
+      "element_values": [
+        {
+          "element": "mask",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "auto | <length-percentage>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "auto"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",
@@ -52347,7 +52462,7 @@
     },
     {
       "name": "markerHeight",
-      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker. A negative value for either attribute is an error (see Error processing).",
+      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerHeight",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerHeightAttribute",
       "standard_track": true,
@@ -53121,7 +53236,7 @@
     },
     {
       "name": "markerWidth",
-      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker. A negative value for either attribute is an error (see Error processing).",
+      "description": "The 'markerWidth' and 'markerHeight' attributes represent the size of the SVG viewport into which the marker is to be fitted according to the 'viewBox' and 'preserveAspectRatio' attributes. A value of zero for either attribute results in nothing being rendered for the marker.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/markerWidth",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/painting.html#MarkerWidthAttribute",
       "standard_track": true,
@@ -97511,60 +97626,68 @@
           }
         }
       ],
-      "values": {
-        "kind": "css_grammar",
-        "grammar": "auto | <length-percentage>",
-        "graph": {
-          "root": 0,
-          "nodes": [
-            {
-              "id": 0,
-              "kind": "root"
-            },
-            {
-              "id": 1,
-              "kind": "keyword",
-              "text": "auto"
-            },
-            {
-              "id": 2,
-              "kind": "operator",
-              "text": "|"
-            },
-            {
-              "id": 3,
-              "kind": "type",
-              "text": "<length-percentage>"
+      "element_values": [
+        {
+          "element": "mask",
+          "values": {
+            "kind": "css_grammar",
+            "grammar": "auto | <length-percentage>",
+            "graph": {
+              "root": 0,
+              "nodes": [
+                {
+                  "id": 0,
+                  "kind": "root"
+                },
+                {
+                  "id": 1,
+                  "kind": "keyword",
+                  "text": "auto"
+                },
+                {
+                  "id": 2,
+                  "kind": "operator",
+                  "text": "|"
+                },
+                {
+                  "id": 3,
+                  "kind": "type",
+                  "text": "<length-percentage>"
+                }
+              ],
+              "edges": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "kind": "contains"
+                },
+                {
+                  "from": 0,
+                  "to": 2,
+                  "kind": "contains"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "kind": "next"
+                },
+                {
+                  "from": 0,
+                  "to": 3,
+                  "kind": "contains"
+                },
+                {
+                  "from": 2,
+                  "to": 3,
+                  "kind": "next"
+                }
+              ]
             }
-          ],
-          "edges": [
-            {
-              "from": 0,
-              "to": 1,
-              "kind": "contains"
-            },
-            {
-              "from": 0,
-              "to": 2,
-              "kind": "contains"
-            },
-            {
-              "from": 1,
-              "to": 2,
-              "kind": "next"
-            },
-            {
-              "from": 0,
-              "to": 3,
-              "kind": "contains"
-            },
-            {
-              "from": 2,
-              "to": 3,
-              "kind": "next"
-            }
-          ]
+          }
         }
+      ],
+      "values": {
+        "kind": "length"
       },
       "applicability": {
         "kind": "elements",

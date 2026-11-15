@@ -717,7 +717,13 @@ mod tests {
     fn property_keywords_match_ascii_case_insensitively() {
         assert_attr("fill-rule", &["EVENODD", "NonZero"], &["even-odd"]);
         assert_attr("clip-rule", &["evenOdd"], &["nonzero2"]);
-        assert_attr("color-interpolation", &["SRGB", "linearrgb"], &["rgb"]);
+        assert_usage(
+            "color-interpolation",
+            None,
+            SVG11,
+            &["SRGB", "linearrgb"],
+            &["rgb"],
+        );
         assert_attr("shape-rendering", &["crispedges"], &["crisp"]);
         assert_attr("pointer-events", &["VISIBLEPAINTED"], &["painted-visible"]);
         assert_attr("text-anchor", &["Middle"], &["center"]);
@@ -865,8 +871,10 @@ mod tests {
     fn single_keyword_property_grammars() {
         assert_attr("clip-rule", &["nonzero", "evenodd"], &["odd"]);
         assert_attr("fill-rule", &["nonzero", "evenodd"], &["winding"]);
-        assert_attr(
+        assert_usage(
             "color-interpolation",
+            None,
+            SVG11,
             &["auto", "sRGB", "linearRGB"],
             &["displayP3"],
         );

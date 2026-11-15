@@ -219,11 +219,10 @@ jobs:
     if: needs.check.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions: { contents: write, issues: write, pull-requests: write }
+    permissions: { contents: read, id-token: write }
     env:
       CHECK_OUTPUTS_JSON: ${{ toJson(needs.check.outputs) }}
       GITHUB_CONTEXT_JSON: ${{ toJson(github) }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
@@ -260,6 +259,18 @@ jobs:
           "Regenerating catalog and grammars from svgwg@{0}..." -f $check.head_commit
           just regen $check.head_commit
           &$assertOk "just regen"
+
+      - name: Get repository automation token
+        id: automation
+        uses: kjanat/beepboop/actions/token@v1
+        with:
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+      - name: Configure repository automation token
+        shell: bash
+        env: { AUTOMATION_TOKEN: "${{ steps.automation.outputs.token }}" }
+        run: echo "GH_TOKEN=${AUTOMATION_TOKEN}" >> "${GITHUB_ENV}"
 
       - name: Ensure label exists
         if: *AnyOne
@@ -373,20 +384,18 @@ jobs:
       - name: Open auto-refresh pull request
         id: cpr
         if: *AnyOne
-        uses: peter-evans/create-pull-request@v8
+        uses: kjanat/beepboop/actions/pull-request@v1
         with:
-          # A PAT (or fine-grained token) with `contents: write` +
-          # `pull-requests: write`, NOT the default GITHUB_TOKEN — so the
-          # opened PR triggers `pull_request` CI (ci.yml) instead of being
-          # inert. Add it as the `SPEC_REFRESH_PAT` repo secret.
-          token: "${{ secrets.SPEC_REFRESH_PAT }}"
           base: "${{ github.event.repository.default_branch }}"
           branch: spec-data/auto-refresh
-          delete-branch: true
-          labels: "${{ env.ISSUE_LABEL }}"
-          commit-message: ${{ steps.pr.outputs.commit_message }}
           title: "spec-data: regenerate catalog from upstream"
+          commit-message: ${{ steps.pr.outputs.commit_message }}
           body: ${{ steps.pr.outputs.body }}
+
+      - name: Label auto-refresh pull request
+        if: needs.check.outputs.any == '1' && steps.cpr.outputs.pull-request-number != ''
+        env: { PR_NUMBER: "${{ steps.cpr.outputs.pull-request-number }}" }
+        run: gh pr edit $env:PR_NUMBER --add-label $env:ISSUE_LABEL
 
       - name: Update tracking issue
         if: needs.check.outputs.any == '1' && steps.issue.outputs.created == 'false'

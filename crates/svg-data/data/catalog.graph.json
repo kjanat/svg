@@ -4649,7 +4649,7 @@
     {
       "id": "value:color-interpolation",
       "kind": "value_grammar",
-      "name": "color-interpolation (enum)"
+      "name": "color-interpolation (css_grammar)"
     },
     {
       "id": "value:color-interpolation-filters",
@@ -5039,7 +5039,7 @@
     {
       "id": "value:height",
       "kind": "value_grammar",
-      "name": "height (css_grammar)"
+      "name": "height (length)"
     },
     {
       "id": "value:href",
@@ -6274,7 +6274,7 @@
     {
       "id": "value:width",
       "kind": "value_grammar",
-      "name": "width (css_grammar)"
+      "name": "width (length)"
     },
     {
       "id": "value:will-change",
