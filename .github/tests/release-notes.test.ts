@@ -7,7 +7,30 @@ import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('../actions/append-release-notes/run.sh', import.meta.url));
 
-function withFixture(changelog, check) {
+function runScript(root: string, draft: string, calls: string) {
+	return spawnSync('bash', [script], {
+		cwd: root,
+		encoding: 'utf8',
+		env: {
+			...process.env,
+			PATH: `${root}:${process.env.PATH}`,
+			RELEASE_TAG: 'v0.4.0',
+			GITHUB_REPOSITORY: 'fixture/svg',
+			GH_TOKEN: 'fixture',
+			GH_CALLS: calls,
+			DRAFT_BODY: draft,
+		},
+	});
+}
+
+function withFixture(
+	changelog: string,
+	check: (fixture: {
+		run: () => ReturnType<typeof runScript>;
+		draft: string;
+		calls: string;
+	}) => void,
+) {
 	const root = mkdtempSync(join(tmpdir(), 'svg-release-notes-'));
 	try {
 		const draft = join(root, 'draft-body');
@@ -32,19 +55,7 @@ esac
 `,
 		);
 		chmodSync(join(root, 'gh'), 0o700);
-		const run = () => spawnSync('bash', [script], {
-			cwd: root,
-			encoding: 'utf8',
-			env: {
-				...process.env,
-				PATH: `${root}:${process.env.PATH}`,
-				RELEASE_TAG: 'v0.4.0',
-				GITHUB_REPOSITORY: 'fixture/svg',
-				GH_TOKEN: 'fixture',
-				GH_CALLS: calls,
-				DRAFT_BODY: draft,
-			},
-		});
+		const run = () => runScript(root, draft, calls);
 		check({ run, draft, calls });
 	} finally {
 		rmSync(root, { recursive: true, force: true });

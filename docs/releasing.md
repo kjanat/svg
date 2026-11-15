@@ -141,7 +141,7 @@ retains a JSON report for 14 days. Failed, absent, skipped, or unconfigured
 checks never count as successful runtime execution. These are startup/version
 checks, not a claim of full application testing on every platform.
 
-`just release-runtime-test` covers policy, archive integrity, version matching,
+`just release-package-test` covers policy, archive integrity, version matching,
 permissions, stage reporting, and workflow gates. It is included in
 `just verify`. PR runtime validation builds npm trees from the latest published
 release's binaries using current templates, then transfers them to all eight

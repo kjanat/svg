@@ -1,0 +1,3 @@
+[test]
+# The worker suite runs under Deno; Zed downloads contain separate checkouts.
+pathIgnorePatterns = ["workers/svg-compat/**", "editors/zed-svg/grammars/**"]

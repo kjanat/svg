@@ -1,26 +1,24 @@
-#!/usr/bin/env node
-// @ts-check
+#!/usr/bin/env bun
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { carriers, workspaceVersion } from '../.github/actions/version-check/carriers.mjs';
 
-/** @param {string} version @param {typeof readFile} [read] */
-export async function versionEdits(version, read = readFile) {
+export async function versionEdits(version: string): Promise<Map<string, string>> {
 	if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error('Expected a semantic version');
-	const files = new Map();
-	const cargo = await read('Cargo.toml', 'utf8');
+	const files = new Map<string, string>();
+	const cargo = await readFile('Cargo.toml', 'utf8');
 	workspaceVersion(cargo);
 	files.set('Cargo.toml', cargo.replace(/(\[workspace\.package\][\s\S]*?^version\s*=\s*")[^"]+(".*$)/m, `$1${version}$2`));
 	for (const carrier of carriers) {
 		let source;
 		try {
-			source = files.get(carrier.file) ?? await read(carrier.file, 'utf8');
+			source = files.get(carrier.file) ?? await readFile(carrier.file, 'utf8');
 		} catch (error) {
 			if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') continue;
 			throw error;
 		}
 		let count = 0;
-		const updated = source.replace(carrier.pattern, (full, prior) => {
+		const updated = source.replace(carrier.pattern, (full: string, prior: string) => {
 			count++;
 			const start = full.lastIndexOf(prior);
 			return full.slice(0, start) + version + full.slice(start + prior.length);

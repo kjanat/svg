@@ -53,7 +53,7 @@ jobs:
       - name: Refresh lockfiles and generated grammar versions
         env: { RELEASE_VERSION: "${{ fromJSON(steps.begin.outputs.context).version }}" }
         run: |
-          node scripts/release-version.mjs "${RELEASE_VERSION}"
+          bun scripts/release-version.ts "${RELEASE_VERSION}"
           cargo check --workspace
           bun install --lockfile-only --ignore-scripts
           uv lock

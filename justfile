@@ -196,13 +196,11 @@ test-deno *ARGS:
 verify:
     just format-check
     just check-python
-    just check-python-updates
     just check-grammars
     just typecheck
     just baseline-icons-check
     just release-config-check
     just release-package-test
-    just release-runtime-test
     just lint
     just test
     just test-deno
@@ -226,15 +224,10 @@ release-config-check:
 # exercise packaged crate verification, release wiring and publication retries
 [group('release')]
 release-package-test:
-    bun test ./.github/tests/crates-release.test.ts ./.github/tests/beepboop-workflow.test.js ./.github/tests/release-notes.test.js
+    bun install --cwd .github/tests/renovate --frozen-lockfile --ignore-scripts
+    bun test ./.github
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
     bash .github/tests/crates-publish.sh
-
-# check runtime coverage policy, artifact checks and publication gates
-[group('release')]
-release-runtime-test:
-    node --test .github/tests/runtime-smoke.test.mjs
-    bun test ./.github/tests/runtime-workflow.test.ts
 
 # preview the per-target build matrix release.yml will run
 [group('release')]

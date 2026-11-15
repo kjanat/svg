@@ -70,22 +70,6 @@ jobs:
         with: { tool: just }
       - run: just check-python
 
-  python-updates:
-    name: Python Renovate regressions
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-        with: { persist-credentials: false }
-      - uses: astral-sh/setup-uv@v10.3.3
-      - uses: actions/setup-node@v7
-        with: { node-version: "24" }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version-file: package.json }
-      - uses: taiki-e/install-action@v2
-        with: { tool: just }
-      - run: just check-python-updates
-
   npm-facade:
     name: npm facade (glibc + musl)
     runs-on: ubuntu-latest
@@ -128,22 +112,14 @@ jobs:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
       - uses: taiki-e/install-action@v2
-        with: { tool: rust }
+        with: { tool: "rust,just" }
       - uses: Swatinem/rust-cache@v2
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-      - name: workflow contract regressions
-        run: bun test ./.github/tests/crates-release.test.ts ./.github/tests/beepboop-workflow.test.js ./.github/tests/release-notes.test.js
-      - name: package verification regressions
-        shell: python
-        run: |
-          import unittest
-
-          suite = unittest.defaultTestLoader.discover(".github/tests", pattern="test_crates.py")
-          result = unittest.TextTestRunner(verbosity=2).run(suite)
-          if not result.wasSuccessful():
-              raise SystemExit(1)
-      - name: publication gate and retry regressions
-        run: bash .github/tests/crates-publish.sh
+      - uses: actions/setup-node@v7
+        with: { node-version: "24" }
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Release tooling regressions
+        run: just release-package-test
       - name: verify actual workspace packages without uploading
         shell: python
         run: |
