@@ -107,7 +107,9 @@ jobs:
     needs: [setup, runtime-smoke]
     runs-on: ubuntu-latest
     permissions: { contents: read, id-token: write }
-    outputs: { execution-id: "${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}" }
+    outputs:
+      execution-id: ${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Resolve release version
         id: version
@@ -169,13 +171,18 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: $/.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: npm
-          name: ${{ matrix.pkg }}
-          version: ${{ env.RELEASE_TAG }}
-          result: ${{ steps.publish.outcome }}
+          publications: |
+            [{
+              "id": "npm:${{ matrix.pkg }}",
+              "manager": "npm",
+              "name": "${{ matrix.pkg }}",
+              "version": "${{ needs.beepboop.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]
 
   scoped:
     name: publish ${{ matrix.pkg }}
@@ -220,15 +227,18 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: $/.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: npm
-          name: ${{ steps.publish.outputs.package-name }}
-          version: ${{ env.RELEASE_TAG }}
-          result: ${{ steps.publish.outcome }}
-          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
-          required: ${{ !matrix.experimental }}
+          publications: |
+            [{
+              "id": "npm:${{ steps.publish.outputs.package-name }}",
+              "manager": "npm",
+              "name": "${{ steps.publish.outputs.package-name }}",
+              "version": "${{ needs.beepboop.outputs.version }}",
+              "required": ${{ !matrix.experimental }},
+              "outcome": "${{ steps.publish.outputs.skipped == 'true' && (matrix.experimental && 'skipped' || 'failed') || steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]
 
   # Facades after platforms so their optionalDependencies resolve on install.
   facades:
@@ -273,14 +283,18 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: $/.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: npm
-          name: ${{ steps.publish.outputs.package-name }}
-          version: ${{ env.RELEASE_TAG }}
-          result: ${{ steps.publish.outcome }}
-          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
+          publications: |
+            [{
+              "id": "npm:${{ steps.publish.outputs.package-name }}",
+              "manager": "npm",
+              "name": "${{ steps.publish.outputs.package-name }}",
+              "version": "${{ needs.beepboop.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]
 
   # Unscoped alias shims after their canonical facades.
   shims:
@@ -326,14 +340,18 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: $/.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: npm
-          name: ${{ steps.publish.outputs.package-name }}
-          version: ${{ env.RELEASE_TAG }}
-          result: ${{ steps.publish.outcome }}
-          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
+          publications: |
+            [{
+              "id": "npm:${{ steps.publish.outputs.package-name }}",
+              "manager": "npm",
+              "name": "${{ steps.publish.outputs.package-name }}",
+              "version": "${{ needs.beepboop.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]
 
   # Bundle last: its exact-pinned dependencies are the shims above. A skipped
   # shims job (no shims defined) must not skip the bundle with it.
@@ -382,11 +400,15 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: $/.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: npm
-          name: ${{ steps.publish.outputs.package-name }}
-          version: ${{ env.RELEASE_TAG }}
-          result: ${{ steps.publish.outcome }}
-          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
+          publications: |
+            [{
+              "id": "npm:${{ steps.publish.outputs.package-name }}",
+              "manager": "npm",
+              "name": "${{ steps.publish.outputs.package-name }}",
+              "version": "${{ needs.beepboop.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]

@@ -11,10 +11,16 @@ interface Step {
 	with?: Record<string, unknown>;
 }
 interface Job {
+	outputs?: Record<string, string>;
 	steps: Step[];
 }
 interface Workflow {
 	jobs: Record<string, Job>;
+}
+interface Context {
+	matrix: { crate?: string; pkg?: string; experimental?: boolean };
+	steps: { publish: { outcome: string; outputs: Record<string, string> } };
+	needs: { setup: { outputs: Record<string, string> }; beepboop: { outputs: Record<string, string> } };
 }
 
 const root = new URL('../..', import.meta.url).pathname;
@@ -23,8 +29,7 @@ afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
 const load = async (name: string): Promise<Workflow> =>
 	Bun.YAML.parse(await Bun.file(join(root, `.github/workflows/${name}.yml`)).text()) as unknown as Workflow;
-const crates = await load('crates-release');
-const npm = await load('npm-release');
+const workflows = { 'crates-release': await load('crates-release'), 'npm-release': await load('npm-release') };
 
 let runs = 0;
 function run(script: string, env: Record<string, string>, cwd = root) {
@@ -43,44 +48,96 @@ function run(script: string, env: Record<string, string>, cwd = root) {
 	return { exitCode: result.exitCode, values, stderr: result.stderr.toString() };
 }
 
-const report = (env: Record<string, string>) =>
-	run('.github/actions/beepboop-report/run.sh', {
-		MANAGER: 'npm',
-		PACKAGE_NAME: '@svg-toolkit/svg-lint',
-		VERSION: 'v1.2.3',
-		RESULT: 'success',
-		SKIPPED: 'false',
-		REQUIRED: 'true',
-		...env,
-	});
-const publications = (env: Record<string, string>) => JSON.parse(report(env).values.publications);
+const evaluate = (expression: string, context: Context): unknown =>
+	new Function('matrix', 'steps', 'needs', `return (${expression.replaceAll('.package-name', "['package-name']")});`)(
+		context.matrix,
+		context.steps,
+		context.needs,
+	);
+const render = (template: string, context: Context): string =>
+	template.replace(/\$\{\{(.*?)\}\}/g, (_, expression: string) => String(evaluate(expression, context)));
 
-test('a report names the package by its purl and the version without the tag prefix', () => {
-	expect(publications({})).toEqual([{
-		id: 'pkg:npm/%40svg-toolkit/svg-lint',
-		manager: 'npm',
-		name: '@svg-toolkit/svg-lint',
+const reporting = [
+	['crates-release', 'publish'],
+	['npm-release', 'grammars'],
+	['npm-release', 'scoped'],
+	['npm-release', 'facades'],
+	['npm-release', 'shims'],
+	['npm-release', 'bundles'],
+] as const;
+
+function reportStep(file: keyof typeof workflows, name: string): Step {
+	const job = workflows[file].jobs[name];
+	if (!job) throw new Error(`Missing job ${file}.${name}`);
+	const step = job.steps.at(-1);
+	if (!step) throw new Error(`Empty job ${file}.${name}`);
+	return step;
+}
+
+function publications(file: keyof typeof workflows, name: string, context: Partial<Context> & { outcome?: string; skipped?: string }) {
+	const template = reportStep(file, name).with?.publications;
+	if (typeof template !== 'string') throw new Error(`${file}.${name} reports no publications`);
+	return JSON.parse(render(template, {
+		matrix: { crate: 'svg-lint', pkg: 'tree-sitter-svg', experimental: false, ...context.matrix },
+		steps: {
+			publish: {
+				outcome: context.outcome ?? 'success',
+				outputs: { 'package-name': '@svg-toolkit/svg-lint', ...(context.skipped ? { skipped: context.skipped } : {}) },
+			},
+		},
+		needs: { setup: { outputs: { version: '1.2.3' } }, beepboop: { outputs: { version: '1.2.3' } } },
+	}));
+}
+
+test('every publishing job reports to Beepboop directly after the publish step, whatever its result', () => {
+	for (const [file, name] of reporting) {
+		const job = workflows[file].jobs[name];
+		if (!job) throw new Error(`Missing job ${file}.${name}`);
+		const publish = job.steps.findIndex(step => step.id === 'publish');
+		const credentials = job.steps.findIndex(step => step.id === 'credentials');
+		const step = reportStep(file, name);
+		expect([name, credentials < publish, publish < job.steps.length - 1]).toEqual([name, true, true]);
+		expect(step.uses).toBe('kjanat/beepboop/actions/report@v1');
+		expect(step.if).toBe("${{ !cancelled() && steps.credentials.outcome == 'success' }}");
+		expect(step.with?.['execution-id']).toBe('${{ needs.beepboop.outputs.execution-id }}');
+	}
+	expect(workflows['npm-release'].jobs.beepboop?.outputs?.version).toBe('${{ steps.version.outputs.version }}');
+});
+
+test('reports name each package by manager and name with the version from the release tag', () => {
+	expect(publications('crates-release', 'publish', {})).toEqual([{
+		id: 'cargo:svg-lint',
+		manager: 'cargo',
+		name: 'svg-lint',
 		version: '1.2.3',
-		outcome: 'succeeded',
 		required: true,
+		outcome: 'succeeded',
 	}]);
-	expect(publications({ MANAGER: 'cargo', PACKAGE_NAME: 'svg-lint', VERSION: '1.2.3' })[0])
-		.toMatchObject({ id: 'pkg:cargo/svg-lint', manager: 'cargo', version: '1.2.3' });
+	expect(publications('npm-release', 'grammars', {})[0]).toMatchObject({ id: 'npm:tree-sitter-svg', name: 'tree-sitter-svg' });
+	for (const name of ['scoped', 'facades', 'shims', 'bundles']) {
+		expect(publications('npm-release', name, {})).toEqual([{
+			id: 'npm:@svg-toolkit/svg-lint',
+			manager: 'npm',
+			name: '@svg-toolkit/svg-lint',
+			version: '1.2.3',
+			required: true,
+			outcome: 'succeeded',
+		}]);
+	}
 });
 
-test('a report maps the publish step result to the Beepboop outcome', () => {
-	const outcome = (env: Record<string, string>) => publications(env)[0].outcome;
-	expect(outcome({ RESULT: 'success' })).toBe('succeeded');
-	expect(outcome({ RESULT: 'failure' })).toBe('failed');
-	expect(outcome({ RESULT: 'cancelled' })).toBe('failed');
-	expect(outcome({ RESULT: 'success', SKIPPED: 'true', REQUIRED: 'false' })).toBe('skipped');
-	expect(outcome({ RESULT: 'success', SKIPPED: 'true', REQUIRED: 'true' })).toBe('failed');
-	expect(publications({ REQUIRED: 'false' })[0].required).toBe(false);
-});
-
-test('a report refuses an unknown manager or required flag', () => {
-	expect(report({ MANAGER: 'pypi' })).toMatchObject({ exitCode: 1, values: {} });
-	expect(report({ REQUIRED: 'yes' })).toMatchObject({ exitCode: 1, values: {} });
+test('reports map the publish step result to the Beepboop outcome', () => {
+	const outcome = (file: keyof typeof workflows, name: string, context: Parameters<typeof publications>[2]) =>
+		publications(file, name, context)[0].outcome;
+	for (const [file, name] of reporting) {
+		expect([name, outcome(file, name, { outcome: 'failure' })]).toEqual([name, 'failed']);
+		expect([name, outcome(file, name, { outcome: 'cancelled' })]).toEqual([name, 'failed']);
+	}
+	const experimental = { matrix: { experimental: true } };
+	expect(outcome('npm-release', 'scoped', { ...experimental, skipped: 'true' })).toBe('skipped');
+	expect(outcome('npm-release', 'scoped', { skipped: 'true' })).toBe('failed');
+	expect(outcome('npm-release', 'scoped', { ...experimental, outcome: 'failure' })).toBe('failed');
+	expect(publications('npm-release', 'scoped', experimental)[0].required).toBe(false);
 });
 
 test('npm matrix publishing names its package and marks a missing optional platform skipped', () => {
@@ -101,37 +158,4 @@ test('npm matrix publishing names its package and marks a missing optional platf
 	expect([facade.exitCode, facade.values]).toEqual([1, { 'package-name': '@svg-toolkit/svg-format' }]);
 	const platform = publish('format-linux-x64-gnu');
 	expect([platform.exitCode, platform.values]).toEqual([1, { 'package-name': '@svg-toolkit/format-linux-x64-gnu' }]);
-});
-
-const reported = [
-	['crates-release', 'publish', 'cargo', '${{ matrix.crate }}', '${{ needs.setup.outputs.version }}'],
-	['npm-release', 'grammars', 'npm', '${{ matrix.pkg }}', '${{ env.RELEASE_TAG }}'],
-	['npm-release', 'scoped', 'npm', '${{ steps.publish.outputs.package-name }}', '${{ env.RELEASE_TAG }}'],
-	['npm-release', 'facades', 'npm', '${{ steps.publish.outputs.package-name }}', '${{ env.RELEASE_TAG }}'],
-	['npm-release', 'shims', 'npm', '${{ steps.publish.outputs.package-name }}', '${{ env.RELEASE_TAG }}'],
-	['npm-release', 'bundles', 'npm', '${{ steps.publish.outputs.package-name }}', '${{ env.RELEASE_TAG }}'],
-] as const;
-
-test('every publishing job reports its package after the publish step, whatever its result', () => {
-	for (const [file, name, manager, packageName, version] of reported) {
-		const job = (file === 'npm-release' ? npm : crates).jobs[name];
-		if (!job) throw new Error(`Missing job ${file}.${name}`);
-		const publish = job.steps.findIndex(step => step.id === 'publish');
-		const credentials = job.steps.findIndex(step => step.id === 'credentials');
-		const index = job.steps.findIndex(step => step.uses?.endsWith('/.github/actions/beepboop-report'));
-		expect([name, credentials < publish, publish < index, index === job.steps.length - 1]).toEqual([name, true, true, true]);
-		const step = job.steps[index];
-		expect(step?.if).toBe("${{ !cancelled() && steps.credentials.outcome == 'success' }}");
-		expect(step?.with).toMatchObject({
-			'execution-id': '${{ needs.beepboop.outputs.execution-id }}',
-			manager,
-			name: packageName,
-			version,
-			result: '${{ steps.publish.outcome }}',
-		});
-	}
-	expect(npm.jobs.scoped?.steps.at(-1)?.with).toMatchObject({
-		skipped: "${{ steps.publish.outputs.skipped || 'false' }}",
-		required: '${{ !matrix.experimental }}',
-	});
 });

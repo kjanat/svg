@@ -159,10 +159,15 @@ jobs:
 
       - name: report publication
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
-        uses: ./.github/actions/beepboop-report
+        uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
-          manager: cargo
-          name: ${{ matrix.crate }}
-          version: ${{ needs.setup.outputs.version }}
-          result: ${{ steps.publish.outcome }}
+          publications: |
+            [{
+              "id": "cargo:${{ matrix.crate }}",
+              "manager": "cargo",
+              "name": "${{ matrix.crate }}",
+              "version": "${{ needs.setup.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]
