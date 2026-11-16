@@ -19,8 +19,8 @@ if ! our_body=$(awk -v heading="## [${version}]" '
 	found { print }
 	END { if (!found) exit 1 }
 ' CHANGELOG.md); then
-	printf 'error: changelog section for %s is missing\n' "${version}" >&2
-	exit 1
+	our_body="$(gh release view "${RELEASE_TAG}" \
+		--repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
 fi
 gen_body="$(gh api \
 	"repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
