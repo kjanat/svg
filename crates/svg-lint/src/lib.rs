@@ -591,6 +591,7 @@ mod tests {
         let src = concat!(
             r#"<svg><clipPath id="a.b"/><rect clip-path="url(#a%2Eb)"/>"#,
             r##"<use href="#a&#46;b"/><use xml:base="other.svg" href="#elsewhere"/>"##,
+            r##"<rect clip-path="url(#a\2e b)" fill="url(#nope) red"/>"##,
             r##"<use href="#gone%2Ex"/></svg>"##,
         )
         .as_bytes();
@@ -599,8 +600,9 @@ mod tests {
             .filter(|d| d.code == DiagnosticCode::MissingReferenceDefinition)
             .map(|d| d.message)
             .collect();
-        assert_eq!(missing.len(), 1, "{missing:?}");
-        assert!(missing[0].contains("#gone.x"), "{missing:?}");
+        assert_eq!(missing.len(), 2, "{missing:?}");
+        assert!(missing[0].contains("fill references #nope"), "{missing:?}");
+        assert!(missing[1].contains("#gone.x"), "{missing:?}");
     }
 
     #[test]

@@ -658,32 +658,34 @@ fn check_missing_reference_definitions(
             continue;
         }
 
-        let mut attr_cursor = attr_node.walk();
-        walk_tree(&mut attr_cursor, &mut |node| {
-            if node.kind() != "iri_reference" {
-                return;
-            }
-
-            let Some(id) = svg_references::local_fragment_id(node, source) else {
-                return;
+        for reference in svg_references::attribute_id_references(attr_node, source) {
+            let svg_references::DefinitionTarget::Id(id) = &reference.target else {
+                continue;
             };
-            if defined_ids.contains(&id) {
-                return;
+            if defined_ids.contains(id) {
+                continue;
             }
-
-            push_diag_in_tag(
-                diagnostics,
-                suppressions,
-                node,
-                Some(tag_start),
-                Severity::Warning,
-                DiagnosticCode::MissingReferenceDefinition,
-                format!(
+            let span = &reference.span;
+            let hash = reference.start_byte > 0
+                && span.start_col > 0
+                && source.get(reference.start_byte - 1) == Some(&b'#');
+            let diagnostic = SvgDiagnostic {
+                byte_range: reference.start_byte - usize::from(hash)..reference.end_byte,
+                start_row: span.start_row,
+                start_col: span.start_col - usize::from(hash),
+                end_row: span.end_row,
+                end_col: span.end_col,
+                severity: Severity::Warning,
+                code: DiagnosticCode::MissingReferenceDefinition,
+                message: format!(
                     "{attr_name} references #{id}, but no element with id=\"{id}\" exists in this \
                      SVG.\nDefine one or remove the reference."
                 ),
-            );
-        });
+            };
+            if !suppressions.suppresses(span.start_row, diagnostic.code, Some(tag_start)) {
+                diagnostics.push(diagnostic);
+            }
+        }
     }
 }
 
