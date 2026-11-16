@@ -1,4 +1,4 @@
-import { classifyLibc, detectLibc, LIBC_ENV, planCandidates, siblingName } from '#libc';
+import { classifyLibc, detectLibc, hostTarget, LIBC_ENV, libcOverride, planCandidates, siblingName } from '#libc';
 import assert from 'node:assert/strict';
 import process from 'node:process';
 import { test } from 'node:test';
@@ -45,53 +45,57 @@ test('siblingName round-trips both pair shapes', () => {
 	assert.equal(siblingName(`${SCOPE}-darwin-arm64`), null);
 });
 
+const X64 = { platform: 'linux', arch: 'x64' };
+const ARM = { platform: 'linux', arch: 'arm', armVersion: '7', armFloatAbi: 'hard' };
+
 test('musl host selects the musl package even though gnu is declared first', () => {
-	const { candidates, dropped } = planCandidates(LINUX_X64, 'musl');
+	const { candidates, dropped } = planCandidates(LINUX_X64, 'musl', X64);
 	assert.equal(candidates[0], `${SCOPE}-linux-x64-musl`);
 	assert.deepEqual(dropped, [`${SCOPE}-linux-x64-gnu`]);
 	assert.ok(!candidates.includes(`${SCOPE}-linux-x64-gnu`));
 });
 
 test('musl host with only the gnu sibling installed has nothing to run', () => {
-	const { candidates, dropped } = planCandidates([`${SCOPE}-linux-x64-gnu`], 'musl');
+	const { candidates, dropped } = planCandidates([`${SCOPE}-linux-x64-gnu`], 'musl', X64);
 	assert.deepEqual(candidates, []);
 	assert.deepEqual(dropped, [`${SCOPE}-linux-x64-gnu`]);
 });
 
 test('musl host handles the armv7 pair by its own suffixes', () => {
-	const { candidates, dropped } = planCandidates(ARMV7, 'musl');
+	const { candidates, dropped } = planCandidates(ARMV7, 'musl', ARM);
 	assert.deepEqual(candidates, [`${SCOPE}-linux-armv7-musleabihf`]);
 	assert.deepEqual(dropped, [`${SCOPE}-linux-armv7-gnueabihf`]);
 });
 
 test('glibc host keeps gnu first and the static musl build as a fallback', () => {
-	const { candidates, dropped, undecided } = planCandidates(LINUX_X64, 'glibc');
+	const { candidates, dropped, undecided } = planCandidates(LINUX_X64, 'glibc', X64);
 	assert.deepEqual(candidates, [`${SCOPE}-linux-x64-gnu`, `${SCOPE}-linux-x64-musl`]);
 	assert.deepEqual(dropped, []);
 	assert.equal(undecided, false);
 });
 
 test('glibc host still falls back to musl when gnu is absent', () => {
-	const { candidates } = planCandidates([`${SCOPE}-linux-x64-musl`], 'glibc');
+	const { candidates } = planCandidates([`${SCOPE}-linux-x64-musl`], 'glibc', X64);
 	assert.deepEqual(candidates, [`${SCOPE}-linux-x64-musl`]);
 });
 
 test('unpaired gnu-only targets keep the declared order', () => {
-	assert.deepEqual(planCandidates(UNPAIRED, 'glibc').candidates, UNPAIRED);
-	assert.deepEqual(planCandidates(UNPAIRED, null).candidates, UNPAIRED);
-	assert.equal(planCandidates(UNPAIRED, null).undecided, false);
+	const riscv64 = { platform: 'linux', arch: 'riscv64' };
+	assert.deepEqual(planCandidates(UNPAIRED, 'glibc', riscv64).candidates, [`${SCOPE}-linux-riscv64-gnu`]);
+	assert.deepEqual(planCandidates(UNPAIRED, null, riscv64).candidates, [`${SCOPE}-linux-riscv64-gnu`]);
+	assert.equal(planCandidates(UNPAIRED, null, riscv64).undecided, false);
 });
 
-test('non-linux packages keep the declared order and are never dropped', () => {
+test('non-linux packages are never dropped for their libc', () => {
 	for (const libc of ['glibc', 'musl', null]) {
-		const { candidates, dropped } = planCandidates(NON_LINUX, libc);
-		assert.deepEqual(candidates, NON_LINUX);
+		const { candidates, dropped } = planCandidates(NON_LINUX, libc, { platform: 'darwin', arch: 'arm64' });
+		assert.deepEqual(candidates, [`${SCOPE}-darwin-arm64`]);
 		assert.deepEqual(dropped, []);
 	}
 });
 
 test('undecided libc with both variants installed is flagged, not silently guessed', () => {
-	const { candidates, undecided } = planCandidates(LINUX_X64, null, { platform: 'linux', arch: 'x64' });
+	const { candidates, undecided } = planCandidates(LINUX_X64, null, X64);
 	assert.equal(undecided, true);
 	assert.deepEqual(candidates, LINUX_X64, 'declared order is preserved so behaviour is unchanged');
 });
@@ -136,7 +140,51 @@ test("only the host's own architecture can make a Linux host undecided", () => {
 	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'arm64', installed: x64Pair }).undecided, false);
 	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'x64', installed: x64Pair }).undecided, true);
 	const armv7Pair = (name) => ARMV7.includes(name);
-	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'arm', installed: armv7Pair }).undecided, true);
+	assert.equal(planCandidates(PUBLISHED, null, { ...ARM, installed: armv7Pair }).undecided, true);
+});
+
+test("only builds for the host's OS and CPU are candidates", () => {
+	const plan = (host, libc = null) => planCandidates(PUBLISHED, libc, host).candidates;
+	assert.deepEqual(plan({ platform: 'darwin', arch: 'arm64' }), [`${SCOPE}-darwin-arm64`]);
+	assert.deepEqual(plan({ platform: 'darwin', arch: 'x64' }), [`${SCOPE}-darwin-x64`]);
+	assert.deepEqual(plan({ platform: 'win32', arch: 'arm64' }), [`${SCOPE}-win32-arm64-msvc`]);
+	assert.deepEqual(plan({ platform: 'linux', arch: 'arm64' }, 'glibc'), [
+		`${SCOPE}-linux-arm64-gnu`,
+		`${SCOPE}-linux-arm64-musl`,
+	]);
+	assert.deepEqual(plan(ARM, 'glibc'), ARMV7);
+	assert.deepEqual(plan({ platform: 'freebsd', arch: 'arm64' }), [`${SCOPE}-freebsd-arm64`]);
+});
+
+test('a host with no published build has no candidates', () => {
+	for (const host of [{ platform: 'openbsd', arch: 'x64' }, { platform: 'android', arch: 'arm64' }, { platform: 'linux', arch: 'mips64el' }]) {
+		const { stem, candidates, dropped } = planCandidates(PUBLISHED, null, host);
+		assert.equal(stem, `${host.platform}-${host.arch}`);
+		assert.deepEqual([candidates, dropped], [[], []]);
+	}
+});
+
+test('an arm host whose Node reports another ARM version or float ABI has no target', () => {
+	assert.equal(hostTarget(ARM), 'linux-armv7');
+	assert.equal(hostTarget({ ...ARM, armVersion: '6' }), null);
+	assert.equal(hostTarget({ ...ARM, armFloatAbi: 'softfp' }), null);
+	assert.equal(hostTarget({ ...ARM, armFloatAbi: 'soft' }), null);
+	assert.equal(hostTarget({ platform: 'linux', arch: 'arm', armVersion: '', armFloatAbi: '' }), 'linux-armv7');
+	assert.equal(hostTarget({ platform: 'linux', arch: 'arm', armVersion: '7', armFloatAbi: '' }), 'linux-armv7');
+	const { stem, candidates } = planCandidates(PUBLISHED, 'glibc', { ...ARM, armVersion: '6' });
+	assert.deepEqual([stem, candidates], [null, []]);
+});
+
+test(`${LIBC_ENV} accepts gnu and reports values it cannot use`, () => {
+	assert.deepEqual(libcOverride({ [LIBC_ENV]: 'gnu' }), { kind: 'set', libc: 'glibc' });
+	assert.deepEqual(libcOverride({ [LIBC_ENV]: ' Musl ' }), { kind: 'set', libc: 'musl' });
+	assert.deepEqual(libcOverride({ [LIBC_ENV]: 'uclibc' }), { kind: 'invalid', value: 'uclibc' });
+	assert.deepEqual(libcOverride({}), { kind: 'unset' });
+	assert.equal(detect({ env: { [LIBC_ENV]: 'gnu' } }), 'glibc');
+});
+
+test('the ppc64 musl loader is the little-endian one', () => {
+	assert.equal(detect({ arch: 'ppc64', fileExists: (path) => path === '/lib/ld-musl-powerpc64le.so.1' }), 'musl');
 });
 
 test(`${LIBC_ENV} overrides every other signal`, () => {
