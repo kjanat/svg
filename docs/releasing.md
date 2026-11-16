@@ -30,7 +30,7 @@ creates a signed tag; use it only when preparing a local tag is intended.
 
 The release stream lives in `.github/beepboop.json`. It preserves the required
 publication set and optional experimental targets. Version PRs use manual
-merges, and publication requires explicit approval in Beepboop.
+merges, and merging the version PR publishes the release once its checks pass.
 
 After merging the configuration, refresh the repository inventory with
 `beepboop repositories discover kjanat/svg`. Authorize these runtime grants with
