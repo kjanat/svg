@@ -1,9 +1,12 @@
-use svg_tree::{child_of_kind, walk_tree};
+use svg_tree::{child_of_kind, is_attribute_node_kind, walk_tree};
 use tree_sitter::Tree;
 
 use crate::{
     Span, inline_style_fragments,
-    occurrences::{is_structural_iri, parse_paint, url_argument_range},
+    occurrences::{
+        encoded_presentation_value, inside_encoded_presentation_value, is_structural_iri,
+        parse_paint, presentation_fragment, url_argument_range,
+    },
     outline::element_tag,
     tag_attribute_value,
     text::{
@@ -34,7 +37,9 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
     let mut links = Vec::new();
     let mut cursor = tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| match node.kind() {
-        "iri_reference" if is_structural_iri(node) => {
+        "iri_reference"
+            if is_structural_iri(node) && !inside_encoded_presentation_value(node, source) =>
+        {
             if let Ok(text) = node.utf8_text(source) {
                 push_link(
                     &mut links,
@@ -45,7 +50,14 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
                 );
             }
         }
-        "paint_payload" => paint_links(node, source, &mut links),
+        "paint_payload" if !inside_encoded_presentation_value(node, source) => {
+            paint_links(node, source, &mut links);
+        }
+        kind if is_attribute_node_kind(kind) && encoded_presentation_value(node, source) => {
+            if let Some(fragment) = presentation_fragment(node, source) {
+                css_links(&fragment, &xml_bases(node, source), &mut links);
+            }
+        }
         "style_text_double" | "style_text_single" => {
             if let Ok(content) = node.utf8_text(source)
                 && let Some(fragment) =
@@ -370,6 +382,25 @@ mod tests {
         assert_eq!(
             crate::definition_target_at(source.as_bytes(), &tree, offset),
             None
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn encoded_presentation_urls_are_links() -> Result<(), Box<dyn Error>> {
+        let source =
+            "<svg><rect fill=\"url(&quot;p.svg#p&quot;) red\" mask=\"url(m.svg#m)\"/></svg>";
+        let tree = parse_svg(source)?;
+        let links: Vec<_> = external_links(source.as_bytes(), &tree)
+            .into_iter()
+            .map(|link| (link.target, span_text(source, &link.span).to_owned()))
+            .collect();
+        assert_eq!(
+            links,
+            vec![
+                ("p.svg#p".to_owned(), "p.svg#p".to_owned()),
+                ("m.svg#m".to_owned(), "m.svg#m".to_owned()),
+            ]
         );
         Ok(())
     }

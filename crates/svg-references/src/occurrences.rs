@@ -135,6 +135,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         "iri_reference" => {
             if is_structural_iri(node)
                 && crate::links::fragment_is_local(node, source)
+                && !inside_encoded_presentation_value(node, source)
                 && let Some(occurrence) = local_iri_occurrence(node, source, 0, Point::new(0, 0))
             {
                 out.push(occurrence);
@@ -151,7 +152,9 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
                 );
             }
         }
-        "paint_payload" => paint_occurrences(node, source, &mut out),
+        "paint_payload" if !inside_encoded_presentation_value(node, source) => {
+            paint_occurrences(node, source, &mut out);
+        }
         "style_text_double" | "style_text_single" => {
             if let Ok(content) = node.utf8_text(source)
                 && let Some(fragment) =
@@ -477,39 +480,68 @@ fn syncbase_id(value: &str) -> Option<(usize, String)> {
     None
 }
 
-fn presentation_occurrences(
-    attribute: tree_sitter::Node<'_>,
-    source: &[u8],
-    out: &mut Vec<SymbolOccurrence>,
-) {
+fn presentation_content<'a>(
+    attribute: tree_sitter::Node<'a>,
+    source: &'a [u8],
+) -> Option<(tree_sitter::Node<'a>, usize, &'a str)> {
     let is_presentation = attribute
         .child_by_field_name("name")
         .and_then(|name| name.utf8_text(source).ok())
         .and_then(svg_data::attribute)
         .is_some_and(|definition| definition.presentation_attribute.is_some());
-    let Some(value) = attribute.child_by_field_name("value") else {
-        return;
-    };
-    if !is_presentation {
-        return;
-    }
-    let Ok(text) = value.utf8_text(source) else {
-        return;
-    };
-    let (quote, content) = strip_quotes(text);
-    if !xml_unescape(content).to_ascii_lowercase().contains("var(") {
-        return;
-    }
+    let value = attribute
+        .child_by_field_name("value")
+        .filter(|_| is_presentation)?;
+    let (quote, content) = strip_quotes(value.utf8_text(source).ok()?);
+    Some((value, quote, content))
+}
+
+pub fn presentation_fragment(
+    attribute: tree_sitter::Node<'_>,
+    source: &[u8],
+) -> Option<CssFragment> {
+    let (value, quote, content) = presentation_content(attribute, source)?;
     let start = value.start_position();
-    if let Some(fragment) = CssFragment::value(
+    CssFragment::value(
         content,
         value.start_byte() + quote,
         Point::new(start.row, start.column + quote),
-    ) {
+    )
+}
+
+pub fn encoded_presentation_value(attribute: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    presentation_content(attribute, source).is_some_and(|(_, _, content)| content.contains('&'))
+}
+
+pub fn inside_encoded_presentation_value(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    let mut current = node.parent();
+    while let Some(ancestor) = current {
+        if is_attribute_node_kind(ancestor.kind()) {
+            return encoded_presentation_value(ancestor, source);
+        }
+        current = ancestor.parent();
+    }
+    false
+}
+
+fn presentation_occurrences(
+    attribute: tree_sitter::Node<'_>,
+    source: &[u8],
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    let Some((_, _, content)) = presentation_content(attribute, source) else {
+        return;
+    };
+    let encoded = content.contains('&');
+    let decoded = xml_unescape(content).to_ascii_lowercase();
+    if !(decoded.contains("var(") || (encoded && decoded.contains("url("))) {
+        return;
+    }
+    if let Some(fragment) = presentation_fragment(attribute, source) {
         let mut cursor = fragment.tree.root_node().walk();
         walk_tree(&mut cursor, &mut |node| {
             if node.kind() == "call_expression" {
-                var_occurrence(&fragment, node, out);
+                call_occurrence(&fragment, node, encoded, out);
             }
         });
     }
@@ -546,7 +578,6 @@ fn var_occurrence(
 }
 
 pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) {
-    let xml_escaped = fragment.xml_escaped;
     let mut cursor = fragment.tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| {
         let parent_kind = node.parent().map(|parent| parent.kind());
@@ -582,37 +613,46 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
                     out,
                 );
             }
-            "call_expression" => {
-                let Some(function) = child_of_kind(node, "function_name")
-                    .and_then(|function| fragment.node_text(function))
-                else {
-                    return;
-                };
-                let Some(arguments) = child_of_kind(node, "arguments") else {
-                    return;
-                };
-                if function.eq_ignore_ascii_case("var") {
-                    var_occurrence(fragment, node, out);
-                } else if function.eq_ignore_ascii_case("url")
-                    && let Some((start, end)) = url_argument_range(fragment, arguments)
-                    && let Some(fragment_text) = fragment.text.get(start..end)
-                    && let Some(name) = fragment_text.strip_prefix('#').filter(|n| !n.is_empty())
-                    && let Some((source_start, source_end, span)) =
-                        fragment.source_range(start + 1, end)
-                {
-                    out.push(SymbolOccurrence {
-                        target: DefinitionTarget::Id(css_unescape(name)),
-                        role: OccurrenceRole::Reference,
-                        syntax: OccurrenceSyntax::CssUrl { xml_escaped },
-                        start_byte: source_start,
-                        end_byte: source_end,
-                        span,
-                    });
-                }
-            }
+            "call_expression" => call_occurrence(fragment, node, true, out),
             _ => {}
         }
     });
+}
+
+fn call_occurrence(
+    fragment: &CssFragment,
+    call: tree_sitter::Node<'_>,
+    urls: bool,
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    let Some(function) =
+        child_of_kind(call, "function_name").and_then(|function| fragment.node_text(function))
+    else {
+        return;
+    };
+    let Some(arguments) = child_of_kind(call, "arguments") else {
+        return;
+    };
+    if function.eq_ignore_ascii_case("var") {
+        var_occurrence(fragment, call, out);
+    } else if urls
+        && function.eq_ignore_ascii_case("url")
+        && let Some((start, end)) = url_argument_range(fragment, arguments)
+        && let Some(fragment_text) = fragment.text.get(start..end)
+        && let Some(name) = fragment_text.strip_prefix('#').filter(|n| !n.is_empty())
+        && let Some((source_start, source_end, span)) = fragment.source_range(start + 1, end)
+    {
+        out.push(SymbolOccurrence {
+            target: DefinitionTarget::Id(css_unescape(name)),
+            role: OccurrenceRole::Reference,
+            syntax: OccurrenceSyntax::CssUrl {
+                xml_escaped: fragment.xml_escaped,
+            },
+            start_byte: source_start,
+            end_byte: source_end,
+            span,
+        });
+    }
 }
 
 pub fn url_argument_range(
@@ -911,6 +951,29 @@ mod tests {
             &DefinitionTarget::CustomProperty("--c".into()),
         );
         assert_eq!(props.len(), 2, "{occurrences:#?}");
+        Ok(())
+    }
+
+    #[test]
+    fn encoded_presentation_urls_are_parsed_after_decoding() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><linearGradient id=\"g\"/>",
+            "<rect fill=\"url(&quot;#g&quot;) red\" clip-path=\"url(#g)\" mask=\"url(#&#x67;)\"/>",
+            "<rect stroke=\"url('#g')\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(
+            spans,
+            vec!["g", "g", "g", "&#x67;", "g"],
+            "{occurrences:#?}"
+        );
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("g".into()), "h")?;
+        assert_eq!(edits.len(), 5);
         Ok(())
     }
 
