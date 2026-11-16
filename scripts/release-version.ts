@@ -3,8 +3,22 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { carriers, workspaceVersion } from '../.github/actions/version-check/carriers.mjs';
 
+// SemVer 2.0.0 grammar (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string).
+const numeric = String.raw`0|[1-9]\d*`;
+const prereleaseId = String.raw`${numeric}|\d*[A-Za-z-][0-9A-Za-z-]*`;
+const buildId = String.raw`[0-9A-Za-z-]+`;
+const semver = new RegExp(
+	String.raw`^(?:${numeric})\.(?:${numeric})\.(?:${numeric})`
+		+ String.raw`(?:-(?:${prereleaseId})(?:\.(?:${prereleaseId}))*)?`
+		+ String.raw`(?:\+${buildId}(?:\.${buildId})*)?$`,
+);
+
+export function isSemanticVersion(version: string): boolean {
+	return semver.test(version);
+}
+
 export async function versionEdits(version: string): Promise<Map<string, string>> {
-	if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error('Expected a semantic version');
+	if (!isSemanticVersion(version)) throw new Error('Expected a semantic version');
 	const files = new Map<string, string>();
 	const cargo = await readFile('Cargo.toml', 'utf8');
 	workspaceVersion(cargo);
