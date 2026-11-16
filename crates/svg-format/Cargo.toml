@@ -12,9 +12,10 @@ keywords               = ["format", "pretty-print", "svg", "tree-sitter"]
 categories             = ["development-tools", "text-editors"]
 include                = ["/README.md", "/src/*", "/tests/*", "/examples/*"]
 
-[features]
-default = ["cli"]
-cli     = ["clap"]
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/svg-v{ version }-{ target }{ archive-suffix }"
+pkg-fmt = "tgz"
+bin-dir = "{ bin }{ binary-ext }"
 
 [lib]
 name = "svg_format"
@@ -35,6 +36,10 @@ tree-sitter-svg-path.workspace = true
 workspace = true
 features  = ["derive"]
 optional  = true
+
+[features]
+default = ["cli"]
+cli     = ["clap"]
 
 [lints]
 workspace = true
