@@ -42,6 +42,14 @@ OPTIONAL_PLATFORMS=()
 [[ -n "${optional_list}" ]] && mapfile -t OPTIONAL_PLATFORMS <<<"${optional_list}"
 EXPECTED_VERSION="${RELEASE_TAG#v}"
 
+if [[ -n "${ONLY_PACKAGE}" ]]; then
+	if [[ " ${REQUIRED_PLATFORMS[*]} ${OPTIONAL_PLATFORMS[*]} " == *" ${ONLY_PACKAGE} "* ]]; then
+		echo "package-name=${SCOPE}/${ONLY_PACKAGE}" >>"${GITHUB_OUTPUT}"
+	else
+		echo "package-name=${ONLY_PACKAGE}" >>"${GITHUB_OUTPUT}"
+	fi
+fi
+
 # dist/ directory for a package name, npm-pack style: strip the scope's "@",
 # "/" becomes "-" ("@svg-toolkit/svg-lint" -> "svg-toolkit-svg-lint").
 dir_for() {
@@ -62,6 +70,7 @@ publish_allowed() {
 			exit 1
 		fi
 		echo "skip ${expected_name}: not in artifact (optional / experimental platform)"
+		echo "skipped=true" >>"${GITHUB_OUTPUT}"
 		return 0
 	fi
 	if [[ ! -f "${dir}/package.json" ]]; then

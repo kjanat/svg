@@ -53,7 +53,7 @@ jobs:
         with: { bun-version-file: package.json }
       - uses: taiki-e/install-action@v2
         with: { tool: "just,tombi,rust+rustfmt" }
-      - uses: mlugg/setup-zig@v2
+      - uses: kjanat/setup-zig@v3.0.0
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
       - uses: kjanat/dprint-check@v3

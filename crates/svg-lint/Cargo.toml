@@ -13,9 +13,10 @@ keywords               = ["diagnostics", "lint", "svg", "validation"]
 categories             = ["development-tools"]
 include                = ["/README.md", "/src/*", "/tests/*"]
 
-[features]
-default = ["cli"]
-cli     = ["clap", "serde_json"]
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/svg-v{ version }-{ target }{ archive-suffix }"
+pkg-fmt = "tgz"
+bin-dir = "{ bin }{ binary-ext }"
 
 [lib]
 name = "svg_lint"
@@ -45,6 +46,10 @@ optional  = true
 
 [dev-dependencies]
 serde_json.workspace = true
+
+[features]
+default = ["cli"]
+cli     = ["clap", "serde_json"]
 
 [lints]
 workspace = true

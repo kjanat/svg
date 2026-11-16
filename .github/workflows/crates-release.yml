@@ -52,7 +52,7 @@ jobs:
           import runpy
 
           runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
@@ -128,7 +128,7 @@ jobs:
           import runpy
 
           runpy.run_path(".github/actions/crates-verify/identities.py", run_name="__main__")
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with: { toolchain: "${{ steps.identity.outputs.toolchain }}" }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with: { workspaces: source }
@@ -146,6 +146,7 @@ jobs:
           aliases: '["crates-io"]'
 
       - name: cargo publish
+        id: publish
         uses: ./.github/actions/crates-publish
         with:
           crate: ${{ matrix.crate }}
@@ -155,3 +156,18 @@ jobs:
           proof-dir: ${{ runner.temp }}/verified-crates
           tag: ${{ env.RELEASE_TAG }}
           helper-sha: ${{ needs.setup.outputs.helper_sha }}
+
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: kjanat/beepboop/actions/report@v1
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          publications: |
+            [{
+              "id": "cargo:${{ matrix.crate }}",
+              "manager": "cargo",
+              "name": "${{ matrix.crate }}",
+              "version": "${{ needs.setup.outputs.version }}",
+              "required": true,
+              "outcome": "${{ steps.publish.outcome == 'success' && 'succeeded' || 'failed' }}"
+            }]

@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "${{ github.sha }}", persist-credentials: false }
-      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with: { tool: rust+clippy }
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
@@ -147,12 +147,12 @@ jobs:
 
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
-        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
       - name: install nightly rust (tier-3 build-std)
         if: matrix.build-tool == 'cargo-build-std'
-        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
+        uses: dtolnay/rust-toolchain@6a52aad76a94a5fbc50d567bb5be24419801c1fb # nightly
         with: { toolchain: nightly, components: rust-src }
 
       # Tier-2/3 cross targets: installs the cross C toolchain and exports
