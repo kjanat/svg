@@ -228,15 +228,28 @@ Pinned recovery: feMergeNode outside feMerge
   (text))
 
 ================================================================================
-Pinned recovery: functional IRI rejects paint-server fallback color
-:error
+Functional IRI with a trailing color is an opaque CSS value
 ================================================================================
 
 <svg><rect clip-path="url(#clip) red"/></svg>
 
 --------------------------------------------------------------------------------
 
-
+(source_file
+  (text)
+  root: (svg_root_element
+    (start_tag
+      name: (name))
+    (element
+      (self_closing_tag
+        name: (name)
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))))
+    (end_tag
+      name: (name)))
+  (text))
 
 ================================================================================
 Pinned recovery: light source outside lighting primitive

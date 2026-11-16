@@ -1121,7 +1121,8 @@ mod tests {
         let source = concat!(
             "<svg><style>:root { --c: red } rect { stroke: V\\61 r(--c); filter: u\\72l(#g) \
              }</style>",
-            "<filter id=\"g\"/><rect fill=\"v\\61 r(--c)\" stroke=\"\\75 rl(#g)\"/></svg>",
+            "<filter id=\"g\"/><rect fill=\"v\\61 r(--c)\" stroke=\"\\75 rl(#g)\" mask=\"\\75 \
+             rl(#g)\" clip-path=\"circle(50%)\"/></svg>",
         );
         let tree = parse_svg(source)?;
         let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
@@ -1138,7 +1139,7 @@ mod tests {
         );
         assert_eq!(
             spans(&DefinitionTarget::Id("g".into())),
-            ["g", "g", "g"],
+            ["g", "g", "g", "g"],
             "{occurrences:#?}"
         );
         let edits = rename_edits(

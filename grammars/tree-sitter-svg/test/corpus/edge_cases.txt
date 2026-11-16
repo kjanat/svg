@@ -1709,6 +1709,98 @@ Functional IRI none keyword
   (text))
 
 ==================
+Functional IRI attributes with CSS values
+==================
+
+<svg><rect clip-path="circle(50%)" filter="blur(2px) url(#f)" mask="url(#m) no-repeat" stroke="\75 rl(#g)" cursor='url(c.cur) 2 3, pointer' marker-end="\75 rl(#e)"/></svg>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (start_tag
+      name: (name))
+    (element
+      (self_closing_tag
+        name: (name)
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))
+        (paint_attribute
+          name: (paint_attribute_name)
+          value: (paint_attribute_value
+            (paint_payload)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (css_value)))))
+    (end_tag
+      name: (name)))
+  (text))
+
+==================
+Functional IRI attributes keep url, IRI and none structure
+==================
+
+<svg><rect mask="url( #a #b )" filter='url(#f)' clip-path="#c" cursor="pointer" marker-start='none' marker-mid=""/></svg>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (start_tag
+      name: (name))
+    (element
+      (self_closing_tag
+        name: (name)
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (functional_iri
+              (wsp)
+              (iri_reference)
+              (wsp)
+              (iri_reference)
+              (wsp))))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (functional_iri
+              (iri_reference))))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (iri_reference)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value
+            (iri_reference)))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value))
+        (functional_iri_attribute
+          name: (functional_iri_attribute_name)
+          value: (functional_iri_attribute_value))))
+    (end_tag
+      name: (name)))
+  (text))
+
+==================
 Multiple functional IRI attributes on one element
 ==================
 

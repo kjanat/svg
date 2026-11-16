@@ -21,6 +21,8 @@ enum TokenType {
   RAW_TEXT,
   SELF_CLOSING_TAG_DELIMITER,
   CDATA_TEXT,
+  FUNCTIONAL_IRI_CSS_DOUBLE,
+  FUNCTIONAL_IRI_CSS_SINGLE,
 };
 
 typedef Array(char) String;
@@ -343,6 +345,71 @@ static bool scan_cdata_text(TSLexer *lexer) {
   return true;
 }
 
+typedef Array(int32_t) CodePoints;
+
+static inline bool is_iri_char(int32_t c) {
+  return c != ')' && c != '"' && c != '\'' && c != '\f' && c != '\v' && !is_wsp(c);
+}
+
+// Mirrors `functional_iri_attribute_value`'s structured arms: `none`,
+// `url(` wsp? iri (wsp iri)* wsp? `)`, or one bare `iri_reference`.
+static bool is_structured_functional_iri(const CodePoints *content) {
+  const int32_t *c = content->contents;
+  uint32_t n = content->size;
+
+  if (n == 4 && c[0] == 'n' && c[1] == 'o' && c[2] == 'n' && c[3] == 'e') {
+    return true;
+  }
+
+  if (n >= 4 && c[0] == 'u' && c[1] == 'r' && c[2] == 'l' && c[3] == '(') {
+    uint32_t i = 4;
+    uint32_t iris = 0;
+    while (i < n && is_wsp(c[i])) {
+      i++;
+    }
+    while (i < n && is_iri_char(c[i])) {
+      while (i < n && is_iri_char(c[i])) {
+        i++;
+      }
+      iris++;
+      while (i < n && is_wsp(c[i])) {
+        i++;
+      }
+    }
+    return iris > 0 && i + 1 == n && c[i] == ')';
+  }
+
+  for (uint32_t i = 0; i < n; i++) {
+    if (!is_iri_char(c[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool scan_functional_iri_css(TSLexer *lexer, int32_t quote, enum TokenType symbol) {
+  CodePoints content = array_new();
+
+  while (lexer->lookahead != quote) {
+    if (lexer->lookahead == '<' || lexer->eof(lexer)) {
+      array_delete(&content);
+      return false;
+    }
+    array_push(&content, lexer->lookahead);
+    advance(lexer);
+  }
+
+  bool css = content.size > 0 && !is_structured_functional_iri(&content);
+  array_delete(&content);
+  if (!css) {
+    return false;
+  }
+
+  lexer->mark_end(lexer);
+  lexer->result_symbol = symbol;
+  return true;
+}
+
 static bool scan_self_closing_tag_delimiter(TagStack *tags, TSLexer *lexer) {
   if (lexer->lookahead != '/') {
     return false;
@@ -477,6 +544,14 @@ bool tree_sitter_svg_external_scanner_scan(void *payload, TSLexer *lexer, const 
   // Guard against error recovery (all valid_symbols true).
   if (valid_symbols[CDATA_TEXT] && !valid_symbols[START_TAG_NAME] && !valid_symbols[END_TAG_NAME]) {
     return scan_cdata_text(lexer);
+  }
+
+  bool in_tag = !valid_symbols[START_TAG_NAME] && !valid_symbols[END_TAG_NAME];
+  if (in_tag && valid_symbols[FUNCTIONAL_IRI_CSS_DOUBLE]) {
+    return scan_functional_iri_css(lexer, '"', FUNCTIONAL_IRI_CSS_DOUBLE);
+  }
+  if (in_tag && valid_symbols[FUNCTIONAL_IRI_CSS_SINGLE]) {
+    return scan_functional_iri_css(lexer, '\'', FUNCTIONAL_IRI_CSS_SINGLE);
   }
 
   if (valid_symbols[SELF_CLOSING_TAG_DELIMITER] && lexer->lookahead == '/') {

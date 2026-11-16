@@ -3125,6 +3125,15 @@
                     {
                       "type": "SYMBOL",
                       "name": "iri_reference"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_functional_iri_css_double"
+                      },
+                      "named": true,
+                      "value": "css_value"
                     }
                   ]
                 },
@@ -3163,6 +3172,15 @@
                     {
                       "type": "SYMBOL",
                       "name": "iri_reference"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_functional_iri_css_single"
+                      },
+                      "named": true,
+                      "value": "css_value"
                     }
                   ]
                 },
@@ -7853,6 +7871,14 @@
     {
       "type": "SYMBOL",
       "name": "_cdata_text"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_functional_iri_css_double"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_functional_iri_css_single"
     }
   ],
   "inline": [

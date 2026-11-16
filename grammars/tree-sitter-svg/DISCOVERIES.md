@@ -268,6 +268,14 @@ Gotchas hit:
 
 ## Architecture: Parse Structure Not Schema
 
+- `clip-path`, `mask`, `filter` and `cursor` take CSS values beyond `url()`
+  (`circle(50%)`, `blur(2px)`, `url(#m) no-repeat`, an escaped `\75 rl(#m)`). A
+  lexical fallback token cannot win: `iri_reference` is `prec(-1)` and the lexer
+  stops at the higher-precedence match, so `blur(2px)` lexes as the IRI
+  `blur(2px` and `url(#m) no-repeat` stops after `url(`. The external scanner
+  reads the whole quoted value instead and emits `css_value` unless it is
+  `none`, one `url(…)` or a bare IRI, so those keep their structured tree.
+
 - Encoding SVG element categories × attribute combinations in the grammar causes
   LR state explosion (458 rules → 102K-line parser.c); collapsing to 5 element
   types + 14 typed attributes → 120 rules, 21K-line parser.c (79% reduction)
