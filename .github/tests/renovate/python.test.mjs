@@ -13,9 +13,12 @@ import { extractPackageFile as pepExtract } from './node_modules/renovate/dist/m
 import { extractPackageFile as pyenvExtract } from './node_modules/renovate/dist/modules/manager/pyenv/extract.js';
 import { api as pep440 } from './node_modules/renovate/dist/modules/versioning/pep440/index.js';
 import { api as python } from './node_modules/renovate/dist/modules/versioning/python/index.js';
+import { setCustomEnv } from './node_modules/renovate/dist/util/env.js';
 import { applyPackageRules } from './node_modules/renovate/dist/util/package-rules/index.js';
 import { doAutoReplace } from './node_modules/renovate/dist/workers/repository/update/branch/auto-replace.js';
 await init();
+// Renovate passes only an allowlisted environment to `uv lock`; without this it ignores the warmed cache.
+if (process.env.UV_CACHE_DIR) setCustomEnv({ UV_CACHE_DIR: process.env.UV_CACHE_DIR });
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const scratch = await mkdtemp(join(tmpdir(), 'svg-python-renovate-'));
 const current = (await readFile(join(root, '.python-version'), 'utf8')).trim();
@@ -101,7 +104,7 @@ for (const release of [`${major}.${minor + 1}.2`, `${major + 1}.0.1`, `${major}.
 	});
 }
 
-test('native package minimum updates regenerate the workspace uv lockfile', async () => {
+test('native package minimum updates regenerate the workspace uv lockfile', { timeout: 120_000 }, async () => {
 	const localDir = join(scratch, 'lockfile');
 	GlobalConfig.set({ localDir, cacheDir: join(scratch, 'cache'), platform: 'github', binarySource: 'global', executionTimeout: 5 });
 	for (const file of [...files, 'uv.lock']) {
