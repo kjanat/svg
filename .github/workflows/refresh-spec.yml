@@ -7,7 +7,7 @@ env: { ISSUE_LABEL: svgwg-drift, ISSUE_TITLE: "spec-data is stale - upstream sou
 defaults: { run: { shell: pwsh } }
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     outputs:
       sentinel_exit: ${{ steps.sentinel.outputs.exit_code }}
@@ -217,7 +217,7 @@ jobs:
   mutate:
     needs: check
     if: needs.check.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions: { contents: read, id-token: write }
     env:
@@ -469,7 +469,7 @@ jobs:
   report:
     needs: [check, mutate]
     if: failure()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: { contents: read, id-token: write }
     steps:

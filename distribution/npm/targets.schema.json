@@ -171,10 +171,11 @@
 				"runner": {
 					"description": "Hosted/self-hosted runner labels.",
 					"examples": [
-						"ubuntu-latest",
-						"macos-latest",
-						"macos-15-intel",
-						"windows-latest",
+						"ubuntu-26.04",
+						"ubuntu-26.04-arm",
+						"macos-26",
+						"macos-26-intel",
+						"windows-2025",
 						"windows-11-arm"
 					],
 					"type": "string",
@@ -192,6 +193,14 @@
 							"pattern": "^node:[0-9]+-alpine$"
 						},
 						"runner": {
+							"examples": [
+								"ubuntu-26.04",
+								"ubuntu-26.04-arm",
+								"macos-26",
+								"macos-26-intel",
+								"windows-2025",
+								"windows-11-arm"
+							],
 							"type": "string",
 							"minLength": 1
 						}

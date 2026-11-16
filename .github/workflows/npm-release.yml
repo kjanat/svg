@@ -43,7 +43,7 @@ env:
 jobs:
   setup:
     name: verify dist
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: startsWith(inputs.tag, 'v')
     permissions: { contents: read, actions: read }
     outputs:
@@ -105,7 +105,7 @@ jobs:
   beepboop:
     name: register publisher operation
     needs: [setup, runtime-smoke]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write }
     outputs:
       execution-id: ${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}
@@ -131,7 +131,7 @@ jobs:
     name: publish ${{ matrix.pkg }}
     needs: [setup, runtime-smoke, beepboop]
     if: needs.setup.outputs.grammars != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.grammars) }}" } }
@@ -187,7 +187,7 @@ jobs:
   scoped:
     name: publish ${{ matrix.pkg }}
     needs: [setup, runtime-smoke, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.platforms) }}" } }
@@ -244,7 +244,7 @@ jobs:
   facades:
     name: publish ${{ matrix.pkg }}
     needs: [setup, scoped, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.facades) }}" } }
@@ -301,7 +301,7 @@ jobs:
     name: publish ${{ matrix.pkg }}
     needs: [setup, facades, beepboop]
     if: needs.setup.outputs.shims != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
     strategy: { fail-fast: false, matrix: { include: "${{ fromJSON(needs.setup.outputs.shims) }}" } }
@@ -362,7 +362,7 @@ jobs:
       !cancelled() && needs.setup.outputs.bundle != '' &&
       needs.facades.result == 'success' &&
       contains(fromJSON('["success", "skipped"]'), needs.shims.result)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write, actions: read }
     environment: { name: npm, url: "${{ steps.publish.outputs.package-url }}" }
     steps:

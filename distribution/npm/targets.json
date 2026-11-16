@@ -55,11 +55,11 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 1,
 			"runtime": {
-				"runner": "ubuntu-latest"
+				"runner": "ubuntu-26.04"
 			}
 		},
 		{
@@ -74,11 +74,11 @@
 			"libc": [
 				"musl"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 1,
 			"runtime": {
-				"runner": "ubuntu-latest",
+				"runner": "ubuntu-26.04",
 				"container": "node:26-alpine"
 			}
 		},
@@ -94,11 +94,11 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 1,
 			"runtime": {
-				"runner": "ubuntu-24.04-arm"
+				"runner": "ubuntu-26.04-arm"
 			}
 		},
 		{
@@ -113,11 +113,11 @@
 			"libc": [
 				"musl"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 1,
 			"runtime": {
-				"runner": "ubuntu-24.04-arm",
+				"runner": "ubuntu-26.04-arm",
 				"container": "node:26-alpine"
 			}
 		},
@@ -130,11 +130,11 @@
 			"cpu": [
 				"x64"
 			],
-			"runner": "macos-15-intel",
+			"runner": "macos-26-intel",
 			"build": "cargo",
 			"tier": 1,
 			"runtime": {
-				"runner": "macos-15-intel"
+				"runner": "macos-26-intel"
 			}
 		},
 		{
@@ -146,11 +146,11 @@
 			"cpu": [
 				"arm64"
 			],
-			"runner": "macos-latest",
+			"runner": "macos-26",
 			"build": "cargo",
 			"tier": 1,
 			"runtime": {
-				"runner": "macos-latest"
+				"runner": "macos-26"
 			}
 		},
 		{
@@ -162,11 +162,11 @@
 			"cpu": [
 				"x64"
 			],
-			"runner": "windows-latest",
+			"runner": "windows-2025",
 			"build": "cargo",
 			"tier": 1,
 			"runtime": {
-				"runner": "windows-latest"
+				"runner": "windows-2025"
 			}
 		},
 		{
@@ -197,7 +197,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -213,7 +213,7 @@
 			"libc": [
 				"musl"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -229,7 +229,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -245,7 +245,7 @@
 			"libc": [
 				"musl"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -258,7 +258,7 @@
 			"cpu": [
 				"ia32"
 			],
-			"runner": "windows-latest",
+			"runner": "windows-2025",
 			"build": "cargo",
 			"tier": 2
 		},
@@ -274,7 +274,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -290,7 +290,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -306,7 +306,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -319,7 +319,7 @@
 			"cpu": [
 				"x64"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cross",
 			"tier": 2
 		},
@@ -332,7 +332,7 @@
 			"cpu": [
 				"arm64"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cargo-build-std",
 			"tier": 3,
 			"experimental": true
@@ -346,7 +346,7 @@
 			"cpu": [
 				"x64"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cargo-cross-toolchain",
 			"tier": 3,
 			"experimental": true
@@ -363,7 +363,7 @@
 			"libc": [
 				"glibc"
 			],
-			"runner": "ubuntu-latest",
+			"runner": "ubuntu-26.04",
 			"build": "cargo-cross-toolchain",
 			"tier": 3,
 			"experimental": true
