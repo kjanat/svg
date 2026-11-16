@@ -11,7 +11,7 @@ concurrency: { group: "runtime-smoke-${{ github.ref }}", cancel-in-progress: tru
 jobs:
   package:
     name: package published archives for smoke validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     outputs: { tag: "${{ steps.release.outputs.tag }}" }
     steps:

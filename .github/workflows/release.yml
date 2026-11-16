@@ -36,7 +36,7 @@ jobs:
   verify:
     needs: beepboop
     name: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,7 +48,7 @@ jobs:
 
   beepboop:
     name: register approved release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write }
     outputs:
       execution-id: ${{ steps.begin.outputs.execution-id }}
@@ -76,7 +76,7 @@ jobs:
   create-release:
     name: create draft release
     needs: [verify, version-check, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write }
     steps:
       - uses: kjanat/beepboop/actions/token@v1
@@ -110,7 +110,7 @@ jobs:
   matrix:
     name: build matrix
     needs: [verify, version-check, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read }
     outputs: { include: "${{ steps.gen.outputs.include }}" }
     steps:
@@ -206,7 +206,7 @@ jobs:
   build-dist:
     name: build dist
     needs: [build-and-upload, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions: { contents: read, id-token: write }
     env: { RELEASE_TAG: "${{ needs.beepboop.outputs.tag }}" }
@@ -256,7 +256,7 @@ jobs:
   publish-release:
     name: publish github release
     needs: [build-dist, runtime-smoke, beepboop]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: { contents: read, id-token: write }
     env: { RELEASE_TAG: "${{ needs.beepboop.outputs.tag }}" }
     steps:
