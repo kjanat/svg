@@ -18,10 +18,40 @@ test('workflow preparation updates every version carrier without tags or commits
 });
 
 test('semantic version guard follows SemVer 2.0.0', () => {
-	for (const valid of ['0.0.0', '1.2.3', '10.20.30', '1.2.3-rc.1', '1.2.3-0', '1.2.3-alpha.0.beta', '1.2.3-x-y.7z', '1.2.3+build.5', '1.2.3-rc.1+build.5', '1.2.3+001', '1.2.3-0a']) {
+	for (const valid of [
+		'0.0.0',
+		'1.2.3',
+		'10.20.30',
+		'1.2.3-rc.1',
+		'1.2.3-0',
+		'1.2.3-alpha.0.beta',
+		'1.2.3-x-y.7z',
+		'1.2.3+build.5',
+		'1.2.3-rc.1+build.5',
+		'1.2.3+001',
+		'1.2.3-0a',
+	]) {
 		expect(isSemanticVersion(valid)).toBe(true);
 	}
-	for (const invalid of ['', '1.2', '1.2.3.4', 'v1.2.3', '01.2.3', '1.02.3', '1.2.03', '1.2.3-', '1.2.3-..', '1.2.3-rc..1', '1.2.3-01', '1.2.3-rc.01', '1.2.3+', '1.2.3+a..b', '1.2.3-rc_1', '1.2.3\n', ' 1.2.3']) {
+	for (const invalid of [
+		'',
+		'1.2',
+		'1.2.3.4',
+		'v1.2.3',
+		'01.2.3',
+		'1.02.3',
+		'1.2.03',
+		'1.2.3-',
+		'1.2.3-..',
+		'1.2.3-rc..1',
+		'1.2.3-01',
+		'1.2.3-rc.01',
+		'1.2.3+',
+		'1.2.3+a..b',
+		'1.2.3-rc_1',
+		'1.2.3\n',
+		' 1.2.3',
+	]) {
 		expect(isSemanticVersion(invalid)).toBe(false);
 	}
 });
