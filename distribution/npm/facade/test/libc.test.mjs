@@ -179,6 +179,10 @@ test(`${LIBC_ENV} accepts gnu and reports values it cannot use`, () => {
 	assert.deepEqual(libcOverride({ [LIBC_ENV]: 'gnu' }), { kind: 'set', libc: 'glibc' });
 	assert.deepEqual(libcOverride({ [LIBC_ENV]: ' Musl ' }), { kind: 'set', libc: 'musl' });
 	assert.deepEqual(libcOverride({ [LIBC_ENV]: 'uclibc' }), { kind: 'invalid', value: 'uclibc' });
+	for (const inherited of ['constructor', '__proto__', 'toString']) {
+		assert.deepEqual(libcOverride({ [LIBC_ENV]: inherited }), { kind: 'invalid', value: inherited });
+		assert.equal(detect({ env: { [LIBC_ENV]: inherited } }), null, inherited);
+	}
 	assert.deepEqual(libcOverride({}), { kind: 'unset' });
 	assert.equal(detect({ env: { [LIBC_ENV]: 'gnu' } }), 'glibc');
 });

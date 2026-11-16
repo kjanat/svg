@@ -51,8 +51,8 @@ const LIBC_NAMES = { glibc: 'glibc', gnu: 'glibc', musl: 'musl' };
 export function libcOverride(env = process.env) {
 	const value = env[LIBC_ENV]?.trim();
 	if (!value) return { kind: 'unset' };
-	const libc = LIBC_NAMES[value.toLowerCase()];
-	return libc ? { kind: 'set', libc } : { kind: 'invalid', value };
+	const name = value.toLowerCase();
+	return Object.hasOwn(LIBC_NAMES, name) ? { kind: 'set', libc: LIBC_NAMES[name] } : { kind: 'invalid', value };
 }
 
 /**
