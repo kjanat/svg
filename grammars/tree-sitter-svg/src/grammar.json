@@ -3203,6 +3203,22 @@
           "name": "iri_reference"
         },
         {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "wsp"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "iri_reference"
+              }
+            ]
+          }
+        },
+        {
           "type": "CHOICE",
           "members": [
             {

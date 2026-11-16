@@ -767,7 +767,15 @@ export default grammar({
 
 		functional_iri_attribute_value: $ => quoted(choice('none', $.functional_iri, $.iri_reference)),
 
-		functional_iri: $ => seq('url(', optional($.wsp), $.iri_reference, optional($.wsp), RPAREN),
+		functional_iri: $ =>
+			seq(
+				'url(',
+				optional($.wsp),
+				$.iri_reference,
+				repeat(seq($.wsp, $.iri_reference)),
+				optional($.wsp),
+				RPAREN,
+			),
 
 		// clip attribute (deprecated, rect() function)
 

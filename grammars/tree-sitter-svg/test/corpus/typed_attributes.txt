@@ -293,6 +293,28 @@ Paint values with references and the other quote
   (text))
 
 ==================
+Functional IRI with an escape terminated by a space
+==================
+
+<svg clip-path="url(#gr\61 d)"/>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (self_closing_tag
+      name: (name)
+      (functional_iri_attribute
+        name: (functional_iri_attribute_name)
+        value: (functional_iri_attribute_value
+          (functional_iri
+            (iri_reference)
+            (wsp)
+            (iri_reference))))))
+  (text))
+
+==================
 Opacity and stroke dasharray
 ==================
 
