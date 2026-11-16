@@ -239,15 +239,32 @@ pub fn xml_escape_attribute(text: &str) -> String {
     out
 }
 
-pub fn fragment_start(reference: &str) -> Option<usize> {
-    if reference.starts_with('#') {
+pub fn css_fragment_start(text: &str) -> Option<usize> {
+    if text.starts_with('#') {
         return Some(1);
     }
-    let (decoded, offsets) = xml_unescape_mapped(reference);
-    if !decoded.starts_with('#') {
-        return None;
+    let rest = text.strip_prefix('\\')?;
+    let hex = rest
+        .bytes()
+        .take(6)
+        .take_while(u8::is_ascii_hexdigit)
+        .count();
+    if hex == 0 {
+        return rest.starts_with('#').then_some(2);
     }
-    offsets.map_or(Some(1), |offsets| offsets.get(1).copied())
+    let end = 1 + hex;
+    (u32::from_str_radix(&rest[..hex], 16).ok()? == 0x23)
+        .then(|| end + usize::from(text[end..].starts_with(|ch: char| ch.is_ascii_whitespace())))
+}
+
+pub fn fragment_start(reference: &str, css: bool) -> Option<usize> {
+    let (decoded, offsets) = xml_unescape_mapped(reference);
+    let skip = if css {
+        css_fragment_start(&decoded)?
+    } else {
+        decoded.starts_with('#').then_some(1)?
+    };
+    offsets.map_or(Some(skip), |offsets| offsets.get(skip).copied())
 }
 
 pub fn fragment_id(fragment: &str, css: bool) -> String {
@@ -443,6 +460,19 @@ mod tests {
         assert_eq!(percent_decode("a%2"), "a%2");
         assert_eq!(percent_decode("a%zzb"), "a%zzb");
         assert_eq!(percent_decode("%FF"), "%FF");
+    }
+
+    #[test]
+    fn fragment_starts_follow_xml_and_css_escapes() {
+        assert_eq!(css_fragment_start("#g"), Some(1));
+        assert_eq!(css_fragment_start("\\23 g"), Some(4));
+        assert_eq!(css_fragment_start("\\000023g"), Some(7));
+        assert_eq!(css_fragment_start("\\#g"), Some(2));
+        assert_eq!(css_fragment_start("\\24 g"), None);
+        assert_eq!(css_fragment_start("g"), None);
+        assert_eq!(fragment_start("&#35;g", false), Some(5));
+        assert_eq!(fragment_start("\\23 g", false), None);
+        assert_eq!(fragment_start("&#92;23 g", true), Some(8));
     }
 
     #[test]

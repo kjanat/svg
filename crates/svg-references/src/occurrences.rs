@@ -6,9 +6,9 @@ use tree_sitter::{Parser, Point, Tree};
 use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
-        CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_unescape,
-        fragment_id, fragment_start, is_xml_name, is_xml_whitespace, node_span, rebase_point,
-        span_between, strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape,
+        CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_fragment_start,
+        css_unescape, fragment_id, fragment_start, is_xml_name, is_xml_whitespace, node_span,
+        rebase_point, span_between, strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape,
         xml_unescape_mapped,
     },
 };
@@ -339,7 +339,7 @@ fn local_iri_occurrence(
     css: bool,
 ) -> Option<SymbolOccurrence> {
     let reference = node.utf8_text(text).ok()?;
-    let skip = fragment_start(reference)?;
+    let skip = fragment_start(reference, css)?;
     let name = reference.get(skip..).filter(|name| !name.is_empty())?;
     let start = node.start_position();
     Some(markup_occurrence(
@@ -748,8 +748,9 @@ fn call_occurrence(
         && function.eq_ignore_ascii_case("url")
         && let Some((start, end)) = url_argument_range(fragment, arguments)
         && let Some(fragment_text) = fragment.text.get(start..end)
-        && let Some(name) = fragment_text.strip_prefix('#').filter(|n| !n.is_empty())
-        && let Some((source_start, source_end, span)) = fragment.source_range(start + 1, end)
+        && let Some(skip) = css_fragment_start(fragment_text)
+        && let Some(name) = fragment_text.get(skip..).filter(|n| !n.is_empty())
+        && let Some((source_start, source_end, span)) = fragment.source_range(start + skip, end)
     {
         out.push(SymbolOccurrence {
             target: DefinitionTarget::Id(css_fragment_id(name)),
@@ -1279,6 +1280,22 @@ mod tests {
             crate::definition_target_at(source.as_bytes(), &tree, offset),
             Some(DefinitionTarget::Id("g".into()))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn css_escaped_url_delimiters_name_local_ids() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><linearGradient id=\"g\"/><style>rect { fill: url('\\23 g') }</style>",
+            "<rect stroke=\"url(\\#g)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(spans, vec!["g", "g", "g"]);
         Ok(())
     }
 

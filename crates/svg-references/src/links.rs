@@ -111,7 +111,7 @@ fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
 #[must_use]
 pub fn local_fragment_id(iri: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let reference = iri.utf8_text(source).ok()?;
-    let fragment = reference.get(fragment_start(reference)?..)?;
+    let fragment = reference.get(fragment_start(reference, is_css_iri(iri))?..)?;
     fragment_is_local(iri, source).then(|| fragment_id(fragment, is_css_iri(iri)))
 }
 
