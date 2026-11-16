@@ -16,16 +16,27 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
-### Added
-
-- Tag each published crate and the `@kjanat/svg-toolkit` npm bundle on the
-  release commit, such as `svg-data-v0.5.0` beside `v0.5.0`, through Beepboop
-  `packageTags`.
-
 ### Fixed
 
-- Fall back to generated release notes when a release has no matching
-  changelog section.
+- Stop printing the libc warning from the npm launcher on macOS, Windows and
+  the BSDs. On Linux it warns only when both libc builds for the host's CPU are
+  installed and the host libc cannot be identified.
+- Run only the npm build for the host's OS and CPU. Packages for other
+  platforms in `node_modules`, such as those pnpm `supportedArchitectures` or a
+  copied install leaves behind, are never chosen, so Apple silicon Macs and
+  Windows on Arm no longer run the x64 build.
+- Stop the binary when the npm launcher stops. The launcher passes on `SIGINT`,
+  `SIGTERM`, `SIGHUP`, `SIGQUIT` and `SIGUSR2`, and a binary killed by
+  `SIGPIPE` or `SIGUSR1` ends the launcher with exit code 128 + N instead of 0.
+- Explain launcher failures accurately: list the published builds on a
+  platform that has none, name only the installed glibc builds and their musl
+  counterparts on a musl host, report a binary that lost its executable bit,
+  and refuse ARM hosts whose Node reports an ARM version before 7 or a
+  soft-float ABI.
+- Accept `SVG_LIBC=gnu` as glibc and report any other unknown value.
+- Detect musl on 64-bit little-endian POWER.
+- Mark the npm platform packages `preferUnplugged`, so Yarn PnP unpacks the
+  binaries.
 
 ## [0.5.0] - 2026-11-16
 
@@ -43,6 +54,9 @@ When bumping the workspace version after a catalog refresh:
   highlight tokens and id-reference targets in `svg-references`.
 - Install `svg-language-server`, `svg-lint` and `svg-format` with
   `cargo binstall` from the release archives.
+- Tag each published crate and the `@kjanat/svg-toolkit` npm bundle on the
+  release commit, such as `svg-data-v0.5.0` beside `v0.5.0`, through Beepboop
+  `packageTags`.
 
 ### Changed
 
@@ -73,6 +87,8 @@ When bumping the workspace version after a catalog refresh:
   lists, and `[id]`/`[class]` attribute selectors.
 - Validate release versions against the SemVer 2.0.0 grammar, including
   combined prerelease and build metadata in Maven carriers.
+- Fall back to generated release notes when a release has no matching
+  changelog section.
 
 ## [0.4.0] - 2026-11-15
 
