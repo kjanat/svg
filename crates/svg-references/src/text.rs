@@ -11,8 +11,22 @@ pub struct CssFragment {
     base_byte: usize,
     base_point: Point,
     pub xml_escaped: bool,
-    source: String,
     offsets: Option<Vec<usize>>,
+    text_lines: Vec<usize>,
+    source_lines: Vec<usize>,
+}
+
+fn line_starts(text: &str) -> Vec<usize> {
+    std::iter::once(0)
+        .chain(text.match_indices('\n').map(|(index, _)| index + 1))
+        .collect()
+}
+
+fn point_in(lines: &[usize], offset: usize) -> Point {
+    let row = lines
+        .partition_point(|&start| start <= offset)
+        .saturating_sub(1);
+    Point::new(row, offset - lines.get(row).copied().unwrap_or_default())
 }
 
 impl CssFragment {
@@ -49,12 +63,17 @@ impl CssFragment {
         let text = [prefix, &decoded, suffix].concat();
         Some(Self {
             tree: css_tree(&text)?,
+            text_lines: line_starts(&text),
+            source_lines: if offsets.is_some() {
+                line_starts(content)
+            } else {
+                Vec::new()
+            },
             text,
             prefix: prefix.len(),
             base_byte,
             base_point,
             xml_escaped,
-            source: content.to_owned(),
             offsets,
         })
     }
@@ -84,9 +103,9 @@ impl CssFragment {
     pub fn source_point(&self, inner_byte: usize, inner: Point) -> Option<Point> {
         if self.offsets.is_some() {
             let offset = self.source_offset(inner_byte)?;
-            return Some(advance_point(
+            return Some(rebase_point(
                 self.base_point,
-                self.source.as_bytes().get(..offset)?,
+                point_in(&self.source_lines, offset),
             ));
         }
         if inner.row == 0 {
@@ -100,9 +119,11 @@ impl CssFragment {
     }
 
     pub fn source_range(&self, start: usize, end: usize) -> Option<(usize, usize, Span)> {
-        let text = self.text.as_bytes();
-        let start_point = advance_point(Point::new(0, 0), text.get(..start)?);
-        let end_point = advance_point(start_point, text.get(start..end)?);
+        if start > end || end > self.text.len() {
+            return None;
+        }
+        let start_point = point_in(&self.text_lines, start);
+        let end_point = point_in(&self.text_lines, end);
         let source_start = self.source_point(start, start_point)?;
         let source_end = self.source_point(end, end_point)?;
         Some((

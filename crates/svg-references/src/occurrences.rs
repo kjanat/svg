@@ -1300,6 +1300,29 @@ mod tests {
     }
 
     #[test]
+    fn many_urls_in_a_stylesheet_map_to_their_own_lines() -> Result<(), Box<dyn Error>> {
+        let rules = (0..2000).fold(String::new(), |mut rules, index| {
+            rules.push_str(".r");
+            rules.push_str(&index.to_string());
+            rules.push_str(" { fill: url(#g) }\n");
+            rules
+        });
+        let source = format!("<svg><g id=\"g\"/><style>\n{rules}</style></svg>");
+        let tree = parse_svg(&source)?;
+        let started = std::time::Instant::now();
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let elapsed = started.elapsed();
+        let rows: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .filter(|o| o.role == OccurrenceRole::Reference)
+            .map(|o| o.span.start_row)
+            .collect();
+        assert_eq!(rows, (1..=2000).collect::<Vec<_>>());
+        assert!(elapsed < std::time::Duration::from_secs(2), "{elapsed:?}");
+        Ok(())
+    }
+
+    #[test]
     fn cdata_stylesheets_are_not_xml_escaped() -> Result<(), Box<dyn Error>> {
         let source = "<svg><style><![CDATA[.a\\&b {}]]></style><g class=\"a&amp;b\"/></svg>";
         let tree = parse_svg(source)?;
