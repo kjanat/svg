@@ -23,7 +23,7 @@
 		"svg-language-server": {
 			"binary": {
 				"path": "cargo",
-				"arguments": ["lsp"],
+				"arguments": ["lsp", "--stdio"],
 				"env": {
 					"CARGO_TERM_QUIET": "true",
 					"CARGO_PKG_VERSION_PRE": "zed",

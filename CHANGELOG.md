@@ -16,6 +16,64 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Added
+
+- Tag each published crate and the `@kjanat/svg-toolkit` npm bundle on the
+  release commit, such as `svg-data-v0.5.0` beside `v0.5.0`, through Beepboop
+  `packageTags`.
+
+### Fixed
+
+- Fall back to generated release notes when a release has no matching
+  changelog section.
+
+## [0.5.0] - 2026-11-16
+
+### Added
+
+- Navigate SVG documents in the language server: document symbols, find
+  references, rename with prepare, document links, folding ranges, selection
+  ranges, semantic tokens and inlay hints. Clients without hierarchical symbol
+  support receive flat symbols with container names.
+- Format a selected range. Range formatting grows to every tag the range
+  touches, and formatting returns per-hunk edits that honour the client's
+  whitespace options.
+- Collect every id, class and custom property occurrence with rename edits, an
+  element outline, external links, folding regions, selection chains,
+  highlight tokens and id-reference targets in `svg-references`.
+- Install `svg-language-server`, `svg-lint` and `svg-format` with
+  `cargo binstall` from the release archives.
+
+### Changed
+
+- Sync documents incrementally and return the token range with hover.
+- Pull the `svg` section through `workspace/configuration` from clients that
+  offer it. A configuration notification without an `svg` section keeps the
+  current settings, and a `null` pull restores the defaults.
+- Report each crates.io and npm publication outcome to Beepboop.
+
+### Fixed
+
+- Report `serverInfo` on `initialize`, answer malformed frames with a JSON-RPC
+  error without ending the session, exit with code 0 only after `shutdown`,
+  and stop waiting for the compatibility fetch on `exit`.
+- Honour `context.only` in code actions and return `InvalidParams` for unknown
+  commands.
+- Answer requests that arrive during an edit from the newest text.
+- Apply a pulled `svg.runtime_compat` before the first compatibility fetch.
+- Let `--help` succeed, drop colour codes from logs written off a terminal and
+  rotate the log file at 10 MiB.
+- Accept non-ASCII id, class, attribute and element names.
+- Parse paint values that contain the other quote character or XML references,
+  and CSS hex escapes split by whitespace in `url()`.
+- Resolve ids and classes through XML character references, CSS escapes,
+  percent-encoded fragments and `xml:base`. Missing-reference checks in
+  `svg-lint` match the same decoded ids.
+- Follow syncbase and event ids in animation `begin`/`end` lists, ARIA id
+  lists, and `[id]`/`[class]` attribute selectors.
+- Validate release versions against the SemVer 2.0.0 grammar, including
+  combined prerelease and build metadata in Maven carriers.
+
 ## [0.4.0] - 2026-11-15
 
 ### Added
@@ -370,7 +428,8 @@ When bumping the workspace version after a catalog refresh:
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
 
-[Unreleased]: https://github.com/kjanat/svg/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kjanat/svg/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kjanat/svg/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kjanat/svg/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/kjanat/svg/compare/v0.2.0...v0.2.1
