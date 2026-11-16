@@ -1,4 +1,6 @@
+use svg_tree::walk_tree;
 use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
+use tree_sitter::Tree;
 
 use crate::positions::{end_position_utf16, u32_from_usize};
 
@@ -40,6 +42,32 @@ fn trim_trailing_whitespace(text: &str) -> String {
             out.push_str(ending);
             out
         })
+}
+
+pub fn expand_to_tags(tree: &Tree, range: Range) -> Range {
+    let mut first = range.start.line as usize;
+    let mut last = range.end.line as usize;
+    loop {
+        let (mut wider_first, mut wider_last) = (first, last);
+        let mut cursor = tree.root_node().walk();
+        walk_tree(&mut cursor, &mut |node| {
+            if matches!(node.kind(), "start_tag" | "self_closing_tag" | "end_tag") {
+                let (start, end) = (node.start_position().row, node.end_position().row);
+                if start <= last && first <= end {
+                    wider_first = wider_first.min(start);
+                    wider_last = wider_last.max(end);
+                }
+            }
+        });
+        if (wider_first, wider_last) == (first, last) {
+            break;
+        }
+        (first, last) = (wider_first, wider_last);
+    }
+    Range::new(
+        Position::new(u32_from_usize(first), 0),
+        Position::new(u32_from_usize(last), range.end.character),
+    )
 }
 
 pub fn text_edits(old: &str, new: &str, within: Option<Range>) -> Vec<TextEdit> {
@@ -240,6 +268,35 @@ mod tests {
         assert_eq!(edits.len(), 1);
         assert_eq!(apply(old, &edits), "a\nb\nc\nd\nE\n");
         assert_eq!(text_edits(old, old, None), vec![]);
+    }
+
+    #[test]
+    fn range_inside_a_tag_keeps_its_reordered_attributes_together() {
+        let old = concat!(
+            "<svg id=\"r\"\n",
+            "     fill=\"red\"\n",
+            "     viewBox=\"0 0 1 1\"\n",
+            "     xmlns=\"http://www.w3.org/2000/svg\">\n",
+            "  <rect/>\n",
+            "</svg>\n",
+        );
+        let new = svg_format::format_with_options(old, svg_format::FormatOptions::default());
+        assert_ne!(new, old);
+        let mut parser = tree_sitter::Parser::new();
+        assert!(
+            parser
+                .set_language(&tree_sitter_svg::LANGUAGE.into())
+                .is_ok()
+        );
+        let tree = parser
+            .parse(old, None)
+            .unwrap_or_else(|| unreachable!("parser has a language"));
+        let fill_line = Range::new(Position::new(1, 0), Position::new(1, 3));
+        let expanded = expand_to_tags(&tree, fill_line);
+        assert_eq!((expanded.start.line, expanded.end.line), (0, 3));
+        let formatted = apply(old, &text_edits(old, &new, Some(expanded)));
+        assert_eq!(formatted.matches("viewBox").count(), 1, "{formatted}");
+        assert_eq!(formatted, new.replace("<rect />", "<rect/>"));
     }
 
     #[test]

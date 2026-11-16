@@ -1630,6 +1630,7 @@ impl SvgLanguageServer {
             svg_format::format_with_options(&doc.source, format_options),
             options,
         );
+        let within = within.map(|range| formatting::expand_to_tags(&doc.tree, range));
         Some(formatting::text_edits(&doc.source, &formatted, within))
     }
 
