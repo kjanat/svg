@@ -1125,7 +1125,7 @@ struct SvgLanguageServer {
     hover_settings: Arc<RwLock<HoverSettings>>,
     sketch_scheduler: SketchScheduler,
     markup_support: Arc<RwLock<MarkupSupport>>,
-    texts: Arc<StdMutex<HashMap<Uri, String>>>,
+    texts: Arc<StdMutex<HashMap<Uri, (String, i32)>>>,
     pulls_configuration: Arc<AtomicBool>,
     line_folding_only: Arc<AtomicBool>,
     hierarchical_symbols: Arc<AtomicBool>,
@@ -1221,23 +1221,42 @@ impl SvgLanguageServer {
         }
     }
 
-    fn open_text(&self, uri: &Uri, text: &str) {
+    fn open_text(&self, uri: &Uri, text: &str, version: i32) {
         self.texts
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(uri.clone(), text.to_owned());
+            .insert(uri.clone(), (text.to_owned(), version));
     }
 
-    fn change_text(&self, uri: &Uri, changes: &[TextDocumentContentChangeEvent]) -> Option<String> {
+    fn change_text(
+        &self,
+        uri: &Uri,
+        changes: &[TextDocumentContentChangeEvent],
+        version: i32,
+    ) -> Option<String> {
         let mut texts = self
             .texts
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let text = texts.get_mut(uri)?;
+        let (text, current) = texts.get_mut(uri)?;
         apply_content_changes(text, changes);
+        *current = version;
         let snapshot = text.clone();
         drop(texts);
         Some(snapshot)
+    }
+
+    fn newer_text(&self, uri: &Uri, parsed: Option<i32>) -> Option<(String, i32)> {
+        let texts = self
+            .texts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let newer = texts
+            .get(uri)
+            .filter(|(_, version)| parsed != Some(*version))
+            .map(|(text, version)| (text.clone(), *version));
+        drop(texts);
+        newer
     }
 
     fn is_open(&self, uri: &Uri) -> bool {
@@ -1308,8 +1327,31 @@ impl SvgLanguageServer {
     }
 
     async fn document_state(&self, uri: &Uri) -> Option<Arc<DocumentState>> {
-        let docs = self.documents.read().await;
-        docs.get(uri).cloned()
+        let current = self.documents.read().await.get(uri).cloned();
+        let Some((source, version)) = self.newer_text(uri, current.as_ref().map(|doc| doc.version))
+        else {
+            return current;
+        };
+        let tree = self.parser.write().await.parse(source.as_bytes(), None);
+        let Some(tree) = tree else {
+            return current;
+        };
+        let state = Arc::new(DocumentState {
+            sketches: SketchCache::default(),
+            version,
+            source,
+            tree,
+        });
+        let mut documents = self.documents.write().await;
+        if self.is_open(uri)
+            && documents
+                .get(uri)
+                .is_none_or(|stored| stored.version < version)
+        {
+            documents.insert(uri.clone(), Arc::clone(&state));
+        }
+        drop(documents);
+        Some(state)
     }
 
     async fn current_lint_inputs_for(
@@ -1635,10 +1677,7 @@ impl SvgLanguageServer {
     }
 
     async fn copy_svg_as_data_uri(&self, uri: &Uri) -> std::result::Result<(), String> {
-        let cached = {
-            let docs = self.documents.read().await;
-            docs.get(uri).map(|doc| doc.source.clone())
-        };
+        let cached = self.document_state(uri).await.map(|doc| doc.source.clone());
         let source = if let Some(s) = cached {
             s
         } else {
@@ -1775,7 +1814,7 @@ impl LanguageServer for SvgLanguageServer {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         tracing::debug!(uri = ?params.text_document.uri, "did_open");
         let document = params.text_document;
-        self.open_text(&document.uri, &document.text);
+        self.open_text(&document.uri, &document.text, document.version);
         self.update_document(document.uri, document.text, document.version)
             .await;
     }
@@ -1785,7 +1824,7 @@ impl LanguageServer for SvgLanguageServer {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
         // tower-lsp-server keeps arrival order only until each handler's first await.
-        let Some(text) = self.change_text(&uri, &params.content_changes) else {
+        let Some(text) = self.change_text(&uri, &params.content_changes, version) else {
             tracing::warn!(uri = ?uri, "did_change for a document that is not open");
             return;
         };
@@ -2286,6 +2325,45 @@ pub async fn run_stdio_server() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
+
+    #[tokio::test]
+    async fn requests_see_text_that_has_not_been_linted_yet() {
+        let (service, _socket) =
+            LspService::new(|client| SvgLanguageServer::new(client, Arc::default()));
+        let server = service.inner();
+        let uri: Uri = "file:///pending.svg"
+            .parse()
+            .unwrap_or_else(|_| unreachable!("valid uri"));
+        server.open_text(&uri, "<svg/>", 1);
+        server
+            .update_document(uri.clone(), "<svg/>".to_owned(), 1)
+            .await;
+        let edited = server.change_text(
+            &uri,
+            &[TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "<svg><rect/></svg>".to_owned(),
+            }],
+            2,
+        );
+        assert_eq!(edited.as_deref(), Some("<svg><rect/></svg>"));
+        let state = server.document_state(&uri).await;
+        assert_eq!(
+            state.as_ref().map(|doc| (doc.version, doc.source.as_str())),
+            Some((2, "<svg><rect/></svg>"))
+        );
+        server
+            .update_document(uri.clone(), "<svg/>".to_owned(), 1)
+            .await;
+        assert_eq!(
+            server.document_state(&uri).await.map(|doc| doc.version),
+            Some(2)
+        );
+        server.forget_text(&uri);
+        server.documents.write().await.remove(&uri);
+        assert!(server.document_state(&uri).await.is_none());
+    }
 
     #[test]
     fn advertised_order_decides_the_markup_kind() {

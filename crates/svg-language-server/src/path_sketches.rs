@@ -289,7 +289,7 @@ mod tests {
             }
         });
         tokio::time::timeout(Duration::from_secs(5), running).await??;
-        server.open_text(&uri, "<svg><path d='M0 0 L20 20'/></svg>");
+        server.open_text(&uri, "<svg><path d='M0 0 L20 20'/></svg>", 1);
         server
             .update_document(
                 uri.clone(),
