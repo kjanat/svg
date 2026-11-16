@@ -4,8 +4,8 @@ use tree_sitter::Tree;
 use crate::{
     Span, inline_style_fragments,
     occurrences::{
-        encoded_presentation_value, inside_encoded_presentation_value, is_css_iri,
-        is_structural_iri, parse_paint, presentation_fragment, url_argument_range,
+        inside_presentation_attribute, is_css_iri, is_structural_iri, parse_paint,
+        presentation_attribute, presentation_fragment, url_argument_range,
     },
     outline::element_tag,
     tag_attribute_value,
@@ -38,7 +38,7 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
     let mut cursor = tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| match node.kind() {
         "iri_reference"
-            if is_structural_iri(node) && !inside_encoded_presentation_value(node, source) =>
+            if is_structural_iri(node) && !inside_presentation_attribute(node, source) =>
         {
             if let Ok(text) = node.utf8_text(source) {
                 push_link(
@@ -50,10 +50,10 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
                 );
             }
         }
-        "paint_payload" if !inside_encoded_presentation_value(node, source) => {
+        "paint_payload" if !inside_presentation_attribute(node, source) => {
             paint_links(node, source, &mut links);
         }
-        kind if is_attribute_node_kind(kind) && encoded_presentation_value(node, source) => {
+        kind if is_attribute_node_kind(kind) && presentation_attribute(node, source) => {
             if let Some(fragment) = presentation_fragment(node, source) {
                 css_links(&fragment, &xml_bases(node, source), &mut links);
             }

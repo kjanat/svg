@@ -28,7 +28,8 @@ pub use hints::{IdReferenceTarget, resolve_id_references};
 pub use links::{ExternalLink, external_links, local_fragment_id};
 pub use occurrences::{
     OccurrenceRole, OccurrenceSyntax, RenameEdit, RenameError, SymbolOccurrence,
-    collect_symbol_occurrences, rename_edits, symbol_occurrence_at, validate_new_name,
+    attribute_id_references, collect_symbol_occurrences, rename_edits, symbol_occurrence_at,
+    validate_new_name,
 };
 pub use outline::{OutlineElement, element_outline};
 pub use selection::selection_chain;

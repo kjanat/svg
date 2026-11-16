@@ -135,7 +135,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         "iri_reference" => {
             if is_structural_iri(node)
                 && crate::links::fragment_is_local(node, source)
-                && !inside_encoded_presentation_value(node, source)
+                && !inside_presentation_attribute(node, source)
                 && let Some(occurrence) =
                     local_iri_occurrence(node, source, 0, Point::new(0, 0), is_css_iri(node))
             {
@@ -153,7 +153,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
                 );
             }
         }
-        "paint_payload" if !inside_encoded_presentation_value(node, source) => {
+        "paint_payload" if !inside_presentation_attribute(node, source) => {
             paint_occurrences(node, source, &mut out);
         }
         "style_text_double" | "style_text_single" => {
@@ -517,19 +517,48 @@ pub fn presentation_fragment(
     )
 }
 
-pub fn encoded_presentation_value(attribute: tree_sitter::Node<'_>, source: &[u8]) -> bool {
-    presentation_content(attribute, source).is_some_and(|(_, _, content)| content.contains('&'))
+pub fn presentation_attribute(attribute: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    presentation_content(attribute, source).is_some()
 }
 
-pub fn inside_encoded_presentation_value(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+pub fn inside_presentation_attribute(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
     let mut current = node.parent();
     while let Some(ancestor) = current {
         if is_attribute_node_kind(ancestor.kind()) {
-            return encoded_presentation_value(ancestor, source);
+            return presentation_attribute(ancestor, source);
         }
         current = ancestor.parent();
     }
     false
+}
+
+/// The local id references in one attribute, decoded the way the attribute's syntax
+/// requires.
+///
+/// Presentation attribute values are read as CSS, other attributes by their IRI nodes.
+#[must_use]
+pub fn attribute_id_references(
+    attribute: tree_sitter::Node<'_>,
+    source: &[u8],
+) -> Vec<SymbolOccurrence> {
+    let mut out = Vec::new();
+    if presentation_attribute(attribute, source) {
+        presentation_occurrences(attribute, source, &mut out);
+    } else {
+        let mut cursor = attribute.walk();
+        walk_tree(&mut cursor, &mut |node| {
+            if node.kind() == "iri_reference"
+                && is_structural_iri(node)
+                && crate::links::fragment_is_local(node, source)
+                && let Some(occurrence) =
+                    local_iri_occurrence(node, source, 0, Point::new(0, 0), is_css_iri(node))
+            {
+                out.push(occurrence);
+            }
+        });
+    }
+    out.retain(|occurrence| matches!(occurrence.target, DefinitionTarget::Id(_)));
+    out
 }
 
 fn presentation_occurrences(
@@ -540,16 +569,15 @@ fn presentation_occurrences(
     let Some((_, _, content)) = presentation_content(attribute, source) else {
         return;
     };
-    let encoded = content.contains('&');
     let decoded = xml_unescape(content).to_ascii_lowercase();
-    if !(decoded.contains("var(") || (encoded && decoded.contains("url("))) {
+    if !decoded.contains("var(") && !decoded.contains("url(") {
         return;
     }
     if let Some(fragment) = presentation_fragment(attribute, source) {
         let mut cursor = fragment.tree.root_node().walk();
         walk_tree(&mut cursor, &mut |node| {
             if node.kind() == "call_expression" {
-                call_occurrence(&fragment, node, encoded, out);
+                call_occurrence(&fragment, node, true, out);
             }
         });
     }
@@ -1025,6 +1053,39 @@ mod tests {
             crate::definition_target_at(source.as_bytes(), &tree, paint),
             Some(DefinitionTarget::Id("g".into()))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn escapes_keep_their_whitespace_terminator_in_presentation_urls() -> Result<(), Box<dyn Error>>
+    {
+        let source = concat!(
+            "<svg><linearGradient id=\"grad\"/>",
+            "<rect fill=\"url(#gr\\61 d) red\" clip-path=\"url(#gr\\61 d)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("grad".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(
+            spans,
+            vec!["grad", "gr\\61 d", "gr\\61 d"],
+            "{occurrences:#?}"
+        );
+        let mut cursor = tree.root_node().walk();
+        let mut attribute_ids = Vec::new();
+        walk_tree(&mut cursor, &mut |node| {
+            if is_attribute_node_kind(node.kind()) {
+                attribute_ids.extend(
+                    attribute_id_references(node, source.as_bytes())
+                        .into_iter()
+                        .map(|occurrence| occurrence.target),
+                );
+            }
+        });
+        assert_eq!(attribute_ids, vec![DefinitionTarget::Id("grad".into()); 2]);
         Ok(())
     }
 
