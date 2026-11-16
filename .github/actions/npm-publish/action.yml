@@ -32,6 +32,12 @@ outputs:
   package-url:
     description: npm.im URL of the published package (last one in full-set mode)
     value: ${{ steps.publish.outputs.package-url }}
+  package-name:
+    description: npm name of the only-package in matrix mode
+    value: ${{ steps.publish.outputs.package-name }}
+  skipped:
+    description: true when the optional only-package was missing from the artifact
+    value: ${{ steps.publish.outputs.skipped }}
 
 runs:
   using: composite

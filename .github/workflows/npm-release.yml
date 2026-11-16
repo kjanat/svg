@@ -167,6 +167,16 @@ jobs:
           source-dir: source
           token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: $/.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: npm
+          name: ${{ matrix.pkg }}
+          version: ${{ env.RELEASE_TAG }}
+          result: ${{ steps.publish.outcome }}
+
   scoped:
     name: publish ${{ matrix.pkg }}
     needs: [setup, runtime-smoke, beepboop]
@@ -207,6 +217,18 @@ jobs:
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
           token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
+
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: $/.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: npm
+          name: ${{ steps.publish.outputs.package-name }}
+          version: ${{ env.RELEASE_TAG }}
+          result: ${{ steps.publish.outcome }}
+          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
+          required: ${{ !matrix.experimental }}
 
   # Facades after platforms so their optionalDependencies resolve on install.
   facades:
@@ -249,6 +271,17 @@ jobs:
           only-package: ${{ matrix.pkg }}
           token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
 
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: $/.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: npm
+          name: ${{ steps.publish.outputs.package-name }}
+          version: ${{ env.RELEASE_TAG }}
+          result: ${{ steps.publish.outcome }}
+          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
+
   # Unscoped alias shims after their canonical facades.
   shims:
     name: publish ${{ matrix.pkg }}
@@ -290,6 +323,17 @@ jobs:
           registry: ${{ env.REGISTRY }}
           only-package: ${{ matrix.pkg }}
           token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
+
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: $/.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: npm
+          name: ${{ steps.publish.outputs.package-name }}
+          version: ${{ env.RELEASE_TAG }}
+          result: ${{ steps.publish.outcome }}
+          skipped: ${{ steps.publish.outputs.skipped || 'false' }}
 
   # Bundle last: its exact-pinned dependencies are the shims above. A skipped
   # shims job (no shims defined) must not skip the bundle with it.
@@ -335,3 +379,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           only-package: ${{ needs.setup.outputs.bundle }}
           token: ${{ steps.credentials.outputs.values && fromJSON(steps.credentials.outputs.values)['npm-token'] || '' }}
+
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: $/.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: npm
+          name: ${{ steps.publish.outputs.package-name }}
+          version: ${{ env.RELEASE_TAG }}
+          result: ${{ steps.publish.outcome }}
+          skipped: ${{ steps.publish.outputs.skipped || 'false' }}

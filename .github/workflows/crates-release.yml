@@ -146,6 +146,7 @@ jobs:
           aliases: '["crates-io"]'
 
       - name: cargo publish
+        id: publish
         uses: ./.github/actions/crates-publish
         with:
           crate: ${{ matrix.crate }}
@@ -155,3 +156,13 @@ jobs:
           proof-dir: ${{ runner.temp }}/verified-crates
           tag: ${{ env.RELEASE_TAG }}
           helper-sha: ${{ needs.setup.outputs.helper_sha }}
+
+      - name: report publication
+        if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
+        uses: ./.github/actions/beepboop-report
+        with:
+          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          manager: cargo
+          name: ${{ matrix.crate }}
+          version: ${{ needs.setup.outputs.version }}
+          result: ${{ steps.publish.outcome }}
