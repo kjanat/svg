@@ -16,10 +16,12 @@
 //! - the grammar references a type, property value range or notation this
 //!   module does not expand, or is not CSS value definition syntax at all
 //!   (`[EBNF]` references, quoted SMIL literals);
-//! - the value is a CSS-wide keyword, a `<whole-value>` notation, contains an
-//!   arbitrary substitution function, or has any top-level function (math
-//!   functions and the many other functional notations stand in for values
-//!   whose type is only known after evaluation).
+//! - the value is a CSS-wide keyword, a `<whole-value>` notation or contains
+//!   an arbitrary substitution function.
+//!
+//! A function in the value matches a functional notation of the same name in
+//! the grammar, and a math function matches wherever a numeric type is
+//! expected: its type is only known after evaluation.
 //!
 //! Presentation attributes are parsed with `<number>` admitted wherever the
 //! grammar has `<length>`, `<length-percentage>` or `<angle>`
@@ -33,8 +35,8 @@ use svg_data::CssGrammarGraph;
 
 use super::syntax::{
     cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
-    notation::{contains_arbitrary_substitution, is_whole_value},
-    parser::{ComponentValue, parse_component_values},
+    notation::{contains_arbitrary_substitution, is_math_function, is_whole_value},
+    parser::{ComponentValue, Function, parse_component_values},
     tokenizer::Token,
     types::{NumericType, UnitlessMode, match_numeric},
 };
@@ -44,11 +46,13 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
     if OPAQUE_GRAMMARS.contains(&grammar) {
         return None;
     }
-    let effective = WIDENED_GRAMMARS
+    if let Some(check) = FOREIGN_GRAMMARS
         .iter()
-        .chain(RANGED_GRAMMARS)
-        .find_map(|&(catalog, matched)| (catalog == grammar).then_some(matched))
-        .unwrap_or(grammar);
+        .find_map(|&(catalog, check)| (catalog == grammar).then_some(check))
+    {
+        return check(value);
+    }
+    let effective = effective_grammar(grammar);
     let root = parse_grammar(effective, 0)?;
 
     let list = parse_component_values(value);
@@ -60,12 +64,6 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
         return None;
     }
     let values: Vec<&ComponentValue<'_>> = list.significant().collect();
-    if values
-        .iter()
-        .any(|value| matches!(value, ComponentValue::Function(_)))
-    {
-        return None;
-    }
 
     let matches = |ranges: bool| {
         Matcher {
@@ -86,6 +84,48 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
     }
 }
 
+/// The grammar matched for the catalog's `grammar`: its widened, ranged or
+/// translated form when one is listed, else the catalog text itself.
+fn effective_grammar(grammar: &str) -> &str {
+    WIDENED_GRAMMARS
+        .iter()
+        .chain(RANGED_GRAMMARS)
+        .chain(TRANSLATED_GRAMMARS)
+        .find_map(|&(catalog, matched)| (catalog == grammar).then_some(matched))
+        .unwrap_or(grammar)
+}
+
+/// Catalog grammars in a notation other than CSS value definition syntax,
+/// rewritten into it.
+const TRANSLATED_GRAMMARS: &[(&str, &str)] = &[
+    // dur, repeatDur, min, max: SMIL timing values with quoted literals
+    // (https://svgwg.org/specs/animations/#DurAttribute).
+    ("Clock-value | \"indefinite\"", "<clock-value> | indefinite"),
+    ("Clock-value | \"media\"", "<clock-value> | media"),
+    (
+        "Clock-value | \"media\" | \"indefinite\"",
+        "<clock-value> | media | indefinite",
+    ),
+];
+
+/// A whole-value check: `Some(reason)` for an invalid value.
+type ValueCheck = fn(&str) -> Option<String>;
+
+/// Catalog grammars whose whole value follows a non-CSS syntax, with the check
+/// for it.
+const FOREIGN_GRAMMARS: &[(&str, ValueCheck)] = &[
+    ("Name [EBNF]", check_xml_name),
+    (
+        "_self | _parent | _top | _blank | <XML-Name>",
+        check_xml_name,
+    ),
+];
+
+/// An XML 1.0 `Name` (<https://www.w3.org/TR/xml/#NT-Name>).
+fn check_xml_name(value: &str) -> Option<String> {
+    (!super::declarations::is_xml_name(value)).then(|| "is not an XML Name".to_owned())
+}
+
 /// Catalog grammars that are not checked here.
 ///
 /// - `none | <string>` is the `d` property. Its presentation attribute holds
@@ -97,7 +137,11 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
 ///   (`kernelMatrix`, `tableValues`, `feColorMatrix` `values`), which are
 ///   "separated by whitespace and/or a comma" and, for `tableValues`, may be
 ///   empty (<https://drafts.csswg.org/filter-effects-1/#element-attrdef-fecomponenttransfer-tablevalues>).
-const OPAQUE_GRAMMARS: &[&str] = &["none | <string>", "<number>+"];
+/// - `<value>` is the animation value of `set` `to`, which "must match the
+///   attribute type" of the animated attribute
+///   (<https://svgwg.org/specs/animations/#SetElementToAttribute>): its syntax
+///   is unknown without that attribute.
+const OPAQUE_GRAMMARS: &[&str] = &["none | <string>", "<number>+", "<value>"];
 
 /// Catalog grammars that a later definition of the same property or
 /// attribute widens, with the grammar matched in their place: the union of
@@ -114,6 +158,12 @@ const WIDENED_GRAMMARS: &[(&str, &str)] = &[
     (
         "auto | <length-percentage>",
         "auto | <length-percentage> | <box-size> | <anchor-size()>",
+    ),
+    // font-size: "<absolute-size> | <relative-size> | <length-percentage
+    // [0,∞]> | math" (https://drafts.csswg.org/css-fonts-4/#propdef-font-size).
+    (
+        "<absolute-size> | <relative-size> | <length-percentage>",
+        "<absolute-size> | <relative-size> | <length-percentage [0,∞]> | math",
     ),
     // letter-spacing, word-spacing: "normal | <length-percentage>"
     // (https://drafts.csswg.org/css-text-4/#propdef-letter-spacing).
@@ -159,8 +209,9 @@ const WIDENED_GRAMMARS: &[(&str, &str)] = &[
 /// the only catalog usage of its grammar text, so the range cannot reach an
 /// attribute it does not apply to.
 ///
-/// A range opened with `(` instead of `[` excludes its lower bound, for a
-/// prose constraint value definition syntax cannot write.
+/// A range opened with `(` instead of `[` excludes its lower bound, and one
+/// closed with `)` instead of `]` its upper bound, for a prose constraint
+/// value definition syntax cannot write.
 const RANGED_GRAMMARS: &[(&str, &str)] = &[
     // font-width: "normal | <percentage [0,∞]> | ultra-condensed | ..."
     // (https://drafts.csswg.org/css-fonts-4/#propdef-font-width).
@@ -219,6 +270,100 @@ const NAMED_TYPES: &[(&str, &str)] = &[
     ),
     // https://svgwg.org/svg2-draft/painting.html#DataTypeMarkerRef
     ("marker-ref", "<url>"),
+    // "<align> = none | xMinYMin | xMidYMin | xMaxYMin | xMinYMid | xMidYMid |
+    // xMaxYMid | xMinYMax | xMidYMax | xMaxYMax" and "<meetOrSlice> = meet |
+    // slice"
+    // https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
+    (
+        "align",
+        "none | xMinYMin | xMidYMin | xMaxYMin | xMinYMid | xMidYMid | xMaxYMid | xMinYMax | \
+         xMidYMax | xMaxYMax",
+    ),
+    ("meetOrSlice", "meet | slice"),
+    // "The value of the 'viewBox' attribute is a list of four numbers
+    // <min-x>, <min-y>, <width> and <height>" and "A negative value for
+    // <width> or <height> is an error and invalidates the 'viewBox'
+    // attribute."
+    // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
+    ("min-x", "<number>"),
+    ("min-y", "<number>"),
+    ("width", "<number [0,∞]>"),
+    ("height", "<number [0,∞]>"),
+    // "<filter-primitive-reference> is an <custom-ident> [CSS3VAL] and an
+    // assigned name for this filter primitive."
+    // https://drafts.csswg.org/filter-effects-1/#typedef-result-filter-primitive-reference
+    ("filter-primitive-reference", "<custom-ident>"),
+    // CSS Fonts 4 renamed these to <font-family-name> and
+    // <generic-font-family>: "<font-family-name> = <string> |
+    // <custom-ident>+" and "<generic-font-family> =
+    // <generic-font-script-specific>| <generic-font-complete> |
+    // <generic-font-incomplete>"
+    // https://drafts.csswg.org/css-fonts-4/#font-family-name-syntax
+    ("family-name", "<string> | <custom-ident>+"),
+    (
+        "generic-family",
+        "<generic-font-script-specific> | <generic-font-complete> | <generic-font-incomplete>",
+    ),
+    // "<url-set> is a limited version of image-set(), where the <image>
+    // sub-production is restricted to <url> only."
+    // https://drafts.csswg.org/css-ui-4/#typedef-cursor-url-set
+    ("url-set", "<image-set()>"),
+    // SVG 1.1 color-profile: "<name>: A name corresponding to a defined color
+    // profile that is in the user agent's color profile description
+    // database" and an IRI reference to the profile, written url() in a
+    // property value.
+    // https://www.w3.org/TR/SVG11/color.html#ColorProfileProperty
+    ("name", "<ident>"),
+    ("uri", "<url>"),
+    // "Clock-value ::= ( Full-clock-value | Partial-clock-value |
+    // Timecount-value )", "Full-clock-value ::= Hours ":" Minutes ":"
+    // Seconds ("." Fraction)?", "Partial-clock-value ::= Minutes ":" Seconds
+    // ("." Fraction)?", "Timecount-value ::= Timecount ("." Fraction)?
+    // (Metric)?", "Metric ::= "h" | "min" | "s" | "ms"" and "Minutes ::=
+    // 2DIGIT /* range from 00 to 59 */"
+    // https://www.w3.org/TR/SMIL3/smil-timing.html#q22, repeated at
+    // https://svgwg.org/specs/animations/#ClockValueSyntax
+    (
+        "clock-value",
+        "<clock-timecount [0,∞]> | <integer [0,∞]> : <integer [0,59]> : <number [0,60)> | \
+         <integer [0,59]> : <number [0,60)>",
+    ),
+    // A literal number 0 (https://drafts.csswg.org/css-values-4/#zero-value),
+    // which @webref/css leaves without a syntax.
+    ("zero", "<number [0,0]>"),
+    // "<url-modifier> = <ident> | <function-token> <any-value> )"
+    // (https://drafts.csswg.org/css-values-4/#typedef-url-modifier).
+    ("url-modifier", "<ident> | <function-token>"),
+    // clip rect(): "<top>, <right>, <bottom>, and <left> may either have a
+    // <length> value or 'auto'" (https://drafts.csswg.org/css2/#value-def-shape).
+    ("top", "<length> | auto"),
+    ("right", "<length> | auto"),
+    ("bottom", "<length> | auto"),
+    ("left", "<length> | auto"),
+    // "<radial-size> = <radial-extent>{1,2} | <length-percentage [0,∞]>{1,2}",
+    // which "extends the <radial-size> options to include the additions from
+    // the circle() and ellipse() <basic-shape> values"
+    // (https://drafts.csswg.org/css-images-4/#radial-size). @webref/css
+    // carries the narrower CSS Images 3 definition.
+    (
+        "radial-size",
+        "<radial-extent>{1,2} | <length-percentage [0,∞]>{1,2}",
+    ),
+    // keySplines: "<control-point> = <number> ,? <number> ,? <number> ,?
+    // <number>" (https://svgwg.org/specs/animations/#DataTypeControlPoint).
+    // CSS Shapes defines a different <control-point>, which @webref/css
+    // carries under the same name.
+    (
+        "control-point",
+        "<number> ,? <number> ,? <number> ,? <number>",
+    ),
+    // SVG 1.1: "number-optional-number ::= number | number comma-wsp number"
+    // (https://www.w3.org/TR/SVG11/types.html#DataTypeNumberOptionalNumber),
+    // which Filter Effects writes as "<number-optional-number> = <number>
+    // <number>?"
+    // (https://drafts.csswg.org/filter-effects-1/#typedef-number-optional-number).
+    // The union keeps the comma SVG 1.1 content uses.
+    ("number-optional-number", "<number> [ ,? <number> ]?"),
 ];
 
 /// Markers of attribute value syntaxes other than CSS value definition
@@ -229,8 +374,9 @@ const FOREIGN_SYNTAX_MARKERS: &[&str] =
 /// How deeply named types may expand into each other.
 const MAX_EXPANSION_DEPTH: usize = 8;
 
-/// The most operands a `&&` or `||` group may have.
-const MAX_INTERLEAVED: usize = 16;
+/// The most operands a `&&` or `||` group may have: the matcher records the
+/// operands used in a `u32` bitmask. `font-variant` has 21.
+const MAX_INTERLEAVED: usize = 31;
 
 /// A grammar node.
 #[derive(Clone, Debug, PartialEq)]
@@ -272,15 +418,25 @@ enum Leaf {
     CustomIdent,
     DashedIdent,
     Ident,
+    /// `<hex-color>`: a hash token of 3, 4, 6 or 8 hex digits.
+    HexColor,
+    /// A SMIL `Timecount-value`: a number, optionally with an `h`, `min`, `s`
+    /// or `ms` metric.
+    ClockTimecount,
+    /// `<hash-token>`: any hash token, such as `#a` in `element(#a)`.
+    HashToken,
+    /// `<function-token>` with its arguments: any function.
+    FunctionToken,
 }
 
-/// A range restriction, closed unless `min_exclusive` is set. A bound that
-/// is unrestricted or cannot be compared is infinite.
+/// A range restriction, closed unless `min_exclusive` or `max_exclusive` is
+/// set. A bound that is unrestricted or cannot be compared is infinite.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Range {
     min: f64,
     max: f64,
     min_exclusive: bool,
+    max_exclusive: bool,
 }
 
 impl Range {
@@ -290,10 +446,13 @@ impl Range {
         min: f64::NEG_INFINITY,
         max: f64::INFINITY,
         min_exclusive: false,
+        max_exclusive: false,
     };
 
     fn contains(self, value: f64) -> bool {
-        (self.min..=self.max).contains(&value) && !(self.min_exclusive && value <= self.min)
+        (self.min..=self.max).contains(&value)
+            && !(self.min_exclusive && value <= self.min)
+            && !(self.max_exclusive && value >= self.max)
     }
 }
 
@@ -399,6 +558,13 @@ fn lex_braces(inner: &str) -> Option<Lexeme<'static>> {
 /// Parse a grammar, or `None` when it uses anything this module does not
 /// implement.
 fn parse_grammar(grammar: &str, depth: usize) -> Option<Node> {
+    parse_grammar_unwrapping(grammar, depth, None)
+}
+
+/// Parse a grammar in which each `unwrap(…)` functional notation stands for
+/// its arguments, as a group: the grammar of what may appear inside a
+/// function named `unwrap`.
+fn parse_grammar_unwrapping(grammar: &str, depth: usize, unwrap: Option<&str>) -> Option<Node> {
     if depth > MAX_EXPANSION_DEPTH {
         return None;
     }
@@ -407,22 +573,41 @@ fn parse_grammar(grammar: &str, depth: usize) -> Option<Node> {
         lexemes: &lexemes,
         pos: 0,
         depth,
+        unwrap,
     };
     let node = parser.alternatives()?;
     (parser.pos == lexemes.len()).then_some(node)
+}
+
+/// The grammar of the arguments of a function named `name`, from every
+/// catalog definition of it, or `None` when it has none or one this module
+/// cannot parse.
+fn function_arguments(name: &str) -> Option<Node> {
+    let name = name.to_ascii_lowercase();
+    let mut alternatives = svg_data::css_function_syntaxes(&name)
+        .map(|syntax| parse_grammar_unwrapping(syntax, 0, Some(&name)))
+        .collect::<Option<Vec<Node>>>()?;
+    match alternatives.len() {
+        0 => None,
+        1 => alternatives.pop(),
+        _ => Some(Node::OneOf(alternatives)),
+    }
 }
 
 /// Recursive descent over grammar lexemes, by combinator precedence:
 /// "Juxtaposition is stronger than the double ampersand, the double
 /// ampersand is stronger than the double bar, and the double bar is
 /// stronger than the bar."
-struct GrammarParser<'l, 'g> {
+struct GrammarParser<'l, 'g, 'u> {
     lexemes: &'l [Lexeme<'g>],
     pos: usize,
     depth: usize,
+    /// The function whose notation is replaced by its arguments, while
+    /// parsing outside any of its argument lists.
+    unwrap: Option<&'u str>,
 }
 
-impl<'g> GrammarParser<'_, 'g> {
+impl<'g> GrammarParser<'_, 'g, '_> {
     fn peek(&self) -> Option<Lexeme<'g>> {
         self.lexemes.get(self.pos).copied()
     }
@@ -497,7 +682,7 @@ impl<'g> GrammarParser<'_, 'g> {
         let mut node = match lexeme {
             Lexeme::Keyword(keyword) => Node::Keyword(keyword.to_owned()),
             Lexeme::Delim(delim) => Node::Delim(delim),
-            Lexeme::Type(reference) => resolve_type(reference, self.depth)?,
+            Lexeme::Type(reference) => resolve_type(reference, self.depth, self.unwrap)?,
             Lexeme::OpenGroup => {
                 let inner = self.alternatives()?;
                 if !self.eat(Lexeme::CloseGroup) {
@@ -505,14 +690,39 @@ impl<'g> GrammarParser<'_, 'g> {
                 }
                 inner
             }
-            Lexeme::Function(name) => {
-                // The arguments are parsed for well-formedness only: a
-                // function in a value is accepted without matching.
-                if self.peek() != Some(Lexeme::CloseParen) {
-                    self.alternatives()?;
-                }
+            Lexeme::Function(name)
+                if self
+                    .unwrap
+                    .is_some_and(|target| target.eq_ignore_ascii_case(name)) =>
+            {
+                // The argument grammar of the unwrapped function: inside it,
+                // functions of the same name are ordinary notations again.
+                let target = self.unwrap.take();
+                let arguments = if self.peek() == Some(Lexeme::CloseParen) {
+                    Some(Node::Seq(Vec::new()))
+                } else {
+                    self.alternatives()
+                };
+                self.unwrap = target;
                 if !self.eat(Lexeme::CloseParen) {
                     return None;
+                }
+                arguments?
+            }
+            Lexeme::Function(name) => {
+                // A notation's arguments are matched against the function's
+                // own definition when a value uses it (see
+                // [`function_arguments`]), so their types are not resolved
+                // here: `<color>` reaches itself through
+                // `light-dark(<color>, <color>)`.
+                let mut open = 1_usize;
+                while open > 0 {
+                    match self.peek()? {
+                        Lexeme::Function(_) => open += 1,
+                        Lexeme::CloseParen => open -= 1,
+                        _ => {}
+                    }
+                    self.pos += 1;
                 }
                 Node::Function(name.to_owned())
             }
@@ -552,23 +762,34 @@ impl<'g> GrammarParser<'_, 'g> {
     }
 }
 
-/// The node for `<reference>` (the text between `<` and `>`), or `None` for
-/// a reference this module does not implement.
-fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
-    if reference.starts_with('\'') {
-        // A property value range, <'property'>.
-        return None;
-    }
+/// The node for `<reference>` (the text between `<` and `>`), with its
+/// expansion parsed by [`parse_grammar_unwrapping`] for `unwrap`, or `None`
+/// for a reference this module does not implement.
+fn resolve_type(reference: &str, depth: usize, unwrap: Option<&str>) -> Option<Node> {
     if let Some(name) = reference.strip_suffix("()") {
         return Some(Node::Function(name.to_owned()));
+    }
+    if let Some(property) = reference
+        .strip_prefix('\'')
+        .and_then(|name| name.strip_suffix('\''))
+    {
+        return parse_grammar_unwrapping(
+            svg_data::css_property_syntax(property.trim())?,
+            depth + 1,
+            unwrap,
+        );
     }
     let (name, range) = match reference.find(['[', '(']) {
         Some(open) => {
             let min_exclusive = reference[open..].starts_with('(');
-            let bounds = reference[open + 1..].strip_suffix(']')?;
+            let rest = &reference[open + 1..];
+            let (bounds, max_exclusive) = match rest.strip_suffix(']') {
+                Some(bounds) => (bounds, false),
+                None => (rest.strip_suffix(')')?, true),
+            };
             (
                 reference[..open].trim(),
-                parse_range(bounds, min_exclusive)?,
+                parse_range(bounds, min_exclusive, max_exclusive)?,
             )
         }
         None => (reference, Range::UNRESTRICTED),
@@ -588,16 +809,23 @@ fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
         "resolution" => Leaf::Numeric(NumericType::Resolution),
         "flex" => Leaf::Numeric(NumericType::Flex),
         "string" => Leaf::String,
-        "url" => Leaf::Url,
+        "url" | "url-token" => Leaf::Url,
         "custom-ident" => Leaf::CustomIdent,
         "dashed-ident" => Leaf::DashedIdent,
         "ident" => Leaf::Ident,
+        "hex-color" => Leaf::HexColor,
+        "clock-timecount" => Leaf::ClockTimecount,
+        "hash-token" => Leaf::HashToken,
+        "function-token" => Leaf::FunctionToken,
         _ => {
             if reference.contains(['[', '(']) {
                 return None;
             }
-            let (_, grammar) = NAMED_TYPES.iter().find(|(named, _)| *named == name)?;
-            return parse_grammar(grammar, depth + 1);
+            let grammar = NAMED_TYPES
+                .iter()
+                .find_map(|&(named, grammar)| (named == name).then_some(grammar))
+                .or_else(|| svg_data::css_type_syntax(name))?;
+            return parse_grammar_unwrapping(grammar, depth + 1, unwrap);
         }
     };
     Some(Node::Type(leaf, range))
@@ -605,12 +833,13 @@ fn resolve_type(reference: &str, depth: usize) -> Option<Node> {
 
 /// The bounds of a bracketed range, `min,max` without the brackets. A bound
 /// of ±∞, or one with a unit other than a zero, is left unchecked.
-fn parse_range(text: &str, min_exclusive: bool) -> Option<Range> {
+fn parse_range(text: &str, min_exclusive: bool, max_exclusive: bool) -> Option<Range> {
     let (min, max) = text.split_once(',')?;
     Some(Range {
         min: parse_bound(min, f64::NEG_INFINITY)?,
         max: parse_bound(max, f64::INFINITY)?,
         min_exclusive,
+        max_exclusive,
     })
 }
 
@@ -697,14 +926,36 @@ impl Matcher<'_, '_> {
                         | (':', ComponentValue::Token(Token::Colon))
                 ) || matches!(value, ComponentValue::Token(Token::Delim(c)) if c == delim)
             }
-            Node::Function(name) => {
-                matches!(value, ComponentValue::Function(function) if function.name.eq_ignore_ascii_case(name))
-            }
+            Node::Function(name) => matches!(
+                value,
+                ComponentValue::Function(function)
+                    if function.name.eq_ignore_ascii_case(name) && self.arguments_match(function)
+            ),
             Node::Type(leaf, range) => {
                 leaf_matches(*leaf, value) && (!self.ranges || in_range(*range, value))
             }
             _ => false,
         }
+    }
+
+    /// Whether `function`'s arguments match the catalog definition of a
+    /// function of its name. A function without a definition this module can
+    /// parse matches by name alone.
+    fn arguments_match(&self, function: &Function<'_>) -> bool {
+        let Some(arguments) = function_arguments(&function.name) else {
+            return true;
+        };
+        let values: Vec<&ComponentValue<'_>> = function
+            .value
+            .iter()
+            .filter(|value| !value.is_whitespace())
+            .collect();
+        Matcher {
+            values: &values,
+            ranges: self.ranges,
+        }
+        .ends(&arguments, 0, true)
+        .contains(&values.len())
     }
 
     fn is_comma(&self, pos: usize) -> bool {
@@ -834,13 +1085,38 @@ impl Matcher<'_, '_> {
     }
 }
 
+/// The tree-counting functions, which "represent" an `<integer>` and so stand
+/// in for a number where a math function could
+/// (<https://drafts.csswg.org/css-values-5/#tree-counting>).
+const TREE_COUNTING_FUNCTIONS: &[&str] = &["sibling-index", "sibling-count"];
+
 /// Whether `value` is a literal of `leaf`.
 fn leaf_matches(leaf: Leaf, value: &ComponentValue<'_>) -> bool {
-    let ComponentValue::Token(token) = value else {
-        return false;
+    if let Leaf::Numeric(ty) = leaf {
+        if let ComponentValue::Function(function) = value
+            && !is_math_function(&function.name)
+            && !TREE_COUNTING_FUNCTIONS
+                .iter()
+                .any(|name| function.name.eq_ignore_ascii_case(name))
+        {
+            return false;
+        }
+        return !match_numeric(value, ty, UnitlessMode::PresentationAttribute).is_no();
+    }
+    let token = match value {
+        ComponentValue::Token(token) => token,
+        // "<url> = <url()> | <src()>": a quoted url("…") or src("…") is a
+        // function token. https://drafts.csswg.org/css-values-4/#urls
+        ComponentValue::Function(function) => {
+            return leaf == Leaf::FunctionToken
+                || (leaf == Leaf::Url
+                    && ["url", "src"]
+                        .iter()
+                        .any(|name| function.name.eq_ignore_ascii_case(name)));
+        }
+        ComponentValue::Block(_) => return false,
     };
     match leaf {
-        Leaf::Numeric(ty) => !match_numeric(value, ty, UnitlessMode::PresentationAttribute).is_no(),
         Leaf::String => matches!(token, Token::String(_)),
         Leaf::Url => matches!(token, Token::Url(_)),
         Leaf::CustomIdent => matches!(
@@ -850,6 +1126,19 @@ fn leaf_matches(leaf: Leaf, value: &ComponentValue<'_>) -> bool {
         ),
         Leaf::DashedIdent => matches!(token, Token::Ident(ident) if ident.starts_with("--")),
         Leaf::Ident => matches!(token, Token::Ident(_)),
+        Leaf::HexColor => matches!(
+            token,
+            Token::Hash { value, .. }
+                if matches!(value.len(), 3 | 4 | 6 | 8)
+                    && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+        ),
+        Leaf::ClockTimecount => match token {
+            Token::Number(_) => true,
+            Token::Dimension { unit, .. } => matches!(unit.as_ref(), "h" | "min" | "s" | "ms"),
+            _ => false,
+        },
+        Leaf::HashToken => matches!(token, Token::Hash { .. }),
+        Leaf::Numeric(_) | Leaf::FunctionToken => false,
     }
 }
 
@@ -908,6 +1197,64 @@ mod tests {
                 "{value:?} should not match {grammar:?}"
             );
         }
+    }
+
+    /// Every CSS grammar the catalog gives any attribute, in any profile or on
+    /// any element.
+    fn catalog_css_grammars() -> std::collections::BTreeSet<&'static str> {
+        svg_data::attributes()
+            .iter()
+            .flat_map(|def| {
+                std::iter::once(&def.values)
+                    .chain(def.value_overrides.iter().map(|(_, values)| values))
+                    .chain(def.element_values.iter().map(|scoped| &scoped.values))
+            })
+            .filter_map(|values| match values {
+                AttributeValues::CssGrammar { grammar, .. } => Some(*grammar),
+                _ => None,
+            })
+            .collect()
+    }
+
+    // Unchecked grammars accept every value, so a type left unexpanded hides
+    // invalid values of every attribute that uses it.
+    #[test]
+    fn every_catalog_css_grammar_is_checked() {
+        let unchecked: Vec<&str> = catalog_css_grammars()
+            .into_iter()
+            .filter(|grammar| !super::OPAQUE_GRAMMARS.contains(grammar))
+            .filter(|grammar| {
+                !super::FOREIGN_GRAMMARS
+                    .iter()
+                    .any(|(catalog, _)| catalog == grammar)
+            })
+            .filter(|grammar| super::parse_grammar(super::effective_grammar(grammar), 0).is_none())
+            .collect();
+        assert_eq!(unchecked, Vec::<&str>::new());
+    }
+
+    // A function whose definition does not parse matches by name alone, so
+    // its arguments would go unchecked. Two kinds never reach argument
+    // matching: a value with an arbitrary substitution function (`attr()`,
+    // and `type()` inside it) is accepted whole, and the arguments of a math
+    // function or of calc-size() ("calc-size( <calc-size-basis>, <calc-sum> )")
+    // are a calculation whose type is only known after evaluation.
+    #[test]
+    fn every_catalog_function_checks_its_arguments() {
+        use super::super::syntax::notation::{
+            is_arbitrary_substitution_function, is_math_function,
+        };
+        let unchecked: Vec<&str> = svg_data::css_functions()
+            .iter()
+            .map(|&(name, _)| name)
+            .filter(|&name| {
+                !is_arbitrary_substitution_function(name)
+                    && !is_math_function(name)
+                    && !matches!(name, "type" | "calc-size")
+            })
+            .filter(|name| super::function_arguments(name).is_none())
+            .collect();
+        assert_eq!(unchecked, Vec::<&str>::new());
     }
 
     // Claim: "Keywords are identifiers and are interpreted ASCII
@@ -2045,11 +2392,11 @@ mod tests {
     // "Other non-terminals. These are written as the name of the
     // non-terminal between < and >"
     // https://drafts.csswg.org/css-values-4/#component-types
-    // Every usage whose grammar has a non-terminal or property value range
-    // the matcher does not expand is accepted whole, so these values are
-    // accepted (accept-only: the stub accepts them too).
+    // Non-terminals and property value ranges expand through the catalog's
+    // `@webref/css` definitions or the SVG-local types, so each usage checks
+    // its value: a valid value matches and garbage does not.
     #[test]
-    fn unexpanded_references_accept() {
+    fn referenced_types_and_properties_expand() {
         let cases: &[(&str, Option<&str>, &str)] = &[
             ("alignment-baseline", None, "middle"),
             ("background", None, "red url(a.png) no-repeat"),
@@ -2057,7 +2404,7 @@ mod tests {
             ("border-style", None, "solid dashed"),
             ("clip-path", None, "url(#c)"),
             ("color-profile", None, "sRGB"),
-            ("color-interpolation", None, "oklab"),
+            ("color-interpolation", None, "in oklab"),
             ("content", None, "'x' / 'alt'"),
             ("cursor", None, "url(c.svg), pointer"),
             ("dominant-baseline", None, "hanging"),
@@ -2074,7 +2421,7 @@ mod tests {
             ("keySplines", Some("animate"), "0 0 1 1; 0.5 0 0.5 1"),
             ("mask", None, "url(#m)"),
             ("mode", Some("feBlend"), "multiply"),
-            ("object-position", None, "right 10px top"),
+            ("object-position", None, "right 10px top 5px"),
             ("order", Some("feConvolveMatrix"), "3 3"),
             ("outline", None, "1px solid red"),
             ("points", Some("polygon"), "0,0 10,10 20,0"),
@@ -2087,7 +2434,6 @@ mod tests {
             ("stdDeviation", Some("feDropShadow"), "2"),
             ("target", Some("a"), "_blank"),
             ("text-decoration", None, "underline red"),
-            ("to", Some("set"), "visible"),
             ("vertical-align", None, "middle"),
             ("viewBox", Some("svg"), "0 0 100 100"),
             ("white-space", None, "pre"),
@@ -2101,8 +2447,149 @@ mod tests {
             let AttributeValues::CssGrammar { grammar, .. } = values else {
                 panic!("{attr} on {element:?} is not a CSS grammar: {values:?}");
             };
-            valid(grammar, &[value, "#!garbage"]);
+            valid(grammar, &[value]);
+            invalid(grammar, &["#!garbage"]);
         }
+    }
+
+    // Claim: "Value: <clip-source> | [ <basic-shape> || <geometry-box> ] |
+    // none" https://drafts.csswg.org/css-masking-1/#the-clip-path
+    // A function matches a notation of the same name, and its arguments
+    // match that function's own definition.
+    #[test]
+    fn clip_path_values_and_shape_arguments_are_checked() {
+        let clip = real(
+            "clip-path",
+            None,
+            "<clip-source> | [ <basic-shape> || <geometry-box> ] | none",
+        );
+        valid(
+            clip,
+            &[
+                "url(#c)",
+                "url('#c')",
+                "circle(50%)",
+                "circle(closest-side at 10px 20px)",
+                "circle()",
+                "ellipse(10px 20px at center)",
+                "inset(1px) fill-box",
+                "inset(10px round 5px)",
+                "inset(1px 2px 3px 4px)",
+                "polygon(0 0, 10px 0, 5px 10px)",
+                "polygon(evenodd, 0 0, 10px 0, 5px 10px)",
+                "path('M0 0 L10 10')",
+                "xywh(0 0 10px 10px)",
+                "rect(1px 2px 3px 4px round 2px) stroke-box",
+                "border-box",
+                "none",
+            ],
+        );
+        invalid(
+            clip,
+            &[
+                "url(#clip) red",
+                "circle(50%) red",
+                "blur(2px)",
+                "banana",
+                "circle(banana)",
+                "circle(10px at)",
+                "polygon(0 0 0)",
+                "inset()",
+            ],
+        );
+    }
+
+    // Claim: "Value: none | <filter-value-list>"
+    // https://drafts.csswg.org/filter-effects-1/#FilterProperty
+    // A numeric slot takes a math function, never another function.
+    #[test]
+    fn filter_values_and_function_arguments_are_checked() {
+        let filter = real("filter", None, "none | <filter-value-list>");
+        valid(
+            filter,
+            &[
+                "url(#f)",
+                "blur(2px)",
+                "blur(2px) url(#f) drop-shadow(1px 1px red)",
+                "none",
+                "hue-rotate(90deg)",
+                "hue-rotate(0)",
+                "saturate(50%) brightness(1.2) contrast(200%)",
+                "grayscale() opacity(0.5) sepia(1) invert(100%)",
+                "drop-shadow(2px 2px 2px rgb(0 0 0 / 50%))",
+                "drop-shadow(red 1px 1px)",
+                "blur()",
+                "blur(calc(1px + 2px))",
+                "opacity(sibling-index())",
+            ],
+        );
+        invalid(
+            filter,
+            &[
+                "blur(2px) junk",
+                "red",
+                "circle(1px)",
+                "blur(red)",
+                "blur(1px 2px)",
+                "hue-rotate(red)",
+                "drop-shadow(red)",
+                "blur(linear-gradient(red, blue))",
+            ],
+        );
+    }
+
+    // Claim: "Value: <mask-layer>#" https://drafts.csswg.org/css-masking-1/#the-mask
+    #[test]
+    fn mask_values_are_checked() {
+        let mask = real("mask", None, "<mask-layer>#");
+        valid(
+            mask,
+            &[
+                "url(#m)",
+                "url(#m) no-repeat",
+                "url(#a), url(#b) luminance",
+                "linear-gradient(red, blue)",
+                "linear-gradient(to right, red 10%, blue) luminance",
+                "radial-gradient(circle, black, transparent)",
+                "url(#m) center / 50% no-repeat",
+            ],
+        );
+        invalid(
+            mask,
+            &[
+                "url(#m) banana",
+                "red",
+                "linear-gradient(to nowhere, red, blue)",
+                "url(#m) center / banana",
+            ],
+        );
+    }
+
+    // Claim: "Value: [<cursor-image>,]* <cursor-predefined>"
+    // https://drafts.csswg.org/css-ui-4/#cursor
+    #[test]
+    fn cursor_values_are_checked() {
+        let cursor = real("cursor", None, "[<cursor-image>,]* <cursor-predefined>");
+        valid(
+            cursor,
+            &["pointer", "url(c.cur) 2 3, pointer", "url(c.svg), auto"],
+        );
+        invalid(cursor, &["url(c.svg)", "pointer, url(c.svg)", "hand"]);
+    }
+
+    // The parser takes any CSS value for clip-path, so an invalid one is a
+    // lint diagnostic on that attribute alone.
+    #[test]
+    fn invalid_clip_path_is_reported_on_its_attribute() {
+        let messages: Vec<String> = crate::lint(
+            br#"<svg xmlns="http://www.w3.org/2000/svg"><clipPath id="c"/><rect clip-path="url(#c) red" filter="blur(2px)"/></svg>"#,
+        )
+        .into_iter()
+        .filter(|diagnostic| diagnostic.code == crate::types::DiagnosticCode::InvalidAttributeValue)
+        .map(|diagnostic| diagnostic.message)
+        .collect();
+        assert_eq!(messages.len(), 1, "{messages:?}");
+        assert!(messages[0].contains("clip-path"), "{messages:?}");
     }
 
     // Claim: "The SVG 2 specification defines attribute values ... By
@@ -2110,19 +2597,63 @@ mod tests {
     // [xml]. For external definitions, this is indicated by [EBNF] appearing
     // in the Value column." https://svgwg.org/svg2-draft/types.html#syntax
     // and the SMIL-style grammars quote literal values ("media",
-    // "indefinite") and name non-CSS productions (Clock-value). These are
-    // not CSS value definition syntax and are accepted (accept-only).
+    // "indefinite") and name the Clock-value production
+    // (https://svgwg.org/specs/animations/#ClockValueSyntax). Each is checked
+    // by its own syntax.
     #[test]
-    fn non_css_grammars_accept() {
-        let cases: &[(&str, Option<&str>, &str)] = &[
-            ("attributeName", Some("animate"), "fill"),
-            ("dur", Some("animate"), "2s"),
-            ("dur", Some("animate"), "indefinite"),
-            ("max", Some("animate"), "5s"),
-            ("min", Some("animate"), "media"),
-            ("repeatDur", Some("animate"), "01:30"),
+    fn smil_and_xml_grammars_are_checked() {
+        type GrammarCase = (
+            &'static str,
+            Option<&'static str>,
+            &'static [&'static str],
+            &'static [&'static str],
+        );
+        let cases: &[GrammarCase] = &[
+            (
+                "attributeName",
+                Some("animate"),
+                &["fill", "xlink:href", "stroke-width", "_x.y"],
+                &["not a name", "1fill", ""],
+            ),
+            (
+                "dur",
+                Some("animate"),
+                &[
+                    "2s",
+                    "0.5ms",
+                    "1.5h",
+                    "3min",
+                    "12",
+                    "02:30:03",
+                    "50:00:10.25",
+                    "02:33",
+                    "00:10.5",
+                    "indefinite",
+                    "media",
+                ],
+                &["2 s", "2sec", "-1s", "01:60", "02:61:00", "forever"],
+            ),
+            (
+                "max",
+                Some("animate"),
+                &["5s", "media"],
+                &["indefinite", "5 s"],
+            ),
+            ("min", Some("animate"), &["0", "media"], &["indefinite"]),
+            (
+                "repeatDur",
+                Some("animate"),
+                &["01:30", "indefinite"],
+                &["media", "1:2:3:4"],
+            ),
+            (
+                "target",
+                Some("a"),
+                &["_blank", "_self", "frame1", "my-window"],
+                &["two words", "1frame"],
+            ),
         ];
-        for &(attr, element, value) in cases {
+        for &(attr, element, accepted, rejected) in cases {
             let def =
                 svg_data::attribute(attr).unwrap_or_else(|| panic!("{attr} is in the catalog"));
             let AttributeValues::CssGrammar { grammar, .. } =
@@ -2130,7 +2661,8 @@ mod tests {
             else {
                 panic!("{attr} is not a CSS grammar");
             };
-            valid(grammar, &[value, "not a clock"]);
+            valid(grammar, accepted);
+            invalid(grammar, rejected);
         }
     }
 
