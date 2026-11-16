@@ -81,7 +81,7 @@ fn identity(tag: tree_sitter::Node<'_>, source: &[u8]) -> (Option<String>, Vec<S
                     if node.kind() == "id_token"
                         && let Ok(text) = node.utf8_text(source)
                     {
-                        id = Some(text.to_owned());
+                        id = Some(crate::text::xml_unescape(text));
                     }
                 });
             }
@@ -91,7 +91,11 @@ fn identity(tag: tree_sitter::Node<'_>, source: &[u8]) -> (Option<String>, Vec<S
                     if node.kind() == "class_name"
                         && let Ok(text) = node.utf8_text(source)
                     {
-                        classes.push(text.to_owned());
+                        classes.extend(
+                            crate::text::xml_tokens(text)
+                                .into_iter()
+                                .map(|(class, _, _)| class),
+                        );
                     }
                 });
             }
@@ -165,6 +169,14 @@ mod tests {
                 end_col: 7
             }
         );
+        Ok(())
+    }
+
+    #[test]
+    fn classes_split_after_decoding() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><g class=\"a&#32;b&amp;c\"/></svg>";
+        let outline = element_outline(source.as_bytes(), &parse_svg(source)?);
+        assert_eq!(outline[1].classes, vec!["a", "b&c"]);
         Ok(())
     }
 }

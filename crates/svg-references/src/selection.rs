@@ -14,14 +14,14 @@ use crate::{inline_style_fragments, outline::element_tag};
 pub fn selection_chain(source: &[u8], tree: &Tree, byte_offset: usize) -> Vec<Range<usize>> {
     let mut chain: Vec<Range<usize>> = Vec::new();
 
-    if let Some((stylesheet, fragment)) =
+    if let Some((_, fragment)) =
         inline_style_fragments(source, tree)
             .into_iter()
             .find(|(sheet, _)| {
                 (sheet.start_byte..=sheet.start_byte + sheet.css.len()).contains(&byte_offset)
             })
     {
-        let inner = byte_offset - stylesheet.start_byte;
+        let inner = fragment.inner_byte(byte_offset).unwrap_or_default();
         let mut node = Some(deepest_node_at(&fragment.tree, inner));
         while let Some(current) = node {
             if current.is_named()
@@ -132,6 +132,18 @@ mod tests {
         assert!(texts.contains(&"fill: red;"));
         assert!(texts.contains(&"{ fill: red; }"));
         assert!(texts.contains(&"<style>.a { fill: red; }</style>"));
+        Ok(())
+    }
+
+    #[test]
+    fn css_selection_maps_offsets_through_character_references() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><style>.a&#98; { fill: red }</style></svg>";
+        let tree = parse_svg(source)?;
+        let offset = source.find("red").ok_or("red")?;
+        let texts = texts(source, &selection_chain(source.as_bytes(), &tree, offset));
+        assert_eq!(texts[0], "red");
+        assert!(texts.contains(&"fill: red"), "{texts:?}");
+        assert!(texts.contains(&"{ fill: red }"), "{texts:?}");
         Ok(())
     }
 

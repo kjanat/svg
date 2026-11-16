@@ -6,8 +6,9 @@ use tree_sitter::{Parser, Point, Tree};
 use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
-        CssFragment, css_escape_identifier, css_unescape, is_xml_name, is_xml_whitespace,
-        node_span, rebase_point, span_between, strip_quotes, xml_escape_attribute, xml_unescape,
+        CssFragment, advance_point, css_escape_identifier, css_unescape, is_xml_name,
+        is_xml_whitespace, node_span, rebase_point, span_between, strip_quotes,
+        xml_escape_attribute, xml_tokens, xml_unescape,
     },
 };
 
@@ -137,14 +138,14 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
             }
         }
         "class_name" if has_ancestor(node, "class_attribute_value") => {
-            if let Ok(name) = node.utf8_text(source) {
-                out.push(markup_occurrence(
-                    DefinitionTarget::Class(xml_unescape(name)),
-                    OccurrenceRole::Reference,
+            if let Ok(text) = node.utf8_text(source) {
+                token_occurrences(
+                    text,
                     node.start_byte(),
-                    node.end_byte(),
-                    node_span(node),
-                ));
+                    node.start_position(),
+                    DefinitionTarget::Class,
+                    &mut out,
+                );
             }
         }
         "paint_payload" => paint_occurrences(node, source, &mut out),
@@ -368,25 +369,31 @@ fn aria_occurrences(
     let Ok(content) = content_node.utf8_text(source) else {
         return;
     };
-    let content_start = content_node.start_byte();
-    let content_point = content_node.start_position();
-    let mut offset = 0;
-    for token in content.split(is_xml_whitespace) {
-        if !token.is_empty() {
-            let start = content_start + offset;
-            let end = start + token.len();
-            let prefix = &content.as_bytes()[..offset];
-            let start_point = crate::text::advance_point(content_point, prefix);
-            let end_point = crate::text::advance_point(start_point, token.as_bytes());
-            out.push(markup_occurrence(
-                DefinitionTarget::Id(xml_unescape(token)),
-                OccurrenceRole::Reference,
-                start,
-                end,
-                span_between(start_point, end_point),
-            ));
-        }
-        offset += token.len() + 1;
+    token_occurrences(
+        content,
+        content_node.start_byte(),
+        content_node.start_position(),
+        DefinitionTarget::Id,
+        out,
+    );
+}
+
+fn token_occurrences(
+    text: &str,
+    start_byte: usize,
+    start_point: Point,
+    target: fn(String) -> DefinitionTarget,
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    for (token, start, end) in xml_tokens(text) {
+        let start_point_of = |offset: usize| advance_point(start_point, &text.as_bytes()[..offset]);
+        out.push(markup_occurrence(
+            target(token),
+            OccurrenceRole::Reference,
+            start_byte + start,
+            start_byte + end,
+            span_between(start_point_of(start), start_point_of(end)),
+        ));
     }
 }
 
@@ -738,6 +745,27 @@ mod tests {
         assert_eq!(spans, vec!["grad", "gr\\61 d", "grad", "gr&#x61;d"]);
         let edits = rename_edits(&occurrences, &DefinitionTarget::Id("grad".into()), "sky")?;
         assert_eq!(edits.len(), 4);
+        Ok(())
+    }
+
+    #[test]
+    fn class_and_aria_tokens_split_after_decoding() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>.a {fill:red}</style>",
+            "<g id=\"b\" class=\"a&#32;b\" aria-owns=\"b&#x9;c\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let named = |target: DefinitionTarget| -> Vec<&str> {
+            of_target(&occurrences, &target)
+                .iter()
+                .map(|o| span_text(source, &o.span))
+                .collect()
+        };
+        assert_eq!(named(DefinitionTarget::Class("a".into())), vec!["a", "a"]);
+        assert_eq!(named(DefinitionTarget::Class("b".into())), vec!["b"]);
+        assert_eq!(named(DefinitionTarget::Id("b".into())), vec!["b", "b"]);
+        assert_eq!(named(DefinitionTarget::Id("c".into())), vec!["c"]);
         Ok(())
     }
 

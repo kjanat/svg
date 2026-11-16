@@ -59,6 +59,16 @@ impl CssFragment {
         })
     }
 
+    pub fn inner_byte(&self, source_byte: usize) -> Option<usize> {
+        let offset = source_byte.checked_sub(self.base_byte)?;
+        let inner = self.offsets.as_ref().map_or(offset, |offsets| {
+            offsets
+                .partition_point(|&mapped| mapped <= offset)
+                .saturating_sub(1)
+        });
+        Some(self.prefix + inner)
+    }
+
     fn source_offset(&self, inner: usize) -> Option<usize> {
         let offset = inner.checked_sub(self.prefix)?;
         self.offsets
@@ -227,6 +237,30 @@ pub fn xml_escape_attribute(text: &str) -> String {
         }
     }
     out
+}
+
+pub fn xml_tokens(text: &str) -> Vec<(String, usize, usize)> {
+    let (decoded, offsets) = xml_unescape_mapped(text);
+    let source = |index: usize| {
+        offsets
+            .as_ref()
+            .map_or(Some(index), |offsets| offsets.get(index).copied())
+    };
+    let mut tokens = Vec::new();
+    let mut start = None;
+    let ends = decoded
+        .char_indices()
+        .chain(std::iter::once((decoded.len(), ' ')));
+    for (index, ch) in ends {
+        if !is_xml_whitespace(ch) {
+            start.get_or_insert(index);
+        } else if let Some(begin) = start.take()
+            && let (Some(raw_start), Some(raw_end)) = (source(begin), source(index))
+        {
+            tokens.push((decoded[begin..index].to_owned(), raw_start, raw_end));
+        }
+    }
+    tokens
 }
 
 pub fn xml_unescape(text: &str) -> String {
