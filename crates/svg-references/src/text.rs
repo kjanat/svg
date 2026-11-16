@@ -267,7 +267,7 @@ pub fn xml_unescape(text: &str) -> String {
     xml_unescape_mapped(text).0
 }
 
-fn xml_unescape_mapped(text: &str) -> (String, Option<Vec<usize>>) {
+pub fn xml_unescape_mapped(text: &str) -> (String, Option<Vec<usize>>) {
     if !text.contains('&') {
         return (text.to_owned(), None);
     }

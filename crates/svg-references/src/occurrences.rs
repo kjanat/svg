@@ -8,7 +8,7 @@ use crate::{
     text::{
         CssFragment, advance_point, css_escape_identifier, css_unescape, is_xml_name,
         is_xml_whitespace, node_span, rebase_point, span_between, strip_quotes,
-        xml_escape_attribute, xml_tokens, xml_unescape,
+        xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
     },
 };
 
@@ -47,6 +47,8 @@ pub enum OccurrenceSyntax {
         /// The CSS is XML character data, outside a CDATA section.
         xml_escaped: bool,
     },
+    /// The element id of a syncbase or event value in an animation `begin` or `end` list.
+    TimingReference,
 }
 
 /// One place where an id, class, or custom property appears in an SVG document.
@@ -160,6 +162,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         kind if is_attribute_node_kind(kind) => {
             aria_occurrences(node, source, &mut out);
             presentation_occurrences(node, source, &mut out);
+            timing_occurrences(node, source, &mut out);
         }
         _ => {}
     });
@@ -248,6 +251,16 @@ pub fn rename_edits(
 fn escape_for(syntax: OccurrenceSyntax, name: &str) -> String {
     match syntax {
         OccurrenceSyntax::Attribute => xml_escape_attribute(name),
+        OccurrenceSyntax::TimingReference => {
+            let mut escaped = String::with_capacity(name.len());
+            for ch in name.chars() {
+                if matches!(ch, '.' | '-' | '\\') {
+                    escaped.push('\\');
+                }
+                escaped.push(ch);
+            }
+            xml_escape_attribute(&escaped)
+        }
         OccurrenceSyntax::CssIdentifier { xml_escaped } => {
             let escaped = css_escape_identifier(name);
             if xml_escaped {
@@ -397,6 +410,72 @@ fn token_occurrences(
     }
 }
 
+fn timing_occurrences(
+    attribute: tree_sitter::Node<'_>,
+    source: &[u8],
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    let is_timing = attribute
+        .child_by_field_name("name")
+        .and_then(|name| name.utf8_text(source).ok())
+        .is_some_and(|name| matches!(name, "begin" | "end"));
+    let Some(value) = attribute.child_by_field_name("value").filter(|_| is_timing) else {
+        return;
+    };
+    let Ok(text) = value.utf8_text(source) else {
+        return;
+    };
+    let (quote, content) = strip_quotes(text);
+    let start = value.start_position();
+    let content_point = Point::new(start.row, start.column + quote);
+    let content_byte = value.start_byte() + quote;
+    let (decoded, offsets) = xml_unescape_mapped(content);
+    let raw = |index: usize| {
+        offsets
+            .as_ref()
+            .map_or(Some(index), |offsets| offsets.get(index).copied())
+    };
+    let mut segment_start = 0;
+    for segment in decoded.split(';') {
+        let lead = segment.len() - segment.trim_start_matches(is_xml_whitespace).len();
+        if let Some((length, id)) = syncbase_id(&segment[lead..])
+            && let (Some(start), Some(end)) = (
+                raw(segment_start + lead),
+                raw(segment_start + lead + length),
+            )
+        {
+            let point_at =
+                |offset: usize| advance_point(content_point, &content.as_bytes()[..offset]);
+            out.push(SymbolOccurrence {
+                target: DefinitionTarget::Id(id),
+                role: OccurrenceRole::Reference,
+                syntax: OccurrenceSyntax::TimingReference,
+                start_byte: content_byte + start,
+                end_byte: content_byte + end,
+                span: span_between(point_at(start), point_at(end)),
+            });
+        }
+        segment_start += segment.len() + 1;
+    }
+}
+
+fn syncbase_id(value: &str) -> Option<(usize, String)> {
+    let mut id = String::new();
+    let mut chars = value.char_indices();
+    while let Some((index, ch)) = chars.next() {
+        match ch {
+            '\\' => id.push(chars.next()?.1),
+            '.' => {
+                let follows_event =
+                    value[index + 1..].starts_with(|next: char| next.is_ascii_alphabetic());
+                return (follows_event && is_xml_name(&id)).then_some((index, id));
+            }
+            _ => id.push(ch),
+        }
+    }
+    None
+}
+
 fn presentation_occurrences(
     attribute: tree_sitter::Node<'_>,
     source: &[u8],
@@ -417,7 +496,7 @@ fn presentation_occurrences(
         return;
     };
     let (quote, content) = strip_quotes(text);
-    if !content.contains("var(") {
+    if !xml_unescape(content).to_ascii_lowercase().contains("var(") {
         return;
     }
     let start = value.start_position();
@@ -795,6 +874,42 @@ mod tests {
                 (OccurrenceRole::Reference, "--c"),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn collects_ids_from_animation_timing() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><rect id=\"btn\"/><rect id=\"a-b\"/>",
+            "<animate begin=\"btn.click; 2s; a\\-b.end+1s; wallclock(2020-01-01T00:00:00.5Z); \
+             indefinite\" end=\"btn&#46;begin\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let named = |name: &str| -> Vec<&str> {
+            of_target(&occurrences, &DefinitionTarget::Id(name.into()))
+                .iter()
+                .map(|o| span_text(source, &o.span))
+                .collect()
+        };
+        assert_eq!(named("btn"), vec!["btn", "btn", "btn"]);
+        assert_eq!(named("a-b"), vec!["a-b", "a\\-b"]);
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("a-b".into()), "c.d")?;
+        let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
+        assert_eq!(texts, vec!["c.d", "c\\.d"]);
+        Ok(())
+    }
+
+    #[test]
+    fn presentation_vars_are_found_after_decoding() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><style>:root { --c: red }</style><rect fill=\"v&#97;r(--c)\"/></svg>";
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let props = of_target(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+        );
+        assert_eq!(props.len(), 2, "{occurrences:#?}");
         Ok(())
     }
 
