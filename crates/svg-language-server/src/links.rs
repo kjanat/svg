@@ -13,9 +13,13 @@ pub fn document_links(source: &str, tree: &Tree, base: &Uri) -> Vec<DocumentLink
     svg_references::external_links(bytes, tree)
         .into_iter()
         .filter_map(|link| {
-            let resolved = Url::parse(&link.target)
-                .ok()
-                .or_else(|| base.as_ref()?.join(&link.target).ok())?;
+            let resolved = Url::parse(&link.target).ok().or_else(|| {
+                let mut resolved = base.clone()?;
+                for xml_base in &link.base {
+                    resolved = resolved.join(xml_base).ok()?;
+                }
+                resolved.join(&link.target).ok()
+            })?;
             let target = Uri::from_str(resolved.as_str()).ok()?;
             Some(DocumentLink {
                 range: span_range(&index, bytes, &link.span),
@@ -72,6 +76,27 @@ mod tests {
         assert_eq!(
             links[0].range,
             Range::new(Position::new(0, 38), Position::new(0, 47))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_relative_targets_against_xml_base() -> Result<(), Box<dyn std::error::Error>> {
+        let source = concat!(
+            "<svg xml:base=\"assets/\"><image href=\"a.png\"/>",
+            "<g xml:base=\"https://cdn.example/lib/\"><use href=\"s.svg#i\"/></g></svg>",
+        );
+        let base = Uri::from_str("file:///project/icon.svg")?;
+        let targets: Vec<_> = document_links(source, &parse(source), &base)
+            .into_iter()
+            .filter_map(|link| link.target.map(|target| target.as_str().to_owned()))
+            .collect();
+        assert_eq!(
+            targets,
+            vec![
+                "file:///project/assets/a.png",
+                "https://cdn.example/lib/s.svg#i",
+            ]
         );
         Ok(())
     }

@@ -1,9 +1,11 @@
 use svg_tree::{child_of_kind, walk_tree};
-use tree_sitter::{Point, Tree};
+use tree_sitter::Tree;
 
 use crate::{
-    Span, collect_inline_stylesheets,
+    Span, inline_style_fragments,
     occurrences::{is_structural_iri, parse_paint, url_argument_range},
+    outline::element_tag,
+    tag_attribute_value,
     text::{CssFragment, advance_point, node_span, rebase_point, span_between, xml_unescape},
 };
 
@@ -14,6 +16,9 @@ pub struct ExternalLink {
     pub target: String,
     /// Span of the reference text, quotes and `url(` excluded.
     pub span: Span,
+    /// The `xml:base` values in scope, outermost first. A relative target resolves against
+    /// the document URL joined with each in turn.
+    pub base: Vec<String>,
 }
 
 /// Collect references to other resources: `href`/`xlink:href` values, `url(...)` values,
@@ -27,7 +32,12 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
     walk_tree(&mut cursor, &mut |node| match node.kind() {
         "iri_reference" if is_structural_iri(node) => {
             if let Ok(text) = node.utf8_text(source) {
-                push_link(&mut links, &xml_unescape(text), node_span(node));
+                push_link(
+                    &mut links,
+                    &xml_unescape(text),
+                    node_span(node),
+                    &xml_bases(node, source),
+                );
             }
         }
         "paint_payload" => paint_links(node, source, &mut links),
@@ -36,20 +46,18 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
                 && let Some(fragment) =
                     CssFragment::declarations(content, node.start_byte(), node.start_position())
             {
-                css_links(&fragment, &mut links);
+                css_links(&fragment, &xml_bases(node, source), &mut links);
             }
         }
         "processing_instruction" => stylesheet_pi_link(node, source, &mut links),
         _ => {}
     });
-    for stylesheet in collect_inline_stylesheets(source, tree) {
-        if let Some(fragment) = CssFragment::stylesheet(
-            &stylesheet.css,
-            stylesheet.start_byte,
-            Point::new(stylesheet.start_row, stylesheet.start_col),
-        ) {
-            css_links(&fragment, &mut links);
-        }
+    for (stylesheet, fragment) in inline_style_fragments(source, tree) {
+        let bases = tree
+            .root_node()
+            .descendant_for_byte_range(stylesheet.start_byte, stylesheet.start_byte)
+            .map_or_default(|node| xml_bases(node, source));
+        css_links(&fragment, &bases, &mut links);
     }
     links.sort_by_key(|link| {
         (
@@ -63,7 +71,22 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
     links
 }
 
-fn push_link(links: &mut Vec<ExternalLink>, target: &str, span: Span) {
+fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
+    let mut bases = Vec::new();
+    let mut current = Some(node);
+    while let Some(element) = current {
+        if let Some(base) =
+            element_tag(element).and_then(|tag| tag_attribute_value(source, tag, "xml:base"))
+        {
+            bases.push(xml_unescape(&base));
+        }
+        current = element.parent();
+    }
+    bases.reverse();
+    bases
+}
+
+fn push_link(links: &mut Vec<ExternalLink>, target: &str, span: Span, base: &[String]) {
     let target = target.trim();
     let is_data = target
         .get(..5)
@@ -74,6 +97,7 @@ fn push_link(links: &mut Vec<ExternalLink>, target: &str, span: Span) {
     links.push(ExternalLink {
         target: target.to_owned(),
         span,
+        base: base.to_vec(),
     });
 }
 
@@ -85,6 +109,7 @@ fn paint_links(payload: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<Ex
         return;
     };
     let base = payload.start_position();
+    let bases = xml_bases(payload, source);
     let mut cursor = tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| {
         if node.kind() == "iri_reference"
@@ -100,20 +125,14 @@ fn paint_links(payload: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<Ex
                     rebase_point(base, node.start_position()),
                     rebase_point(base, node.end_position()),
                 ),
+                &bases,
             );
         }
     });
 }
 
-fn css_links(fragment: &CssFragment, links: &mut Vec<ExternalLink>) {
-    let in_attribute = fragment.in_attribute;
-    let decode = |text: &str| {
-        if in_attribute {
-            xml_unescape(text)
-        } else {
-            text.to_owned()
-        }
-    };
+fn css_links(fragment: &CssFragment, bases: &[String], links: &mut Vec<ExternalLink>) {
+    let decode = |text: &str| fragment.decode(text);
     let mut cursor = fragment.tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| match node.kind() {
         "call_expression" => {
@@ -128,7 +147,7 @@ fn css_links(fragment: &CssFragment, links: &mut Vec<ExternalLink>) {
                 && let Some(text) = fragment.text.get(start..end)
                 && let Some((_, _, span)) = fragment.source_range(start, end)
             {
-                push_link(links, &decode(text), span);
+                push_link(links, &decode(text), span, bases);
             }
         }
         "string_value"
@@ -145,7 +164,7 @@ fn css_links(fragment: &CssFragment, links: &mut Vec<ExternalLink>) {
                 && let Some(inner) = fragment.text.get(inner_start..inner_end)
                 && let Some((_, _, span)) = fragment.source_range(inner_start, inner_end)
             {
-                push_link(links, &decode(inner), span);
+                push_link(links, &decode(inner), span, bases);
             }
         }
         _ => {}
@@ -179,6 +198,7 @@ fn stylesheet_pi_link(node: tree_sitter::Node<'_>, source: &[u8], links: &mut Ve
         links,
         &xml_unescape(value),
         span_between(start_point, end_point),
+        &[],
     );
 }
 
@@ -303,6 +323,38 @@ mod tests {
         assert_eq!(spans[3], "img.png");
         assert_eq!(spans[5], "https://example.com/a.png?x=1&amp;y=2");
         assert_eq!(spans[8], "s.svg#s");
+        assert!(links.iter().all(|link| link.base.is_empty()));
+        Ok(())
+    }
+
+    #[test]
+    fn records_xml_base_in_scope_outermost_first() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<?xml-stylesheet href=\"theme.css\"?>",
+            "<svg xml:base=\"assets/\"><g xml:base=\"icons/\">",
+            "<image href=\"a.png\" xml:base=\"x&amp;y/\"/><rect style=\"fill: url(p.svg#p)\"/>",
+            "<style>.x { background: url(b.png) }</style></g><use href=\"u.svg#u\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let links: Vec<_> = external_links(source.as_bytes(), &tree)
+            .into_iter()
+            .map(|link| (link.target, link.base))
+            .collect();
+        let bases = |list: &[&str]| {
+            list.iter()
+                .map(|base| (*base).to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            links,
+            vec![
+                ("theme.css".to_owned(), Vec::new()),
+                ("a.png".to_owned(), bases(&["assets/", "icons/", "x&y/"])),
+                ("p.svg#p".to_owned(), bases(&["assets/", "icons/"])),
+                ("b.png".to_owned(), bases(&["assets/", "icons/"])),
+                ("u.svg#u".to_owned(), bases(&["assets/"])),
+            ]
+        );
         Ok(())
     }
 }

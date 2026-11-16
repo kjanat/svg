@@ -4,10 +4,10 @@ use svg_tree::{child_of_kind, has_ancestor, is_attribute_node_kind, walk_tree};
 use tree_sitter::{Parser, Point, Tree};
 
 use crate::{
-    DefinitionTarget, Span, collect_inline_stylesheets,
+    DefinitionTarget, Span, inline_style_fragments,
     text::{
         CssFragment, css_escape_identifier, css_unescape, is_xml_name, is_xml_whitespace,
-        node_span, rebase_point, span_between, strip_quotes, xml_escape_attribute,
+        node_span, rebase_point, span_between, strip_quotes, xml_escape_attribute, xml_unescape,
     },
 };
 
@@ -36,22 +36,22 @@ pub enum OccurrenceRole {
 pub enum OccurrenceSyntax {
     /// Raw XML attribute text.
     Attribute,
-    /// A CSS identifier, inside a `<style>` element or a `style` attribute.
+    /// A CSS identifier, inside a `<style>` element or a `style` or presentation attribute.
     CssIdentifier {
-        /// The CSS sits inside an XML attribute value.
-        in_attribute: bool,
+        /// The CSS is XML character data, outside a CDATA section.
+        xml_escaped: bool,
     },
     /// The fragment of a CSS `url(#...)`.
     CssUrl {
-        /// The CSS sits inside an XML attribute value.
-        in_attribute: bool,
+        /// The CSS is XML character data, outside a CDATA section.
+        xml_escaped: bool,
     },
 }
 
 /// One place where an id, class, or custom property appears in an SVG document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolOccurrence {
-    /// The symbol, with CSS escapes decoded.
+    /// The symbol, with XML character references and CSS escapes decoded.
     pub target: DefinitionTarget,
     /// Declaration or reference.
     pub role: OccurrenceRole,
@@ -111,8 +111,8 @@ impl std::error::Error for RenameError {}
 /// position.
 ///
 /// Covers `id` attributes, local `#id` IRIs in attributes and paint values, ARIA id
-/// references, `class` attribute tokens, and the selectors, `var()` and `url(#...)` uses in
-/// `<style>` elements and `style` attributes.
+/// references, `class` attribute tokens, `var()` in presentation attributes, and the
+/// selectors, `var()` and `url(#...)` uses in `<style>` elements and `style` attributes.
 #[must_use]
 pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccurrence> {
     let mut out = Vec::new();
@@ -121,7 +121,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         "id_token" => {
             if let Ok(name) = node.utf8_text(source) {
                 out.push(markup_occurrence(
-                    DefinitionTarget::Id(name.to_owned()),
+                    DefinitionTarget::Id(xml_unescape(name)),
                     OccurrenceRole::Declaration,
                     node.start_byte(),
                     node.end_byte(),
@@ -139,7 +139,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         "class_name" if has_ancestor(node, "class_attribute_value") => {
             if let Ok(name) = node.utf8_text(source) {
                 out.push(markup_occurrence(
-                    DefinitionTarget::Class(name.to_owned()),
+                    DefinitionTarget::Class(xml_unescape(name)),
                     OccurrenceRole::Reference,
                     node.start_byte(),
                     node.end_byte(),
@@ -156,18 +156,15 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
                 css_occurrences(&fragment, &mut out);
             }
         }
-        kind if is_attribute_node_kind(kind) => aria_occurrences(node, source, &mut out),
+        kind if is_attribute_node_kind(kind) => {
+            aria_occurrences(node, source, &mut out);
+            presentation_occurrences(node, source, &mut out);
+        }
         _ => {}
     });
 
-    for stylesheet in collect_inline_stylesheets(source, tree) {
-        if let Some(fragment) = CssFragment::stylesheet(
-            &stylesheet.css,
-            stylesheet.start_byte,
-            Point::new(stylesheet.start_row, stylesheet.start_col),
-        ) {
-            css_occurrences(&fragment, &mut out);
-        }
+    for (_, fragment) in inline_style_fragments(source, tree) {
+        css_occurrences(&fragment, &mut out);
     }
 
     out.sort_by_key(|occurrence| (occurrence.start_byte, occurrence.end_byte));
@@ -250,16 +247,16 @@ pub fn rename_edits(
 fn escape_for(syntax: OccurrenceSyntax, name: &str) -> String {
     match syntax {
         OccurrenceSyntax::Attribute => xml_escape_attribute(name),
-        OccurrenceSyntax::CssIdentifier { in_attribute } => {
+        OccurrenceSyntax::CssIdentifier { xml_escaped } => {
             let escaped = css_escape_identifier(name);
-            if in_attribute {
+            if xml_escaped {
                 xml_escape_attribute(&escaped)
             } else {
                 escaped
             }
         }
-        OccurrenceSyntax::CssUrl { in_attribute } => {
-            if in_attribute {
+        OccurrenceSyntax::CssUrl { xml_escaped } => {
+            if xml_escaped {
                 xml_escape_attribute(name)
             } else {
                 name.to_owned()
@@ -303,7 +300,7 @@ fn local_iri_occurrence(
         .filter(|name| !name.is_empty())?;
     let start = node.start_position();
     Some(markup_occurrence(
-        DefinitionTarget::Id(name.to_owned()),
+        DefinitionTarget::Id(xml_unescape(name)),
         OccurrenceRole::Reference,
         base_byte + node.start_byte() + 1,
         base_byte + node.end_byte(),
@@ -382,7 +379,7 @@ fn aria_occurrences(
             let start_point = crate::text::advance_point(content_point, prefix);
             let end_point = crate::text::advance_point(start_point, token.as_bytes());
             out.push(markup_occurrence(
-                DefinitionTarget::Id(token.to_owned()),
+                DefinitionTarget::Id(xml_unescape(token)),
                 OccurrenceRole::Reference,
                 start,
                 end,
@@ -393,8 +390,74 @@ fn aria_occurrences(
     }
 }
 
+fn presentation_occurrences(
+    attribute: tree_sitter::Node<'_>,
+    source: &[u8],
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    let is_presentation = attribute
+        .child_by_field_name("name")
+        .and_then(|name| name.utf8_text(source).ok())
+        .and_then(svg_data::attribute)
+        .is_some_and(|definition| definition.presentation_attribute.is_some());
+    let Some(value) = attribute.child_by_field_name("value") else {
+        return;
+    };
+    if !is_presentation {
+        return;
+    }
+    let Ok(text) = value.utf8_text(source) else {
+        return;
+    };
+    let (quote, content) = strip_quotes(text);
+    if !content.contains("var(") {
+        return;
+    }
+    let start = value.start_position();
+    if let Some(fragment) = CssFragment::value(
+        content,
+        value.start_byte() + quote,
+        Point::new(start.row, start.column + quote),
+    ) {
+        let mut cursor = fragment.tree.root_node().walk();
+        walk_tree(&mut cursor, &mut |node| {
+            if node.kind() == "call_expression" {
+                var_occurrence(&fragment, node, out);
+            }
+        });
+    }
+}
+
+fn var_occurrence(
+    fragment: &CssFragment,
+    call: tree_sitter::Node<'_>,
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    let is_var = child_of_kind(call, "function_name")
+        .and_then(|function| fragment.node_text(function))
+        .is_some_and(|function| function.eq_ignore_ascii_case("var"));
+    let Some(arguments) = child_of_kind(call, "arguments").filter(|_| is_var) else {
+        return;
+    };
+    let mut args = arguments.walk();
+    if let Some(first) = arguments.named_children(&mut args).next()
+        && first.kind() == "plain_value"
+        && fragment
+            .node_text(first)
+            .is_some_and(|text| text.starts_with("--"))
+    {
+        push_css_identifier(
+            fragment,
+            first,
+            OccurrenceRole::Reference,
+            DefinitionTarget::CustomProperty,
+            out,
+        );
+    }
+}
+
 pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) {
-    let in_attribute = fragment.in_attribute;
+    let xml_escaped = fragment.xml_escaped;
     let mut cursor = fragment.tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| {
         let parent_kind = node.parent().map(|parent| parent.kind());
@@ -440,21 +503,7 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
                     return;
                 };
                 if function.eq_ignore_ascii_case("var") {
-                    let mut args = arguments.walk();
-                    if let Some(first) = arguments.named_children(&mut args).next()
-                        && first.kind() == "plain_value"
-                        && fragment
-                            .node_text(first)
-                            .is_some_and(|text| text.starts_with("--"))
-                    {
-                        push_css_identifier(
-                            fragment,
-                            first,
-                            OccurrenceRole::Reference,
-                            DefinitionTarget::CustomProperty,
-                            out,
-                        );
-                    }
+                    var_occurrence(fragment, node, out);
                 } else if function.eq_ignore_ascii_case("url")
                     && let Some((start, end)) = url_argument_range(fragment, arguments)
                     && let Some(fragment_text) = fragment.text.get(start..end)
@@ -463,9 +512,9 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
                         fragment.source_range(start + 1, end)
                 {
                     out.push(SymbolOccurrence {
-                        target: DefinitionTarget::Id(name.to_owned()),
+                        target: DefinitionTarget::Id(fragment.decode(name)),
                         role: OccurrenceRole::Reference,
-                        syntax: OccurrenceSyntax::CssUrl { in_attribute },
+                        syntax: OccurrenceSyntax::CssUrl { xml_escaped },
                         start_byte: source_start,
                         end_byte: source_end,
                         span,
@@ -517,10 +566,10 @@ fn push_css_identifier(
         return;
     };
     out.push(SymbolOccurrence {
-        target: target(css_unescape(text)),
+        target: target(css_unescape(&fragment.decode(text))),
         role,
         syntax: OccurrenceSyntax::CssIdentifier {
-            in_attribute: fragment.in_attribute,
+            xml_escaped: fragment.xml_escaped,
         },
         start_byte,
         end_byte,
@@ -650,6 +699,90 @@ mod tests {
     }
 
     #[test]
+    fn decodes_xml_references_before_matching() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>.a\\&b { fill: red }</style>",
+            "<g class=\"a&amp;b\" id=\"iA\" aria-owns=\"i&#65;\"/>",
+            "<use href=\"#iA\"/><rect style=\"fill: url(#i&#65;)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let class = of_target(&occurrences, &DefinitionTarget::Class("a&b".into()));
+        assert_eq!(
+            texts(source, &class.iter().copied().cloned().collect::<Vec<_>>()),
+            vec!["a\\&b", "a&amp;b"]
+        );
+        let id = of_target(&occurrences, &DefinitionTarget::Id("iA".into()));
+        assert_eq!(
+            texts(source, &id.iter().copied().cloned().collect::<Vec<_>>()),
+            vec!["iA", "i&#65;", "iA", "i&#65;"]
+        );
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Class("a&b".into()), "c&d")?;
+        let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
+        assert_eq!(texts, vec!["c\\&amp;d", "c&amp;d"]);
+        Ok(())
+    }
+
+    #[test]
+    fn cdata_stylesheets_are_not_xml_escaped() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><style><![CDATA[.a\\&b {}]]></style><g class=\"a&amp;b\"/></svg>";
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let class = of_target(&occurrences, &DefinitionTarget::Class("a&b".into()));
+        assert_eq!(class.len(), 2, "{occurrences:#?}");
+        assert_eq!(
+            class[0].syntax,
+            OccurrenceSyntax::CssIdentifier { xml_escaped: false }
+        );
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Class("a&b".into()), "c&d")?;
+        let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
+        assert_eq!(texts, vec!["c\\&d", "c&amp;d"]);
+        Ok(())
+    }
+
+    #[test]
+    fn collects_custom_properties_from_presentation_attributes() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>:root { --c: red }</style>",
+            "<rect fill=\"var(--c)\" stroke-width='var(--c, 2)' title=\"var(--c)\"/>",
+            "<path d=\"M0 0\" opacity=\"var(--c-x)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let props = of_target(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+        );
+        let found: Vec<_> = props
+            .iter()
+            .map(|o| (o.role, span_text(source, &o.span)))
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                (OccurrenceRole::Declaration, "--c"),
+                (OccurrenceRole::Reference, "--c"),
+                (OccurrenceRole::Reference, "--c"),
+            ]
+        );
+        assert_eq!(
+            of_target(
+                &occurrences,
+                &DefinitionTarget::CustomProperty("--c-x".into())
+            )
+            .len(),
+            1
+        );
+        let edits = rename_edits(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+            "--d",
+        )?;
+        assert_eq!(edits.len(), 3);
+        Ok(())
+    }
+
+    #[test]
     fn ignores_external_iris() -> Result<(), Box<dyn Error>> {
         let source = r#"<svg><use href="other.svg#g"/><rect fill="url(other.svg#g)"/></svg>"#;
         let tree = parse_svg(source)?;
@@ -732,7 +865,7 @@ mod tests {
         let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
         let edits = rename_edits(&occurrences, &DefinitionTarget::Class("a".into()), "x.\"y")?;
         let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
-        assert_eq!(texts, vec!["x\\.\\\"y", "x.&quot;y"]);
+        assert_eq!(texts, vec!["x\\.\\&quot;y", "x.&quot;y"]);
         assert_eq!(
             rename_edits(&occurrences, &DefinitionTarget::Class("a".into()), "x y"),
             Err(RenameError::InvalidClass("x y".into()))

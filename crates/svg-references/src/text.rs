@@ -10,34 +10,52 @@ pub struct CssFragment {
     prefix: usize,
     base_byte: usize,
     base_point: Point,
-    pub in_attribute: bool,
+    pub xml_escaped: bool,
 }
 
 impl CssFragment {
-    pub fn stylesheet(css: &str, base_byte: usize, base_point: Point) -> Option<Self> {
-        Some(Self {
-            tree: css_tree(css)?,
-            text: css.to_owned(),
-            prefix: 0,
-            base_byte,
-            base_point,
-            in_attribute: false,
-        })
+    pub fn stylesheet(
+        css: &str,
+        base_byte: usize,
+        base_point: Point,
+        xml_escaped: bool,
+    ) -> Option<Self> {
+        Self::wrapped("", css, "", base_byte, base_point, xml_escaped)
     }
 
     pub fn declarations(content: &str, base_byte: usize, base_point: Point) -> Option<Self> {
-        let mut text = String::with_capacity(content.len() + 3);
-        text.push_str("x{");
-        text.push_str(content);
-        text.push('}');
+        Self::wrapped("x{", content, "}", base_byte, base_point, true)
+    }
+
+    pub fn value(content: &str, base_byte: usize, base_point: Point) -> Option<Self> {
+        Self::wrapped("x{p:", content, "}", base_byte, base_point, true)
+    }
+
+    fn wrapped(
+        prefix: &str,
+        content: &str,
+        suffix: &str,
+        base_byte: usize,
+        base_point: Point,
+        xml_escaped: bool,
+    ) -> Option<Self> {
+        let text = [prefix, content, suffix].concat();
         Some(Self {
             tree: css_tree(&text)?,
             text,
-            prefix: 2,
+            prefix: prefix.len(),
             base_byte,
             base_point,
-            in_attribute: true,
+            xml_escaped,
         })
+    }
+
+    pub fn decode(&self, text: &str) -> String {
+        if self.xml_escaped {
+            xml_unescape(text)
+        } else {
+            text.to_owned()
+        }
     }
 
     pub fn source_byte(&self, inner: usize) -> Option<usize> {

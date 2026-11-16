@@ -1,7 +1,7 @@
 use svg_tree::{child_of_kind, walk_tree};
 use tree_sitter::{Point, Tree};
 
-use crate::{collect_inline_stylesheets, outline::element_tag, text::CssFragment};
+use crate::{inline_style_fragments, outline::element_tag};
 
 /// What a fold hides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,14 +79,7 @@ pub fn folding_regions(source: &[u8], tree: &Tree) -> Vec<FoldRegion> {
         );
     });
 
-    for stylesheet in collect_inline_stylesheets(source, tree) {
-        let Some(fragment) = CssFragment::stylesheet(
-            &stylesheet.css,
-            stylesheet.start_byte,
-            Point::new(stylesheet.start_row, stylesheet.start_col),
-        ) else {
-            continue;
-        };
+    for (_, fragment) in inline_style_fragments(source, tree) {
         let mut cursor = fragment.tree.root_node().walk();
         walk_tree(&mut cursor, &mut |node| {
             if node.kind() != "block" {
