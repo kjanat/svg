@@ -22,12 +22,6 @@ When bumping the workspace version after a catalog refresh:
   release commit, such as `svg-data-v0.5.0` beside `v0.5.0`, through Beepboop
   `packageTags`.
 
-### Changed
-
-- Build, package and verify a release from the commit Beepboop approved. A
-  release whose version tag already exists can run the current release workflow
-  after `master` moved on.
-
 ### Fixed
 
 - Fall back to generated release notes when a release has no matching

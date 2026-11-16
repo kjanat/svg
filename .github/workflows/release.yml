@@ -31,7 +31,7 @@ jobs:
     name: versions
     permissions: { contents: read }
     uses: $/.github/workflows/version-check.yml
-    with: { ref: "${{ needs.beepboop.outputs.source-sha }}", expected-version: "${{ needs.beepboop.outputs.version }}" }
+    with: { ref: "${{ github.sha }}", expected-version: "${{ needs.beepboop.outputs.version }}" }
 
   verify:
     needs: beepboop
@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "${{ needs.beepboop.outputs.source-sha }}", persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
       - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with: { tool: rust+clippy }
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
@@ -67,11 +67,9 @@ jobs:
           APPROVED_SOURCE: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
           DISPATCHED_SOURCE: ${{ github.sha }}
           DISPATCHED_REF: ${{ github.ref }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           test "${DISPATCHED_REF}" = refs/heads/master
-          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${APPROVED_SOURCE}...${DISPATCHED_SOURCE}" --jq .status)"
-          test "${status}" = identical || test "${status}" = ahead
+          test "${APPROVED_SOURCE}" = "${DISPATCHED_SOURCE}"
 
   create-release:
     name: create draft release
@@ -85,7 +83,7 @@ jobs:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
           permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "${{ github.sha }}", fetch-depth: 0, persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
       - name: Require a verified signature on the exact release commit
         env:
@@ -116,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.beepboop.outputs.source-sha }}
+          ref: ${{ github.sha }}
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -145,7 +143,7 @@ jobs:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
           permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "${{ needs.beepboop.outputs.source-sha }}", persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
@@ -217,7 +215,7 @@ jobs:
           execution-id: ${{ needs.beepboop.outputs.execution-id }}
           permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "${{ needs.beepboop.outputs.source-sha }}", persist-credentials: false }
+        with: { ref: "${{ github.sha }}", persist-credentials: false }
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: latest }
