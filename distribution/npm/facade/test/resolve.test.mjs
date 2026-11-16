@@ -160,7 +160,7 @@ test("a both-variants tree resolves to this host's libc with no override", { ski
 test('a gnu-only tree on a musl host refuses instead of spawning', {
 	skip: hostLibcSkip() || (process.env.EXPECT_LIBC !== 'musl' && 'musl hosts only'),
 }, async () => {
-	const root = makeFixture([GNU]);
+	const root = makeFixture([GNU], { declared: [GNU, MUSL] });
 	const { path, output, error } = await resolveIn(root, undefined);
 
 	assert.equal(path, null);

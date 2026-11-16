@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { constants } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { after, test } from 'node:test';
@@ -38,9 +39,9 @@ test('a binary killed by a signal kills the launcher with the same signal', posi
 
 test('a signal Node ignores or claims still ends the launcher with 128 + N', posixOnly, () => {
 	const piped = launch('kill -PIPE $$');
-	assert.deepEqual([piped.status, piped.signal], [141, null]);
+	assert.deepEqual([piped.status, piped.signal], [128 + constants.signals.SIGPIPE, null]);
 	const usr1 = launch('kill -USR1 $$');
-	assert.deepEqual([usr1.status, usr1.signal], [138, null]);
+	assert.deepEqual([usr1.status, usr1.signal], [128 + constants.signals.SIGUSR1, null]);
 	assert.doesNotMatch(usr1.stderr, /Debugger listening/);
 });
 
