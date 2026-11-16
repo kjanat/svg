@@ -293,7 +293,10 @@ fn many_and_large_messages_pass_through_intact() -> TestResult {
 #[test]
 fn rapid_incremental_edits_apply_in_order() -> TestResult {
     const EDITS: u64 = 500;
-    let mut client = Client::offline()?;
+    let (mut client, _) = Client::start(
+        &json!({ "textDocument": { "documentSymbol": { "hierarchicalDocumentSymbolSupport": true } } }),
+        &json!({ "svg": { "runtime_compat": false } }),
+    )?;
     let uri = "file:///incremental.svg";
     client.open(uri, "<svg>\n</svg>\n")?;
     for line in 1..=EDITS {

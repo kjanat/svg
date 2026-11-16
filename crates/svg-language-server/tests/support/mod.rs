@@ -116,7 +116,8 @@ pub fn markdown_capabilities() -> Value {
             "hover": { "contentFormat": ["markdown", "plaintext"] },
             "completion": {
                 "completionItem": { "documentationFormat": ["markdown", "plaintext"] }
-            }
+            },
+            "documentSymbol": { "hierarchicalDocumentSymbolSupport": true }
         }
     })
 }

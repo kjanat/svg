@@ -1,4 +1,4 @@
-use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
+use tower_lsp_server::ls_types::{DocumentSymbol, SymbolInformation, SymbolKind, Uri};
 use tree_sitter::Tree;
 
 use crate::{positions::LineIndex, references::span_range};
@@ -23,6 +23,34 @@ pub fn document_symbols(source: &str, tree: &Tree) -> Vec<DocumentSymbol> {
     }
     roots.reverse();
     roots
+}
+
+pub fn flat_symbols(symbols: Vec<DocumentSymbol>, uri: &Uri) -> Vec<SymbolInformation> {
+    let mut flat = Vec::new();
+    flatten(symbols, None, uri, &mut flat);
+    flat
+}
+
+fn flatten(
+    symbols: Vec<DocumentSymbol>,
+    container: Option<&str>,
+    uri: &Uri,
+    flat: &mut Vec<SymbolInformation>,
+) {
+    for symbol in symbols {
+        let information = serde_json::from_value(serde_json::json!({
+            "name": symbol.name,
+            "kind": symbol.kind,
+            "location": { "uri": uri, "range": symbol.range },
+            "containerName": container,
+        }));
+        if let Ok(information) = information {
+            flat.push(information);
+        }
+        if let Some(children) = symbol.children {
+            flatten(children, Some(&symbol.name), uri, flat);
+        }
+    }
 }
 
 fn symbol_template() -> Option<DocumentSymbol> {
@@ -134,6 +162,34 @@ mod tests {
         assert_eq!(children[1].detail.as_deref(), Some(".a.b"));
         assert_eq!(children[2].kind, SymbolKind::PROPERTY);
         assert!(children[2].children.is_none());
+    }
+
+    #[test]
+    fn flattens_with_locations_and_containers() -> Result<(), Box<dyn std::error::Error>> {
+        let source = "<svg><g><rect/></g><circle/></svg>";
+        let uri: Uri = "file:///flat.svg".parse()?;
+        let flat = flat_symbols(document_symbols(source, &parse(source)), &uri);
+        let rows: Vec<_> = flat
+            .iter()
+            .map(|symbol| {
+                (
+                    symbol.name.as_str(),
+                    symbol.container_name.as_deref(),
+                    symbol.location.range.start.character,
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![
+                ("svg", None, 0),
+                ("g", Some("svg"), 5),
+                ("rect", Some("g"), 8),
+                ("circle", Some("svg"), 19),
+            ]
+        );
+        assert!(flat.iter().all(|symbol| symbol.location.uri == uri));
+        Ok(())
     }
 
     #[test]

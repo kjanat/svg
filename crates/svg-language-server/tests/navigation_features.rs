@@ -126,6 +126,36 @@ fn document_symbols_nest_elements() -> TestResult {
 }
 
 #[test]
+fn document_symbols_are_flat_without_hierarchical_support() -> TestResult {
+    let mut server = TestServer::start_with_capabilities(&json!({}))?;
+    server.open(URI, SOURCE)?;
+    let response = server.request(
+        "textDocument/documentSymbol",
+        &json!({ "textDocument": { "uri": URI } }),
+    )?;
+    let symbols = response["result"].as_array().ok_or("symbol array")?;
+    let rows: Vec<_> = symbols
+        .iter()
+        .map(|symbol| {
+            (
+                symbol["name"].as_str().unwrap_or_default(),
+                symbol["containerName"].as_str(),
+                symbol["location"]["uri"].as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(rows[0], ("svg", None, Some(URI)), "{response}");
+    assert_eq!(rows[2], ("linearGradient", Some("defs"), Some(URI)));
+    assert_eq!(rows.len(), 8, "{response}");
+    assert!(
+        symbols
+            .iter()
+            .all(|symbol| symbol.get("children").is_none())
+    );
+    server.shutdown_and_exit()
+}
+
+#[test]
 fn references_follow_include_declaration() -> TestResult {
     let mut server = open_fixture()?;
     let at_reference = position_of(SOURCE, "#grad", 2, 2)?;
@@ -208,6 +238,55 @@ fn prepare_rename_and_rename_cover_every_occurrence() -> TestResult {
         .as_str()
         .ok_or("rename error")?;
     assert!(message.contains("XML name"), "{rejected}");
+    server.shutdown_and_exit()
+}
+
+#[test]
+fn escaped_names_and_presentation_vars_share_one_symbol() -> TestResult {
+    let uri = "file:///project/escaped.svg";
+    let source = concat!(
+        "<svg>\n",
+        "  <style>.a\\&b { --c: red }</style>\n",
+        "  <g class=\"a&amp;b\"><rect fill=\"var(--c)\" opacity=\"var(--c, 1)\"/></g>\n",
+        "</svg>\n",
+    );
+    let mut server = TestServer::start()?;
+    server.open(uri, source)?;
+    let at = |needle: &str, shift: usize| -> TestResult<Value> {
+        Ok(
+            json!({ "textDocument": { "uri": uri }, "position": position_of(source, needle, 0, shift)? }),
+        )
+    };
+
+    let definition = server.request("textDocument/definition", &at("a&amp;b", 1)?)?;
+    assert_eq!(
+        definition["result"]["range"],
+        range_of(source, "a\\&b", 0)?,
+        "{definition}"
+    );
+
+    let mut params = at("var(--c)", 5)?;
+    params["context"] = json!({ "includeDeclaration": true });
+    let references = server.request("textDocument/references", &params)?;
+    let expected: Vec<Value> = (0..3)
+        .map(|nth| range_of(source, "--c", nth))
+        .collect::<TestResult<_>>()?;
+    assert_eq!(
+        sorted_ranges(&references["result"])?,
+        expected,
+        "{references}"
+    );
+
+    let mut params = at("a&amp;b", 0)?;
+    params["newName"] = json!("x&y");
+    let renamed = server.request("textDocument/rename", &params)?;
+    let edits: Vec<_> = renamed["result"]["changes"][uri]
+        .as_array()
+        .ok_or("edits")?
+        .iter()
+        .map(|edit| edit["newText"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    assert_eq!(edits, vec!["x\\&amp;y", "x&amp;y"], "{renamed}");
     server.shutdown_and_exit()
 }
 

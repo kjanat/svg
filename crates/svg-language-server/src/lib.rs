@@ -1129,6 +1129,7 @@ struct SvgLanguageServer {
     texts: Arc<StdMutex<HashMap<Uri, String>>>,
     pulls_configuration: Arc<AtomicBool>,
     line_folding_only: Arc<AtomicBool>,
+    hierarchical_symbols: Arc<AtomicBool>,
     shutdown_requested: Arc<AtomicBool>,
 }
 
@@ -1214,6 +1215,7 @@ impl SvgLanguageServer {
             texts: Arc::new(StdMutex::new(HashMap::new())),
             pulls_configuration: Arc::new(AtomicBool::new(false)),
             line_folding_only: Arc::new(AtomicBool::new(false)),
+            hierarchical_symbols: Arc::new(AtomicBool::new(false)),
             shutdown_requested,
         }
     }
@@ -1651,6 +1653,15 @@ impl LanguageServer for SvgLanguageServer {
             .unwrap_or(false);
         self.line_folding_only
             .store(line_folding_only, Ordering::Release);
+        let hierarchical_symbols = params
+            .capabilities
+            .text_document
+            .as_ref()
+            .and_then(|document| document.document_symbol.as_ref())
+            .and_then(|symbols| symbols.hierarchical_document_symbol_support)
+            .unwrap_or(false);
+        self.hierarchical_symbols
+            .store(hierarchical_symbols, Ordering::Release);
 
         let drift_check_enabled = params
             .initialization_options
@@ -1916,9 +1927,12 @@ impl LanguageServer for SvgLanguageServer {
         let Some(doc) = self.document_state(&params.text_document.uri).await else {
             return Ok(None);
         };
-        Ok(Some(DocumentSymbolResponse::Nested(
-            symbols::document_symbols(&doc.source, &doc.tree),
-        )))
+        let nested = symbols::document_symbols(&doc.source, &doc.tree);
+        Ok(Some(if self.hierarchical_symbols.load(Ordering::Acquire) {
+            DocumentSymbolResponse::Nested(nested)
+        } else {
+            DocumentSymbolResponse::Flat(symbols::flat_symbols(nested, &params.text_document.uri))
+        }))
     }
 
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
