@@ -18,6 +18,13 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Reset the SVG settings to their defaults when a client that cannot answer
+  `workspace/configuration` sends settings without an `svg` section.
+- Find `var()` and `url()` references whose function names contain CSS escapes,
+  such as `v\61 r(--c)`, so renaming `--c` or an id updates them, and list
+  escaped `url()` targets as document links.
+- Read a CSS escape followed by CRLF as one escape, keeping the line break out
+  of the decoded name.
 - Stop printing the libc warning from the npm launcher on macOS, Windows and
   the BSDs. On Linux it warns only when both libc builds for the host's CPU are
   installed and the host libc cannot be identified.
