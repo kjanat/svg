@@ -407,16 +407,15 @@ fn aria_occurrences(
     let Some(value) = attribute.child_by_field_name("value") else {
         return;
     };
-    let Some(content_node) = value.child_by_field_name("content") else {
+    let Ok(text) = value.utf8_text(source) else {
         return;
     };
-    let Ok(content) = content_node.utf8_text(source) else {
-        return;
-    };
+    let (quote, content) = strip_quotes(text);
+    let start = value.start_position();
     token_occurrences(
         content,
-        content_node.start_byte(),
-        content_node.start_position(),
+        value.start_byte() + quote,
+        Point::new(start.row, start.column + quote),
         DefinitionTarget::Id,
         out,
     );
@@ -1224,6 +1223,25 @@ mod tests {
         );
         let edits = rename_edits(&occurrences, &DefinitionTarget::Id("a".into()), "b")?;
         assert_eq!(edits.len(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn aria_references_in_generic_attributes() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><g id=\"label\"/><g id=\"desc\"/>",
+            "<rect aria-labelledby=\"label desc\" aria-describedby='desc'/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let named = |name: &str| -> Vec<&str> {
+            of_target(&occurrences, &DefinitionTarget::Id(name.into()))
+                .iter()
+                .map(|o| span_text(source, &o.span))
+                .collect()
+        };
+        assert_eq!(named("label"), vec!["label", "label"]);
+        assert_eq!(named("desc"), vec!["desc", "desc", "desc"]);
         Ok(())
     }
 
