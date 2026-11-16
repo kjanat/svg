@@ -1146,6 +1146,7 @@ dependencies = [
  "serde_json",
  "svg-color",
  "svg-data",
+ "svg-references",
  "svg-tree",
  "tree-sitter",
  "tree-sitter-svg",

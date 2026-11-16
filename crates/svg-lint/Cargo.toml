@@ -32,6 +32,7 @@ tree-sitter.workspace = true
 
 svg-color.workspace       = true
 svg-data.workspace        = true
+svg-references.workspace  = true
 svg-tree.workspace        = true
 tree-sitter-svg.workspace = true
 

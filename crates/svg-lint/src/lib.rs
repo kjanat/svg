@@ -587,6 +587,23 @@ mod tests {
     }
 
     #[test]
+    fn references_match_decoded_local_fragments() {
+        let src = concat!(
+            r#"<svg><clipPath id="a.b"/><rect clip-path="url(#a%2Eb)"/>"#,
+            r##"<use href="#a&#46;b"/><use xml:base="other.svg" href="#elsewhere"/>"##,
+            r##"<use href="#gone%2Ex"/></svg>"##,
+        )
+        .as_bytes();
+        let missing: Vec<_> = lint(src)
+            .into_iter()
+            .filter(|d| d.code == DiagnosticCode::MissingReferenceDefinition)
+            .map(|d| d.message)
+            .collect();
+        assert_eq!(missing.len(), 1, "{missing:?}");
+        assert!(missing[0].contains("#gone.x"), "{missing:?}");
+    }
+
+    #[test]
     fn suppression_comment_disables_next_line_diagnostic() {
         let src = br#"<svg>
 <!-- svg-lint-disable-next-line MissingReferenceDefinition -->

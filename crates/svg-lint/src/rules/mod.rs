@@ -664,13 +664,10 @@ fn check_missing_reference_definitions(
                 return;
             }
 
-            let Ok(reference_text) = node.utf8_text(source) else {
+            let Some(id) = svg_references::local_fragment_id(node, source) else {
                 return;
             };
-            let Some(id) = reference_text.strip_prefix('#') else {
-                return;
-            };
-            if defined_ids.contains(id) {
+            if defined_ids.contains(&id) {
                 return;
             }
 
@@ -1043,17 +1040,10 @@ fn diagnostic_lifecycle(
 }
 
 fn collect_defined_ids(source: &[u8], tree: &Tree) -> HashSet<String> {
-    let mut ids = HashSet::new();
-    let mut cursor = tree.root_node().walk();
-    walk_tree(&mut cursor, &mut |node| {
-        if node.kind() != "id_token" {
-            return;
-        }
-        if let Ok(id) = node.utf8_text(source) {
-            ids.insert(id.to_owned());
-        }
-    });
-    ids
+    svg_references::collect_id_definitions(source, tree)
+        .into_iter()
+        .map(|definition| definition.name)
+        .collect()
 }
 
 fn push_diag(
