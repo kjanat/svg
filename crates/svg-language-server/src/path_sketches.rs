@@ -178,7 +178,8 @@ mod tests {
 
     #[tokio::test]
     async fn close_during_computation_reclaims_document_and_sketch() -> TestResult {
-        let (service, _socket) = LspService::new(SvgLanguageServer::new);
+        let (service, _socket) =
+            LspService::new(|client| SvgLanguageServer::new(client, Arc::default()));
         let server = service.inner();
         let uri: Uri = "file:///closed-preview.svg".parse()?;
         let doc = document("<svg><path d='M0 0 L10 10'/></svg>")?;
@@ -260,7 +261,8 @@ mod tests {
 
     #[tokio::test]
     async fn edit_during_computation_owns_a_fresh_cache() -> TestResult {
-        let (service, _socket) = LspService::new(SvgLanguageServer::new);
+        let (service, _socket) =
+            LspService::new(|client| SvgLanguageServer::new(client, Arc::default()));
         let server = service.inner();
         let uri: Uri = "file:///edited-preview.svg".parse()?;
         let old = document("<svg><path d='M0 0 L10 10'/></svg>")?;
@@ -287,6 +289,7 @@ mod tests {
             }
         });
         tokio::time::timeout(Duration::from_secs(5), running).await??;
+        server.open_text(&uri, "<svg><path d='M0 0 L20 20'/></svg>");
         server
             .update_document(
                 uri.clone(),

@@ -6,25 +6,37 @@
 
 use std::{
     collections::HashMap,
-    sync::{Arc, OnceLock, RwLock as StdRwLock},
+    process::ExitCode,
+    sync::{
+        Arc, Mutex as StdMutex, OnceLock, RwLock as StdRwLock,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tower_lsp_server::{
-    Client, LanguageServer, LspService, Server,
-    jsonrpc::Result,
+    Client, LanguageServer, LspService,
+    jsonrpc::{Error as RpcError, Result},
     ls_types::{
-        ClientCapabilities, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-        Color, ColorInformation, ColorPresentation, ColorPresentationParams,
-        ColorProviderCapability, CompletionItem, CompletionOptions, CompletionParams,
-        CompletionResponse, DidChangeConfigurationParams, DidChangeTextDocumentParams,
-        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentColorParams,
-        DocumentFormattingParams, Documentation, ExecuteCommandOptions, ExecuteCommandParams,
-        GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
-        HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent, MarkupKind,
-        MessageType, OneOf, Position, Range, ServerCapabilities, TextDocumentSyncCapability,
-        TextDocumentSyncKind, TextEdit, Uri,
+        ClientCapabilities, CodeActionKind, CodeActionOrCommand, CodeActionParams,
+        CodeActionProviderCapability, CodeActionResponse, Color, ColorInformation,
+        ColorPresentation, ColorPresentationParams, ColorProviderCapability, CompletionItem,
+        CompletionOptions, CompletionParams, CompletionResponse, ConfigurationItem,
+        DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+        DidOpenTextDocumentParams, DocumentColorParams, DocumentFormattingParams, DocumentLink,
+        DocumentLinkOptions, DocumentLinkParams, DocumentRangeFormattingParams,
+        DocumentSymbolParams, DocumentSymbolResponse, Documentation, ExecuteCommandOptions,
+        ExecuteCommandParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+        FormattingOptions, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents,
+        HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+        InitializedParams, InlayHint, InlayHintParams, Location, MarkupContent, MarkupKind,
+        MessageType, OneOf, Position, PrepareRenameResponse, Range, ReferenceParams, RenameOptions,
+        RenameParams, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
+        SemanticTokens, SemanticTokensFullOptions, SemanticTokensOptions, SemanticTokensParams,
+        SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
+        TextDocumentContentChangeEvent, TextDocumentPositionParams, TextDocumentSyncCapability,
+        TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
     },
 };
 use url::Url;
@@ -36,14 +48,24 @@ mod compat;
 mod completion;
 mod definition;
 mod diagnostics;
+mod folding;
+mod formatting;
 mod hover;
 mod hover_settings;
+mod inlay_hints;
+mod links;
 mod logging;
 mod path_sketches;
 
 mod positions;
+mod references;
+mod rename;
+mod selection;
+mod semantic_tokens;
 mod stylesheets;
 mod svgwg_drift;
+mod symbols;
+mod transport;
 
 use clipboard::{copy_text_to_system_clipboard, svg_data_uri};
 use code_actions::{
@@ -68,7 +90,9 @@ use hover::{
 use hover_settings::{HoverSettings, PathPreview, Section};
 use logging::init_logging;
 use path_sketches::{SketchCache, SketchScheduler};
-use positions::{byte_col_to_utf16, byte_offset_for_position, end_position_utf16, u32_from_usize};
+use positions::{
+    byte_col_to_utf16, byte_offset_for_position, position_for_byte_offset, u32_from_usize,
+};
 use stylesheets::{
     CachedStylesheet, ClassDefinitionHover, CustomPropertyDefinitionHover,
     class_definition_hovers_from_stylesheet, custom_property_definition_hovers_from_stylesheet,
@@ -478,9 +502,60 @@ fn resolve_profile_config(config: &Value) -> (ProfileConfig, Option<String>) {
     )
 }
 
+fn token_range(doc: &DocumentState, position: Position) -> Option<Range> {
+    let source = doc.source.as_bytes();
+    let offset = byte_offset_for_position(source, position);
+    let node = deepest_node_at(&doc.tree, offset);
+    if node.child_count() > 0 || node.start_byte() == node.end_byte() {
+        return None;
+    }
+    Some(Range::new(
+        position_for_byte_offset(source, node.start_byte()),
+        position_for_byte_offset(source, node.end_byte()),
+    ))
+}
+
+fn apply_content_changes(text: &mut String, changes: &[TextDocumentContentChangeEvent]) {
+    for change in changes {
+        let Some(range) = change.range else {
+            text.clone_from(&change.text);
+            continue;
+        };
+        let start = byte_offset_for_position(text.as_bytes(), range.start).min(text.len());
+        let end = byte_offset_for_position(text.as_bytes(), range.end).min(text.len());
+        let (start, end) = (start.min(end), start.max(end));
+        if text.is_char_boundary(start) && text.is_char_boundary(end) {
+            text.replace_range(start..end, &change.text);
+        } else {
+            tracing::warn!(?range, "ignoring an edit that splits a character");
+        }
+    }
+}
+
+fn code_action_requested(action: &CodeActionOrCommand, only: Option<&[CodeActionKind]>) -> bool {
+    let Some(only) = only else {
+        return true;
+    };
+    let CodeActionOrCommand::CodeAction(action) = action else {
+        return false;
+    };
+    let Some(kind) = action.kind.as_ref() else {
+        return false;
+    };
+    only.iter().any(|wanted| {
+        kind.as_str() == wanted.as_str()
+            || kind
+                .as_str()
+                .strip_prefix(wanted.as_str())
+                .is_some_and(|rest| rest.starts_with('.'))
+    })
+}
+
 fn server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
-        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(
+            TextDocumentSyncKind::INCREMENTAL,
+        )),
         color_provider: Some(ColorProviderCapability::Simple(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         definition_provider: Some(OneOf::Left(true)),
@@ -490,6 +565,28 @@ fn server_capabilities() -> ServerCapabilities {
             ..Default::default()
         }),
         document_formatting_provider: Some(OneOf::Left(true)),
+        document_range_formatting_provider: Some(OneOf::Left(true)),
+        document_symbol_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: WorkDoneProgressOptions::default(),
+        })),
+        document_link_provider: Some(DocumentLinkOptions {
+            resolve_provider: Some(false),
+            work_done_progress_options: WorkDoneProgressOptions::default(),
+        }),
+        folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+        selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+            SemanticTokensOptions {
+                legend: semantic_tokens::semantic_tokens_legend(),
+                full: Some(SemanticTokensFullOptions::Bool(true)),
+                range: None,
+                work_done_progress_options: WorkDoneProgressOptions::default(),
+            },
+        )),
+        inlay_hint_provider: Some(OneOf::Left(true)),
         completion_provider: Some(CompletionOptions {
             trigger_characters: Some(completion_trigger_characters()),
             ..Default::default()
@@ -1029,6 +1126,10 @@ struct SvgLanguageServer {
     hover_settings: Arc<RwLock<HoverSettings>>,
     sketch_scheduler: SketchScheduler,
     markup_support: Arc<RwLock<MarkupSupport>>,
+    texts: Arc<StdMutex<HashMap<Uri, String>>>,
+    pulls_configuration: Arc<AtomicBool>,
+    line_folding_only: Arc<AtomicBool>,
+    shutdown_requested: Arc<AtomicBool>,
 }
 
 /// Which markup kind the client asked for, per request type.
@@ -1091,7 +1192,7 @@ fn preferred_markup(advertised: Option<&[MarkupKind]>) -> MarkupKind {
 }
 
 impl SvgLanguageServer {
-    fn new(client: Client) -> Self {
+    fn new(client: Client, shutdown_requested: Arc<AtomicBool>) -> Self {
         let mut parser = tree_sitter::Parser::new();
         if parser
             .set_language(&tree_sitter_svg::LANGUAGE.into())
@@ -1110,6 +1211,67 @@ impl SvgLanguageServer {
             hover_settings: Arc::new(RwLock::new(HoverSettings::default())),
             sketch_scheduler: SketchScheduler::default(),
             markup_support: Arc::new(RwLock::new(MarkupSupport::default())),
+            texts: Arc::new(StdMutex::new(HashMap::new())),
+            pulls_configuration: Arc::new(AtomicBool::new(false)),
+            line_folding_only: Arc::new(AtomicBool::new(false)),
+            shutdown_requested,
+        }
+    }
+
+    fn open_text(&self, uri: &Uri, text: &str) {
+        self.texts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(uri.clone(), text.to_owned());
+    }
+
+    fn change_text(&self, uri: &Uri, changes: &[TextDocumentContentChangeEvent]) -> Option<String> {
+        let mut texts = self
+            .texts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let text = texts.get_mut(uri)?;
+        apply_content_changes(text, changes);
+        let snapshot = text.clone();
+        drop(texts);
+        Some(snapshot)
+    }
+
+    fn is_open(&self, uri: &Uri) -> bool {
+        self.texts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains_key(uri)
+    }
+
+    fn forget_text(&self, uri: &Uri) {
+        self.texts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(uri);
+    }
+
+    async fn pull_configuration(&self) -> bool {
+        if !self.pulls_configuration.load(Ordering::Acquire) {
+            return false;
+        }
+        let item = ConfigurationItem {
+            scope_uri: None,
+            section: Some("svg".to_owned()),
+        };
+        match self.client.configuration(vec![item]).await {
+            Ok(values) => match values.into_iter().next() {
+                Some(value) if !value.is_null() => {
+                    self.apply_profile_config(&serde_json::json!({ "svg": value }))
+                        .await;
+                    true
+                }
+                _ => false,
+            },
+            Err(error) => {
+                tracing::warn!(%error, "workspace/configuration request failed");
+                false
+            }
         }
     }
 
@@ -1281,10 +1443,20 @@ impl SvgLanguageServer {
             overrides.as_ref(),
             verdict_overrides.as_ref(),
         );
-        self.documents
-            .write()
-            .await
-            .insert(uri.clone(), state.clone());
+        {
+            let mut documents = self.documents.write().await;
+            if !self.is_open(&uri) {
+                return;
+            }
+            if documents
+                .get(&uri)
+                .is_some_and(|current| current.version > version)
+            {
+                tracing::debug!(uri = ?uri, version, "dropping a parse older than the stored document");
+                return;
+            }
+            documents.insert(uri.clone(), state.clone());
+        }
         self.color_kinds
             .write()
             .await
@@ -1293,266 +1465,7 @@ impl SvgLanguageServer {
         publish_lint_diagnostics(&self.client, uri, source_bytes, lint_diags, Some(version)).await;
     }
 
-    async fn copy_svg_as_data_uri(&self, uri: &Uri) -> std::result::Result<(), String> {
-        let cached = {
-            let docs = self.documents.read().await;
-            docs.get(uri).map(|doc| doc.source.clone())
-        };
-        let source = if let Some(s) = cached {
-            s
-        } else {
-            let url = Url::parse(uri.as_str())
-                .map_err(|err| format!("Invalid URI {}: {err}", uri.as_str()))?;
-            let path = url
-                .to_file_path()
-                .map_err(|()| format!("Cannot resolve file path for {}", uri.as_str()))?;
-            tokio::fs::read_to_string(&path)
-                .await
-                .map_err(|err| format!("Failed to read {}: {err}", path.display()))?
-        };
-
-        let data_uri = svg_data_uri(&source);
-        tokio::task::spawn_blocking(move || copy_text_to_system_clipboard(&data_uri))
-            .await
-            .map_err(|err| format!("Clipboard task failed: {err}"))?
-    }
-}
-
-impl LanguageServer for SvgLanguageServer {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        tracing::info!("initialize");
-
-        // Record what the client said it can render before answering anything.
-        // This is the only point LSP offers it, and every hover and completion
-        // afterwards is shaped by it.
-        *self.markup_support.write().await = MarkupSupport::from_capabilities(&params.capabilities);
-
-        let drift_check_enabled = params
-            .initialization_options
-            .as_ref()
-            .is_some_and(configured_drift_check);
-
-        // Runtime compat refresh is opt-out (default on). Absent options keep the
-        // default so a client that sends no config still gets fresh BCD.
-        let runtime_compat_enabled = params
-            .initialization_options
-            .as_ref()
-            .is_none_or(configured_runtime_compat);
-
-        if let Some(config) = params.initialization_options.as_ref() {
-            self.apply_profile_config(config).await;
-        }
-
-        // Opt-in background svgwg-drift probe: warn once if the baked spec
-        // catalog has drifted from live W3C / svgwg. Best-effort and silent when
-        // offline or up to date (see `svgwg_drift`).
-        if drift_check_enabled {
-            let server = self.clone();
-            tokio::spawn(async move {
-                match tokio::task::spawn_blocking(svgwg_drift::fetch_report).await {
-                    Ok(Some(report)) if report.is_stale() => {
-                        server
-                            .client
-                            .show_message(MessageType::WARNING, report.message())
-                            .await;
-                    }
-                    Ok(_) => tracing::info!("svgwg drift: up to date or undetermined"),
-                    Err(error) => tracing::warn!(%error, "svgwg drift task panicked"),
-                }
-            });
-        }
-
-        // Spawn background compat data refresh, unless the client opted out
-        // (`svg.runtime_compat: false`) to keep the session offline/private.
-        if runtime_compat_enabled {
-            let compat = self.runtime_compat.clone();
-            let server = self.clone();
-            tokio::spawn(async move {
-                let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
-                match result {
-                    Ok(data) => {
-                        let el_count = data.elements.len();
-                        let attr_count = data.attributes.len();
-                        *compat.write().await = Some(data);
-                        tracing::info!(
-                            elements = el_count,
-                            attributes = attr_count,
-                            "runtime compat resolution complete"
-                        );
-                        server.relint_open_documents().await;
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "runtime compat fetch failed");
-                    }
-                }
-            });
-        } else {
-            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
-            tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
-        }
-
-        Ok(InitializeResult {
-            capabilities: server_capabilities(),
-            ..Default::default()
-        })
-    }
-
-    // Nothing to await on shutdown, so return a ready future directly rather
-    // than an `async fn` with no `.await` (which the trait allows via RPITIT).
-    fn shutdown(&self) -> impl std::future::Future<Output = Result<()>> + Send {
-        tracing::info!("shutdown requested");
-        std::future::ready(Ok(()))
-    }
-
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        tracing::debug!(uri = ?params.text_document.uri, "did_open");
-        self.update_document(
-            params.text_document.uri,
-            params.text_document.text,
-            params.text_document.version,
-        )
-        .await;
-    }
-
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        if let Some(change) = params.content_changes.into_iter().last() {
-            tracing::debug!(uri = ?params.text_document.uri, "did_change");
-            self.update_document(
-                params.text_document.uri,
-                change.text,
-                params.text_document.version,
-            )
-            .await;
-        }
-    }
-
-    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
-        tracing::debug!("did_change_configuration");
-        self.apply_profile_config(&params.settings).await;
-        self.relint_open_documents().await;
-    }
-
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        tracing::debug!(uri = ?params.text_document.uri, "did_close");
-        self.documents
-            .write()
-            .await
-            .remove(&params.text_document.uri);
-        self.color_kinds
-            .write()
-            .await
-            .retain(|key, _| key.uri != params.text_document.uri);
-        self.client
-            .publish_diagnostics(params.text_document.uri, vec![], None)
-            .await;
-    }
-
-    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
-        let Some(doc) = self.document_state(&params.text_document.uri).await else {
-            return Ok(None);
-        };
-
-        let options = svg_format::FormatOptions {
-            indent_width: params.options.tab_size as usize,
-            insert_spaces: params.options.insert_spaces,
-            ..Default::default()
-        };
-        let formatted = svg_format::format_with_options(&doc.source, options);
-        if formatted == doc.source {
-            return Ok(Some(Vec::new()));
-        }
-
-        let edit = TextEdit::new(
-            Range::new(Position::new(0, 0), end_position_utf16(&doc.source)),
-            formatted,
-        );
-        Ok(Some(vec![edit]))
-    }
-
-    async fn document_color(&self, params: DocumentColorParams) -> Result<Vec<ColorInformation>> {
-        let Some(doc) = self.document_state(&params.text_document.uri).await else {
-            return Ok(Vec::new());
-        };
-        let source_bytes = doc.source.as_bytes();
-        let entries = svg_color::extract_colors_from_tree(source_bytes, &doc.tree)
-            .into_iter()
-            .map(|color| {
-                let start_char = byte_col_to_utf16(source_bytes, color.start_row, color.start_col);
-                let end_char = byte_col_to_utf16(source_bytes, color.end_row, color.end_col);
-                let key = ColorPositionKey {
-                    uri: params.text_document.uri.clone(),
-                    line: u32_from_usize(color.start_row),
-                    character_utf16: start_char,
-                };
-                let info = ColorInformation {
-                    range: Range::new(
-                        Position::new(u32_from_usize(color.start_row), start_char),
-                        Position::new(u32_from_usize(color.end_row), end_char),
-                    ),
-                    color: Color {
-                        red: color.r,
-                        green: color.g,
-                        blue: color.b,
-                        alpha: color.a,
-                    },
-                };
-                (info, key, color.kind)
-            })
-            .collect::<Vec<_>>();
-        let uri = params.text_document.uri.clone();
-
-        let result = entries.iter().map(|(info, _, _)| info.clone()).collect();
-
-        {
-            let mut kinds = self.color_kinds.write().await;
-            // Clear stale entries for this URI
-            kinds.retain(|key, _| key.uri != uri);
-            for (_, key, kind) in entries {
-                kinds.insert(key, kind);
-            }
-        }
-
-        Ok(result)
-    }
-
-    async fn color_presentation(
-        &self,
-        params: ColorPresentationParams,
-    ) -> Result<Vec<ColorPresentation>> {
-        let key = ColorPositionKey {
-            uri: params.text_document.uri,
-            line: params.range.start.line,
-            character_utf16: params.range.start.character,
-        };
-        let kind = self
-            .color_kinds
-            .read()
-            .await
-            .get(&key)
-            .copied()
-            .unwrap_or(svg_color::ColorKind::Hex);
-
-        let labels = svg_color::color_presentations(
-            params.color.red,
-            params.color.green,
-            params.color.blue,
-            params.color.alpha,
-            kind,
-        );
-
-        let result = labels
-            .into_iter()
-            .map(|label| ColorPresentation {
-                text_edit: Some(TextEdit::new(params.range, label.clone())),
-                label,
-                additional_text_edits: None,
-            })
-            .collect();
-
-        Ok(result)
-    }
-
-    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+    async fn hover_contents(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = &params.text_document_position_params.text_document.uri;
         let pos = params.text_document_position_params.position;
 
@@ -1669,6 +1582,449 @@ impl LanguageServer for SvgLanguageServer {
         Ok(None)
     }
 
+    async fn format_edits(
+        &self,
+        uri: &Uri,
+        options: &FormattingOptions,
+        within: Option<Range>,
+    ) -> Option<Vec<TextEdit>> {
+        let doc = self.document_state(uri).await?;
+        let format_options = svg_format::FormatOptions {
+            indent_width: usize::try_from(options.tab_size).unwrap_or(usize::MAX),
+            insert_spaces: options.insert_spaces,
+            ..Default::default()
+        };
+        let formatted = formatting::apply_whitespace_options(
+            svg_format::format_with_options(&doc.source, format_options),
+            options,
+        );
+        Some(formatting::text_edits(&doc.source, &formatted, within))
+    }
+
+    async fn copy_svg_as_data_uri(&self, uri: &Uri) -> std::result::Result<(), String> {
+        let cached = {
+            let docs = self.documents.read().await;
+            docs.get(uri).map(|doc| doc.source.clone())
+        };
+        let source = if let Some(s) = cached {
+            s
+        } else {
+            let url = Url::parse(uri.as_str())
+                .map_err(|err| format!("Invalid URI {}: {err}", uri.as_str()))?;
+            let path = url
+                .to_file_path()
+                .map_err(|()| format!("Cannot resolve file path for {}", uri.as_str()))?;
+            tokio::fs::read_to_string(&path)
+                .await
+                .map_err(|err| format!("Failed to read {}: {err}", path.display()))?
+        };
+
+        let data_uri = svg_data_uri(&source);
+        tokio::task::spawn_blocking(move || copy_text_to_system_clipboard(&data_uri))
+            .await
+            .map_err(|err| format!("Clipboard task failed: {err}"))?
+    }
+}
+
+impl LanguageServer for SvgLanguageServer {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        tracing::info!("initialize");
+
+        // Record what the client said it can render before answering anything.
+        // This is the only point LSP offers it, and every hover and completion
+        // afterwards is shaped by it.
+        *self.markup_support.write().await = MarkupSupport::from_capabilities(&params.capabilities);
+        let pulls_configuration = params
+            .capabilities
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.configuration)
+            .unwrap_or(false);
+        self.pulls_configuration
+            .store(pulls_configuration, Ordering::Release);
+        let line_folding_only = params
+            .capabilities
+            .text_document
+            .as_ref()
+            .and_then(|document| document.folding_range.as_ref())
+            .and_then(|folding| folding.line_folding_only)
+            .unwrap_or(false);
+        self.line_folding_only
+            .store(line_folding_only, Ordering::Release);
+
+        let drift_check_enabled = params
+            .initialization_options
+            .as_ref()
+            .is_some_and(configured_drift_check);
+
+        // Runtime compat refresh is opt-out (default on). Absent options keep the
+        // default so a client that sends no config still gets fresh BCD.
+        let runtime_compat_enabled = params
+            .initialization_options
+            .as_ref()
+            .is_none_or(configured_runtime_compat);
+
+        if let Some(config) = params.initialization_options.as_ref() {
+            self.apply_profile_config(config).await;
+        }
+
+        // Opt-in background svgwg-drift probe: warn once if the baked spec
+        // catalog has drifted from live W3C / svgwg. Best-effort and silent when
+        // offline or up to date (see `svgwg_drift`).
+        if drift_check_enabled {
+            let server = self.clone();
+            tokio::spawn(async move {
+                match tokio::task::spawn_blocking(svgwg_drift::fetch_report).await {
+                    Ok(Some(report)) if report.is_stale() => {
+                        server
+                            .client
+                            .show_message(MessageType::WARNING, report.message())
+                            .await;
+                    }
+                    Ok(_) => tracing::info!("svgwg drift: up to date or undetermined"),
+                    Err(error) => tracing::warn!(%error, "svgwg drift task panicked"),
+                }
+            });
+        }
+
+        // Spawn background compat data refresh, unless the client opted out
+        // (`svg.runtime_compat: false`) to keep the session offline/private.
+        if runtime_compat_enabled {
+            let compat = self.runtime_compat.clone();
+            let server = self.clone();
+            tokio::spawn(async move {
+                let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
+                match result {
+                    Ok(data) => {
+                        let el_count = data.elements.len();
+                        let attr_count = data.attributes.len();
+                        *compat.write().await = Some(data);
+                        tracing::info!(
+                            elements = el_count,
+                            attributes = attr_count,
+                            "runtime compat resolution complete"
+                        );
+                        server.relint_open_documents().await;
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "runtime compat fetch failed");
+                    }
+                }
+            });
+        } else {
+            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
+            tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
+        }
+
+        Ok(InitializeResult {
+            capabilities: server_capabilities(),
+            server_info: Some(ServerInfo {
+                name: env!("CARGO_PKG_NAME").to_owned(),
+                version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            }),
+            ..Default::default()
+        })
+    }
+
+    async fn initialized(&self, _: InitializedParams) {
+        if self.pull_configuration().await {
+            self.relint_open_documents().await;
+        }
+    }
+
+    // Nothing to await on shutdown, so return a ready future directly rather
+    // than an `async fn` with no `.await` (which the trait allows via RPITIT).
+    fn shutdown(&self) -> impl std::future::Future<Output = Result<()>> + Send {
+        tracing::info!("shutdown requested");
+        self.shutdown_requested.store(true, Ordering::Release);
+        std::future::ready(Ok(()))
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        tracing::debug!(uri = ?params.text_document.uri, "did_open");
+        let document = params.text_document;
+        self.open_text(&document.uri, &document.text);
+        self.update_document(document.uri, document.text, document.version)
+            .await;
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        tracing::debug!(uri = ?params.text_document.uri, "did_change");
+        let uri = params.text_document.uri;
+        let version = params.text_document.version;
+        let Some(text) = self.change_text(&uri, &params.content_changes) else {
+            tracing::warn!(uri = ?uri, "did_change for a document that is not open");
+            return;
+        };
+        self.update_document(uri, text, version).await;
+    }
+
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        tracing::debug!("did_change_configuration");
+        let applied = if params.settings.get("svg").is_some() {
+            self.apply_profile_config(&params.settings).await;
+            true
+        } else {
+            self.pull_configuration().await
+        };
+        if applied {
+            self.relint_open_documents().await;
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        tracing::debug!(uri = ?params.text_document.uri, "did_close");
+        self.forget_text(&params.text_document.uri);
+        self.documents
+            .write()
+            .await
+            .remove(&params.text_document.uri);
+        self.color_kinds
+            .write()
+            .await
+            .retain(|key, _| key.uri != params.text_document.uri);
+        self.client
+            .publish_diagnostics(params.text_document.uri, vec![], None)
+            .await;
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        Ok(self
+            .format_edits(&params.text_document.uri, &params.options, None)
+            .await)
+    }
+
+    async fn range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        Ok(self
+            .format_edits(
+                &params.text_document.uri,
+                &params.options,
+                Some(params.range),
+            )
+            .await)
+    }
+
+    async fn document_color(&self, params: DocumentColorParams) -> Result<Vec<ColorInformation>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(Vec::new());
+        };
+        let source_bytes = doc.source.as_bytes();
+        let entries = svg_color::extract_colors_from_tree(source_bytes, &doc.tree)
+            .into_iter()
+            .map(|color| {
+                let start_char = byte_col_to_utf16(source_bytes, color.start_row, color.start_col);
+                let end_char = byte_col_to_utf16(source_bytes, color.end_row, color.end_col);
+                let key = ColorPositionKey {
+                    uri: params.text_document.uri.clone(),
+                    line: u32_from_usize(color.start_row),
+                    character_utf16: start_char,
+                };
+                let info = ColorInformation {
+                    range: Range::new(
+                        Position::new(u32_from_usize(color.start_row), start_char),
+                        Position::new(u32_from_usize(color.end_row), end_char),
+                    ),
+                    color: Color {
+                        red: color.r,
+                        green: color.g,
+                        blue: color.b,
+                        alpha: color.a,
+                    },
+                };
+                (info, key, color.kind)
+            })
+            .collect::<Vec<_>>();
+        let uri = params.text_document.uri.clone();
+
+        let result = entries.iter().map(|(info, _, _)| info.clone()).collect();
+
+        {
+            let mut kinds = self.color_kinds.write().await;
+            // Clear stale entries for this URI
+            kinds.retain(|key, _| key.uri != uri);
+            for (_, key, kind) in entries {
+                kinds.insert(key, kind);
+            }
+        }
+
+        Ok(result)
+    }
+
+    async fn color_presentation(
+        &self,
+        params: ColorPresentationParams,
+    ) -> Result<Vec<ColorPresentation>> {
+        let key = ColorPositionKey {
+            uri: params.text_document.uri,
+            line: params.range.start.line,
+            character_utf16: params.range.start.character,
+        };
+        let kind = self
+            .color_kinds
+            .read()
+            .await
+            .get(&key)
+            .copied()
+            .unwrap_or(svg_color::ColorKind::Hex);
+
+        let labels = svg_color::color_presentations(
+            params.color.red,
+            params.color.green,
+            params.color.blue,
+            params.color.alpha,
+            kind,
+        );
+
+        let result = labels
+            .into_iter()
+            .map(|label| ColorPresentation {
+                text_edit: Some(TextEdit::new(params.range, label.clone())),
+                label,
+                additional_text_edits: None,
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .clone();
+        let pos = params.text_document_position_params.position;
+        let Some(mut hover) = self.hover_contents(params).await? else {
+            return Ok(None);
+        };
+        if hover.range.is_none()
+            && let Some(doc) = self.document_state(&uri).await
+        {
+            hover.range = token_range(&doc, pos);
+        }
+        Ok(Some(hover))
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        Ok(Some(DocumentSymbolResponse::Nested(
+            symbols::document_symbols(&doc.source, &doc.tree),
+        )))
+    }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(doc) = self.document_state(&uri).await else {
+            return Ok(None);
+        };
+        let ranges = references::references(
+            &doc.source,
+            &doc.tree,
+            params.text_document_position.position,
+            params.context.include_declaration,
+        );
+        Ok(Some(
+            ranges
+                .into_iter()
+                .map(|range| Location::new(uri.clone(), range))
+                .collect(),
+        ))
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        Ok(
+            rename::prepare_rename(&doc.source, &doc.tree, params.position)
+                .map(PrepareRenameResponse::Range),
+        )
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(doc) = self.document_state(&uri).await else {
+            return Ok(None);
+        };
+        let edits = rename::rename(
+            &doc.source,
+            &doc.tree,
+            params.text_document_position.position,
+            &params.new_name,
+        )
+        .map_err(RpcError::invalid_params)?;
+        Ok(edits.map(|edits| WorkspaceEdit::new(HashMap::from([(uri, edits)]))))
+    }
+
+    async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        let uri = &params.text_document.uri;
+        let Some(doc) = self.document_state(uri).await else {
+            return Ok(None);
+        };
+        Ok(Some(links::document_links(&doc.source, &doc.tree, uri)))
+    }
+
+    async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        let line_folding_only = self.line_folding_only.load(Ordering::Acquire);
+        Ok(Some(folding::folding_ranges(
+            &doc.source,
+            &doc.tree,
+            line_folding_only,
+        )))
+    }
+
+    async fn selection_range(
+        &self,
+        params: SelectionRangeParams,
+    ) -> Result<Option<Vec<SelectionRange>>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        Ok(Some(selection::selection_ranges(
+            &doc.source,
+            &doc.tree,
+            &params.positions,
+        )))
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
+            result_id: None,
+            data: semantic_tokens::semantic_tokens(&doc.source, &doc.tree),
+        })))
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let Some(doc) = self.document_state(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        Ok(Some(inlay_hints::inlay_hints(
+            &doc.source,
+            &doc.tree,
+            params.range,
+        )))
+    }
+
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         let uri = &params.text_document.uri;
         let Some(doc) = self.document_state(uri).await else {
@@ -1696,6 +2052,8 @@ impl LanguageServer for SvgLanguageServer {
             ));
         }
 
+        let only = params.context.only.as_deref();
+        actions.retain(|action| code_action_requested(action, only));
         Ok(Some(actions))
     }
 
@@ -1731,7 +2089,9 @@ impl LanguageServer for SvgLanguageServer {
 
                 Ok(None)
             }
-            _ => Ok(None),
+            unknown => Err(RpcError::invalid_params(format!(
+                "Unknown command `{unknown}`"
+            ))),
         }
     }
 
@@ -1869,19 +2229,23 @@ fn plainify_documentation(item: &mut CompletionItem) {
 ///
 /// ```rust,no_run
 /// #[tokio::main]
-/// async fn main() {
-///     svg_language_server::run_stdio_server().await;
+/// async fn main() -> std::process::ExitCode {
+///     svg_language_server::run_stdio_server().await
 /// }
 /// ```
-pub async fn run_stdio_server() {
+pub async fn run_stdio_server() -> ExitCode {
     let _logging = init_logging();
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
-
-    let (service, socket) = LspService::new(SvgLanguageServer::new);
+    let shutdown_requested = Arc::new(AtomicBool::new(false));
+    let flag = shutdown_requested.clone();
+    let (service, socket) = LspService::new(move |client| SvgLanguageServer::new(client, flag));
     tracing::info!("starting LSP server");
-    Server::new(stdin, stdout, socket).serve(service).await;
+    transport::serve(tokio::io::stdin(), tokio::io::stdout(), service, socket).await;
     tracing::info!("LSP server exited");
+    if shutdown_requested.load(Ordering::Acquire) {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 #[cfg(test)]

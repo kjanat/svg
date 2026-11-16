@@ -19,6 +19,40 @@ fn line_start_offset(source: &[u8], row: usize) -> usize {
     raw.min(source.len())
 }
 
+pub struct LineIndex {
+    starts: Vec<usize>,
+    len: usize,
+}
+
+impl LineIndex {
+    pub fn new(source: &[u8]) -> Self {
+        let starts = std::iter::once(0)
+            .chain(
+                source
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, &byte)| byte == b'\n')
+                    .map(|(index, _)| index + 1),
+            )
+            .collect();
+        Self {
+            starts,
+            len: source.len(),
+        }
+    }
+
+    fn line_start(&self, row: usize) -> usize {
+        self.starts.get(row).copied().unwrap_or(self.len)
+    }
+
+    pub fn utf16_col(&self, source: &[u8], row: usize, byte_col: usize) -> u32 {
+        let start = self.line_start(row);
+        let end = start.saturating_add(byte_col).min(self.len);
+        let line = source.get(start..end).unwrap_or_default();
+        u32_from_usize(String::from_utf8_lossy(line).encode_utf16().count())
+    }
+}
+
 /// Convert a byte-offset column to UTF-16 code unit count within a given row.
 ///
 /// LSP positions use UTF-16 code units by default. Tree-sitter reports byte offsets,
@@ -111,6 +145,21 @@ pub fn position_for_byte_offset(source: &[u8], byte_offset: usize) -> Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn line_index_matches_the_scanning_conversion() {
+        let src = "<svg>\n  <text>😀é</text>\n\n<rect/>".as_bytes();
+        let index = LineIndex::new(src);
+        for row in 0..6 {
+            for col in 0..20 {
+                assert_eq!(
+                    index.utf16_col(src, row, col),
+                    byte_col_to_utf16(src, row, col),
+                    "row {row} col {col}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn byte_col_to_utf16_ascii() {

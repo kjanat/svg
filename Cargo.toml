@@ -34,7 +34,7 @@ url                  = "2"
 
 json-schema-sort   = { version = "0.1", default-features = false }
 serde              = { version = "1", features = ["derive"] }
-tokio              = { version = "1", features = ["fs", "io-std", "macros", "rt-multi-thread"] }
+tokio              = { version = "1", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread", "sync"] }
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 
 svg-color        = { package = "svg-color", path = "crates/svg-color", version = "0.4.0" }
