@@ -270,6 +270,29 @@ CSS Color 5 color-mix with hue interpolation method
   (text))
 
 ==================
+Paint values with references and the other quote
+==================
+
+<svg fill="url(&quot;#g&quot;) red" stroke='url("#s")'/>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (self_closing_tag
+      name: (name)
+      (paint_attribute
+        name: (paint_attribute_name)
+        value: (paint_attribute_value
+          (paint_payload)))
+      (paint_attribute
+        name: (paint_attribute_name)
+        value: (paint_attribute_value
+          (paint_payload)))))
+  (text))
+
+==================
 Opacity and stroke dasharray
 ==================
 

@@ -1811,11 +1811,6 @@
     }
   },
   {
-    "type": "paint_payload",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "path_data_payload",
     "named": true,
     "fields": {}
@@ -2910,6 +2905,10 @@
   },
   {
     "type": "paint_attribute_name",
+    "named": true
+  },
+  {
+    "type": "paint_payload",
     "named": true
   },
   {

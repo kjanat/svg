@@ -2956,8 +2956,13 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "paint_payload"
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_paint_payload_double"
+                  },
+                  "named": true,
+                  "value": "paint_payload"
                 },
                 {
                   "type": "BLANK"
@@ -2981,8 +2986,13 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "paint_payload"
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_paint_payload_single"
+                  },
+                  "named": true,
+                  "value": "paint_payload"
                 },
                 {
                   "type": "BLANK"
@@ -2997,11 +3007,18 @@
         }
       ]
     },
-    "paint_payload": {
+    "_paint_payload_double": {
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "[^\"'<&]+"
+        "value": "(?:[^\"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+"
+      }
+    },
+    "_paint_payload_single": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "(?:[^'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+"
       }
     },
     "functional_iri_attribute": {

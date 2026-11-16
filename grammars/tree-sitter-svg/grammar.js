@@ -744,9 +744,15 @@ export default grammar({
 		 * evicted to the sibling tree-sitter-svg-paint grammar, injected over this
 		 * token's range via injections.scm — same pattern as path/transform.
 		 */
-		paint_attribute_value: $ => quoted($.paint_payload),
+		paint_attribute_value: $ =>
+			choice(
+				seq(DQUOTE, optional(alias($._paint_payload_double, $.paint_payload)), DQUOTE),
+				seq(SQUOTE, optional(alias($._paint_payload_single, $.paint_payload)), SQUOTE),
+			),
 
-		paint_payload: _ => token(/[^"'<&]+/),
+		_paint_payload_double: _ => token(/(?:[^"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+
+		_paint_payload_single: _ => token(/(?:[^'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
 
 		// functional IRI attribute (url(#ref))
 
