@@ -6,8 +6,8 @@ use tree_sitter::{Parser, Point, Tree};
 use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
-        CssFragment, advance_point, css_escape_identifier, css_unescape, is_xml_name,
-        is_xml_whitespace, node_span, percent_decode, rebase_point, span_between, strip_quotes,
+        CssFragment, advance_point, css_escape_identifier, css_unescape, fragment_id, is_xml_name,
+        is_xml_whitespace, node_span, rebase_point, span_between, strip_quotes,
         xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
     },
 };
@@ -136,7 +136,8 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
             if is_structural_iri(node)
                 && crate::links::fragment_is_local(node, source)
                 && !inside_encoded_presentation_value(node, source)
-                && let Some(occurrence) = local_iri_occurrence(node, source, 0, Point::new(0, 0))
+                && let Some(occurrence) =
+                    local_iri_occurrence(node, source, 0, Point::new(0, 0), is_css_iri(node))
             {
                 out.push(occurrence);
             }
@@ -300,6 +301,11 @@ const fn markup_occurrence(
     }
 }
 
+pub fn is_css_iri(node: tree_sitter::Node<'_>) -> bool {
+    node.parent()
+        .is_some_and(|parent| parent.kind() == "functional_iri")
+}
+
 pub fn is_structural_iri(node: tree_sitter::Node<'_>) -> bool {
     node.parent()
         .is_some_and(|parent| matches!(parent.kind(), "href_reference" | "functional_iri"))
@@ -310,6 +316,7 @@ fn local_iri_occurrence(
     text: &[u8],
     base_byte: usize,
     base_point: Point,
+    css: bool,
 ) -> Option<SymbolOccurrence> {
     let name = node
         .utf8_text(text)
@@ -318,7 +325,7 @@ fn local_iri_occurrence(
         .filter(|name| !name.is_empty())?;
     let start = node.start_position();
     Some(markup_occurrence(
-        DefinitionTarget::Id(percent_decode(&xml_unescape(name))),
+        DefinitionTarget::Id(fragment_id(name, css)),
         OccurrenceRole::Reference,
         base_byte + node.start_byte() + 1,
         base_byte + node.end_byte(),
@@ -356,6 +363,7 @@ fn paint_occurrences(
                 payload_source,
                 payload.start_byte(),
                 payload.start_position(),
+                true,
             )
         {
             out.push(occurrence);
@@ -643,7 +651,7 @@ fn call_occurrence(
         && let Some((source_start, source_end, span)) = fragment.source_range(start + 1, end)
     {
         out.push(SymbolOccurrence {
-            target: DefinitionTarget::Id(percent_decode(&css_unescape(name))),
+            target: DefinitionTarget::Id(fragment_id(name, true)),
             role: OccurrenceRole::Reference,
             syntax: OccurrenceSyntax::CssUrl {
                 xml_escaped: fragment.xml_escaped,
@@ -994,6 +1002,28 @@ mod tests {
         assert_eq!(
             crate::definition_target_at(source.as_bytes(), &tree, offset),
             Some(DefinitionTarget::Id("a.b".into()))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn css_url_fragments_decode_css_escapes_but_hrefs_do_not() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><linearGradient id=\"g\"/><rect fill=\"url(#\\g) red\" clip-path=\"url(#\\67 \
+             )\"/>",
+            "<use href=\"#\\g\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(spans, vec!["g", "\\g", "\\67"], "{occurrences:#?}");
+        let paint = source.find("#\\g)").ok_or("paint")? + 1;
+        assert_eq!(
+            crate::definition_target_at(source.as_bytes(), &tree, paint),
+            Some(DefinitionTarget::Id("g".into()))
         );
         Ok(())
     }

@@ -239,6 +239,11 @@ pub fn xml_escape_attribute(text: &str) -> String {
     out
 }
 
+pub fn fragment_id(fragment: &str, css: bool) -> String {
+    let decoded = xml_unescape(fragment);
+    percent_decode(&if css { css_unescape(&decoded) } else { decoded })
+}
+
 pub fn percent_decode(text: &str) -> String {
     if !text.contains('%') {
         return text.to_owned();

@@ -4,13 +4,13 @@ use tree_sitter::Tree;
 use crate::{
     Span, inline_style_fragments,
     occurrences::{
-        encoded_presentation_value, inside_encoded_presentation_value, is_structural_iri,
-        parse_paint, presentation_fragment, url_argument_range,
+        encoded_presentation_value, inside_encoded_presentation_value, is_css_iri,
+        is_structural_iri, parse_paint, presentation_fragment, url_argument_range,
     },
     outline::element_tag,
     tag_attribute_value,
     text::{
-        CssFragment, advance_point, css_unescape, node_span, percent_decode, rebase_point,
+        CssFragment, advance_point, css_unescape, fragment_id, node_span, rebase_point,
         span_between, xml_unescape,
     },
 };
@@ -111,7 +111,7 @@ fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
 #[must_use]
 pub fn local_fragment_id(iri: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let fragment = iri.utf8_text(source).ok()?.strip_prefix('#')?;
-    fragment_is_local(iri, source).then(|| percent_decode(&xml_unescape(fragment)))
+    fragment_is_local(iri, source).then(|| fragment_id(fragment, is_css_iri(iri)))
 }
 
 pub fn fragment_is_local(iri: tree_sitter::Node<'_>, source: &[u8]) -> bool {
