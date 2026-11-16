@@ -134,6 +134,7 @@ pub fn collect_symbol_occurrences(source: &[u8], tree: &Tree) -> Vec<SymbolOccur
         }
         "iri_reference" => {
             if is_structural_iri(node)
+                && crate::links::fragment_is_local(node, source)
                 && let Some(occurrence) = local_iri_occurrence(node, source, 0, Point::new(0, 0))
             {
                 out.push(occurrence);

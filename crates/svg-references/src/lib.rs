@@ -176,6 +176,9 @@ pub fn definition_target_at(
     }
 
     if let Some(iri) = find_ancestor_any(node, &["iri_reference"]) {
+        if !links::fragment_is_local(iri, source) {
+            return None;
+        }
         let text = iri.utf8_text(source).ok()?;
         return text
             .strip_prefix('#')

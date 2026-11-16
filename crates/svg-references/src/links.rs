@@ -27,7 +27,8 @@ pub struct ExternalLink {
 /// Collect references to other resources: `href`/`xlink:href` values, `url(...)` values,
 /// `@import` rules, and `<?xml-stylesheet href?>` instructions.
 ///
-/// Fragment-only references (`#id`) and `data:` URIs are left out.
+/// Fragment-only references to this document (`#id`) and `data:` URIs are left out. An
+/// `href` fragment under an `xml:base` names a fragment of that base resource.
 #[must_use]
 pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
     let mut links = Vec::new();
@@ -40,6 +41,7 @@ pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
                     &xml_unescape(text),
                     node_span(node),
                     &xml_bases(node, source),
+                    fragment_is_local(node, source),
                 );
             }
         }
@@ -89,12 +91,27 @@ fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
     bases
 }
 
-fn push_link(links: &mut Vec<ExternalLink>, target: &str, span: Span, base: &[String]) {
+pub fn fragment_is_local(iri: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    iri.parent()
+        .is_none_or(|parent| parent.kind() != "href_reference")
+        || xml_bases(iri, source).iter().all(|base| {
+            let base = base.trim();
+            base.is_empty() || base.starts_with('#')
+        })
+}
+
+fn push_link(
+    links: &mut Vec<ExternalLink>,
+    target: &str,
+    span: Span,
+    base: &[String],
+    local_fragment: bool,
+) {
     let target = target.trim();
     let is_data = target
         .get(..5)
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("data:"));
-    if target.is_empty() || target.starts_with('#') || is_data {
+    if target.is_empty() || (local_fragment && target.starts_with('#')) || is_data {
         return;
     }
     links.push(ExternalLink {
@@ -129,6 +146,7 @@ fn paint_links(payload: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<Ex
                     rebase_point(base, node.end_position()),
                 ),
                 &bases,
+                true,
             );
         }
     });
@@ -150,7 +168,7 @@ fn css_links(fragment: &CssFragment, bases: &[String], links: &mut Vec<ExternalL
                 && let Some(text) = fragment.text.get(start..end)
                 && let Some((_, _, span)) = fragment.source_range(start, end)
             {
-                push_link(links, &decode(text), span, bases);
+                push_link(links, &decode(text), span, bases, true);
             }
         }
         "string_value"
@@ -167,7 +185,7 @@ fn css_links(fragment: &CssFragment, bases: &[String], links: &mut Vec<ExternalL
                 && let Some(inner) = fragment.text.get(inner_start..inner_end)
                 && let Some((_, _, span)) = fragment.source_range(inner_start, inner_end)
             {
-                push_link(links, &decode(inner), span, bases);
+                push_link(links, &decode(inner), span, bases, true);
             }
         }
         _ => {}
@@ -202,6 +220,7 @@ fn stylesheet_pi_link(node: tree_sitter::Node<'_>, source: &[u8], links: &mut Ve
         &xml_unescape(value),
         span_between(start_point, end_point),
         &[],
+        true,
     );
 }
 
@@ -327,6 +346,31 @@ mod tests {
         assert_eq!(spans[5], "https://example.com/a.png?x=1&amp;y=2");
         assert_eq!(spans[8], "s.svg#s");
         assert!(links.iter().all(|link| link.base.is_empty()));
+        Ok(())
+    }
+
+    #[test]
+    fn fragment_hrefs_under_a_foreign_xml_base_are_external() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><g id=\"g\"/><use xml:base=\"other.svg\" href=\"#g\"/>",
+            "<use xml:base=\"\" href=\"#g\"/><rect xml:base=\"other.svg\" fill=\"url(#g)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let links: Vec<_> = external_links(source.as_bytes(), &tree)
+            .into_iter()
+            .map(|link| (link.target, link.base))
+            .collect();
+        assert_eq!(links, vec![("#g".to_owned(), vec!["other.svg".to_owned()])]);
+        let references = crate::collect_symbol_occurrences(source.as_bytes(), &tree)
+            .into_iter()
+            .filter(|occurrence| occurrence.role == crate::OccurrenceRole::Reference)
+            .count();
+        assert_eq!(references, 2);
+        let offset = source.find("\"#g").ok_or("href")? + 2;
+        assert_eq!(
+            crate::definition_target_at(source.as_bytes(), &tree, offset),
+            None
+        );
         Ok(())
     }
 
