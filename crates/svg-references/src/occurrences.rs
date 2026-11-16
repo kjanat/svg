@@ -447,7 +447,9 @@ fn var_occurrence(
         return;
     };
     let mut args = arguments.walk();
-    if let Some(first) = arguments.named_children(&mut args).next()
+    if let Some(first) = arguments
+        .named_children(&mut args)
+        .find(|argument| argument.kind() != "comment")
         && first.kind() == "plain_value"
         && fragment
             .node_text(first)
@@ -766,6 +768,33 @@ mod tests {
         assert_eq!(named(DefinitionTarget::Class("b".into())), vec!["b"]);
         assert_eq!(named(DefinitionTarget::Id("b".into())), vec!["b", "b"]);
         assert_eq!(named(DefinitionTarget::Id("c".into())), vec!["c"]);
+        Ok(())
+    }
+
+    #[test]
+    fn var_skips_leading_comments() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>:root { --c: red } rect { fill: var(/* theme */ --c) }</style>",
+            "<rect fill=\"var(/**/--c)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let props = of_target(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+        );
+        let roles: Vec<_> = props
+            .iter()
+            .map(|o| (o.role, span_text(source, &o.span)))
+            .collect();
+        assert_eq!(
+            roles,
+            vec![
+                (OccurrenceRole::Declaration, "--c"),
+                (OccurrenceRole::Reference, "--c"),
+                (OccurrenceRole::Reference, "--c"),
+            ]
+        );
         Ok(())
     }
 
