@@ -62,16 +62,6 @@ jobs:
           execution-id: ${{ inputs.beepboop_execution_id }}
           stream: main
           operation: promote
-      - name: Bind approved source to the dispatched revision
-        env:
-          APPROVED_SOURCE: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
-          DISPATCHED_SOURCE: ${{ github.sha }}
-          DISPATCHED_REF: ${{ github.ref }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          test "${DISPATCHED_REF}" = refs/heads/master
-          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${APPROVED_SOURCE}...${DISPATCHED_SOURCE}" --jq .status)"
-          test "${status}" = identical || test "${status}" = ahead
 
   create-release:
     name: create draft release

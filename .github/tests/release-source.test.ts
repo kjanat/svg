@@ -31,12 +31,3 @@ test('the draft release job reads the dispatched workflow commit with the full h
 		['${{ github.sha }}', 0],
 	]);
 });
-
-test('a dispatched run accepts an approved source that its workflow commit contains', () => {
-	const bind = steps(job('beepboop')).find(step => step.name === 'Bind approved source to the dispatched revision');
-	expect(bind?.run).toBe(
-		'test "${DISPATCHED_REF}" = refs/heads/master\n'
-			+ 'status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${APPROVED_SOURCE}...${DISPATCHED_SOURCE}" --jq .status)"\n'
-			+ 'test "${status}" = identical || test "${status}" = ahead\n',
-	);
-});

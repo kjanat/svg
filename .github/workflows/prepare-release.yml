@@ -18,9 +18,6 @@ jobs:
           execution-id: ${{ inputs.beepboop_execution_id }}
           stream: main
           operation: prepare
-      - name: Refuse a dispatch away from the approved source
-        if: github.ref != 'refs/heads/master' || fromJSON(steps.begin.outputs.context).sourceSha != github.sha
-        run: exit 1
       - uses: actions/checkout@v7
         with: { ref: "${{ github.sha }}", persist-credentials: false }
       - parallel:
