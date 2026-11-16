@@ -316,11 +316,6 @@
     }
   },
   {
-    "type": "class_name",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "clip_attribute",
     "named": true,
     "fields": {
@@ -1317,11 +1312,6 @@
         }
       ]
     }
-  },
-  {
-    "type": "keyword_value",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "length",
@@ -2763,6 +2753,10 @@
     "named": true
   },
   {
+    "type": "class_name",
+    "named": true
+  },
+  {
     "type": "clip_attribute_name",
     "named": true
   },
@@ -2852,6 +2846,10 @@
   },
   {
     "type": "keyword_attribute_name",
+    "named": true
+  },
+  {
+    "type": "keyword_value",
     "named": true
   },
   {

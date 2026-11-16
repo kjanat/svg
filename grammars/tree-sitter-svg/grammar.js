@@ -1148,7 +1148,7 @@ export default grammar({
 
 		id_attribute_value: $ => quoted($.id_token),
 
-		id_token: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF])*/),
+		id_token: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])*/u),
 
 		// class attribute
 
@@ -1161,11 +1161,25 @@ export default grammar({
 
 		class_attribute_name: _ => 'class',
 
-		class_attribute_value: $ => quoted($.class_list),
+		class_attribute_value: $ =>
+			choice(
+				seq(DQUOTE, optional(alias($._class_list_double, $.class_list)), DQUOTE),
+				seq(SQUOTE, optional(alias($._class_list_single, $.class_list)), SQUOTE),
+			),
 
-		class_list: $ => seq($.class_name, repeat(seq($.wsp, $.class_name))),
+		_class_list_double: $ => {
+			const name = alias($._class_name_double, $.class_name);
+			return choice(seq(optional($.wsp), name, repeat(seq($.wsp, name)), optional($.wsp)), $.wsp);
+		},
 
-		class_name: _ => token(/[A-Za-z_][A-Za-z0-9_-]*/),
+		_class_list_single: $ => {
+			const name = alias($._class_name_single, $.class_name);
+			return choice(seq(optional($.wsp), name, repeat(seq($.wsp, name)), optional($.wsp)), $.wsp);
+		},
+
+		_class_name_double: _ => token(/(?:[^ \t\r\n"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+
+		_class_name_single: _ => token(/(?:[^ \t\r\n'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
 
 		// event attribute (JS injection)
 
@@ -1200,7 +1214,7 @@ export default grammar({
 				field('value', $.quoted_attribute_value),
 			),
 
-		attribute_name: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF])*/),
+		attribute_name: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])*/u),
 
 		quoted_attribute_value: $ =>
 			choice(
@@ -1277,7 +1291,7 @@ export default grammar({
 
 		text: _ => token(prec(-1, /[^<&]+/)),
 
-		name: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF])*/),
+		name: _ => token(/(?:[A-Za-z_:]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])(?:[A-Za-z0-9_.:-]|[\u0080-\uFFFF\u{10000}-\u{EFFFF}])*/u),
 
 		_s: _ => token(/[ \t\r\n]+/),
 	},
