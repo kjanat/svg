@@ -13,6 +13,25 @@
 //! assert_eq!(defs[0].name, "icon");
 //! ```
 
+mod folding;
+mod highlight;
+mod hints;
+mod links;
+mod occurrences;
+mod outline;
+mod selection;
+mod text;
+
+pub use folding::{FoldKind, FoldRegion, folding_regions};
+pub use highlight::{HighlightKind, HighlightToken, highlight_tokens};
+pub use hints::{IdReferenceTarget, resolve_id_references};
+pub use links::{ExternalLink, external_links};
+pub use occurrences::{
+    OccurrenceRole, OccurrenceSyntax, RenameEdit, RenameError, SymbolOccurrence,
+    collect_symbol_occurrences, rename_edits, symbol_occurrence_at, validate_new_name,
+};
+pub use outline::{OutlineElement, element_outline};
+pub use selection::selection_chain;
 use svg_tree::{child_of_kind, deepest_node_at, find_ancestor_any, has_ancestor, walk_tree};
 use tree_sitter::{Parser, Tree};
 

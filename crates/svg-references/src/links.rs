@@ -1,0 +1,308 @@
+use svg_tree::{child_of_kind, walk_tree};
+use tree_sitter::{Point, Tree};
+
+use crate::{
+    Span, collect_inline_stylesheets,
+    occurrences::{is_structural_iri, parse_paint, url_argument_range},
+    text::{CssFragment, advance_point, node_span, rebase_point, span_between, xml_unescape},
+};
+
+/// A reference to a resource outside the current document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternalLink {
+    /// The reference as written, XML character references decoded, possibly relative.
+    pub target: String,
+    /// Span of the reference text, quotes and `url(` excluded.
+    pub span: Span,
+}
+
+/// Collect references to other resources: `href`/`xlink:href` values, `url(...)` values,
+/// `@import` rules, and `<?xml-stylesheet href?>` instructions.
+///
+/// Fragment-only references (`#id`) and `data:` URIs are left out.
+#[must_use]
+pub fn external_links(source: &[u8], tree: &Tree) -> Vec<ExternalLink> {
+    let mut links = Vec::new();
+    let mut cursor = tree.root_node().walk();
+    walk_tree(&mut cursor, &mut |node| match node.kind() {
+        "iri_reference" if is_structural_iri(node) => {
+            if let Ok(text) = node.utf8_text(source) {
+                push_link(&mut links, &xml_unescape(text), node_span(node));
+            }
+        }
+        "paint_payload" => paint_links(node, source, &mut links),
+        "style_text_double" | "style_text_single" => {
+            if let Ok(content) = node.utf8_text(source)
+                && let Some(fragment) =
+                    CssFragment::declarations(content, node.start_byte(), node.start_position())
+            {
+                css_links(&fragment, &mut links);
+            }
+        }
+        "processing_instruction" => stylesheet_pi_link(node, source, &mut links),
+        _ => {}
+    });
+    for stylesheet in collect_inline_stylesheets(source, tree) {
+        if let Some(fragment) = CssFragment::stylesheet(
+            &stylesheet.css,
+            stylesheet.start_byte,
+            Point::new(stylesheet.start_row, stylesheet.start_col),
+        ) {
+            css_links(&fragment, &mut links);
+        }
+    }
+    links.sort_by_key(|link| {
+        (
+            link.span.start_row,
+            link.span.start_col,
+            link.span.end_row,
+            link.span.end_col,
+        )
+    });
+    links.dedup();
+    links
+}
+
+fn push_link(links: &mut Vec<ExternalLink>, target: &str, span: Span) {
+    let target = target.trim();
+    let is_data = target
+        .get(..5)
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("data:"));
+    if target.is_empty() || target.starts_with('#') || is_data {
+        return;
+    }
+    links.push(ExternalLink {
+        target: target.to_owned(),
+        span,
+    });
+}
+
+fn paint_links(payload: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<ExternalLink>) {
+    let Some(payload_source) = source.get(payload.byte_range()) else {
+        return;
+    };
+    let Some(tree) = parse_paint(payload_source) else {
+        return;
+    };
+    let base = payload.start_position();
+    let mut cursor = tree.root_node().walk();
+    walk_tree(&mut cursor, &mut |node| {
+        if node.kind() == "iri_reference"
+            && node
+                .parent()
+                .is_some_and(|parent| parent.kind() == "paint_server")
+            && let Ok(text) = node.utf8_text(payload_source)
+        {
+            push_link(
+                links,
+                &xml_unescape(text),
+                span_between(
+                    rebase_point(base, node.start_position()),
+                    rebase_point(base, node.end_position()),
+                ),
+            );
+        }
+    });
+}
+
+fn css_links(fragment: &CssFragment, links: &mut Vec<ExternalLink>) {
+    let in_attribute = fragment.in_attribute;
+    let decode = |text: &str| {
+        if in_attribute {
+            xml_unescape(text)
+        } else {
+            text.to_owned()
+        }
+    };
+    let mut cursor = fragment.tree.root_node().walk();
+    walk_tree(&mut cursor, &mut |node| match node.kind() {
+        "call_expression" => {
+            let is_url = child_of_kind(node, "function_name")
+                .and_then(|function| fragment.node_text(function))
+                .is_some_and(|function| function.eq_ignore_ascii_case("url"));
+            if !is_url {
+                return;
+            }
+            if let Some(arguments) = child_of_kind(node, "arguments")
+                && let Some((start, end)) = url_argument_range(fragment, arguments)
+                && let Some(text) = fragment.text.get(start..end)
+                && let Some((_, _, span)) = fragment.source_range(start, end)
+            {
+                push_link(links, &decode(text), span);
+            }
+        }
+        "string_value"
+            if node
+                .parent()
+                .is_some_and(|p| p.kind() == "import_statement") =>
+        {
+            let Some(text) = fragment.node_text(node) else {
+                return;
+            };
+            let inner_start = node.start_byte() + 1;
+            let inner_end = node.end_byte().saturating_sub(1).max(inner_start);
+            if text.len() >= 2
+                && let Some(inner) = fragment.text.get(inner_start..inner_end)
+                && let Some((_, _, span)) = fragment.source_range(inner_start, inner_end)
+            {
+                push_link(links, &decode(inner), span);
+            }
+        }
+        _ => {}
+    });
+}
+
+fn stylesheet_pi_link(node: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<ExternalLink>) {
+    let is_stylesheet = node
+        .child_by_field_name("target")
+        .and_then(|target| target.utf8_text(source).ok())
+        == Some("xml-stylesheet");
+    if !is_stylesheet {
+        return;
+    }
+    let Some(content) = node.child_by_field_name("content") else {
+        return;
+    };
+    let Ok(text) = content.utf8_text(source) else {
+        return;
+    };
+    let Some((start, end)) = pseudo_attribute_range(text, "href") else {
+        return;
+    };
+    let Some(value) = text.get(start..end) else {
+        return;
+    };
+    let base = content.start_position();
+    let start_point = advance_point(base, &text.as_bytes()[..start]);
+    let end_point = advance_point(start_point, value.as_bytes());
+    push_link(
+        links,
+        &xml_unescape(value),
+        span_between(start_point, end_point),
+    );
+}
+
+fn pseudo_attribute_range(content: &str, wanted: &str) -> Option<(usize, usize)> {
+    let bytes = content.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let name_start = index;
+        while index < bytes.len() && !bytes[index].is_ascii_whitespace() && bytes[index] != b'=' {
+            index += 1;
+        }
+        let name = content.get(name_start..index)?;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if bytes.get(index) != Some(&b'=') {
+            continue;
+        }
+        index += 1;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let quote = *bytes.get(index)?;
+        if quote != b'"' && quote != b'\'' {
+            while index < bytes.len() && !bytes[index].is_ascii_whitespace() {
+                index += 1;
+            }
+            continue;
+        }
+        let value_start = index + 1;
+        let value_end = value_start + bytes.get(value_start..)?.iter().position(|&b| b == quote)?;
+        if name == wanted {
+            return Some((value_start, value_end));
+        }
+        index = value_end + 1;
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use tree_sitter::Parser;
+
+    use super::*;
+
+    fn parse_svg(source: &str) -> Result<Tree, Box<dyn Error>> {
+        let mut parser = Parser::new();
+        parser.set_language(&tree_sitter_svg::LANGUAGE.into())?;
+        parser
+            .parse(source, None)
+            .ok_or_else(|| "parse returned None".into())
+    }
+
+    fn span_text<'a>(source: &'a str, span: &Span) -> &'a str {
+        let lines: Vec<&str> = source.split('\n').collect();
+        &lines[span.start_row][span.start_col..span.end_col]
+    }
+
+    #[test]
+    fn skips_empty_and_unbalanced_css_urls() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><style>.x { background: url(); mask: url(\"#bad'); }</style></svg>";
+        let tree = parse_svg(source)?;
+        assert_eq!(external_links(source.as_bytes(), &tree), Vec::new());
+        let targets: Vec<_> = crate::collect_symbol_occurrences(source.as_bytes(), &tree)
+            .into_iter()
+            .map(|occurrence| occurrence.target)
+            .collect();
+        assert_eq!(targets, vec![crate::DefinitionTarget::Class("x".into())]);
+        Ok(())
+    }
+
+    #[test]
+    fn pseudo_attribute_parser_skips_bare_names_and_unquoted_values() {
+        let content = "alternate type=css href=\"a.css\"";
+        assert_eq!(pseudo_attribute_range(content, "href"), Some((25, 30)));
+        assert_eq!(pseudo_attribute_range("href=a.css", "href"), None);
+        assert_eq!(pseudo_attribute_range("href", "href"), None);
+    }
+
+    #[test]
+    fn collects_external_references_and_skips_fragments() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<?xml-stylesheet type=\"text/css\" href=\"theme.css\"?>\n",
+            "<svg xmlns=\"http://www.w3.org/2000/svg\">\n",
+            "  <style>@import url(\"a.css\"); @import 'b.css'; .x { fill: url(#g); background: \
+             url(img.png); }</style>\n",
+            "  <use href=\"#g\"/><use href=\"sprites.svg#icon\"/>\n",
+            "  <image href=\"https://example.com/a.png?x=1&amp;y=2\"/>\n",
+            "  <image href=\"data:image/png;base64,AAAA\"/>\n",
+            "  <rect fill=\"url(paint.svg#p) red\" clip-path=\"url(clip.svg#c)\" style=\"fill: \
+             url(s.svg#s)\"/>\n",
+            "</svg>",
+        );
+        let tree = parse_svg(source)?;
+        let links = external_links(source.as_bytes(), &tree);
+        let targets: Vec<_> = links.iter().map(|link| link.target.as_str()).collect();
+        assert_eq!(
+            targets,
+            vec![
+                "theme.css",
+                "a.css",
+                "b.css",
+                "img.png",
+                "sprites.svg#icon",
+                "https://example.com/a.png?x=1&y=2",
+                "paint.svg#p",
+                "clip.svg#c",
+                "s.svg#s",
+            ]
+        );
+        let spans: Vec<_> = links
+            .iter()
+            .map(|link| span_text(source, &link.span))
+            .collect();
+        assert_eq!(spans[0], "theme.css");
+        assert_eq!(spans[1], "a.css");
+        assert_eq!(spans[3], "img.png");
+        assert_eq!(spans[5], "https://example.com/a.png?x=1&amp;y=2");
+        assert_eq!(spans[8], "s.svg#s");
+        Ok(())
+    }
+}
