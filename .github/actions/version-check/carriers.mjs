@@ -29,7 +29,7 @@ function grammarCarriers(grammar) {
 		{ file: `${dir}/CMakeLists.txt`, pattern: /VERSION "([^"]+)"/ },
 		{ file: `${dir}/pyproject.toml`, pattern: /^version\s*=\s*"([^"]+)"/m },
 		{ file: `${dir}/build.zig.zon`, pattern: /\.version = "([^"]+)"/ },
-		{ file: `${dir}/pom.xml`, pattern: /<version>(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)<\/version>/ },
+		{ file: `${dir}/pom.xml`, pattern: /<version>(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)<\/version>/ },
 	];
 }
 
