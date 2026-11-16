@@ -49,7 +49,7 @@ pub enum OccurrenceSyntax {
     },
     /// The element id of a syncbase or event value in an animation `begin` or `end` list.
     TimingReference,
-    /// The value of a `[class~="..."]` or `[class="..."]` attribute selector in a CSS string.
+    /// The value of a `class` or `id` attribute selector in a CSS string.
     CssString {
         /// The CSS is XML character data, outside a CDATA section.
         xml_escaped: bool,
@@ -669,13 +669,13 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
                 );
             }
             "call_expression" => call_occurrence(fragment, node, true, out),
-            "attribute_selector" => class_attribute_selector(fragment, node, out),
+            "attribute_selector" => attribute_selector_occurrence(fragment, node, out),
             _ => {}
         }
     });
 }
 
-fn class_attribute_selector(
+fn attribute_selector_occurrence(
     fragment: &CssFragment,
     selector: tree_sitter::Node<'_>,
     out: &mut Vec<SymbolOccurrence>,
@@ -692,9 +692,12 @@ fn class_attribute_selector(
     else {
         return;
     };
-    if fragment.node_text(children[name_at]) != Some("class")
-        || !matches!(fragment.node_text(*operator), Some("~=" | "="))
-    {
+    let target: fn(String) -> DefinitionTarget = match fragment.node_text(children[name_at]) {
+        Some("class") => DefinitionTarget::Class,
+        Some("id") => DefinitionTarget::Id,
+        _ => return,
+    };
+    if !matches!(fragment.node_text(*operator), Some("~=" | "=")) {
         return;
     }
     let (start, end, quoted) = match value.kind() {
@@ -714,7 +717,7 @@ fn class_attribute_selector(
     };
     let xml_escaped = fragment.xml_escaped;
     out.push(SymbolOccurrence {
-        target: DefinitionTarget::Class(name),
+        target: target(name),
         role: OccurrenceRole::Reference,
         syntax: if quoted {
             OccurrenceSyntax::CssString { xml_escaped }
@@ -1190,6 +1193,37 @@ mod tests {
         let edits = rename_edits(&occurrences, &DefinitionTarget::Class("a".into()), "x\"y")?;
         let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
         assert_eq!(texts, vec!["x\\&quot;y", "x\\&quot;y", "x&quot;y"]);
+        Ok(())
+    }
+
+    #[test]
+    fn id_attribute_selectors_are_id_references() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>[id=\"a\"] {} rect[id~=a] {} [id^=a] {}</style>",
+            "<rect id=\"a\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let ids: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("a".into()))
+            .iter()
+            .map(|o| (o.role, o.syntax))
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                (
+                    OccurrenceRole::Reference,
+                    OccurrenceSyntax::CssString { xml_escaped: true }
+                ),
+                (
+                    OccurrenceRole::Reference,
+                    OccurrenceSyntax::CssIdentifier { xml_escaped: true }
+                ),
+                (OccurrenceRole::Declaration, OccurrenceSyntax::Attribute),
+            ]
+        );
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("a".into()), "b")?;
+        assert_eq!(edits.len(), 3);
         Ok(())
     }
 
