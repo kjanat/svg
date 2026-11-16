@@ -36,7 +36,7 @@ let registry;
 let registryUrl;
 
 function checkVersion(label, command, args) {
-	assertVersion(runCommand(command, [...args, '--version']), version, label);
+	assertVersion(runCommand(command, [...args, '--version'], { quiet: true }), version, label);
 	commands++;
 	console.log(`PASS ${label}: ${version}`);
 }
@@ -54,10 +54,15 @@ function packedPackage(name, directory) {
 	assert.equal(pkg.name, name);
 	assert.equal(pkg.version, version);
 	for (const [, file] of bins(pkg)) assertExecutable(join(source, file));
+	const native = bins(pkg).every(([, file]) => !file.endsWith('.mjs'));
+	if (native) assert.equal(pkg.preferUnplugged, true, `${name}: a native platform package must set preferUnplugged`);
 	const archive = join(root, 'dist', `${directory}.tgz`);
 	const packedManifest = JSON.parse(run('tar', ['-xOf', archive, 'package/package.json']));
 	assert.equal(packedManifest.name, name);
 	assert.equal(packedManifest.version, version);
+	if (native) {
+		assert.equal(packedManifest.preferUnplugged, true, `${name}: the packed platform package must set preferUnplugged`);
+	}
 	packed.set(name, archive);
 	return archive;
 }

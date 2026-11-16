@@ -14,7 +14,7 @@ const MUSL_LOADERS = {
 	arm: 'ld-musl-armhf.so.1',
 	ia32: 'ld-musl-i386.so.1',
 	riscv64: 'ld-musl-riscv64.so.1',
-	ppc64: 'ld-musl-powerpc64.so.1',
+	ppc64: 'ld-musl-powerpc64le.so.1',
 	s390x: 'ld-musl-s390x.so.1',
 	loong64: 'ld-musl-loongarch64.so.1',
 };
@@ -38,6 +38,55 @@ const PACKAGE_ARCH = { arm: 'armv7' };
 
 /** Environment variable that overrides libc detection. */
 export const LIBC_ENV = 'SVG_LIBC';
+
+/** @type {Record<string, 'glibc' | 'musl'>} `gnu` is how the package names spell glibc. */
+const LIBC_NAMES = { glibc: 'glibc', gnu: 'glibc', musl: 'musl' };
+
+/**
+ * Read the libc override.
+ *
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {{ kind: 'unset' } | { kind: 'set', libc: 'glibc' | 'musl' } | { kind: 'invalid', value: string }}
+ */
+export function libcOverride(env = process.env) {
+	const value = env[LIBC_ENV]?.trim();
+	if (!value) return { kind: 'unset' };
+	const name = value.toLowerCase();
+	return Object.hasOwn(LIBC_NAMES, name) ? { kind: 'set', libc: LIBC_NAMES[name] } : { kind: 'invalid', value };
+}
+
+/**
+ * The `<os>-<cpu>` stem of the platform packages this host can run, such as
+ * `linux-x64` or `darwin-arm64`. The arm packages are ARMv7 hard-float builds,
+ * so an arm host whose Node reports an older ARM version or another float ABI
+ * gets `null`. A Node build that reports neither is taken as ARMv7 hard-float.
+ *
+ * @param {object} [host] Injection points; the defaults read the real host.
+ * @param {string} [host.platform]
+ * @param {string} [host.arch]
+ * @param {string} [host.armVersion] Node's `arm_version` build variable.
+ * @param {string} [host.armFloatAbi] Node's `arm_float_abi` build variable.
+ * @returns {string | null}
+ */
+export function hostTarget(host = {}) {
+	const { platform = process.platform, arch = process.arch } = host;
+	if (arch === 'arm') {
+		const variables = process.config?.variables ?? {};
+		const {
+			armVersion = String(variables.arm_version ?? ''),
+			armFloatAbi = String(variables.arm_float_abi ?? ''),
+		} = host;
+		if (armVersion !== '' && Number(armVersion) < 7) return null;
+		if (armFloatAbi !== '' && armFloatAbi !== 'hard') return null;
+	}
+	return `${platform}-${PACKAGE_ARCH[arch] ?? arch}`;
+}
+
+/**
+ * @param {string} name
+ * @param {string} stem
+ */
+const buildsFor = (name, stem) => name.endsWith(`-${stem}`) || name.includes(`-${stem}-`);
 
 /** A probe must never be what breaks the launcher: an unreadable root raises rather than returning false. */
 const probe = (fallback, read) => {
@@ -138,8 +187,8 @@ export function detectLibc(options = {}) {
 
 	if (platform !== 'linux') return null;
 
-	const override = env[LIBC_ENV]?.trim().toLowerCase();
-	if (override === 'musl' || override === 'glibc') return override;
+	const override = libcOverride(env);
+	if (override.kind === 'set') return override.libc;
 
 	// Only set when Node itself linked against glibc.
 	let header;
@@ -156,37 +205,43 @@ export function detectLibc(options = {}) {
 }
 
 /**
- * Order the matching build first and drop what cannot run. A glibc build on a
- * musl host has no ELF interpreter, so it is dropped rather than spawned for an
- * unexplained `ENOENT`; musl builds are static, so on glibc they stay a fallback.
+ * Keep only the builds for this host's OS and CPU, order the matching libc
+ * first and drop what cannot run. A glibc build on a musl host has no ELF
+ * interpreter, so it is dropped rather than spawned for an unexplained
+ * `ENOENT`; musl builds are static, so on glibc they stay a fallback.
  *
  * @param {string[]} subPackages Declared optional dependencies, in manifest order.
  * @param {'glibc' | 'musl' | null} libc
  * @param {object} [host] Injection points; the defaults read the real host.
  * @param {string} [host.platform]
  * @param {string} [host.arch]
+ * @param {string} [host.armVersion]
+ * @param {string} [host.armFloatAbi]
  * @param {(name: string) => boolean} [host.installed]
- * @returns {{ candidates: string[], dropped: string[], undecided: boolean }}
- *   `undecided` means a Linux host of unidentified libc has both variants of its
- *   own target installed, so manifest order alone would decide.
+ * @returns {{ stem: string | null, candidates: string[], dropped: string[], undecided: boolean }}
+ *   `stem` is the host's target from {@link hostTarget}. `undecided` means a
+ *   Linux host of unidentified libc has both variants of its own target
+ *   installed, so manifest order alone would decide.
  */
 export function planCandidates(subPackages, libc, host = {}) {
+	const { platform = process.platform, installed = () => true } = host;
+	const stem = hostTarget(host);
+	const own = stem === null ? [] : subPackages.filter((name) => buildsFor(name, stem));
+
 	if (libc === null) {
-		const { platform = process.platform, arch = process.arch, installed = () => true } = host;
-		const target = `-${platform}-${PACKAGE_ARCH[arch] ?? arch}-`;
-		const present = new Set(subPackages.filter((name) => name.includes(target) && installed(name)));
+		const present = new Set(own.filter(installed));
 		const undecided = platform === 'linux' && [...present].some((name) => {
 			const sibling = siblingName(name);
 			return sibling !== null && present.has(sibling);
 		});
-		return { candidates: [...subPackages], dropped: [], undecided };
+		return { stem, candidates: own, dropped: [], undecided };
 	}
 
 	/** @type {string[]} */ const preferred = [];
 	/** @type {string[]} */ const fallback = [];
 	/** @type {string[]} */ const dropped = [];
 
-	for (const name of subPackages) {
+	for (const name of own) {
 		const classified = classifyLibc(name);
 		if (classified === null) {
 			fallback.push(name);
@@ -199,5 +254,5 @@ export function planCandidates(subPackages, libc, host = {}) {
 		}
 	}
 
-	return { candidates: [...preferred, ...fallback], dropped, undecided: false };
+	return { stem, candidates: [...preferred, ...fallback], dropped, undecided: false };
 }

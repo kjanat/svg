@@ -10,14 +10,16 @@ export const digest = path => createHash('sha256').update(readFileSync(path)).di
 export const packageDirectory = name => name.replace(/^@/, '').replaceAll('/', '-');
 
 export function run(command, args, options = {}) {
-	const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...options, shell: false });
-	return checkedOutput(result, command);
+	const { quiet = false, ...spawnOptions } = options;
+	const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...spawnOptions, shell: false });
+	return checkedOutput(result, command, quiet);
 }
 
-function checkedOutput(result, command) {
+export function checkedOutput(result, command, quiet = false) {
 	if (result.error || result.status !== 0) {
 		throw new Error(`${command} failed (${result.status}): ${result.error?.message ?? ''}\n${result.stdout ?? ''}\n${result.stderr ?? ''}`);
 	}
+	if (quiet && (result.stderr ?? '').trim() !== '') throw new Error(`${command} wrote to stderr:\n${result.stderr}`);
 	return result.stdout.trim();
 }
 
@@ -43,15 +45,16 @@ export function runCommand(command, args, options = {}) {
 	if (process.platform === 'win32' && command.toLowerCase().endsWith('.cmd')) {
 		// Keep shell calls distinct from native argv calls above. Only this
 		// branch accepts a command line, quoted and validated by cmdLine.
+		const { quiet = false, ...spawnOptions } = options;
 		const result = spawnSync('cmd.exe', ['/d', '/v:off', '/s', '/c', cmdLine(command, args)], {
 			encoding: 'utf8',
 			timeout: 120_000,
 			maxBuffer: 16 * 1024 * 1024,
-			...options,
+			...spawnOptions,
 			shell: false,
 			windowsVerbatimArguments: true,
 		});
-		return checkedOutput(result, command);
+		return checkedOutput(result, command, quiet);
 	}
 	return run(command, args, options);
 }

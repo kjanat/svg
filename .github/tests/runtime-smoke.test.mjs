@@ -8,6 +8,7 @@ import {
 	archivePath,
 	assertExecutable,
 	assertVersion,
+	checkedOutput,
 	cmdLine,
 	digest,
 	expectedVersion,
@@ -47,6 +48,15 @@ test('empty, duplicated, ambiguous, experimental or fake-musl runtime plans fail
 	assert.throws(() => runtimeMatrix(change(m => m.targets[0].experimental = true)), /build-only/);
 	assert.throws(() => runtimeMatrix(change(m => delete m.targets.find(t => t.pkg === 'linux-x64-musl').runtime.container)), /musl/);
 	assert.throws(() => targetFor(manifest, 'freebsd-x64'), /No runtime configured/);
+});
+
+test('a version check fails when the command also writes to stderr', () => {
+	const ok = { status: 0, stdout: 'svg-lint 0.5.1\n', stderr: '' };
+	assert.equal(checkedOutput(ok, 'svg-lint', true), 'svg-lint 0.5.1');
+	const warned = { ...ok, stderr: 'svg-lint: the host libc could not be identified\n' };
+	assert.equal(checkedOutput(warned, 'svg-lint'), 'svg-lint 0.5.1');
+	assert.throws(() => checkedOutput(warned, 'svg-lint', true), /svg-lint wrote to stderr:\nsvg-lint: the host libc/);
+	assert.throws(() => run(process.execPath, ['-e', 'console.error("noise")'], { quiet: true }), /wrote to stderr/);
 });
 
 test('exact version tokens reject substring matches and malformed release inputs', () => {
