@@ -291,6 +291,62 @@ fn many_and_large_messages_pass_through_intact() -> TestResult {
 }
 
 #[test]
+fn rapid_incremental_edits_apply_in_order() -> TestResult {
+    const EDITS: u64 = 500;
+    let mut client = Client::offline()?;
+    let uri = "file:///incremental.svg";
+    client.open(uri, "<svg>\n</svg>\n")?;
+    for line in 1..=EDITS {
+        client.notify(
+            "textDocument/didChange",
+            &json!({
+                "textDocument": { "uri": uri, "version": line + 1 },
+                "contentChanges": [{
+                    "range": { "start": { "line": line, "character": 0 }, "end": { "line": line, "character": 0 } },
+                    "text": format!("<g id=\"e{line}\"/>\n"),
+                }],
+            }),
+        )?;
+        if line % 10 == 0 {
+            client.send(&json!({
+                "jsonrpc": "2.0", "id": 10_000 + line, "method": "textDocument/hover",
+                "params": { "textDocument": { "uri": uri }, "position": { "line": line, "character": 1 } },
+            }))?;
+        }
+    }
+    for line in (10..=EDITS).step_by(10) {
+        let hover = client.wait_for(|message| message["id"] == json!(10_000 + line))?;
+        assert!(hover["result"]["contents"].is_object(), "{hover}");
+    }
+    let response = client.request(
+        "textDocument/documentSymbol",
+        &json!({ "textDocument": { "uri": uri } }),
+    )?;
+    let children = response["result"][0]["children"]
+        .as_array()
+        .ok_or("svg children")?;
+    let placed: Vec<_> = children
+        .iter()
+        .map(|child| {
+            (
+                child["detail"].as_str().unwrap_or_default().to_owned(),
+                child["range"]["start"]["line"].as_u64().unwrap_or_default(),
+            )
+        })
+        .collect();
+    let expected: Vec<_> = (1..=EDITS)
+        .map(|line| (format!("#e{line}"), line))
+        .collect();
+    assert_eq!(placed, expected);
+    assert_eq!(
+        response["result"][0]["range"]["end"]["line"],
+        json!(EDITS + 1)
+    );
+    assert!(client.shutdown_and_exit()?.success());
+    Ok(())
+}
+
+#[test]
 fn exit_code_follows_the_shutdown_handshake() -> TestResult {
     let mut client = Client::offline()?;
     client.notify("exit", &Value::Null)?;

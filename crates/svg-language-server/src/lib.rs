@@ -1752,6 +1752,7 @@ impl LanguageServer for SvgLanguageServer {
         tracing::debug!(uri = ?params.text_document.uri, "did_change");
         let uri = params.text_document.uri;
         let version = params.text_document.version;
+        // tower-lsp-server keeps arrival order only until each handler's first await.
         let Some(text) = self.change_text(&uri, &params.content_changes) else {
             tracing::warn!(uri = ?uri, "did_change for a document that is not open");
             return;
