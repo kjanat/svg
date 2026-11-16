@@ -1282,14 +1282,17 @@ impl SvgLanguageServer {
             section: Some("svg".to_owned()),
         };
         match self.client.configuration(vec![item]).await {
-            Ok(values) => match values.into_iter().next() {
-                Some(value) if !value.is_null() => {
-                    let config = serde_json::json!({ "svg": value });
-                    self.apply_profile_config(&config).await;
-                    Some(config)
-                }
-                _ => None,
-            },
+            Ok(values) => {
+                let value = values.into_iter().next()?;
+                let section = if value.is_null() {
+                    serde_json::json!({})
+                } else {
+                    value
+                };
+                let config = serde_json::json!({ "svg": section });
+                self.apply_profile_config(&config).await;
+                Some(config)
+            }
             Err(error) => {
                 tracing::warn!(%error, "workspace/configuration request failed");
                 None

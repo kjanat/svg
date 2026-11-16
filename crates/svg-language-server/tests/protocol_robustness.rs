@@ -467,6 +467,30 @@ fn the_server_pulls_svg_settings_from_a_client_that_offers_them() -> TestResult 
         &json!({ "profile": "Svg2EditorsDraft", "force_profile": true }),
     )?;
     assert!(obsoleted_hover(&mut client, "file:///repulled.svg")?);
+
+    let mut fresh = Client::offline()?;
+    let default = obsoleted_hover(&mut fresh, "file:///default.svg")?;
+    assert!(fresh.shutdown_and_exit()?.success());
+    let opposite = if default {
+        &svg11
+    } else {
+        &json!({ "profile": "Svg2EditorsDraft", "force_profile": true })
+    };
+    client.notify(
+        "workspace/didChangeConfiguration",
+        &json!({ "settings": null }),
+    )?;
+    answer(&mut client, opposite)?;
+    assert_eq!(
+        obsoleted_hover(&mut client, "file:///opposite.svg")?,
+        !default
+    );
+    client.notify(
+        "workspace/didChangeConfiguration",
+        &json!({ "settings": null }),
+    )?;
+    answer(&mut client, &Value::Null)?;
+    assert_eq!(obsoleted_hover(&mut client, "file:///reset.svg")?, default);
     assert!(client.shutdown_and_exit()?.success());
     Ok(())
 }
