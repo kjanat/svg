@@ -2,7 +2,7 @@ use tower_lsp_server::ls_types::{
     Diagnostic, DiagnosticSeverity, DiagnosticTag, NumberOrString, Position, Range,
 };
 
-use crate::positions::byte_col_to_utf16;
+use crate::positions::LineIndex;
 
 pub async fn publish_lint_diagnostics(
     client: &tower_lsp_server::Client,
@@ -11,16 +11,21 @@ pub async fn publish_lint_diagnostics(
     diagnostics: Vec<svg_lint::SvgDiagnostic>,
     version: Option<i32>,
 ) {
+    let index = LineIndex::new(source);
     let lsp_diags = diagnostics
         .into_iter()
-        .map(|d| lint_diagnostic_to_lsp(source, d))
+        .map(|d| lint_diagnostic_to_lsp(source, &index, d))
         .collect();
     client.publish_diagnostics(uri, lsp_diags, version).await;
 }
 
-pub fn lint_diagnostic_to_lsp(source: &[u8], diagnostic: svg_lint::SvgDiagnostic) -> Diagnostic {
-    let start_char = byte_col_to_utf16(source, diagnostic.start_row, diagnostic.start_col);
-    let end_char = byte_col_to_utf16(source, diagnostic.end_row, diagnostic.end_col);
+pub fn lint_diagnostic_to_lsp(
+    source: &[u8],
+    index: &LineIndex,
+    diagnostic: svg_lint::SvgDiagnostic,
+) -> Diagnostic {
+    let start_char = index.utf16_col(source, diagnostic.start_row, diagnostic.start_col);
+    let end_char = index.utf16_col(source, diagnostic.end_row, diagnostic.end_col);
     let severity = match diagnostic.severity {
         svg_lint::Severity::Error => DiagnosticSeverity::ERROR,
         svg_lint::Severity::Warning => DiagnosticSeverity::WARNING,

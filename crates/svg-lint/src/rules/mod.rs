@@ -658,35 +658,34 @@ fn check_missing_reference_definitions(
             continue;
         }
 
-        let mut attr_cursor = attr_node.walk();
-        walk_tree(&mut attr_cursor, &mut |node| {
-            if node.kind() != "iri_reference" {
-                return;
-            }
-
-            let Ok(reference_text) = node.utf8_text(source) else {
-                return;
-            };
-            let Some(id) = reference_text.strip_prefix('#') else {
-                return;
+        for reference in svg_references::attribute_id_references(attr_node, source) {
+            let svg_references::DefinitionTarget::Id(id) = &reference.target else {
+                continue;
             };
             if defined_ids.contains(id) {
-                return;
+                continue;
             }
-
-            push_diag_in_tag(
-                diagnostics,
-                suppressions,
-                node,
-                Some(tag_start),
-                Severity::Warning,
-                DiagnosticCode::MissingReferenceDefinition,
-                format!(
+            let span = &reference.span;
+            let hash = reference.start_byte > 0
+                && span.start_col > 0
+                && source.get(reference.start_byte - 1) == Some(&b'#');
+            let diagnostic = SvgDiagnostic {
+                byte_range: reference.start_byte - usize::from(hash)..reference.end_byte,
+                start_row: span.start_row,
+                start_col: span.start_col - usize::from(hash),
+                end_row: span.end_row,
+                end_col: span.end_col,
+                severity: Severity::Warning,
+                code: DiagnosticCode::MissingReferenceDefinition,
+                message: format!(
                     "{attr_name} references #{id}, but no element with id=\"{id}\" exists in this \
                      SVG.\nDefine one or remove the reference."
                 ),
-            );
-        });
+            };
+            if !suppressions.suppresses(span.start_row, diagnostic.code, Some(tag_start)) {
+                diagnostics.push(diagnostic);
+            }
+        }
     }
 }
 
@@ -1043,17 +1042,10 @@ fn diagnostic_lifecycle(
 }
 
 fn collect_defined_ids(source: &[u8], tree: &Tree) -> HashSet<String> {
-    let mut ids = HashSet::new();
-    let mut cursor = tree.root_node().walk();
-    walk_tree(&mut cursor, &mut |node| {
-        if node.kind() != "id_token" {
-            return;
-        }
-        if let Ok(id) = node.utf8_text(source) {
-            ids.insert(id.to_owned());
-        }
-    });
-    ids
+    svg_references::collect_id_definitions(source, tree)
+        .into_iter()
+        .map(|definition| definition.name)
+        .collect()
 }
 
 fn push_diag(

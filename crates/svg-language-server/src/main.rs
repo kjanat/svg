@@ -2,37 +2,53 @@
 
 use std::process::ExitCode;
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
-    match args.next().as_deref() {
-        Some("--version" | "-V") => args.next().map_or_else(
-            || {
-                println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-                ExitCode::SUCCESS
-            },
-            |trailing| usage_error(&trailing),
-        ),
-        // LSP clients conventionally pass --stdio; stdio is the only
-        // transport, so accept it as a no-op.
-        Some("--stdio") => {
-            if let Some(trailing) = args.next() {
-                return usage_error(&trailing);
-            }
-            svg_language_server::run_stdio_server().await;
-            ExitCode::SUCCESS
-        }
-        Some(arg) => usage_error(arg),
-        None => {
-            svg_language_server::run_stdio_server().await;
-            ExitCode::SUCCESS
-        }
+    let command = args.next();
+    if let Some(trailing) = args.next() {
+        return usage_error(&trailing);
     }
+    match command.as_deref() {
+        Some("--version" | "-V") => {
+            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        Some("--help" | "-h") => {
+            println!("{}", usage());
+            ExitCode::SUCCESS
+        }
+        Some("--stdio") | None => serve(),
+        Some(arg) => usage_error(arg),
+    }
+}
+
+fn serve() -> ExitCode {
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("svg-language-server failed to start its runtime: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let code = runtime.block_on(svg_language_server::run_stdio_server());
+    runtime.shutdown_background();
+    code
+}
+
+fn usage() -> String {
+    format!(
+        "{name} {version}\nruns an LSP server over stdio\n\nusage: {name} [--stdio | --version | \
+         --help]",
+        name = env!("CARGO_PKG_NAME"),
+        version = env!("CARGO_PKG_VERSION"),
+    )
 }
 
 fn usage_error(arg: &str) -> ExitCode {
     eprintln!("unexpected argument: {arg}");
-    eprintln!("usage: {} [--stdio | --version]", env!("CARGO_PKG_NAME"));
-    eprintln!("runs an LSP server over stdio");
+    eprintln!("{}", usage());
     ExitCode::from(2)
 }

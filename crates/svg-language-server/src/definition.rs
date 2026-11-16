@@ -2,7 +2,8 @@ use tower_lsp_server::ls_types::{Location, Position, Uri};
 
 use crate::{
     DocumentState,
-    positions::{byte_offset_for_position, named_span_location},
+    positions::{LineIndex, byte_offset_for_position, named_span_location},
+    references::span_range,
     stylesheets::CachedStylesheet,
 };
 
@@ -19,63 +20,32 @@ pub fn build_definition_context(
 ) -> Option<DefinitionContext> {
     let source = doc.source.as_bytes();
     let byte_offset = byte_offset_for_position(source, pos);
-    let target = svg_references::definition_target_at(source, &doc.tree, byte_offset)?;
-    let (inline_locations, stylesheet_hrefs) =
-        inline_definition_locations(uri, source, &doc.tree, &target);
+    let occurrences = svg_references::collect_symbol_occurrences(source, &doc.tree);
+    let target = svg_references::symbol_occurrence_at(&occurrences, byte_offset)
+        .map(|occurrence| occurrence.target.clone())
+        .or_else(|| svg_references::definition_target_at(source, &doc.tree, byte_offset))?;
+    let index = LineIndex::new(source);
+    let inline_locations = occurrences
+        .iter()
+        .filter(|occurrence| {
+            occurrence.target == target
+                && occurrence.role == svg_references::OccurrenceRole::Declaration
+        })
+        .map(|occurrence| Location::new(uri.clone(), span_range(&index, source, &occurrence.span)))
+        .collect();
+    let stylesheet_hrefs = match target {
+        svg_references::DefinitionTarget::Id(_) => Vec::new(),
+        svg_references::DefinitionTarget::Class(_)
+        | svg_references::DefinitionTarget::CustomProperty(_) => {
+            svg_references::extract_stylesheet_hrefs(source, &doc.tree)
+        }
+    };
 
     Some(DefinitionContext {
         target,
         inline_locations,
         stylesheet_hrefs,
     })
-}
-
-fn inline_definition_locations(
-    uri: &Uri,
-    source: &[u8],
-    tree: &tree_sitter::Tree,
-    target: &svg_references::DefinitionTarget,
-) -> (Vec<Location>, Vec<String>) {
-    match target {
-        svg_references::DefinitionTarget::Id(target_id) => (
-            svg_references::collect_id_definitions(source, tree)
-                .into_iter()
-                .filter(|definition| definition.name == *target_id)
-                .map(|definition| named_span_location(uri.clone(), source, &definition))
-                .collect(),
-            Vec::new(),
-        ),
-        svg_references::DefinitionTarget::Class(target_class) => (
-            svg_references::collect_inline_stylesheets(source, tree)
-                .into_iter()
-                .flat_map(|stylesheet| {
-                    svg_references::collect_class_definitions_from_stylesheet(
-                        &stylesheet.css,
-                        stylesheet.start_row,
-                        stylesheet.start_col,
-                    )
-                })
-                .filter(|definition| definition.name == *target_class)
-                .map(|definition| named_span_location(uri.clone(), source, &definition))
-                .collect(),
-            svg_references::extract_stylesheet_hrefs(source, tree),
-        ),
-        svg_references::DefinitionTarget::CustomProperty(target_property) => (
-            svg_references::collect_inline_stylesheets(source, tree)
-                .into_iter()
-                .flat_map(|stylesheet| {
-                    svg_references::collect_custom_property_definitions_from_stylesheet(
-                        &stylesheet.css,
-                        stylesheet.start_row,
-                        stylesheet.start_col,
-                    )
-                })
-                .filter(|definition| definition.name == *target_property)
-                .map(|definition| named_span_location(uri.clone(), source, &definition))
-                .collect(),
-            svg_references::extract_stylesheet_hrefs(source, tree),
-        ),
-    }
 }
 
 pub fn stylesheet_definition_locations(

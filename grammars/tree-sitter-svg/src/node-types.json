@@ -316,11 +316,6 @@
     }
   },
   {
-    "type": "class_name",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "clip_attribute",
     "named": true,
     "fields": {
@@ -1319,11 +1314,6 @@
     }
   },
   {
-    "type": "keyword_value",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "length",
     "named": true,
     "fields": {},
@@ -1819,11 +1809,6 @@
         }
       ]
     }
-  },
-  {
-    "type": "paint_payload",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "path_data_payload",
@@ -2763,6 +2748,10 @@
     "named": true
   },
   {
+    "type": "class_name",
+    "named": true
+  },
+  {
     "type": "clip_attribute_name",
     "named": true
   },
@@ -2855,6 +2844,10 @@
     "named": true
   },
   {
+    "type": "keyword_value",
+    "named": true
+  },
+  {
     "type": "length_attribute_name",
     "named": true
   },
@@ -2912,6 +2905,10 @@
   },
   {
     "type": "paint_attribute_name",
+    "named": true
+  },
+  {
+    "type": "paint_payload",
     "named": true
   },
   {

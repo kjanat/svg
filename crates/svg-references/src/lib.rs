@@ -13,6 +13,26 @@
 //! assert_eq!(defs[0].name, "icon");
 //! ```
 
+mod folding;
+mod highlight;
+mod hints;
+mod links;
+mod occurrences;
+mod outline;
+mod selection;
+mod text;
+
+pub use folding::{FoldKind, FoldRegion, folding_regions};
+pub use highlight::{HighlightKind, HighlightToken, highlight_tokens};
+pub use hints::{IdReferenceTarget, resolve_id_references};
+pub use links::{ExternalLink, external_links, local_fragment_id};
+pub use occurrences::{
+    OccurrenceRole, OccurrenceSyntax, RenameEdit, RenameError, SymbolOccurrence,
+    attribute_id_references, collect_symbol_occurrences, rename_edits, symbol_occurrence_at,
+    validate_new_name,
+};
+pub use outline::{OutlineElement, element_outline};
+pub use selection::selection_chain;
 use svg_tree::{child_of_kind, deepest_node_at, find_ancestor_any, has_ancestor, walk_tree};
 use tree_sitter::{Parser, Tree};
 
@@ -151,22 +171,22 @@ pub fn definition_target_at(
     if let Some(class_name) = find_ancestor_any(node, &["class_name"])
         && has_ancestor(class_name, "class_attribute_value")
     {
-        return Some(DefinitionTarget::Class(
-            class_name.utf8_text(source).ok()?.to_owned(),
-        ));
+        return Some(DefinitionTarget::Class(text::xml_unescape(
+            class_name.utf8_text(source).ok()?,
+        )));
     }
 
     if let Some(iri) = find_ancestor_any(node, &["iri_reference"]) {
-        let text = iri.utf8_text(source).ok()?;
-        return text
-            .strip_prefix('#')
-            .map(|id| DefinitionTarget::Id(id.to_owned()));
+        if !links::fragment_is_local(iri, source) {
+            return None;
+        }
+        return links::local_fragment_id(iri, source).map(DefinitionTarget::Id);
     }
 
     if let Some(id_token) = find_ancestor_any(node, &["id_token"]) {
-        return Some(DefinitionTarget::Id(
-            id_token.utf8_text(source).ok()?.to_owned(),
-        ));
+        return Some(DefinitionTarget::Id(text::xml_unescape(
+            id_token.utf8_text(source).ok()?,
+        )));
     }
 
     if let Some(target) = paint_payload_reference_at(node, source, byte_offset) {
@@ -210,13 +230,14 @@ fn paint_payload_reference_at(
     let iri = find_ancestor_any(node, &["iri_reference"])?;
     let text = iri.utf8_text(payload_source).ok()?;
     text.strip_prefix('#')
-        .map(|id| DefinitionTarget::Id(id.to_owned()))
+        .map(|id| DefinitionTarget::Id(text::fragment_id(id, true)))
 }
 
 fn custom_property_name_at_svg_node(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let property_name = find_ancestor_any(node, &["property_name"])?;
     let text = property_name.utf8_text(source).ok()?;
-    text.starts_with("--").then(|| text.to_owned())
+    text.starts_with("--")
+        .then(|| text::css_unescape(&text::xml_unescape(text)))
 }
 
 fn definition_target_in_stylesheet(css: &str, byte_offset: usize) -> Option<DefinitionTarget> {
@@ -235,7 +256,7 @@ fn definition_target_in_stylesheet(css: &str, byte_offset: usize) -> Option<Defi
     let property_name = find_ancestor_any(node, &["property_name"])?;
     let text = property_name.utf8_text(css.as_bytes()).ok()?;
     text.starts_with("--")
-        .then(|| DefinitionTarget::CustomProperty(text.to_owned()))
+        .then(|| DefinitionTarget::CustomProperty(text::css_unescape(text)))
 }
 
 fn css_custom_property_reference_name(
@@ -253,7 +274,7 @@ fn css_custom_property_reference_name(
     let function_name = function_name.utf8_text(source).ok()?;
     function_name
         .eq_ignore_ascii_case("var")
-        .then(|| name.to_owned())
+        .then(|| text::css_unescape(name))
 }
 
 #[must_use]
@@ -286,7 +307,7 @@ pub fn collect_id_definitions(source: &[u8], tree: &Tree) -> Vec<NamedSpan> {
             return;
         };
         results.push(NamedSpan {
-            name: text.to_owned(),
+            name: text::xml_unescape(text),
             span: span_from_node(node),
         });
     });
@@ -313,6 +334,13 @@ pub fn collect_id_definitions(source: &[u8], tree: &Tree) -> Vec<NamedSpan> {
 /// # }
 /// ```
 pub fn collect_inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<InlineStylesheet> {
+    inline_stylesheets(source, tree)
+        .into_iter()
+        .map(|(stylesheet, _)| stylesheet)
+        .collect()
+}
+
+fn inline_stylesheets(source: &[u8], tree: &Tree) -> Vec<(InlineStylesheet, bool)> {
     let mut stylesheets = Vec::new();
     let mut cursor = tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| {
@@ -378,7 +406,7 @@ pub fn collect_class_definitions_from_stylesheet(
                 && let Ok(name) = child.utf8_text(css.as_bytes())
             {
                 results.push(NamedSpan {
-                    name: name.to_owned(),
+                    name: text::css_unescape(name),
                     span: span_from_css_node(child, start_row, start_col),
                 });
             }
@@ -439,7 +467,7 @@ pub fn collect_custom_property_definitions_from_stylesheet(
             return;
         }
         results.push(NamedSpan {
-            name: name.to_owned(),
+            name: text::css_unescape(name),
             span: span_from_css_node(property_name, start_row, start_col),
         });
     });
@@ -573,26 +601,49 @@ fn is_link_name(name: &str) -> bool {
 fn collect_style_text_segments(
     source: &[u8],
     style_node: tree_sitter::Node<'_>,
-    stylesheets: &mut Vec<InlineStylesheet>,
+    stylesheets: &mut Vec<(InlineStylesheet, bool)>,
 ) {
     let mut cursor = style_node.walk();
     walk_tree(&mut cursor, &mut |node| {
-        if !matches!(node.kind(), "raw_text" | "cdata_text") {
-            return;
-        }
+        let xml_escaped = match node.kind() {
+            "raw_text" => true,
+            "cdata_text" => false,
+            _ => return,
+        };
         let Some(css) = std::str::from_utf8(&source[node.byte_range()]).ok() else {
             return;
         };
-        stylesheets.push(InlineStylesheet {
-            css: css.to_owned(),
-            start_byte: node.start_byte(),
-            start_row: node.start_position().row,
-            start_col: node.start_position().column,
-        });
+        stylesheets.push((
+            InlineStylesheet {
+                css: css.to_owned(),
+                start_byte: node.start_byte(),
+                start_row: node.start_position().row,
+                start_col: node.start_position().column,
+            },
+            xml_escaped,
+        ));
     });
 }
 
-fn tag_attribute_value(
+pub(crate) fn inline_style_fragments(
+    source: &[u8],
+    tree: &Tree,
+) -> Vec<(InlineStylesheet, text::CssFragment)> {
+    inline_stylesheets(source, tree)
+        .into_iter()
+        .filter_map(|(stylesheet, xml_escaped)| {
+            let fragment = text::CssFragment::stylesheet(
+                &stylesheet.css,
+                stylesheet.start_byte,
+                tree_sitter::Point::new(stylesheet.start_row, stylesheet.start_col),
+                xml_escaped,
+            )?;
+            Some((stylesheet, fragment))
+        })
+        .collect()
+}
+
+pub(crate) fn tag_attribute_value(
     source: &[u8],
     tag: tree_sitter::Node<'_>,
     target_name: &str,

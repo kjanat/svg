@@ -270,6 +270,51 @@ CSS Color 5 color-mix with hue interpolation method
   (text))
 
 ==================
+Paint values with references and the other quote
+==================
+
+<svg fill="url(&quot;#g&quot;) red" stroke='url("#s")'/>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (self_closing_tag
+      name: (name)
+      (paint_attribute
+        name: (paint_attribute_name)
+        value: (paint_attribute_value
+          (paint_payload)))
+      (paint_attribute
+        name: (paint_attribute_name)
+        value: (paint_attribute_value
+          (paint_payload)))))
+  (text))
+
+==================
+Functional IRI with an escape terminated by a space
+==================
+
+<svg clip-path="url(#gr\61 d)"/>
+
+---
+
+(source_file
+  (text)
+  root: (svg_root_element
+    (self_closing_tag
+      name: (name)
+      (functional_iri_attribute
+        name: (functional_iri_attribute_name)
+        value: (functional_iri_attribute_value
+          (functional_iri
+            (iri_reference)
+            (wsp)
+            (iri_reference))))))
+  (text))
+
+==================
 Opacity and stroke dasharray
 ==================
 
@@ -858,3 +903,139 @@ CSS-wide keywords on x and y
     (end_tag
       (name)))
   (text))
+
+================================================================================
+Non-ASCII id values including astral plane characters
+================================================================================
+
+<svg><g id="😀"/><g id="𠀀"/><g id="é"/><g id='中'/></svg>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (text)
+  (svg_root_element
+    (start_tag
+      (name))
+    (element
+      (self_closing_tag
+        (name)
+        (id_attribute
+          (id_attribute_name)
+          (id_attribute_value
+            (id_token)))))
+    (element
+      (self_closing_tag
+        (name)
+        (id_attribute
+          (id_attribute_name)
+          (id_attribute_value
+            (id_token)))))
+    (element
+      (self_closing_tag
+        (name)
+        (id_attribute
+          (id_attribute_name)
+          (id_attribute_value
+            (id_token)))))
+    (element
+      (self_closing_tag
+        (name)
+        (id_attribute
+          (id_attribute_name)
+          (id_attribute_value
+            (id_token)))))
+    (end_tag
+      (name)))
+  (text))
+
+================================================================================
+Class tokens are any non-whitespace run
+================================================================================
+
+<svg class="😀 é md:flex w-1/2 [&amp;>*]:p-4 𠀀"><g class="a&amp;b"/><g class='x&#x41;"y'/></svg>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (text)
+  (svg_root_element
+    (start_tag
+      (name)
+      (class_attribute
+        (class_attribute_name)
+        (class_attribute_value
+          (class_list
+            (class_name)
+            (wsp)
+            (class_name)
+            (wsp)
+            (class_name)
+            (wsp)
+            (class_name)
+            (wsp)
+            (class_name)
+            (wsp)
+            (class_name)))))
+    (element
+      (self_closing_tag
+        (name)
+        (class_attribute
+          (class_attribute_name)
+          (class_attribute_value
+            (class_list
+              (class_name))))))
+    (element
+      (self_closing_tag
+        (name)
+        (class_attribute
+          (class_attribute_name)
+          (class_attribute_value
+            (class_list
+              (class_name))))))
+    (end_tag
+      (name)))
+  (text))
+
+================================================================================
+Class list with leading and trailing whitespace
+================================================================================
+
+<svg class=" a  b "><g class=" "/></svg>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (text)
+  (svg_root_element
+    (start_tag
+      (name)
+      (class_attribute
+        (class_attribute_name)
+        (class_attribute_value
+          (class_list
+            (wsp)
+            (class_name)
+            (wsp)
+            (class_name)
+            (wsp)))))
+    (element
+      (self_closing_tag
+        (name)
+        (class_attribute
+          (class_attribute_name)
+          (class_attribute_value
+            (class_list
+              (wsp))))))
+    (end_tag
+      (name)))
+  (text))
+
+================================================================================
+Class token with a bare ampersand
+:error
+================================================================================
+
+<svg class="a&b"></svg>
+
+--------------------------------------------------------------------------------

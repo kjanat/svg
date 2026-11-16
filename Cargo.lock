@@ -1146,6 +1146,7 @@ dependencies = [
  "serde_json",
  "svg-color",
  "svg-data",
+ "svg-references",
  "svg-tree",
  "tree-sitter",
  "tree-sitter-svg",
@@ -1165,6 +1166,7 @@ dependencies = [
 name = "svg-references"
 version = "0.4.0"
 dependencies = [
+ "svg-data",
  "svg-tree",
  "tree-sitter",
  "tree-sitter-css",
@@ -1319,6 +1321,7 @@ version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
+ "bytes",
  "pin-project-lite",
  "tokio-macros",
 ]

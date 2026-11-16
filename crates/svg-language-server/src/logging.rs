@@ -1,4 +1,9 @@
-use std::{fs, fs::OpenOptions, path::PathBuf};
+use std::{
+    fs,
+    fs::OpenOptions,
+    io::IsTerminal,
+    path::{Path, PathBuf},
+};
 
 use tracing_subscriber::{Layer, Registry, filter::LevelFilter, layer::SubscriberExt};
 
@@ -83,12 +88,31 @@ fn install_panic_hook() {
     }));
 }
 
+const MAX_LOG_BYTES: u64 = 10 * 1024 * 1024;
+
+fn rotate_if_large(path: &Path) {
+    let Ok(metadata) = fs::metadata(path) else {
+        return;
+    };
+    if metadata.len() <= MAX_LOG_BYTES {
+        return;
+    }
+    let previous = path.with_extension("log.1");
+    if let Err(error) = fs::rename(path, &previous) {
+        eprintln!(
+            "svg-language-server failed to rotate '{}': {error}",
+            path.display()
+        );
+    }
+}
+
 #[must_use = "dropping LoggingGuards will stop log flushing"]
 pub fn init_logging() -> LoggingGuards {
     let log_dir = resolve_log_dir();
     let (stderr_writer, stderr_guard) = tracing_appender::non_blocking(std::io::stderr());
     let stderr_layer = tracing_subscriber::fmt::layer()
         .with_writer(stderr_writer)
+        .with_ansi(std::io::stderr().is_terminal())
         .with_target(true)
         .with_filter(LevelFilter::INFO)
         .boxed();
@@ -101,6 +125,7 @@ pub fn init_logging() -> LoggingGuards {
     match fs::create_dir_all(&log_dir) {
         Ok(()) => {
             let path = log_dir.join("server.log");
+            rotate_if_large(&path);
             match OpenOptions::new().create(true).append(true).open(&path) {
                 Ok(file) => {
                     let (file_writer, guard) = tracing_appender::non_blocking(file);
