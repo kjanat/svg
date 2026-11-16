@@ -25,7 +25,7 @@ mod text;
 pub use folding::{FoldKind, FoldRegion, folding_regions};
 pub use highlight::{HighlightKind, HighlightToken, highlight_tokens};
 pub use hints::{IdReferenceTarget, resolve_id_references};
-pub use links::{ExternalLink, external_links};
+pub use links::{ExternalLink, external_links, local_fragment_id};
 pub use occurrences::{
     OccurrenceRole, OccurrenceSyntax, RenameEdit, RenameError, SymbolOccurrence,
     collect_symbol_occurrences, rename_edits, symbol_occurrence_at, validate_new_name,
@@ -182,7 +182,7 @@ pub fn definition_target_at(
         let text = iri.utf8_text(source).ok()?;
         return text
             .strip_prefix('#')
-            .map(|id| DefinitionTarget::Id(text::xml_unescape(id)));
+            .map(|id| DefinitionTarget::Id(text::percent_decode(&text::xml_unescape(id))));
     }
 
     if let Some(id_token) = find_ancestor_any(node, &["id_token"]) {
@@ -232,7 +232,7 @@ fn paint_payload_reference_at(
     let iri = find_ancestor_any(node, &["iri_reference"])?;
     let text = iri.utf8_text(payload_source).ok()?;
     text.strip_prefix('#')
-        .map(|id| DefinitionTarget::Id(text::xml_unescape(id)))
+        .map(|id| DefinitionTarget::Id(text::percent_decode(&text::xml_unescape(id))))
 }
 
 fn custom_property_name_at_svg_node(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {

@@ -10,8 +10,8 @@ use crate::{
     outline::element_tag,
     tag_attribute_value,
     text::{
-        CssFragment, advance_point, css_unescape, node_span, rebase_point, span_between,
-        xml_unescape,
+        CssFragment, advance_point, css_unescape, node_span, percent_decode, rebase_point,
+        span_between, xml_unescape,
     },
 };
 
@@ -101,6 +101,17 @@ fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
     }
     bases.reverse();
     bases
+}
+
+/// The decoded id that a fragment-only IRI node names in this document.
+///
+/// XML references and percent escapes are decoded. `None` when the IRI is not
+/// fragment-only, or when an `href` fragment resolves against an `xml:base` that names
+/// another resource.
+#[must_use]
+pub fn local_fragment_id(iri: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    let fragment = iri.utf8_text(source).ok()?.strip_prefix('#')?;
+    fragment_is_local(iri, source).then(|| percent_decode(&xml_unescape(fragment)))
 }
 
 pub fn fragment_is_local(iri: tree_sitter::Node<'_>, source: &[u8]) -> bool {

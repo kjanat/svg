@@ -239,6 +239,29 @@ pub fn xml_escape_attribute(text: &str) -> String {
     out
 }
 
+pub fn percent_decode(text: &str) -> String {
+    if !text.contains('%') {
+        return text.to_owned();
+    }
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        let escaped = (bytes[index] == b'%')
+            .then(|| text.get(index + 1..index + 3))
+            .flatten()
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        if let Some(byte) = escaped {
+            out.push(byte);
+            index += 3;
+        } else {
+            out.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| text.to_owned())
+}
+
 pub fn xml_tokens(text: &str) -> Vec<(String, usize, usize)> {
     let (decoded, offsets) = xml_unescape_mapped(text);
     let source = |index: usize| {
@@ -387,6 +410,15 @@ mod tests {
         let (decoded, offsets) = xml_unescape_mapped("a&amp;b&#xe9;&x");
         assert_eq!(decoded, "a&b\u{e9}&x");
         assert_eq!(offsets, Some(vec![0, 1, 6, 7, 7, 13, 14, 15]));
+    }
+
+    #[test]
+    fn percent_decoding_keeps_invalid_sequences() {
+        assert_eq!(percent_decode("a%2Eb"), "a.b");
+        assert_eq!(percent_decode("%C3%A9t%C3%A9"), "\u{e9}t\u{e9}");
+        assert_eq!(percent_decode("a%2"), "a%2");
+        assert_eq!(percent_decode("a%zzb"), "a%zzb");
+        assert_eq!(percent_decode("%FF"), "%FF");
     }
 
     #[test]

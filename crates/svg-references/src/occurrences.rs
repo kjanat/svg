@@ -7,7 +7,7 @@ use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
         CssFragment, advance_point, css_escape_identifier, css_unescape, is_xml_name,
-        is_xml_whitespace, node_span, rebase_point, span_between, strip_quotes,
+        is_xml_whitespace, node_span, percent_decode, rebase_point, span_between, strip_quotes,
         xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
     },
 };
@@ -318,7 +318,7 @@ fn local_iri_occurrence(
         .filter(|name| !name.is_empty())?;
     let start = node.start_position();
     Some(markup_occurrence(
-        DefinitionTarget::Id(xml_unescape(name)),
+        DefinitionTarget::Id(percent_decode(&xml_unescape(name))),
         OccurrenceRole::Reference,
         base_byte + node.start_byte() + 1,
         base_byte + node.end_byte(),
@@ -643,7 +643,7 @@ fn call_occurrence(
         && let Some((source_start, source_end, span)) = fragment.source_range(start + 1, end)
     {
         out.push(SymbolOccurrence {
-            target: DefinitionTarget::Id(css_unescape(name)),
+            target: DefinitionTarget::Id(percent_decode(&css_unescape(name))),
             role: OccurrenceRole::Reference,
             syntax: OccurrenceSyntax::CssUrl {
                 xml_escaped: fragment.xml_escaped,
@@ -974,6 +974,27 @@ mod tests {
         );
         let edits = rename_edits(&occurrences, &DefinitionTarget::Id("g".into()), "h")?;
         assert_eq!(edits.len(), 5);
+        Ok(())
+    }
+
+    #[test]
+    fn url_fragments_are_percent_decoded() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><g id=\"a.b\"/><use href=\"#a%2Eb\"/><rect fill=\"url(#a%2eb)\"/>",
+            "<style>rect { mask: url('#a%2Eb') }</style></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("a.b".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(spans, vec!["a.b", "a%2Eb", "a%2eb", "a%2Eb"]);
+        let offset = source.find("a%2Eb").ok_or("href")?;
+        assert_eq!(
+            crate::definition_target_at(source.as_bytes(), &tree, offset),
+            Some(DefinitionTarget::Id("a.b".into()))
+        );
         Ok(())
     }
 
