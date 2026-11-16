@@ -339,6 +339,9 @@ fn append_html_derived_properties(
 /// This is the fast path for external CSS specs: unlike [`extract_chapter`],
 /// it does not walk prose anchors, examples, dfn panels, or descriptions.
 pub fn extract_property_definitions(html: &str) -> Vec<PropertyValueDef> {
+    // CSS Fonts 3 comments out part of the font-variant grammar inside its
+    // propdef cell; text inside a comment is not part of the definition.
+    let html = &*strip_html_comments(html);
     let mut properties = Vec::new();
     let mut offset = 0;
     while let Some(relative_start) = html[offset..].find("<table") {
@@ -363,6 +366,25 @@ pub fn extract_property_definitions(html: &str) -> Vec<PropertyValueDef> {
     properties.extend(extract_css2_propinfo_definitions(html));
     properties.extend(extract_raw_element_attrdef_assignments(html));
     properties
+}
+
+/// `html` without its `<!-- … -->` comments. An unterminated comment runs to
+/// the end of the input.
+fn strip_html_comments(html: &str) -> std::borrow::Cow<'_, str> {
+    if !html.contains("<!--") {
+        return std::borrow::Cow::Borrowed(html);
+    }
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.find("<!--") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + "<!--".len()..];
+        rest = after
+            .find("-->")
+            .map_or("", |end| &after[end + "-->".len()..]);
+    }
+    out.push_str(rest);
+    std::borrow::Cow::Owned(out)
 }
 
 fn table_head_mentions_propdef(head: &str) -> bool {
@@ -1897,6 +1919,31 @@ mod tests {
         assert_eq!(prop.keywords, ["normal", "italic", "oblique"]);
         assert_eq!(prop.animation_type.as_deref(), Some("no"));
         Ok(())
+    }
+
+    // CSS Fonts 3 font-variant: the value cell comments out the
+    // font-variant-alternates part of the grammar.
+    #[test]
+    fn commented_out_grammar_is_not_part_of_the_value() {
+        let html = r#"<table class="propdef">
+  <tr><td>Name:</td><td><dfn id="propdef-font-variant">font-variant</dfn></td></tr>
+  <tr><td>Value:</td><td>normal | none | [ <var>&lt;common-lig-values&gt;</var> ||
+      <!-- <var>stylistic(&lt;feature-value-name&gt;)</var> || -->
+      [ small-caps | unicase ] ]</td></tr>
+</table>"#;
+        let properties = extract_property_definitions(html);
+        assert_eq!(properties.len(), 1);
+        assert_eq!(
+            properties[0].value.as_deref(),
+            Some("normal | none | [ <common-lig-values> || [ small-caps | unicase ] ]")
+        );
+    }
+
+    #[test]
+    fn strip_html_comments_handles_none_several_and_unterminated() {
+        assert_eq!(strip_html_comments("a b"), "a b");
+        assert_eq!(strip_html_comments("a<!-- x -->b<!--y-->c"), "abc");
+        assert_eq!(strip_html_comments("a<!-- open"), "a");
     }
 
     #[test]
