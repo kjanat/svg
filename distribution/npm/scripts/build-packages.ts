@@ -621,6 +621,8 @@ function platformPackageJson(
 		bin: { [facade.bin]: `bin/${facade.bin}${target.os.includes('win32') ? '.exe' : ''}` },
 		exports: { './package.json': './package.json' },
 		files: ['bin/'],
+		// Yarn PnP keeps packages zipped unless told otherwise; a native binary must be on disk to spawn.
+		preferUnplugged: true,
 	};
 }
 
