@@ -241,7 +241,15 @@ pub fn xml_escape_attribute(text: &str) -> String {
 
 pub fn fragment_id(fragment: &str, css: bool) -> String {
     let decoded = xml_unescape(fragment);
-    percent_decode(&if css { css_unescape(&decoded) } else { decoded })
+    if css {
+        css_fragment_id(&decoded)
+    } else {
+        percent_decode(&decoded)
+    }
+}
+
+pub fn css_fragment_id(fragment: &str) -> String {
+    percent_decode(&css_unescape(fragment))
 }
 
 pub fn percent_decode(text: &str) -> String {

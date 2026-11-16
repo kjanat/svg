@@ -6,9 +6,9 @@ use tree_sitter::{Parser, Point, Tree};
 use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
-        CssFragment, advance_point, css_escape_identifier, css_unescape, fragment_id, is_xml_name,
-        is_xml_whitespace, node_span, rebase_point, span_between, strip_quotes,
-        xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
+        CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_unescape,
+        fragment_id, is_xml_name, is_xml_whitespace, node_span, rebase_point, span_between,
+        strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
     },
 };
 
@@ -754,7 +754,7 @@ fn call_occurrence(
         && let Some((source_start, source_end, span)) = fragment.source_range(start + 1, end)
     {
         out.push(SymbolOccurrence {
-            target: DefinitionTarget::Id(fragment_id(name, true)),
+            target: DefinitionTarget::Id(css_fragment_id(name)),
             role: OccurrenceRole::Reference,
             syntax: OccurrenceSyntax::CssUrl {
                 xml_escaped: fragment.xml_escaped,
@@ -1224,6 +1224,26 @@ mod tests {
         );
         let edits = rename_edits(&occurrences, &DefinitionTarget::Id("a".into()), "b")?;
         assert_eq!(edits.len(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn cdata_css_url_fragments_keep_character_references_literal() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><g id=\"g\"/><style><![CDATA[rect { fill: url('#&#103;') }]]></style>",
+            "<style>rect { stroke: url('#&#103;') }</style></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(spans, vec!["g", "&#103;"]);
+        assert_eq!(
+            of_target(&occurrences, &DefinitionTarget::Id("&#103;".into())).len(),
+            1
+        );
         Ok(())
     }
 
