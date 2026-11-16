@@ -239,6 +239,17 @@ pub fn xml_escape_attribute(text: &str) -> String {
     out
 }
 
+pub fn fragment_start(reference: &str) -> Option<usize> {
+    if reference.starts_with('#') {
+        return Some(1);
+    }
+    let (decoded, offsets) = xml_unescape_mapped(reference);
+    if !decoded.starts_with('#') {
+        return None;
+    }
+    offsets.map_or(Some(1), |offsets| offsets.get(1).copied())
+}
+
 pub fn fragment_id(fragment: &str, css: bool) -> String {
     let decoded = xml_unescape(fragment);
     if css {

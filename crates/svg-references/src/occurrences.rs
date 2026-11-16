@@ -7,8 +7,9 @@ use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
         CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_unescape,
-        fragment_id, is_xml_name, is_xml_whitespace, node_span, rebase_point, span_between,
-        strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape, xml_unescape_mapped,
+        fragment_id, fragment_start, is_xml_name, is_xml_whitespace, node_span, rebase_point,
+        span_between, strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape,
+        xml_unescape_mapped,
     },
 };
 
@@ -337,19 +338,17 @@ fn local_iri_occurrence(
     base_point: Point,
     css: bool,
 ) -> Option<SymbolOccurrence> {
-    let name = node
-        .utf8_text(text)
-        .ok()?
-        .strip_prefix('#')
-        .filter(|name| !name.is_empty())?;
+    let reference = node.utf8_text(text).ok()?;
+    let skip = fragment_start(reference)?;
+    let name = reference.get(skip..).filter(|name| !name.is_empty())?;
     let start = node.start_position();
     Some(markup_occurrence(
         DefinitionTarget::Id(fragment_id(name, css)),
         OccurrenceRole::Reference,
-        base_byte + node.start_byte() + 1,
+        base_byte + node.start_byte() + skip,
         base_byte + node.end_byte(),
         span_between(
-            rebase_point(base_point, Point::new(start.row, start.column + 1)),
+            rebase_point(base_point, Point::new(start.row, start.column + skip)),
             rebase_point(base_point, node.end_position()),
         ),
     ))
@@ -1261,6 +1260,24 @@ mod tests {
         assert_eq!(
             of_target(&occurrences, &DefinitionTarget::Id("&#103;".into())).len(),
             1
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn encoded_fragment_delimiters_still_name_local_ids() -> Result<(), Box<dyn Error>> {
+        let source = "<svg><g id=\"g\"/><use href=\"&#35;g\"/><use href=\"&#x23;&#103;\"/></svg>";
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(&occurrences, &DefinitionTarget::Id("g".into()))
+            .iter()
+            .map(|o| span_text(source, &o.span))
+            .collect();
+        assert_eq!(spans, vec!["g", "g", "&#103;"]);
+        let offset = source.find("&#35;g").ok_or("href")? + 5;
+        assert_eq!(
+            crate::definition_target_at(source.as_bytes(), &tree, offset),
+            Some(DefinitionTarget::Id("g".into()))
         );
         Ok(())
     }

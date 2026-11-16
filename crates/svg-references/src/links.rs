@@ -10,8 +10,8 @@ use crate::{
     outline::element_tag,
     tag_attribute_value,
     text::{
-        CssFragment, advance_point, css_unescape, fragment_id, node_span, rebase_point,
-        span_between, xml_unescape,
+        CssFragment, advance_point, css_unescape, fragment_id, fragment_start, node_span,
+        rebase_point, span_between, xml_unescape,
     },
 };
 
@@ -110,7 +110,8 @@ fn xml_bases(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
 /// another resource.
 #[must_use]
 pub fn local_fragment_id(iri: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
-    let fragment = iri.utf8_text(source).ok()?.strip_prefix('#')?;
+    let reference = iri.utf8_text(source).ok()?;
+    let fragment = reference.get(fragment_start(reference)?..)?;
     fragment_is_local(iri, source).then(|| fragment_id(fragment, is_css_iri(iri)))
 }
 
