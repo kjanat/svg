@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +44,9 @@ set -eu
 printf '%s\n' "$*" >> "$GH_CALLS"
 case "$1 $2" in
   'api repos/fixture/svg/releases/generate-notes') printf '%s\n' 'Generated fixture notes.' ;;
+  'release view')
+    test ! -e "$DRAFT_BODY.unavailable"
+    cat "$DRAFT_BODY" ;;
   'release edit')
     while [ "$#" -gt 0 ]; do
       if [ "$1" = --notes-file ]; then cp "$2" "$DRAFT_BODY"; exit 0; fi
@@ -62,13 +65,27 @@ esac
 	}
 }
 
-test('a missing changelog section stops before GitHub and preserves the draft', () => {
-	withFixture('## [Unreleased]\nFuture changes.\n## [0.3.0]\nOlder changes.\n', ({ run, draft, calls }) => {
-		const result = run();
-		expect(result.status).toBe(1);
-		expect(result.stderr).toContain('changelog section for 0.4.0 is missing');
+test('a missing changelog section preserves draft notes and adds generated notes once across retries', () => {
+	withFixture('## [Unreleased]\nFuture changes.\n## [0.3.0]\nOlder changes.\n', ({ run, draft }) => {
+		for (let attempt = 0; attempt < 2; attempt++) expect(run().status).toBe(0);
+		const body = readFileSync(draft, 'utf8');
+		expect(body).toContain('Existing draft body.');
+		expect(body).not.toContain('Future changes.');
+		expect(body).not.toContain('Older changes.');
+		expect(body.match(/generated-notes-start/g)).toHaveLength(1);
+		expect(body.match(/Generated fixture notes\./g)).toHaveLength(1);
+	});
+});
+
+test('a failed draft read preserves the draft without generating or writing notes', () => {
+	withFixture('## [Unreleased]\n', ({ run, draft, calls }) => {
+		writeFileSync(`${draft}.unavailable`, '');
+		expect(run().status).not.toBe(0);
 		expect(readFileSync(draft, 'utf8')).toBe('Existing draft body.');
-		expect(existsSync(calls)).toBe(false);
+		const operations = readFileSync(calls, 'utf8');
+		expect(operations).toContain('release view');
+		expect(operations).not.toContain('generate-notes');
+		expect(operations).not.toContain('release edit');
 	});
 });
 
