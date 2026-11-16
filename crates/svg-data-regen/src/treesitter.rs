@@ -197,6 +197,12 @@ impl GrammarProjectionInputs {
         self.css.type_syntax(name)
     }
 
+    /// Every published `@webref/css` syntax of the CSS function `name`
+    /// (without `()`).
+    pub(crate) fn function_syntaxes(&self, name: &str) -> &[String] {
+        self.css.function_syntaxes(name)
+    }
+
     #[cfg(test)]
     pub(crate) fn for_tests() -> Self {
         let css = WebrefCssIndex::from_features(
@@ -865,6 +871,24 @@ fn css_type_name(token: &str) -> Option<String> {
 struct WebrefCssIndex {
     types: BTreeMap<String, WebrefFeature>,
     properties: BTreeMap<String, WebrefFeature>,
+    /// Function syntaxes keyed by name without `()`. A name defined for
+    /// several properties (`rect()` for `<basic-shape>` and for `clip`) keeps
+    /// every definition.
+    functions: BTreeMap<String, Vec<String>>,
+}
+
+/// `features` with a syntax, grouped by name without the trailing `()`.
+fn index_functions(features: &[WebrefFeature]) -> BTreeMap<String, Vec<String>> {
+    let mut indexed: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for feature in features {
+        if let (Some(name), Some(syntax)) = (feature.name.strip_suffix("()"), feature.syntax()) {
+            let syntaxes = indexed.entry(name.to_owned()).or_default();
+            if !syntaxes.iter().any(|known| known == syntax) {
+                syntaxes.push(syntax.to_owned());
+            }
+        }
+    }
+    indexed
 }
 
 impl WebrefCssIndex {
@@ -897,6 +921,7 @@ impl WebrefCssIndex {
         Self {
             types: index_features(&json.types),
             properties: index_features(&json.properties),
+            functions: index_functions(&json.functions),
         }
     }
 
@@ -907,8 +932,10 @@ impl WebrefCssIndex {
     ) -> Self {
         let mut index = Self::default();
         for (category, features) in categories {
-            if category == "types" {
-                index.types = index_features(&features);
+            match category {
+                "types" => index.types = index_features(&features),
+                "functions" => index.functions = index_functions(&features),
+                _ => {}
             }
         }
         index.properties = properties
@@ -937,6 +964,11 @@ impl WebrefCssIndex {
     /// delegates to CSS and thus carry no local grammar.
     fn property_syntax(&self, name: &str) -> Option<&str> {
         self.properties.get(name).and_then(WebrefFeature::syntax)
+    }
+
+    /// Every published syntax of the CSS function `name` (without `()`).
+    fn function_syntaxes(&self, name: &str) -> &[String] {
+        self.functions.get(name).map_or(&[], Vec::as_slice)
     }
 
     /// The value grammar of a CSS *type* (e.g. `opacity-value`), used to expand
@@ -1216,6 +1248,8 @@ struct WebrefCssJson {
     types: Vec<WebrefFeature>,
     #[serde(default)]
     properties: Vec<WebrefFeature>,
+    #[serde(default)]
+    functions: Vec<WebrefFeature>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

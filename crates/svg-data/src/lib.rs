@@ -37,7 +37,8 @@ pub use types::{
 };
 
 use catalog::{
-    ATTRIBUTES, CATALOG_GRAPH, COMPAT_SUBFEATURES, ELEMENTS, LIFECYCLE_OVERLAYS, SNAPSHOT_METADATA,
+    ATTRIBUTES, CATALOG_GRAPH, COMPAT_SUBFEATURES, CSS_FUNCTIONS, CSS_PROPERTIES, CSS_TYPES,
+    ELEMENTS, LIFECYCLE_OVERLAYS, SNAPSHOT_METADATA,
 };
 
 /// All snapshots the catalog tracks, oldest first.
@@ -110,6 +111,83 @@ pub const fn elements() -> &'static [ElementDef] {
 #[must_use]
 pub const fn attributes() -> &'static [AttributeDef] {
     ATTRIBUTES
+}
+
+/// The `@webref/css` grammar of the CSS type `name` (without brackets), for
+/// every type a catalog attribute grammar references, directly or through
+/// another definition.
+///
+/// # Examples
+///
+/// ```rust
+/// assert_eq!(svg_data::css_type_syntax("clip-source"), Some("<url>"));
+/// ```
+#[must_use]
+pub fn css_type_syntax(name: &str) -> Option<&'static str> {
+    lookup_css_definition(CSS_TYPES, name)
+}
+
+/// The `@webref/css` value grammar of the CSS property `name`, for every
+/// `<'property'>` range a catalog attribute grammar references, directly or
+/// through another definition.
+///
+/// # Examples
+///
+/// ```rust
+/// assert!(svg_data::css_property_syntax("outline-style").is_some());
+/// ```
+#[must_use]
+pub fn css_property_syntax(name: &str) -> Option<&'static str> {
+    lookup_css_definition(CSS_PROPERTIES, name)
+}
+
+/// Every `@webref/css` syntax of the CSS function `name` (without `()`).
+///
+/// The table holds every function a catalog attribute grammar reaches. A
+/// function defined for several properties, such as `rect()`, has one syntax
+/// per definition.
+///
+/// # Examples
+///
+/// ```rust
+/// assert_eq!(svg_data::css_function_syntaxes("blur").collect::<Vec<_>>(), ["blur( <length>? )"]);
+/// assert_eq!(svg_data::css_function_syntaxes("rect").count(), 2);
+/// ```
+pub fn css_function_syntaxes(name: &str) -> impl Iterator<Item = &'static str> {
+    css_function_definitions(name)
+}
+
+/// Every `(name, syntax)` function definition the catalog's attribute
+/// grammars reach, sorted by name.
+///
+/// # Examples
+///
+/// ```rust
+/// assert!(svg_data::css_functions().iter().any(|(name, _)| *name == "circle"));
+/// ```
+#[must_use]
+pub const fn css_functions() -> &'static [(&'static str, &'static str)] {
+    CSS_FUNCTIONS
+}
+
+fn css_function_definitions(name: &str) -> impl Iterator<Item = &'static str> {
+    let start = CSS_FUNCTIONS.partition_point(|(key, _)| *key < name);
+    CSS_FUNCTIONS
+        .iter()
+        .skip(start)
+        .take_while(move |(key, _)| *key == name)
+        .map(|(_, syntax)| *syntax)
+}
+
+fn lookup_css_definition(
+    table: &[(&'static str, &'static str)],
+    name: &str,
+) -> Option<&'static str> {
+    table
+        .binary_search_by(|(key, _)| (*key).cmp(name))
+        .ok()
+        .and_then(|index| table.get(index))
+        .map(|(_, syntax)| *syntax)
 }
 
 /// Generated per-snapshot inventories.

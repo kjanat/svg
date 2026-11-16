@@ -23,6 +23,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 mod animation;
+mod css_definitions;
 mod grammar;
 mod graph;
 mod lifecycle;
@@ -30,6 +31,8 @@ mod see_references;
 mod values;
 
 use animation::{animation_from_value_kind, resolve_animation};
+pub use css_definitions::CatalogCssDefinitions;
+use css_definitions::build_css_definitions;
 use grammar::css_grammar_graph;
 use graph::build_catalog_graph;
 use lifecycle::derive_snapshot_lifecycle;
@@ -79,6 +82,8 @@ pub struct Catalog {
     pub elements: Vec<CatalogElement>,
     /// Attribute definitions, sorted by canonical name.
     pub attributes: Vec<CatalogAttribute>,
+    /// CSS types and property value ranges the attribute grammars reference.
+    pub css_definitions: CatalogCssDefinitions,
     /// Derived graph view over the catalog.
     pub graph: CatalogGraph,
     /// Tree-sitter parser projection derived from catalog value facts.
@@ -124,6 +129,9 @@ pub struct CatalogCore<'a> {
     pub elements: &'a [CatalogElement],
     /// Attribute definitions, sorted by canonical name.
     pub attributes: &'a [CatalogAttribute],
+    /// CSS types and property value ranges the attribute grammars reference,
+    /// with their `@webref/css` syntax.
+    pub css_definitions: &'a CatalogCssDefinitions,
 }
 
 /// Browser-compat provenance and retained non-catalogued compat features.
@@ -643,6 +651,7 @@ impl Catalog {
             schema_version: self.schema_version,
             elements: &self.elements,
             attributes: &self.attributes,
+            css_definitions: &self.css_definitions,
         }
     }
 
@@ -1158,6 +1167,9 @@ pub fn build_catalog(
         // tests that never reach this call.
         Some(inputs) => crate::treesitter::build_tree_sitter_document(&attributes, inputs, true)?,
     };
+    let css_definitions = legacy
+        .grammar_inputs
+        .map_or_default(|inputs| build_css_definitions(&attributes, inputs));
     let snapshots = inventories
         .iter()
         .map(|inventory| CatalogSnapshotRef {
@@ -1173,6 +1185,7 @@ pub fn build_catalog(
         snapshots,
         elements,
         attributes,
+        css_definitions,
         graph,
         tree_sitter,
     })
