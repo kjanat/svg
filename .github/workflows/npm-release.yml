@@ -12,14 +12,14 @@ on:
     inputs:
       tag: { description: Release tag to publish (e.g. v0.1.0), required: true, type: string }
       run-id:
-        description: |-
+        description: |
           Producer run ID that created the dist artifact for this tag.
           Find the approved version in `gh run list --workflow=release.yml --branch=master --status=success`.
           A successful runtime-smoke-ci.yml recovery run for the same tag is also supported.
         required: true
         type: string
       dist-tag:
-        description: |-
+        description: |
           npm dist-tag (latest, next, etc.).
           Leave empty to infer from the tag (prerelease → next, otherwise → latest).
         required: false
