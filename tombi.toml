@@ -49,11 +49,11 @@ enabled = true
 strict  = true
 
 [[schemas]]  # actup schema >.zed/actup.schema.json && dprint fmt .zed/actup.schema.json
-path    = ".zed/actup.schema.json"
+path    = "https://raw.githubusercontent.com/kjanat/svg/master/.zed/actup.schema.json"
 include = [".actup.toml", "actup.toml"]
 
 [[schemas]]  # rumdl schema print --config .rumdl.toml > .zed/rumdl.schema.json && dprint fmt .zed/rumdl.schema.json
-path    = ".zed/rumdl.schema.json"
+path    = "https://raw.githubusercontent.com/kjanat/svg/master/.zed/rumdl.schema.json"
 include = [".rumdl.toml", "rumdl.toml"]
 
 [[schemas]]
