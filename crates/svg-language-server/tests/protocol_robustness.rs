@@ -472,6 +472,25 @@ fn the_server_pulls_svg_settings_from_a_client_that_offers_them() -> TestResult 
 }
 
 #[test]
+fn a_pulled_runtime_compat_opt_out_prevents_the_fetch() -> TestResult {
+    let capabilities = json!({ "workspace": { "configuration": true } });
+    let (mut client, _) = Client::start(&capabilities, &Value::Null)?;
+    let request = client.wait_for(|message| message["method"] == "workspace/configuration")?;
+    client.send(&json!({
+        "jsonrpc": "2.0",
+        "id": request["id"],
+        "result": [{ "runtime_compat": false }],
+    }))?;
+    assert!(client.shutdown_and_exit()?.success());
+    let stderr = String::from_utf8(client.stderr())?;
+    assert!(
+        stderr.contains("runtime compat refresh disabled"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
 fn code_actions_honour_the_requested_kinds() -> TestResult {
     let mut client = Client::offline()?;
     client.open("file:///actions.svg", "<svg><rect/></svg>")?;

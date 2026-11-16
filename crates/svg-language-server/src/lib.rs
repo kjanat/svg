@@ -358,13 +358,12 @@ fn configured_drift_check(config: &Value) -> bool {
 /// `unpkg.com` to overlay fresher support/baseline data onto the baked catalog.
 /// Offline or privacy-sensitive sessions can set this to `false` to keep the
 /// server fully local — hover and lint then use the baked compat data only.
-fn configured_runtime_compat(config: &Value) -> bool {
+fn configured_runtime_compat(config: &Value) -> Option<bool> {
     config
         .get("svg")
         .and_then(Value::as_object)
         .and_then(|svg| svg.get("runtime_compat"))
         .and_then(Value::as_bool)
-        .unwrap_or(true)
 }
 
 /// Match a config string against the SVG Native profile aliases.
@@ -1130,6 +1129,7 @@ struct SvgLanguageServer {
     pulls_configuration: Arc<AtomicBool>,
     line_folding_only: Arc<AtomicBool>,
     hierarchical_symbols: Arc<AtomicBool>,
+    compat_awaits_configuration: Arc<AtomicBool>,
     shutdown_requested: Arc<AtomicBool>,
 }
 
@@ -1216,6 +1216,7 @@ impl SvgLanguageServer {
             pulls_configuration: Arc::new(AtomicBool::new(false)),
             line_folding_only: Arc::new(AtomicBool::new(false)),
             hierarchical_symbols: Arc::new(AtomicBool::new(false)),
+            compat_awaits_configuration: Arc::new(AtomicBool::new(false)),
             shutdown_requested,
         }
     }
@@ -1253,9 +1254,9 @@ impl SvgLanguageServer {
             .remove(uri);
     }
 
-    async fn pull_configuration(&self) -> bool {
+    async fn pull_configuration(&self) -> Option<Value> {
         if !self.pulls_configuration.load(Ordering::Acquire) {
-            return false;
+            return None;
         }
         let item = ConfigurationItem {
             scope_uri: None,
@@ -1264,17 +1265,46 @@ impl SvgLanguageServer {
         match self.client.configuration(vec![item]).await {
             Ok(values) => match values.into_iter().next() {
                 Some(value) if !value.is_null() => {
-                    self.apply_profile_config(&serde_json::json!({ "svg": value }))
-                        .await;
-                    true
+                    let config = serde_json::json!({ "svg": value });
+                    self.apply_profile_config(&config).await;
+                    Some(config)
                 }
-                _ => false,
+                _ => None,
             },
             Err(error) => {
                 tracing::warn!(%error, "workspace/configuration request failed");
-                false
+                None
             }
         }
+    }
+
+    async fn start_runtime_compat(&self, enabled: bool) {
+        if !enabled {
+            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
+            tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
+            return;
+        }
+        let compat = self.runtime_compat.clone();
+        let server = self.clone();
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
+            match result {
+                Ok(data) => {
+                    let el_count = data.elements.len();
+                    let attr_count = data.attributes.len();
+                    *compat.write().await = Some(data);
+                    tracing::info!(
+                        elements = el_count,
+                        attributes = attr_count,
+                        "runtime compat resolution complete"
+                    );
+                    server.relint_open_documents().await;
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "runtime compat fetch failed");
+                }
+            }
+        });
     }
 
     async fn document_state(&self, uri: &Uri) -> Option<Arc<DocumentState>> {
@@ -1668,12 +1698,10 @@ impl LanguageServer for SvgLanguageServer {
             .as_ref()
             .is_some_and(configured_drift_check);
 
-        // Runtime compat refresh is opt-out (default on). Absent options keep the
-        // default so a client that sends no config still gets fresh BCD.
-        let runtime_compat_enabled = params
+        let runtime_compat = params
             .initialization_options
             .as_ref()
-            .is_none_or(configured_runtime_compat);
+            .and_then(configured_runtime_compat);
 
         if let Some(config) = params.initialization_options.as_ref() {
             self.apply_profile_config(config).await;
@@ -1698,33 +1726,12 @@ impl LanguageServer for SvgLanguageServer {
             });
         }
 
-        // Spawn background compat data refresh, unless the client opted out
-        // (`svg.runtime_compat: false`) to keep the session offline/private.
-        if runtime_compat_enabled {
-            let compat = self.runtime_compat.clone();
-            let server = self.clone();
-            tokio::spawn(async move {
-                let result = tokio::task::spawn_blocking(fetch_runtime_compat).await;
-                match result {
-                    Ok(data) => {
-                        let el_count = data.elements.len();
-                        let attr_count = data.attributes.len();
-                        *compat.write().await = Some(data);
-                        tracing::info!(
-                            elements = el_count,
-                            attributes = attr_count,
-                            "runtime compat resolution complete"
-                        );
-                        server.relint_open_documents().await;
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "runtime compat fetch failed");
-                    }
-                }
-            });
+        if runtime_compat.is_none() && pulls_configuration {
+            self.compat_awaits_configuration
+                .store(true, Ordering::Release);
         } else {
-            *self.runtime_compat.write().await = Some(RuntimeCompat::disabled());
-            tracing::info!("runtime compat refresh disabled via svg.runtime_compat=false");
+            self.start_runtime_compat(runtime_compat.unwrap_or(true))
+                .await;
         }
 
         Ok(InitializeResult {
@@ -1738,7 +1745,20 @@ impl LanguageServer for SvgLanguageServer {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        if self.pull_configuration().await {
+        let pulled = self.pull_configuration().await;
+        if self
+            .compat_awaits_configuration
+            .swap(false, Ordering::AcqRel)
+        {
+            self.start_runtime_compat(
+                pulled
+                    .as_ref()
+                    .and_then(configured_runtime_compat)
+                    .unwrap_or(true),
+            )
+            .await;
+        }
+        if pulled.is_some() {
             self.relint_open_documents().await;
         }
     }
@@ -1777,7 +1797,7 @@ impl LanguageServer for SvgLanguageServer {
             self.apply_profile_config(&params.settings).await;
             true
         } else {
-            self.pull_configuration().await
+            self.pull_configuration().await.is_some()
         };
         if applied {
             self.relint_open_documents().await;
