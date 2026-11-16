@@ -265,7 +265,7 @@
 				}
 			},
 			"promote": {
-				"publishWhen": "approved-in-beepboop",
+				"publishWhen": "version-commit-pushed",
 				"workflow": {
 					"file": "release.yml",
 					"ref": "refs/heads/master",
