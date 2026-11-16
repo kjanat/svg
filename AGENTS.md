@@ -73,8 +73,9 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 
 - Use `just` targets as source of truth for dev flow; `just verify` is the local
   preflight.
-- Formatting is `dprint` first; Rust/TOML/justfile formatting is delegated
-  through exec plugins.
+- Format with `just format [FILES]` (`bunx '@kjanat/fmt'`, also `run fmt`).
+  Check with `just format-check` (`bunx '@kprint/kprint' check`), the same
+  check CI runs as `kprint check`. Never run bare `dprint fmt`.
 - Tree-sitter parse-once reuse pattern in LSP: document state stores source +
   tree; leaf crates consume shared trees where possible.
 - Workspace split is intentional: LSP crate integrates; leaf crates own domain
