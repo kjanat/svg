@@ -209,7 +209,9 @@ pub fn css_unescape(text: &str) -> String {
             }
             continue;
         }
-        if chars.peek().is_some_and(char::is_ascii_whitespace) {
+        if chars.next_if_eq(&'\r').is_some() {
+            chars.next_if_eq(&'\n');
+        } else if chars.peek().is_some_and(char::is_ascii_whitespace) {
             chars.next();
         }
         let decoded = u32::from_str_radix(&hex, 16)
@@ -220,6 +222,127 @@ pub fn css_unescape(text: &str) -> String {
         out.push(decoded);
     }
     out
+}
+
+const fn is_css_ident_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-') || !ch.is_ascii()
+}
+
+fn css_escape_len(text: &str) -> Option<usize> {
+    let mut chars = text.char_indices();
+    if chars.next()?.1 != '\\' {
+        return None;
+    }
+    let (at, first) = chars.next()?;
+    if matches!(first, '\n' | '\r' | '\x0c') {
+        return None;
+    }
+    if !first.is_ascii_hexdigit() {
+        return Some(at + first.len_utf8());
+    }
+    let hex = text[at..]
+        .bytes()
+        .take(6)
+        .take_while(u8::is_ascii_hexdigit)
+        .count();
+    let end = at + hex;
+    let space = match &text.as_bytes()[end..] {
+        [b'\r', b'\n', ..] => 2,
+        [b' ' | b'\t' | b'\n' | b'\r' | b'\x0c', ..] => 1,
+        _ => 0,
+    };
+    Some(end + space)
+}
+
+fn css_ident_len(text: &str) -> (usize, bool) {
+    let mut len = 0;
+    let mut escaped = false;
+    loop {
+        let rest = &text[len..];
+        if let Some(escape) = css_escape_len(rest) {
+            len += escape;
+            escaped = true;
+        } else if let Some(ch) = rest.chars().next().filter(|&ch| is_css_ident_char(ch)) {
+            len += ch.len_utf8();
+        } else {
+            return (len, escaped);
+        }
+    }
+}
+
+fn css_string_len(text: &str) -> Option<usize> {
+    let quote = text.chars().next()?;
+    let mut chars = text.char_indices().skip(1);
+    while let Some((at, ch)) = chars.next() {
+        match ch {
+            '\\' => {
+                chars.next();
+            }
+            '\n' | '\r' | '\x0c' => return None,
+            _ if ch == quote => return Some(at + 1),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// A CSS function token whose name contains an escape, such as `v\61 r(`.
+pub struct EscapedCssFunction {
+    pub name: String,
+    pub arguments: usize,
+}
+
+/// Function tokens with escaped names, which tree-sitter-css splits into separate nodes.
+pub fn escaped_css_functions(text: &str) -> Vec<EscapedCssFunction> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    while let Some(rest) = text.get(at..).filter(|rest| !rest.is_empty()) {
+        if let Some(comment) = rest.strip_prefix("/*") {
+            at += comment.find("*/").map_or(rest.len(), |end| end + 4);
+        } else if rest.starts_with(['"', '\'']) {
+            at += css_string_len(rest).unwrap_or(rest.len());
+        } else if rest.starts_with(|ch: char| ch.is_ascii_digit()) {
+            at += 1 + css_ident_len(&rest[1..]).0;
+        } else if let (len @ 1.., escaped) = css_ident_len(rest) {
+            at += len;
+            if escaped && text[at..].starts_with('(') {
+                out.push(EscapedCssFunction {
+                    name: css_unescape(&rest[..len]),
+                    arguments: at + 1,
+                });
+            }
+        } else {
+            at += rest.chars().next().map_or(1, char::len_utf8);
+        }
+    }
+    out
+}
+
+/// The leading custom property name in a `var()` argument list starting at `arguments`.
+pub fn css_var_argument(text: &str, arguments: usize) -> Option<(usize, usize)> {
+    let rest = text.get(arguments..)?;
+    let start = arguments + rest.len() - rest.trim_start().len();
+    let (len, _) = css_ident_len(&text[start..]);
+    css_unescape(&text[start..start + len])
+        .starts_with("--")
+        .then_some((start, start + len))
+}
+
+/// The content range of a `url()` argument list starting at `arguments`, inside any quotes.
+pub fn css_url_argument(text: &str, arguments: usize) -> Option<(usize, usize)> {
+    let rest = text.get(arguments..)?;
+    let start = arguments + rest.len() - rest.trim_start().len();
+    let body = &text[start..];
+    let (start, end) = if body.starts_with(['"', '\'']) {
+        let len = css_string_len(body)?;
+        (start + 1, start + len - 1)
+    } else {
+        let len = body
+            .find(|ch: char| ch == ')' || ch.is_ascii_whitespace())
+            .unwrap_or(body.len());
+        (start, start + len)
+    };
+    (end > start).then_some((start, end))
 }
 
 pub fn css_escape_identifier(name: &str) -> String {
@@ -469,6 +592,51 @@ mod tests {
         assert_eq!(css_unescape("a\\.b"), "a.b");
         assert_eq!(css_unescape("\\31 x"), "1x");
         assert_eq!(css_unescape("\\0"), "\u{FFFD}");
+        assert_eq!(css_unescape("\\31\r\nx"), "1x");
+        assert_eq!(css_unescape("\\31\rx"), "1x");
+    }
+
+    #[test]
+    fn escaped_function_tokens_skip_comments_strings_and_numbers() {
+        let text = concat!(
+            "/* v\\61 r(a) */ 'u\\72l(b)' 1\\76 ar(c) var(d) v\\\nr(e) ",
+            "u\\rl(f) v\\61\r\nr(g) \\75 RL(h) ",
+        );
+        let functions: Vec<_> = escaped_css_functions(text)
+            .into_iter()
+            .map(|function| {
+                (
+                    function.name,
+                    &text[function.arguments..=function.arguments],
+                )
+            })
+            .collect();
+        assert_eq!(
+            functions,
+            [
+                ("url".to_owned(), "f"),
+                ("var".to_owned(), "g"),
+                ("uRL".to_owned(), "h"),
+            ]
+        );
+        assert_eq!(escaped_css_functions("'v\\61 r(unterminated").len(), 0);
+    }
+
+    #[test]
+    fn var_and_url_arguments_name_their_content() {
+        let var = "v\\61 r( --a\\62 , red)";
+        let (start, end) = css_var_argument(var, 7).unwrap_or_default();
+        assert_eq!(&var[start..end], "--a\\62 ");
+        assert_eq!(css_var_argument("v\\61 r(red)", 7), None);
+
+        let url = "u\\72l( 'x y' )";
+        let (start, end) = css_url_argument(url, 6).unwrap_or_default();
+        assert_eq!(&url[start..end], "x y");
+        let url = "u\\72l(a.svg#b )";
+        let (start, end) = css_url_argument(url, 6).unwrap_or_default();
+        assert_eq!(&url[start..end], "a.svg#b");
+        assert_eq!(css_url_argument("u\\72l()", 6), None);
+        assert_eq!(css_url_argument("u\\72l('open)", 6), None);
     }
 
     #[test]
