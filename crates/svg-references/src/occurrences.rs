@@ -512,7 +512,7 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
                         fragment.source_range(start + 1, end)
                 {
                     out.push(SymbolOccurrence {
-                        target: DefinitionTarget::Id(fragment.decode(name)),
+                        target: DefinitionTarget::Id(css_unescape(name)),
                         role: OccurrenceRole::Reference,
                         syntax: OccurrenceSyntax::CssUrl { xml_escaped },
                         start_byte: source_start,
@@ -560,13 +560,13 @@ fn push_css_identifier(
     let (Some(start_byte), Some(end_byte), Some(start), Some(end)) = (
         fragment.source_byte(node.start_byte()),
         fragment.source_byte(node.end_byte()),
-        fragment.source_point(node.start_position()),
-        fragment.source_point(node.end_position()),
+        fragment.source_point(node.start_byte(), node.start_position()),
+        fragment.source_point(node.end_byte(), node.end_position()),
     ) else {
         return;
     };
     out.push(SymbolOccurrence {
-        target: target(css_unescape(&fragment.decode(text))),
+        target: target(css_unescape(text)),
         role,
         syntax: OccurrenceSyntax::CssIdentifier {
             xml_escaped: fragment.xml_escaped,
@@ -720,6 +720,24 @@ mod tests {
         let edits = rename_edits(&occurrences, &DefinitionTarget::Class("a&b".into()), "c&d")?;
         let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
         assert_eq!(texts, vec!["c\\&amp;d", "c&amp;d"]);
+        Ok(())
+    }
+
+    #[test]
+    fn css_urls_decode_xml_then_css_escapes() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><linearGradient id=\"grad\"/>",
+            "<style>rect { fill: url('#gr\\61 d') }</style>",
+            "<rect style=\"content: &quot;x&quot;; fill: url(&quot;#grad&quot;)\"/>",
+            "<rect style=\"stroke: url(#gr&#x61;d)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let grad = of_target(&occurrences, &DefinitionTarget::Id("grad".into()));
+        let spans: Vec<_> = grad.iter().map(|o| span_text(source, &o.span)).collect();
+        assert_eq!(spans, vec!["grad", "gr\\61 d", "grad", "gr&#x61;d"]);
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("grad".into()), "sky")?;
+        assert_eq!(edits.len(), 4);
         Ok(())
     }
 

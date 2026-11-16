@@ -87,8 +87,8 @@ pub fn folding_regions(source: &[u8], tree: &Tree) -> Vec<FoldRegion> {
             }
             let owner = node.parent().unwrap_or(node);
             let (Some(start), Some(close), Some(start_byte)) = (
-                fragment.source_point(owner.start_position()),
-                fragment.source_point(node.end_position()),
+                fragment.source_point(owner.start_byte(), owner.start_position()),
+                fragment.source_point(node.end_byte(), node.end_position()),
                 fragment.source_byte(owner.start_byte()),
             ) else {
                 return;

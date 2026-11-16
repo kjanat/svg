@@ -6,7 +6,10 @@ use crate::{
     occurrences::{is_structural_iri, parse_paint, url_argument_range},
     outline::element_tag,
     tag_attribute_value,
-    text::{CssFragment, advance_point, node_span, rebase_point, span_between, xml_unescape},
+    text::{
+        CssFragment, advance_point, css_unescape, node_span, rebase_point, span_between,
+        xml_unescape,
+    },
 };
 
 /// A reference to a resource outside the current document.
@@ -132,7 +135,7 @@ fn paint_links(payload: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<Ex
 }
 
 fn css_links(fragment: &CssFragment, bases: &[String], links: &mut Vec<ExternalLink>) {
-    let decode = |text: &str| fragment.decode(text);
+    let decode = |text: &str| css_unescape(text);
     let mut cursor = fragment.tree.root_node().walk();
     walk_tree(&mut cursor, &mut |node| match node.kind() {
         "call_expression" => {

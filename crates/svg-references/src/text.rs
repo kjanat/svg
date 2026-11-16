@@ -11,6 +11,8 @@ pub struct CssFragment {
     base_byte: usize,
     base_point: Point,
     pub xml_escaped: bool,
+    source: String,
+    offsets: Option<Vec<usize>>,
 }
 
 impl CssFragment {
@@ -39,7 +41,12 @@ impl CssFragment {
         base_point: Point,
         xml_escaped: bool,
     ) -> Option<Self> {
-        let text = [prefix, content, suffix].concat();
+        let (decoded, offsets) = if xml_escaped {
+            xml_unescape_mapped(content)
+        } else {
+            (content.to_owned(), None)
+        };
+        let text = [prefix, &decoded, suffix].concat();
         Some(Self {
             tree: css_tree(&text)?,
             text,
@@ -47,24 +54,31 @@ impl CssFragment {
             base_byte,
             base_point,
             xml_escaped,
+            source: content.to_owned(),
+            offsets,
         })
     }
 
-    pub fn decode(&self, text: &str) -> String {
-        if self.xml_escaped {
-            xml_unescape(text)
-        } else {
-            text.to_owned()
-        }
+    fn source_offset(&self, inner: usize) -> Option<usize> {
+        let offset = inner.checked_sub(self.prefix)?;
+        self.offsets
+            .as_ref()
+            .map_or(Some(offset), |offsets| offsets.get(offset).copied())
     }
 
     pub fn source_byte(&self, inner: usize) -> Option<usize> {
-        inner
-            .checked_sub(self.prefix)
+        self.source_offset(inner)
             .map(|offset| self.base_byte + offset)
     }
 
-    pub fn source_point(&self, inner: Point) -> Option<Point> {
+    pub fn source_point(&self, inner_byte: usize, inner: Point) -> Option<Point> {
+        if self.offsets.is_some() {
+            let offset = self.source_offset(inner_byte)?;
+            return Some(advance_point(
+                self.base_point,
+                self.source.as_bytes().get(..offset)?,
+            ));
+        }
         if inner.row == 0 {
             inner
                 .column
@@ -79,8 +93,8 @@ impl CssFragment {
         let text = self.text.as_bytes();
         let start_point = advance_point(Point::new(0, 0), text.get(..start)?);
         let end_point = advance_point(start_point, text.get(start..end)?);
-        let source_start = self.source_point(start_point)?;
-        let source_end = self.source_point(end_point)?;
+        let source_start = self.source_point(start, start_point)?;
+        let source_end = self.source_point(end, end_point)?;
         Some((
             self.source_byte(start)?,
             self.source_byte(end)?,
@@ -216,13 +230,24 @@ pub fn xml_escape_attribute(text: &str) -> String {
 }
 
 pub fn xml_unescape(text: &str) -> String {
+    xml_unescape_mapped(text).0
+}
+
+fn xml_unescape_mapped(text: &str) -> (String, Option<Vec<usize>>) {
     if !text.contains('&') {
-        return text.to_owned();
+        return (text.to_owned(), None);
     }
     let mut out = String::with_capacity(text.len());
+    let mut offsets = Vec::with_capacity(text.len() + 1);
     let mut rest = text;
+    let mut consumed = 0;
+    let copy = |out: &mut String, offsets: &mut Vec<usize>, chunk: &str, at: usize| {
+        out.push_str(chunk);
+        offsets.extend(at..at + chunk.len());
+    };
     while let Some(amp) = rest.find('&') {
-        out.push_str(&rest[..amp]);
+        copy(&mut out, &mut offsets, &rest[..amp], consumed);
+        consumed += amp;
         let after = &rest[amp + 1..];
         let decoded = after.find(';').and_then(|semi| {
             let entity = &after[..semi];
@@ -249,14 +274,18 @@ pub fn xml_unescape(text: &str) -> String {
         });
         if let Some((ch, semi)) = decoded {
             out.push(ch);
+            offsets.extend(std::iter::repeat_n(consumed, ch.len_utf8()));
+            consumed += semi + 2;
             rest = &after[semi + 1..];
         } else {
-            out.push('&');
+            copy(&mut out, &mut offsets, "&", consumed);
+            consumed += 1;
             rest = after;
         }
     }
-    out.push_str(rest);
-    out
+    copy(&mut out, &mut offsets, rest, consumed);
+    offsets.push(text.len());
+    (out, Some(offsets))
 }
 
 const fn is_name_start_char(ch: char) -> bool {
@@ -321,6 +350,9 @@ mod tests {
     fn xml_escape_and_unescape_attribute_text() {
         assert_eq!(xml_escape_attribute("a&b\"c'<"), "a&amp;b&quot;c&apos;&lt;");
         assert_eq!(xml_unescape("a&amp;b&#65;&#x42;&bogus;&"), "a&bAB&bogus;&");
+        let (decoded, offsets) = xml_unescape_mapped("a&amp;b&#xe9;&x");
+        assert_eq!(decoded, "a&b\u{e9}&x");
+        assert_eq!(offsets, Some(vec![0, 1, 6, 7, 7, 13, 14, 15]));
     }
 
     #[test]
