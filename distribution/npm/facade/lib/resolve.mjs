@@ -14,6 +14,16 @@ const repo = repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
 const issues = bugs.url;
 const subPackages = Object.keys(optionalDependencies || {});
 
+/** @type {(name: string) => boolean} */
+const installed = (name) => {
+	try {
+		require.resolve(`${name}/package.json`);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
 /**
  * Report that only glibc builds are installed on a musl host, and refuse.
  *
@@ -64,7 +74,7 @@ export function resolveBinary(name) {
 	const errors = [];
 
 	const libc = detectLibc();
-	const { candidates, dropped, undecided } = planCandidates(subPackages, libc);
+	const { candidates, dropped, undecided } = planCandidates(subPackages, libc, { installed });
 
 	if (undecided) {
 		console.warn(

@@ -44,6 +44,9 @@ jobs:
       - name: download and extract producer dist artifact
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ inputs.run-id }}", token: "${{ github.token }}" }
+      - name: facade launcher tests
+        if: matrix.container == ''
+        run: node --test "distribution/npm/facade/test/*.test.mjs"
       - name: native archive and npm install smoke
         if: matrix.container == ''
         uses: $/.github/actions/npm-smoke
