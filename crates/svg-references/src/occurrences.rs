@@ -8,8 +8,8 @@ use crate::{
     text::{
         CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_fragment_start,
         css_unescape, fragment_id, fragment_start, is_xml_name, is_xml_whitespace, node_span,
-        rebase_point, span_between, strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape,
-        xml_unescape_mapped,
+        open_hex_escape, rebase_point, span_between, strip_quotes, xml_escape_attribute,
+        xml_tokens, xml_unescape, xml_unescape_mapped,
     },
 };
 
@@ -47,6 +47,9 @@ pub enum OccurrenceSyntax {
     CssUrl {
         /// The CSS is XML character data, outside a CDATA section.
         xml_escaped: bool,
+        /// The `#` is a hex escape without a whitespace terminator, so a replacement that
+        /// starts with a hex digit or whitespace needs one.
+        open_hex_escape: bool,
     },
     /// The element id of a syncbase or event value in an animation `begin` or `end` list.
     TimingReference,
@@ -294,11 +297,21 @@ fn escape_for(syntax: OccurrenceSyntax, name: &str) -> String {
                 escaped
             }
         }
-        OccurrenceSyntax::CssUrl { xml_escaped } => {
-            if xml_escaped {
-                xml_escape_attribute(name)
+        OccurrenceSyntax::CssUrl {
+            xml_escaped,
+            open_hex_escape,
+        } => {
+            let terminator = open_hex_escape
+                && name.starts_with(|ch: char| ch.is_ascii_hexdigit() || ch.is_whitespace());
+            let name = if terminator {
+                format!(" {name}")
             } else {
                 name.to_owned()
+            };
+            if xml_escaped {
+                xml_escape_attribute(&name)
+            } else {
+                name
             }
         }
     }
@@ -757,6 +770,7 @@ fn call_occurrence(
             role: OccurrenceRole::Reference,
             syntax: OccurrenceSyntax::CssUrl {
                 xml_escaped: fragment.xml_escaped,
+                open_hex_escape: open_hex_escape(fragment_text, skip),
             },
             start_byte: source_start,
             end_byte: source_end,
@@ -1296,6 +1310,24 @@ mod tests {
             .map(|o| span_text(source, &o.span))
             .collect();
         assert_eq!(spans, vec!["g", "g", "g"]);
+        Ok(())
+    }
+
+    #[test]
+    fn renames_after_an_open_hex_delimiter_keep_it_terminated() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><g id=\"g\"/><style>rect { fill: url('\\23g') } a { fill: url('\\23 g') \
+             }</style>",
+            "</svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("g".into()), "a")?;
+        let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
+        assert_eq!(texts, vec!["a", " a", "a"]);
+        let edits = rename_edits(&occurrences, &DefinitionTarget::Id("g".into()), "z")?;
+        let texts: Vec<_> = edits.iter().map(|edit| edit.new_text.as_str()).collect();
+        assert_eq!(texts, vec!["z", "z", "z"]);
         Ok(())
     }
 

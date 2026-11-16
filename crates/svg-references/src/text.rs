@@ -260,6 +260,12 @@ pub fn xml_escape_attribute(text: &str) -> String {
     out
 }
 
+pub fn open_hex_escape(text: &str, skip: usize) -> bool {
+    text.starts_with('\\')
+        && text[1..].starts_with(|ch: char| ch.is_ascii_hexdigit())
+        && !text[..skip].ends_with(|ch: char| ch.is_ascii_whitespace())
+}
+
 pub fn css_fragment_start(text: &str) -> Option<usize> {
     if text.starts_with('#') {
         return Some(1);
@@ -494,6 +500,10 @@ mod tests {
         assert_eq!(fragment_start("&#35;g", false), Some(5));
         assert_eq!(fragment_start("\\23 g", false), None);
         assert_eq!(fragment_start("&#92;23 g", true), Some(8));
+        assert!(open_hex_escape("\\23g", 3));
+        assert!(!open_hex_escape("\\23 g", 4));
+        assert!(!open_hex_escape("\\#g", 2));
+        assert!(!open_hex_escape("#g", 1));
     }
 
     #[test]
