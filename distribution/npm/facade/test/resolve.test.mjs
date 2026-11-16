@@ -106,14 +106,25 @@ async function resolveIn(root, libc) {
 	}
 }
 
-test('musl host with both variants installed selects the musl package', async () => {
+// SVG_LIBC only applies on Linux, so the override-driven tests below run on Linux hosts only.
+const linuxOnly = { skip: process.platform !== 'linux' && 'Linux hosts only' };
+
+test('a non-Linux host prints no libc warning with both Linux variants installed', {
+	skip: process.platform === 'linux' && 'non-Linux hosts only',
+}, async () => {
+	const root = makeFixture(['linux-x64-gnu', 'linux-x64-musl']);
+	const { output } = await resolveIn(root, undefined);
+	assert.doesNotMatch(output, /could not be identified/);
+});
+
+test('musl host with both variants installed selects the musl package', linuxOnly, async () => {
 	const root = makeFixture(['linux-x64-gnu', 'linux-x64-musl']);
 	const { path, error } = await resolveIn(root, 'musl');
 	assert.equal(error, null);
 	assert.ok(path?.includes(`${TOOL}-linux-x64-musl`), `expected the musl package, got ${path}`);
 });
 
-test('musl host with only the gnu sibling fails with a libc diagnostic, not ENOENT', async () => {
+test('musl host with only the gnu sibling fails with a libc diagnostic, not ENOENT', linuxOnly, async () => {
 	const root = makeFixture(['linux-x64-gnu']);
 	const { path, output, error } = await resolveIn(root, 'musl');
 
@@ -124,21 +135,21 @@ test('musl host with only the gnu sibling fails with a libc diagnostic, not ENOE
 	assert.doesNotMatch(output, /ENOENT/);
 });
 
-test('glibc host is unchanged when both variants are installed', async () => {
+test('glibc host is unchanged when both variants are installed', linuxOnly, async () => {
 	const root = makeFixture(['linux-x64-gnu', 'linux-x64-musl']);
 	const { path, error } = await resolveIn(root, 'glibc');
 	assert.equal(error, null);
 	assert.ok(path?.includes(`${TOOL}-linux-x64-gnu`), `expected the gnu package, got ${path}`);
 });
 
-test('glibc host falls back to the static musl build when gnu is absent', async () => {
+test('glibc host falls back to the static musl build when gnu is absent', linuxOnly, async () => {
 	const root = makeFixture(['linux-x64-musl']);
 	const { path, error } = await resolveIn(root, 'glibc');
 	assert.equal(error, null);
 	assert.ok(path?.includes(`${TOOL}-linux-x64-musl`), `expected the musl fallback, got ${path}`);
 });
 
-test('musl host honours the armv7 pair suffixes', async () => {
+test('musl host honours the armv7 pair suffixes', linuxOnly, async () => {
 	const root = makeFixture(['linux-armv7-gnueabihf', 'linux-armv7-musleabihf']);
 	const { path, error } = await resolveIn(root, 'musl');
 	assert.equal(error, null);
@@ -177,7 +188,7 @@ function hostLibcSkip() {
 	return false;
 }
 
-test('a declared but uninstalled package is skipped rather than fatal', async () => {
+test('a declared but uninstalled package is skipped rather than fatal', linuxOnly, async () => {
 	const root = makeFixture(['linux-x64-musl'], ['linux-x64-gnu', 'linux-x64-musl']);
 	const { path, error } = await resolveIn(root, 'musl');
 	assert.equal(error, null);

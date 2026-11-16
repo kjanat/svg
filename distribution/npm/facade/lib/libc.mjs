@@ -33,6 +33,9 @@ const GLIBC_LOADERS = {
 
 const LOADER_DIRS = ['/lib', '/usr/lib', '/lib64'];
 
+/** Package name spelling of a Node `process.arch` where the two differ. */
+const PACKAGE_ARCH = { arm: 'armv7' };
+
 /** Environment variable that overrides libc detection. */
 export const LIBC_ENV = 'SVG_LIBC';
 
@@ -159,16 +162,22 @@ export function detectLibc(options = {}) {
  *
  * @param {string[]} subPackages Declared optional dependencies, in manifest order.
  * @param {'glibc' | 'musl' | null} libc
+ * @param {object} [host] Injection points; the defaults read the real host.
+ * @param {string} [host.platform]
+ * @param {string} [host.arch]
+ * @param {(name: string) => boolean} [host.installed]
  * @returns {{ candidates: string[], dropped: string[], undecided: boolean }}
- *   `undecided` means both variants are declared but the host is unidentified,
- *   so manifest order alone would decide.
+ *   `undecided` means a Linux host of unidentified libc has both variants of its
+ *   own target installed, so manifest order alone would decide.
  */
-export function planCandidates(subPackages, libc) {
+export function planCandidates(subPackages, libc, host = {}) {
 	if (libc === null) {
-		const declared = new Set(subPackages);
-		const undecided = subPackages.some((name) => {
+		const { platform = process.platform, arch = process.arch, installed = () => true } = host;
+		const target = `-${platform}-${PACKAGE_ARCH[arch] ?? arch}-`;
+		const present = new Set(subPackages.filter((name) => name.includes(target) && installed(name)));
+		const undecided = platform === 'linux' && [...present].some((name) => {
 			const sibling = siblingName(name);
-			return sibling !== null && declared.has(sibling);
+			return sibling !== null && present.has(sibling);
 		});
 		return { candidates: [...subPackages], dropped: [], undecided };
 	}

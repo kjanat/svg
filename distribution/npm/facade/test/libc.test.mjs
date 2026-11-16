@@ -90,10 +90,53 @@ test('non-linux packages keep the declared order and are never dropped', () => {
 	}
 });
 
-test('undecided libc with both variants declared is flagged, not silently guessed', () => {
-	const { candidates, undecided } = planCandidates(LINUX_X64, null);
+test('undecided libc with both variants installed is flagged, not silently guessed', () => {
+	const { candidates, undecided } = planCandidates(LINUX_X64, null, { platform: 'linux', arch: 'x64' });
 	assert.equal(undecided, true);
 	assert.deepEqual(candidates, LINUX_X64, 'declared order is preserved so behaviour is unchanged');
+});
+
+/** Every platform package the language-server facade declares, as build-packages.ts emits them. */
+const PUBLISHED = [
+	'linux-x64-gnu',
+	'linux-x64-musl',
+	'linux-arm64-gnu',
+	'linux-arm64-musl',
+	'darwin-x64',
+	'darwin-arm64',
+	'win32-x64-msvc',
+	'win32-arm64-msvc',
+	'linux-armv7-gnueabihf',
+	'linux-armv7-musleabihf',
+	'linux-ia32-gnu',
+	'linux-ia32-musl',
+	'win32-ia32-msvc',
+	'linux-riscv64-gnu',
+	'linux-ppc64-gnu',
+	'linux-s390x-gnu',
+	'freebsd-x64',
+	'freebsd-arm64',
+	'netbsd-x64',
+	'linux-loong64-gnu',
+].map((suffix) => `${SCOPE}-${suffix}`);
+
+test('a non-Linux host is never undecided, even with every Linux variant installed', () => {
+	for (const [platform, arch] of [['darwin', 'x64'], ['darwin', 'arm64'], ['win32', 'x64'], ['freebsd', 'x64'], ['netbsd', 'x64']]) {
+		assert.equal(planCandidates(PUBLISHED, null, { platform, arch }).undecided, false, `${platform}-${arch}`);
+	}
+});
+
+test('a Linux host of unknown libc with one variant installed is not undecided', () => {
+	const installed = (name) => name === `${SCOPE}-linux-x64-gnu`;
+	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'x64', installed }).undecided, false);
+});
+
+test("only the host's own architecture can make a Linux host undecided", () => {
+	const x64Pair = (name) => LINUX_X64.includes(name);
+	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'arm64', installed: x64Pair }).undecided, false);
+	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'x64', installed: x64Pair }).undecided, true);
+	const armv7Pair = (name) => ARMV7.includes(name);
+	assert.equal(planCandidates(PUBLISHED, null, { platform: 'linux', arch: 'arm', installed: armv7Pair }).undecided, true);
 });
 
 test(`${LIBC_ENV} overrides every other signal`, () => {
