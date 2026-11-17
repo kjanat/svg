@@ -92,7 +92,7 @@ impl HoverSettings {
     }
 
     pub fn from_config(config: &serde_json::Value) -> Result<Self, serde_json::Error> {
-        let value = config.get("svg").unwrap_or(config).get("hover");
+        let value = config.get("svg").and_then(|svg| svg.get("hover"));
         let mut settings: Self = value.map_or_else(
             || Ok(Self::default()),
             |v| serde_json::from_value(v.clone()),
@@ -143,5 +143,20 @@ mod tests {
                 HoverSettings::from_config(&serde_json::json!({"svg":{"hover":hover}})).is_err()
             );
         }
+    }
+
+    #[test]
+    fn hover_settings_are_read_from_the_svg_section_only() -> Result<(), serde_json::Error> {
+        let mobile = serde_json::json!({"browsers":["safari_ios"]});
+        let browsers = |config| HoverSettings::from_config(&config).map(|s| s.browsers);
+        assert_eq!(
+            browsers(serde_json::json!({"svg":{"hover":mobile}}))?,
+            ["safari_ios"]
+        );
+        assert_eq!(
+            browsers(serde_json::json!({"hover":mobile}))?,
+            HoverSettings::default().browsers
+        );
+        Ok(())
     }
 }
