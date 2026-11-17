@@ -164,9 +164,17 @@ fn effective_grammar(grammar: &str) -> &str {
         .unwrap_or(grammar)
 }
 
-/// Catalog grammars in a notation other than CSS value definition syntax,
-/// rewritten into it.
+/// Catalog grammars in a notation other than CSS value definition syntax, or
+/// naming a type CSS defines differently, rewritten into CSS value definition
+/// syntax with names of their own.
 const TRANSLATED_GRAMMARS: &[(&str, &str)] = &[
+    // keySplines: "<control-point> = <number> ,? <number> ,? <number> ,?
+    // <number>" (https://svgwg.org/specs/animations/#DataTypeControlPoint).
+    // CSS Shapes defines a different <control-point> for shape() curves.
+    (
+        "<control-point> [; <control-point>]* ;?",
+        "<smil-control-point> [; <smil-control-point>]* ;?",
+    ),
     // dur, repeatDur, min, max: SMIL timing values with quoted literals
     // (https://svgwg.org/specs/animations/#DurAttribute).
     ("Clock-value | \"indefinite\"", "<clock-value> | indefinite"),
@@ -436,11 +444,10 @@ const NAMED_TYPES: &[(&str, &str)] = &[
         "<radial-extent>{1,2} | <length-percentage [0,∞]>{1,2}",
     ),
     // keySplines: "<control-point> = <number> ,? <number> ,? <number> ,?
-    // <number>" (https://svgwg.org/specs/animations/#DataTypeControlPoint).
-    // CSS Shapes defines a different <control-point>, which @webref/css
-    // carries under the same name.
+    // <number>" (https://svgwg.org/specs/animations/#DataTypeControlPoint),
+    // renamed in TRANSLATED_GRAMMARS.
     (
-        "control-point",
+        "smil-control-point",
         "<number> ,? <number> ,? <number> ,? <number>",
     ),
     // SVG 1.1: "number-optional-number ::= number | number comma-wsp number"
@@ -2622,6 +2629,8 @@ mod tests {
                 "polygon(evenodd, 0 0, 10px 0, 5px 10px)",
                 "path('M0 0 L10 10')",
                 "xywh(0 0 10px 10px)",
+                "shape(from 0px 0px, curve to 10px 10px with 5px 5px)",
+                "shape(from 0px 0px, smooth to 10px 10px with 5px 5px)",
                 "rect(1px 2px 3px 4px round 2px) stroke-box",
                 "border-box",
                 "none",
@@ -2637,6 +2646,7 @@ mod tests {
                 "circle(banana)",
                 "circle(10px at)",
                 "polygon(0 0 0)",
+                "shape(from 0px 0px, smooth to 10px 10px with 5px 5px / 1px 1px)",
                 "inset()",
             ],
         );
@@ -2706,6 +2716,20 @@ mod tests {
                 "url(#m) center / banana",
             ],
         );
+    }
+
+    // Claim: "<control-point> = <number> ,? <number> ,? <number> ,? <number>"
+    // https://svgwg.org/specs/animations/#DataTypeControlPoint, for keySplines
+    // alone: CSS Shapes curves keep their own <control-point>.
+    #[test]
+    fn key_splines_take_four_numbers() {
+        let splines = real(
+            "keySplines",
+            Some("animate"),
+            "<control-point> [; <control-point>]* ;?",
+        );
+        valid(splines, &["0 0 1 1", "0,0,1,1; .5 0 .5 1;"]);
+        invalid(splines, &["0 0 1", "0px 0 1 1", "0 0 1 1 1"]);
     }
 
     // Claim: "Value: [<cursor-image>,]* <cursor-predefined>"
