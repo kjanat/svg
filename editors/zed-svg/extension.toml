@@ -12,10 +12,10 @@ repository     = "https://github.com/kjanat/svg"
 languages      = ["languages/svg", "languages/svg-paint", "languages/svg-path", "languages/svg-transform"]
 
 [grammars]
-svg           = { repository = "https://github.com/kjanat/svg", rev = "fc70c8725ba31e1a360b764a1bbf310bbd7410b3", path = "grammars/tree-sitter-svg" }
-svg_path      = { repository = "https://github.com/kjanat/svg", rev = "fc70c8725ba31e1a360b764a1bbf310bbd7410b3", path = "grammars/tree-sitter-svg-path" }
-svg_transform = { repository = "https://github.com/kjanat/svg", rev = "fc70c8725ba31e1a360b764a1bbf310bbd7410b3", path = "grammars/tree-sitter-svg-transform" }
-svg_paint     = { repository = "https://github.com/kjanat/svg", rev = "fc70c8725ba31e1a360b764a1bbf310bbd7410b3", path = "grammars/tree-sitter-svg-paint" }
+svg           = { repository = "https://github.com/kjanat/svg", rev = "dbd0012e952a160818c5c28458039496d77cdbca", path = "grammars/tree-sitter-svg" }
+svg_path      = { repository = "https://github.com/kjanat/svg", rev = "dbd0012e952a160818c5c28458039496d77cdbca", path = "grammars/tree-sitter-svg-path" }
+svg_transform = { repository = "https://github.com/kjanat/svg", rev = "dbd0012e952a160818c5c28458039496d77cdbca", path = "grammars/tree-sitter-svg-transform" }
+svg_paint     = { repository = "https://github.com/kjanat/svg", rev = "dbd0012e952a160818c5c28458039496d77cdbca", path = "grammars/tree-sitter-svg-paint" }
 
 [language_servers.svg-language-server]
 name         = "SVG Language Server"
