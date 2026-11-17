@@ -16,6 +16,11 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+### Changed
+
+- `@kjanat/dreamcli` 5.1.0 for the npm distribution scripts and the
+  `svg-compat` Deno worker
+
 ### Fixed
 
 - Reset the SVG settings to their defaults when a client that cannot answer

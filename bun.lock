@@ -140,7 +140,7 @@
   },
   "catalog": {
     "@biomejs/biome": "^2.6.7",
-    "@kjanat/dreamcli": "^4.2.0",
+    "@kjanat/dreamcli": "^5.1.0",
     "@kprint/kprint": "^0.62",
     "@types/bun": "^1.4.4",
     "@types/deno": "^2",
@@ -204,7 +204,7 @@
 
     "@kjanat/actionlint": ["@kjanat/actionlint@https://pkg.pr.new/kjanat/actionlint/@kjanat/actionlint@master", { "dependencies": { "ansispeck": "^0.4.2" }, "optionalDependencies": { "@kjanat-actionlint/actionlint-darwin-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-darwin-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-linux-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-linux-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-win32-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-win32-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462" }, "bin": { "actionlint": "bin/actionlint.mjs" } }, "sha512-bGvNk837rUMgOlO/h5POt8BnSPNh9/bVDs9cJ8ocWCuUSg9TYxzxAk4kEFnsENZYVx2xLjGvlHPFoZJU4DmiCA=="],
 
-    "@kjanat/dreamcli": ["@kjanat/dreamcli@4.2.0", "", { "dependencies": { "ansispeck": "^0.4.2" } }, "sha512-llRDfPcCt222QBZrZCLRtL0nLArzZUY6veElNn1n2jiaaMSvfbkXzgyqC0bI2qryA3SIvgFLiop9H8L9XWHmkg=="],
+    "@kjanat/dreamcli": ["@kjanat/dreamcli@5.1.0", "", { "dependencies": { "ansispeck": "^0.4.3" } }, "sha512-yWEWOE98UYhiozDymxPXfBEr8p9fR3TCOKIB8Jjrtu9zyHuTt2bNedaSkSGUtkcl4FGtyxO0l7mI3P8W1BpPcw=="],
 
     "@kjanat/fmt": ["@kjanat/fmt@0.62.0", "", { "dependencies": { "@kprint/kprint": "0.62.0" }, "bin": { "fmt": "fmt.cjs", "kfmt": "fmt.cjs" } }, "sha512-LSQ7UaEN9w2ECYd74jotb2DDcDcLd3Af4aWtxFxL6Si03zHq0I3Zo3uTcBNWUMpcXXMunGc2WNcruyNtRaYrDw=="],
 
