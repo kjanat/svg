@@ -134,11 +134,19 @@ fn css_value_len(css: &[u8]) -> usize {
                 index += 1;
                 while let Some(&inner) = css.get(index) {
                     match inner {
+                        b'\\' if css[index + 1..].starts_with(b"\r\n") => index += 2,
                         b'\\' => index += 1,
+                        // A bad string ends before an unescaped newline (CSS
+                        // Syntax 3 §4.3.5), which the value scan resumes at.
+                        b'\n' | b'\r' | b'\x0c' => break,
                         _ if inner == byte => break,
                         _ => {}
                     }
                     index += 1;
+                }
+                if css.get(index) != Some(&byte) {
+                    end = index;
+                    continue;
                 }
             }
             b'/' if css.get(index + 1) == Some(&b'*') => {
@@ -199,4 +207,23 @@ pub(super) fn is_color_like_property(name: &str) -> bool {
         || name.eq_ignore_ascii_case("stroke")
         || has_color_suffix
         || name.starts_with("--")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::css_value_len;
+
+    #[test]
+    fn value_ends_at_its_terminator_outside_strings_and_escapes() {
+        fn len(css: &str) -> &str {
+            &css[..css_value_len(css.as_bytes())]
+        }
+        assert_eq!(len("red ; x"), "red");
+        assert_eq!(len("a('b;c') ! important"), "a('b;c')");
+        assert_eq!(len(r"a\;b }"), r"a\;b");
+        assert_eq!(len("'a\\\r\nb;' c; d"), "'a\\\r\nb;' c");
+        assert_eq!(len("'bad\n; d"), "'bad");
+        assert_eq!(len("x /* ; */ y; z"), "x /* ; */ y");
+        assert_eq!(len("f(a, b) )"), "f(a, b)");
+    }
 }
