@@ -986,7 +986,9 @@ mod tests {
         let def = svg_data::attribute("href");
         assert!(def.is_some(), "href is in the catalog");
         if let Some(def) = def {
-            let check = |value| super::super::invalid_reason(&def.values, value);
+            let check = |value| {
+                super::super::invalid_reason(&def.values, value, svg_data::SpecSnapshotId::LATEST)
+            };
             assert_eq!(check("#gradient-1"), None);
             assert_eq!(check("https://example.com/img.png"), None);
             assert!(check("https://exa mple.com/").is_some());

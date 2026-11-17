@@ -496,6 +496,38 @@ mod tests {
         );
     }
 
+    // Claim: SVG 1.1 "When a <length> is used in an SVG presentation
+    // attribute, the syntax must match the following pattern: length ::=
+    // number (... | "%")?" (https://www.w3.org/TR/SVG11/types.html#DataTypeLength),
+    // and SVG 2 "Replace all instances of <length> in grammar with [<length> |
+    // <number>]" for the Value column grammar only
+    // (https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value).
+    #[test]
+    fn nested_unitless_lengths_follow_the_profile() {
+        let src = br#"<svg><rect clip="rect(0, 50, 50, 0)" filter="blur(2)"/></svg>"#;
+        let invalid_values = |profile| {
+            lint_with_options(
+                src,
+                LintOptions {
+                    profile,
+                    native: None,
+                    edition: None,
+                },
+            )
+            .into_iter()
+            .filter(|d| d.code == DiagnosticCode::InvalidAttributeValue)
+            .count()
+        };
+        assert_eq!(
+            invalid_values(svg_data::SpecSnapshotId::Svg11Rec20110816),
+            0
+        );
+        assert_eq!(
+            invalid_values(svg_data::SpecSnapshotId::Svg2EditorsDraft),
+            2
+        );
+    }
+
     #[test]
     fn unsupported_attribute_is_distinct_from_unknown() {
         let src = br##"<svg><use href="#icon" banana="1"/></svg>"##;

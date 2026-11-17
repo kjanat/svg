@@ -29,9 +29,13 @@ use std::borrow::Cow;
 
 use svg_data::{AttributeApplicability, AttributeDef, AttributeValues, SpecSnapshotId};
 
-/// Why `value` is invalid for `values`, or `None` when it is valid or its
-/// value space has no check.
-pub fn invalid_reason(values: &AttributeValues, value: &str) -> Option<String> {
+/// Why `value` is invalid for `values` under `profile`, or `None` when it is
+/// valid or its value space has no check.
+pub fn invalid_reason(
+    values: &AttributeValues,
+    value: &str,
+    profile: SpecSnapshotId,
+) -> Option<String> {
     match values {
         AttributeValues::Enum(keywords) => keyword::check_enum(value, keywords),
         AttributeValues::Transform(functions) => geometry::check_transform(value, functions),
@@ -63,9 +67,12 @@ pub fn invalid_reason(values: &AttributeValues, value: &str) -> Option<String> {
         AttributeValues::CoordinatePair => path::check_coordinate_pair(value),
         AttributeValues::CoordinatePairList => path::check_coordinate_pair_list(value),
         AttributeValues::CssDeclarationList => declarations::check_css_declaration_list(value),
-        AttributeValues::CssGrammar { grammar, graph } => {
-            css_grammar::check_css_grammar(value, grammar, graph)
-        }
+        AttributeValues::CssGrammar { grammar, graph } => css_grammar::check_css_grammar(
+            value,
+            grammar,
+            graph,
+            css_grammar::UnitlessScope::for_profile(profile),
+        ),
         AttributeValues::FreeText | AttributeValues::Unresolved => None,
     }
 }
@@ -107,10 +114,15 @@ pub fn values_for<'a>(
     scoped.or_else(|| applies.then(|| def.values_for_profile(profile)))
 }
 
-/// Why `value` is invalid for the attribute `attr` with value space `values`:
-/// the value space's check, then the rules the spec adds for `attr` alone
-/// (see [`constraints`]).
-pub fn invalid_reason_for(attr: &str, values: &AttributeValues, value: &str) -> Option<String> {
+/// Why `value` is invalid for the attribute `attr` with value space `values`
+/// under `profile`: the value space's check, then the rules the spec adds for
+/// `attr` alone (see [`constraints`]).
+pub fn invalid_reason_for(
+    attr: &str,
+    values: &AttributeValues,
+    value: &str,
+    profile: SpecSnapshotId,
+) -> Option<String> {
     if attr == "d"
         && matches!(values, AttributeValues::CssGrammar { grammar, .. } if *grammar == D_PROPERTY_GRAMMAR)
     {
@@ -128,9 +140,10 @@ pub fn invalid_reason_for(attr: &str, values: &AttributeValues, value: &str) -> 
                 nodes: &[],
                 edges: &[],
             },
+            css_grammar::UnitlessScope::for_profile(profile),
         );
     }
-    invalid_reason(values, value).or_else(|| constraints::check(attr, values, value))
+    invalid_reason(values, value, profile).or_else(|| constraints::check(attr, values, value))
 }
 
 /// The catalog's grammar for the `d` property.
@@ -296,11 +309,15 @@ mod tests {
     fn d_attribute_is_checked_as_path_data() {
         let values = d_values();
         for value in ["M0 0L10 10", " m 1,2 3,4z ", "", "none", "inherit"] {
-            assert_eq!(invalid_reason_for("d", &values, value), None, "{value:?}");
+            assert_eq!(
+                invalid_reason_for("d", &values, value, SpecSnapshotId::LATEST),
+                None,
+                "{value:?}"
+            );
         }
         for value in ["c 1 1", "M0 0 L", "M 0 0 X 1"] {
             assert!(
-                invalid_reason_for("d", &values, value).is_some(),
+                invalid_reason_for("d", &values, value, SpecSnapshotId::LATEST).is_some(),
                 "{value:?}"
             );
         }
@@ -339,11 +356,15 @@ mod tests {
                 panic!("type has no value space on <{element}>");
             };
             for value in ["linear", "GAMMA", " table ", "/* c */ discrete", "var(--t)"] {
-                assert_eq!(invalid_reason_for("type", values, value), None, "{value:?}");
+                assert_eq!(
+                    invalid_reason_for("type", values, value, SpecSnapshotId::LATEST),
+                    None,
+                    "{value:?}"
+                );
             }
             for value in ["lineer", "text/html", "linear gamma", "'linear'"] {
                 assert!(
-                    invalid_reason_for("type", values, value).is_some(),
+                    invalid_reason_for("type", values, value, SpecSnapshotId::LATEST).is_some(),
                     "{value:?}"
                 );
             }
@@ -356,9 +377,20 @@ mod tests {
 
     #[test]
     fn free_text_and_unresolved_have_no_check() {
-        assert_eq!(invalid_reason(&AttributeValues::FreeText, "anything"), None);
         assert_eq!(
-            invalid_reason(&AttributeValues::Unresolved, "anything"),
+            invalid_reason(
+                &AttributeValues::FreeText,
+                "anything",
+                SpecSnapshotId::LATEST
+            ),
+            None
+        );
+        assert_eq!(
+            invalid_reason(
+                &AttributeValues::Unresolved,
+                "anything",
+                SpecSnapshotId::LATEST
+            ),
             None
         );
     }

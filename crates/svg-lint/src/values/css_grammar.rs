@@ -24,14 +24,21 @@
 //! expected: its type is only known after evaluation.
 //!
 //! Presentation attributes are parsed with `<number>` admitted wherever the
-//! grammar has `<length>`, `<length-percentage>` or `<angle>`
+//! catalog grammar text has `<length>`, `<length-percentage>` or `<angle>`:
+//! "Replace all instances of <length> in grammar with [<length> | <number>]",
+//! where grammar is "the grammar given in the attribute definition table's
+//! Value column"
 //! (<https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value>).
-//! The check cannot tell a presentation attribute from another attribute, so
-//! it always does: that only accepts more.
+//! The replacement is textual, so under SVG 2 the types a named type or a
+//! function's arguments expand to keep CSS parsing: `hue-rotate(90)` is
+//! invalid. SVG 1.1 admits the number in every `<length>` and `<angle>` of a
+//! presentation attribute (see [`UnitlessScope`]). The check cannot tell a
+//! presentation attribute from another attribute, so it always admits the
+//! number: that only accepts more.
 
 use std::collections::BTreeSet;
 
-use svg_data::CssGrammarGraph;
+use svg_data::{CssGrammarGraph, SpecSnapshotId};
 
 use super::syntax::{
     cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
@@ -41,8 +48,69 @@ use super::syntax::{
     types::{NumericType, UnitlessMode, match_numeric},
 };
 
-/// `CssGrammar`: a value matching this CSS value grammar.
-pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -> Option<String> {
+/// Which `<length>`, `<length-percentage>` and `<angle>` types of a
+/// presentation attribute value admit a bare `<number>`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnitlessScope {
+    /// SVG 1.1: "When a <length> is used in an SVG presentation attribute,
+    /// the syntax must match the following pattern: length ::= number ("em"
+    /// | "ex" | "px" | "in" | "cm" | "mm" | "pt" | "pc" | "%")?"
+    /// (<https://www.w3.org/TR/SVG11/types.html#DataTypeLength>), and "When an
+    /// <angle> is used in an SVG presentation attribute, the syntax must match
+    /// the following pattern: angle ::= number ("deg" | "grad" | "rad")?"
+    /// (<https://www.w3.org/TR/SVG11/types.html#DataTypeAngle>): every one in
+    /// the value.
+    WholeValue,
+    /// SVG 2: the ones written in the Value column grammar text.
+    ValueColumn,
+}
+
+impl UnitlessScope {
+    /// The scope `profile` defines.
+    #[must_use]
+    pub const fn for_profile(profile: SpecSnapshotId) -> Self {
+        match profile {
+            SpecSnapshotId::Svg11Rec20030114 | SpecSnapshotId::Svg11Rec20110816 => Self::WholeValue,
+            SpecSnapshotId::Svg2Cr20181004 | SpecSnapshotId::Svg2EditorsDraft => Self::ValueColumn,
+        }
+    }
+
+    /// How a bare number matches the types of the grammars the Value column
+    /// expands to.
+    const fn nested(self) -> UnitlessMode {
+        match self {
+            Self::WholeValue => UnitlessMode::PresentationAttribute,
+            Self::ValueColumn => UnitlessMode::Css,
+        }
+    }
+}
+
+/// How a bare number matches numeric types: in the grammar being parsed and
+/// in the grammars it expands to.
+#[derive(Clone, Copy, Debug)]
+struct Unitless {
+    own: UnitlessMode,
+    nested: UnitlessMode,
+}
+
+impl Unitless {
+    /// The modes inside a grammar this one expands to.
+    const fn expanded(self) -> Self {
+        Self {
+            own: self.nested,
+            nested: self.nested,
+        }
+    }
+}
+
+/// `CssGrammar`: a value matching this CSS value grammar, with bare numbers
+/// admitted per `scope`.
+pub fn check_css_grammar(
+    value: &str,
+    grammar: &str,
+    _graph: &CssGrammarGraph,
+    scope: UnitlessScope,
+) -> Option<String> {
     if OPAQUE_GRAMMARS.contains(&grammar) {
         return None;
     }
@@ -53,7 +121,7 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
         return check(value);
     }
     let effective = effective_grammar(grammar);
-    let root = parse_grammar(effective, 0)?;
+    let root = parse_grammar(effective, scope)?;
 
     let list = parse_component_values(value);
     if list.depth_limited
@@ -69,6 +137,7 @@ pub fn check_css_grammar(value: &str, grammar: &str, _graph: &CssGrammarGraph) -
         Matcher {
             values: &values,
             ranges,
+            nested: scope.nested(),
         }
         .ends(&root, 0, true)
         .contains(&values.len())
@@ -385,10 +454,12 @@ enum Node {
     Keyword(String),
     /// A literal delimiter: `,` `/` `;` `:` or a quoted one.
     Delim(char),
-    /// A basic data type, with an optional range restriction.
-    Type(Leaf, Range),
+    /// A basic data type, with an optional range restriction and the
+    /// treatment of a bare number in its place.
+    Type(Leaf, Range, UnitlessMode),
     /// A functional notation, written literally or as `<name()>`. Only a
-    /// function of that name matches; its arguments are not checked.
+    /// function of that name matches, with arguments matching the function's
+    /// own definition (see [`function_arguments`]).
     Function(String),
     /// Juxtaposition.
     Seq(Vec<Self>),
@@ -555,16 +626,25 @@ fn lex_braces(inner: &str) -> Option<Lexeme<'static>> {
     })
 }
 
-/// Parse a grammar, or `None` when it uses anything this module does not
-/// implement.
-fn parse_grammar(grammar: &str, depth: usize) -> Option<Node> {
-    parse_grammar_unwrapping(grammar, depth, None)
+/// Parse a catalog grammar, or `None` when it uses anything this module does
+/// not implement.
+fn parse_grammar(grammar: &str, scope: UnitlessScope) -> Option<Node> {
+    let unitless = Unitless {
+        own: UnitlessMode::PresentationAttribute,
+        nested: scope.nested(),
+    };
+    parse_grammar_unwrapping(grammar, 0, None, unitless)
 }
 
 /// Parse a grammar in which each `unwrap(…)` functional notation stands for
 /// its arguments, as a group: the grammar of what may appear inside a
 /// function named `unwrap`.
-fn parse_grammar_unwrapping(grammar: &str, depth: usize, unwrap: Option<&str>) -> Option<Node> {
+fn parse_grammar_unwrapping(
+    grammar: &str,
+    depth: usize,
+    unwrap: Option<&str>,
+    unitless: Unitless,
+) -> Option<Node> {
     if depth > MAX_EXPANSION_DEPTH {
         return None;
     }
@@ -574,18 +654,23 @@ fn parse_grammar_unwrapping(grammar: &str, depth: usize, unwrap: Option<&str>) -
         pos: 0,
         depth,
         unwrap,
+        unitless,
     };
     let node = parser.alternatives()?;
     (parser.pos == lexemes.len()).then_some(node)
 }
 
 /// The grammar of the arguments of a function named `name`, from every
-/// catalog definition of it, or `None` when it has none or one this module
-/// cannot parse.
-fn function_arguments(name: &str) -> Option<Node> {
+/// catalog definition of it, with bare numbers matched per `unitless`, or
+/// `None` when it has none or one this module cannot parse.
+fn function_arguments(name: &str, unitless: UnitlessMode) -> Option<Node> {
+    let unitless = Unitless {
+        own: unitless,
+        nested: unitless,
+    };
     let name = name.to_ascii_lowercase();
     let mut alternatives = svg_data::css_function_syntaxes(&name)
-        .map(|syntax| parse_grammar_unwrapping(syntax, 0, Some(&name)))
+        .map(|syntax| parse_grammar_unwrapping(syntax, 0, Some(&name), unitless))
         .collect::<Option<Vec<Node>>>()?;
     match alternatives.len() {
         0 => None,
@@ -605,6 +690,7 @@ struct GrammarParser<'l, 'g, 'u> {
     /// The function whose notation is replaced by its arguments, while
     /// parsing outside any of its argument lists.
     unwrap: Option<&'u str>,
+    unitless: Unitless,
 }
 
 impl<'g> GrammarParser<'_, 'g, '_> {
@@ -682,7 +768,9 @@ impl<'g> GrammarParser<'_, 'g, '_> {
         let mut node = match lexeme {
             Lexeme::Keyword(keyword) => Node::Keyword(keyword.to_owned()),
             Lexeme::Delim(delim) => Node::Delim(delim),
-            Lexeme::Type(reference) => resolve_type(reference, self.depth, self.unwrap)?,
+            Lexeme::Type(reference) => {
+                resolve_type(reference, self.depth, self.unwrap, self.unitless)?
+            }
             Lexeme::OpenGroup => {
                 let inner = self.alternatives()?;
                 if !self.eat(Lexeme::CloseGroup) {
@@ -765,7 +853,12 @@ impl<'g> GrammarParser<'_, 'g, '_> {
 /// The node for `<reference>` (the text between `<` and `>`), with its
 /// expansion parsed by [`parse_grammar_unwrapping`] for `unwrap`, or `None`
 /// for a reference this module does not implement.
-fn resolve_type(reference: &str, depth: usize, unwrap: Option<&str>) -> Option<Node> {
+fn resolve_type(
+    reference: &str,
+    depth: usize,
+    unwrap: Option<&str>,
+    unitless: Unitless,
+) -> Option<Node> {
     if let Some(name) = reference.strip_suffix("()") {
         return Some(Node::Function(name.to_owned()));
     }
@@ -777,6 +870,7 @@ fn resolve_type(reference: &str, depth: usize, unwrap: Option<&str>) -> Option<N
             svg_data::css_property_syntax(property.trim())?,
             depth + 1,
             unwrap,
+            unitless.expanded(),
         );
     }
     let (name, range) = match reference.find(['[', '(']) {
@@ -825,10 +919,10 @@ fn resolve_type(reference: &str, depth: usize, unwrap: Option<&str>) -> Option<N
                 .iter()
                 .find_map(|&(named, grammar)| (named == name).then_some(grammar))
                 .or_else(|| svg_data::css_type_syntax(name))?;
-            return parse_grammar_unwrapping(grammar, depth + 1, unwrap);
+            return parse_grammar_unwrapping(grammar, depth + 1, unwrap, unitless.expanded());
         }
     };
-    Some(Node::Type(leaf, range))
+    Some(Node::Type(leaf, range, unitless.own))
 }
 
 /// The bounds of a bracketed range, `min,max` without the brackets. A bound
@@ -870,6 +964,8 @@ struct Matcher<'v, 'a> {
     values: &'v [&'v ComponentValue<'a>],
     /// Whether range restrictions are checked.
     ranges: bool,
+    /// How a bare number matches the numeric types of function arguments.
+    nested: UnitlessMode,
 }
 
 impl Matcher<'_, '_> {
@@ -931,8 +1027,8 @@ impl Matcher<'_, '_> {
                 ComponentValue::Function(function)
                     if function.name.eq_ignore_ascii_case(name) && self.arguments_match(function)
             ),
-            Node::Type(leaf, range) => {
-                leaf_matches(*leaf, value) && (!self.ranges || in_range(*range, value))
+            Node::Type(leaf, range, unitless) => {
+                leaf_matches(*leaf, *unitless, value) && (!self.ranges || in_range(*range, value))
             }
             _ => false,
         }
@@ -942,7 +1038,7 @@ impl Matcher<'_, '_> {
     /// function of its name. A function without a definition this module can
     /// parse matches by name alone.
     fn arguments_match(&self, function: &Function<'_>) -> bool {
-        let Some(arguments) = function_arguments(&function.name) else {
+        let Some(arguments) = function_arguments(&function.name, self.nested) else {
             return true;
         };
         let values: Vec<&ComponentValue<'_>> = function
@@ -953,6 +1049,7 @@ impl Matcher<'_, '_> {
         Matcher {
             values: &values,
             ranges: self.ranges,
+            nested: self.nested,
         }
         .ends(&arguments, 0, true)
         .contains(&values.len())
@@ -1090,8 +1187,9 @@ impl Matcher<'_, '_> {
 /// (<https://drafts.csswg.org/css-values-5/#tree-counting>).
 const TREE_COUNTING_FUNCTIONS: &[&str] = &["sibling-index", "sibling-count"];
 
-/// Whether `value` is a literal of `leaf`.
-fn leaf_matches(leaf: Leaf, value: &ComponentValue<'_>) -> bool {
+/// Whether `value` is a literal of `leaf`, with a bare number treated per
+/// `unitless`.
+fn leaf_matches(leaf: Leaf, unitless: UnitlessMode, value: &ComponentValue<'_>) -> bool {
     if let Leaf::Numeric(ty) = leaf {
         if let ComponentValue::Function(function) = value
             && !is_math_function(&function.name)
@@ -1101,7 +1199,7 @@ fn leaf_matches(leaf: Leaf, value: &ComponentValue<'_>) -> bool {
         {
             return false;
         }
-        return !match_numeric(value, ty, UnitlessMode::PresentationAttribute).is_no();
+        return !match_numeric(value, ty, unitless).is_no();
     }
     let token = match value {
         ComponentValue::Token(token) => token,
@@ -1156,7 +1254,7 @@ fn in_range(range: Range, value: &ComponentValue<'_>) -> bool {
 mod tests {
     use svg_data::{AttributeValues, CssGrammarGraph};
 
-    use super::check_css_grammar;
+    use super::{UnitlessScope, check_css_grammar};
 
     const NO_GRAPH: CssGrammarGraph = CssGrammarGraph {
         root: 0,
@@ -1165,7 +1263,7 @@ mod tests {
     };
 
     fn check(value: &str, grammar: &str) -> Option<String> {
-        check_css_grammar(value, grammar, &NO_GRAPH)
+        check_css_grammar(value, grammar, &NO_GRAPH, UnitlessScope::ValueColumn)
     }
 
     /// The catalog grammar of `attr` (on `element`, or its canonical value
@@ -1228,7 +1326,13 @@ mod tests {
                     .iter()
                     .any(|(catalog, _)| catalog == grammar)
             })
-            .filter(|grammar| super::parse_grammar(super::effective_grammar(grammar), 0).is_none())
+            .filter(|grammar| {
+                super::parse_grammar(
+                    super::effective_grammar(grammar),
+                    UnitlessScope::ValueColumn,
+                )
+                .is_none()
+            })
             .collect();
         assert_eq!(unchecked, Vec::<&str>::new());
     }
@@ -1252,7 +1356,7 @@ mod tests {
                     && !is_math_function(name)
                     && !matches!(name, "type" | "calc-size")
             })
-            .filter(|name| super::function_arguments(name).is_none())
+            .filter(|name| super::function_arguments(name, super::UnitlessMode::Css).is_none())
             .collect();
         assert_eq!(unchecked, Vec::<&str>::new());
     }
@@ -2575,6 +2679,77 @@ mod tests {
             &["pointer", "url(c.cur) 2 3, pointer", "url(c.svg), auto"],
         );
         invalid(cursor, &["url(c.svg)", "pointer, url(c.svg)", "hand"]);
+    }
+
+    // Claim: "Replace all instances of <length> in grammar with [<length> |
+    // <number>]", likewise for <length-percentage> and <angle>, where grammar
+    // is "the grammar given in the attribute definition table's Value
+    // column".
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // The types a named type or a function's arguments expand to are not in
+    // that text, so they keep CSS parsing.
+    #[test]
+    fn unitless_numbers_replace_only_value_column_types() {
+        let filter = real("filter", None, "none | <filter-value-list>");
+        valid(
+            filter,
+            &["hue-rotate(90deg)", "blur(0)", "drop-shadow(0 0 red)"],
+        );
+        invalid(
+            filter,
+            &["hue-rotate(90)", "blur(2)", "drop-shadow(1 1 red)"],
+        );
+        let clip = real(
+            "clip-path",
+            None,
+            "<clip-source> | [ <basic-shape> || <geometry-box> ] | none",
+        );
+        valid(clip, &["circle(5px)", "inset(0)"]);
+        invalid(clip, &["circle(5)", "inset(1)"]);
+        let mask = real("mask", None, "<mask-layer>#");
+        valid(mask, &["url(#m) 10px 20px", "url(#m) 0 0"]);
+        invalid(mask, &["url(#m) 10 20"]);
+        let width = real("width", Some("mask"), "auto | <length-percentage>");
+        valid(width, &["100"]);
+        let clip_rect = real("clip", None, "<rect()> | auto");
+        invalid(clip_rect, &["rect(0, 50, 50, 0)"]);
+    }
+
+    // Claim: "When a <length> is used in an SVG presentation attribute, the
+    // syntax must match the following pattern: length ::= number ("em" | "ex"
+    // | "px" | "in" | "cm" | "mm" | "pt" | "pc" | "%")?"
+    // https://www.w3.org/TR/SVG11/types.html#DataTypeLength
+    // Claim: "When an <angle> is used in an SVG presentation attribute, the
+    // syntax must match the following pattern: angle ::= number ("deg" |
+    // "grad" | "rad")?" https://www.w3.org/TR/SVG11/types.html#DataTypeAngle
+    #[test]
+    fn svg_1_1_admits_unitless_numbers_in_the_whole_value() {
+        let svg11 = |value: &str, grammar: &str| {
+            check_css_grammar(value, grammar, &NO_GRAPH, UnitlessScope::WholeValue)
+        };
+        let cases = [
+            (
+                real("filter", None, "none | <filter-value-list>"),
+                &["hue-rotate(90)", "blur(2)", "drop-shadow(1 1 red)"][..],
+            ),
+            (
+                real("clip", None, "<rect()> | auto"),
+                &["rect(0, 50, 50, 0)"],
+            ),
+            (real("mask", None, "<mask-layer>#"), &["url(#m) 10 20"]),
+        ];
+        for (grammar, values) in cases {
+            for value in values {
+                assert_eq!(svg11(value, grammar), None, "{value:?} in SVG 1.1");
+            }
+        }
+        assert!(
+            svg11(
+                "hue-rotate(red)",
+                real("filter", None, "none | <filter-value-list>")
+            )
+            .is_some()
+        );
     }
 
     // The parser takes any CSS value for clip-path, so an invalid one is a

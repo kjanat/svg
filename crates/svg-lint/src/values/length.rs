@@ -59,14 +59,14 @@ mod tests {
         );
         for value in valid {
             assert_eq!(
-                invalid_reason_for(attr, values, value),
+                invalid_reason_for(attr, values, value, svg_data::SpecSnapshotId::LATEST),
                 None,
                 "{attr}={value:?} on <{element}> must be valid"
             );
         }
         for value in invalid {
             assert!(
-                invalid_reason_for(attr, values, value).is_some(),
+                invalid_reason_for(attr, values, value, svg_data::SpecSnapshotId::LATEST).is_some(),
                 "{attr}={value:?} on <{element}> must be invalid"
             );
         }
