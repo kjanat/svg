@@ -138,6 +138,7 @@ pub fn check_css_grammar(
             values: &values,
             ranges,
             nested: scope.nested(),
+            components: ComponentKeywords::None,
         }
         .ends(&root, 0, true)
         .contains(&values.len())
@@ -1012,6 +1013,77 @@ struct Matcher<'v, 'a> {
     ranges: bool,
     /// How a bare number matches the numeric types of function arguments.
     nested: UnitlessMode,
+    /// The identifiers that stand for a number in this argument list.
+    components: ComponentKeywords,
+}
+
+/// The component keywords of a relative color function, which "are all
+/// <number>s that correspond to the origin color's" components (CSS Color 5,
+/// <https://drafts.csswg.org/css-color-5/#relative-colors>), and so match
+/// wherever the function's grammar takes a number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ComponentKeywords {
+    /// Not a relative color: identifiers are only keywords.
+    None,
+    /// "the allowed component keywords are" these.
+    Listed(&'static [&'static str]),
+    /// `color()` with `<custom-params>`, whose keywords are "defined by the
+    /// components descriptor on the corresponding @color-profile", which a
+    /// value check cannot see.
+    Any,
+}
+
+impl ComponentKeywords {
+    /// The keywords a call of `name` with significant `arguments` allows.
+    fn of(name: &str, arguments: &[&ComponentValue<'_>]) -> Self {
+        let relative = arguments
+            .first()
+            .and_then(|value| value.ident())
+            .is_some_and(|ident| ident.eq_ignore_ascii_case("from"));
+        if !relative {
+            return Self::None;
+        }
+        let keywords: &'static [&'static str] = match name.to_ascii_lowercase().as_str() {
+            "rgb" | "rgba" => &["r", "g", "b", "alpha"],
+            "hsl" | "hsla" => &["h", "s", "l", "alpha"],
+            "hwb" => &["h", "w", "b", "alpha"],
+            "lab" | "oklab" => &["l", "a", "b", "alpha"],
+            "lch" | "oklch" => &["l", "c", "h", "alpha"],
+            "alpha" => &["alpha"],
+            "color" => {
+                // "color( [from <color>]? <colorspace-params> ...": the
+                // color space follows the origin color.
+                let space = arguments.get(2).and_then(|value| value.ident());
+                return match space {
+                    Some(space) if space.starts_with("--") => Self::Any,
+                    Some(space)
+                        if ["xyz", "xyz-d50", "xyz-d65"]
+                            .iter()
+                            .any(|xyz| space.eq_ignore_ascii_case(xyz)) =>
+                    {
+                        Self::Listed(&["x", "y", "z", "alpha"])
+                    }
+                    _ => Self::Listed(&["r", "g", "b", "alpha"]),
+                };
+            }
+            _ => return Self::None,
+        };
+        Self::Listed(keywords)
+    }
+
+    /// Whether `value` is one of these keywords.
+    fn contains(self, value: &ComponentValue<'_>) -> bool {
+        let Some(ident) = value.ident() else {
+            return false;
+        };
+        match self {
+            Self::None => false,
+            Self::Listed(keywords) => keywords
+                .iter()
+                .any(|keyword| ident.eq_ignore_ascii_case(keyword)),
+            Self::Any => true,
+        }
+    }
 }
 
 impl Matcher<'_, '_> {
@@ -1073,6 +1145,7 @@ impl Matcher<'_, '_> {
                 ComponentValue::Function(function)
                     if function.name.eq_ignore_ascii_case(name) && self.arguments_match(function)
             ),
+            Node::Type(Leaf::Numeric(_), _, _) if self.components.contains(value) => true,
             Node::Type(leaf, range, unitless) => {
                 leaf_matches(*leaf, *unitless, value) && (!self.ranges || in_range(*range, value))
             }
@@ -1096,6 +1169,7 @@ impl Matcher<'_, '_> {
             values: &values,
             ranges: self.ranges,
             nested: self.nested,
+            components: ComponentKeywords::of(&function.name, &values),
         }
         .ends(&arguments, 0, true)
         .contains(&values.len())
@@ -2730,6 +2804,41 @@ mod tests {
         );
         valid(splines, &["0 0 1 1", "0,0,1,1; .5 0 .5 1;"]);
         invalid(splines, &["0 0 1", "0px 0 1 1", "0 0 1 1 1"]);
+    }
+
+    // Claim: "Within a relative color syntax rgb() or rgba() function, the
+    // allowed component keywords are: r, g, and b are all <number>s" and the
+    // matching lists for the other functions, with color() keywords chosen by
+    // its color space.
+    // https://drafts.csswg.org/css-color-5/#relative-colors
+    #[test]
+    fn relative_colors_take_their_component_keywords() {
+        let mask = real("mask", None, "<mask-layer>#");
+        valid(
+            mask,
+            &[
+                "linear-gradient(rgb(from red r g b), blue)",
+                "linear-gradient(rgb(from red r g b / alpha), blue)",
+                "linear-gradient(hsl(from red h s l / 50%), blue)",
+                "linear-gradient(hwb(from red h w b), blue)",
+                "linear-gradient(oklch(from red l c h), blue)",
+                "linear-gradient(lab(from red l a b), blue)",
+                "linear-gradient(color(from red srgb r g b), blue)",
+                "linear-gradient(color(from red xyz x y z), blue)",
+                "linear-gradient(color(from red --profile cyan magenta yellow black), blue)",
+                "linear-gradient(alpha(from red / alpha), blue)",
+                "linear-gradient(rgb(from rgb(from red r g b) r g b), blue)",
+            ],
+        );
+        invalid(
+            mask,
+            &[
+                "linear-gradient(rgb(from red h s l), blue)",
+                "linear-gradient(rgb(r g b), blue)",
+                "linear-gradient(color(from red srgb x y z), blue)",
+                "linear-gradient(oklch(from red l c banana), blue)",
+            ],
+        );
     }
 
     // Claim: "Value: [<cursor-image>,]* <cursor-predefined>"
