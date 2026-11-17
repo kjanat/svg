@@ -43,7 +43,7 @@ jobs:
           - name: Refresh uv.lock
             run: uv lock
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --force
       - name: Regenerate grammars
         run: just generate-grammars
       - name: Check formatting

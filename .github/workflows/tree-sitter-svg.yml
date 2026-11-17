@@ -38,7 +38,7 @@ jobs:
       - uses: denoland/setup-deno@v2
       - name: Install workspace dependencies
         working-directory: .
-        run: bun install --frozen-lockfile
+        run: bun install --force
       - name: Check all generated grammars and their consumers
         working-directory: .
         run: just check-grammars

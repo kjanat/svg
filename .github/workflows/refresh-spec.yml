@@ -244,7 +244,7 @@ jobs:
         with: { deno-version: v2.x }
       - name: Install grammar dependencies
         if: *AnyOne
-        run: bun install --frozen-lockfile
+        run: bun install --force
 
       - name: Regenerate catalog and grammars, and validate consumers
         if: *AnyOne

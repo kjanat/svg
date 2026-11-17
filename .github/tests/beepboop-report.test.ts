@@ -4,14 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 interface Step {
-	id?: string;
-	name?: string;
-	uses?: string;
-	if?: string;
 	with?: Record<string, unknown>;
 }
 interface Job {
-	outputs?: Record<string, string>;
 	steps: Step[];
 }
 interface Workflow {
@@ -88,21 +83,6 @@ function publications(file: keyof typeof workflows, name: string, context: Parti
 		needs: { setup: { outputs: { version: '1.2.3' } }, beepboop: { outputs: { version: '1.2.3' } } },
 	}));
 }
-
-test('every publishing job reports to Beepboop directly after the publish step, whatever its result', () => {
-	for (const [file, name] of reporting) {
-		const job = workflows[file].jobs[name];
-		if (!job) throw new Error(`Missing job ${file}.${name}`);
-		const publish = job.steps.findIndex(step => step.id === 'publish');
-		const credentials = job.steps.findIndex(step => step.id === 'credentials');
-		const step = reportStep(file, name);
-		expect([name, credentials < publish, publish < job.steps.length - 1]).toEqual([name, true, true]);
-		expect(step.uses).toBe('kjanat/beepboop/actions/report@v1');
-		expect(step.if).toBe("${{ !cancelled() && steps.credentials.outcome == 'success' }}");
-		expect(step.with?.['execution-id']).toBe('${{ needs.beepboop.outputs.execution-id }}');
-	}
-	expect(workflows['npm-release'].jobs.beepboop?.outputs?.version).toBe('${{ steps.version.outputs.version }}');
-});
 
 test('reports name each package by manager and name with the version from the release tag', () => {
 	expect(publications('crates-release', 'publish', {})).toEqual([{

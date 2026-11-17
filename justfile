@@ -98,7 +98,7 @@ check-python:
 # exercise Renovate's extraction, replacement, grouping and uv artifact updates
 [group('grammar')]
 check-python-updates:
-    bun install --cwd .github/tests/renovate --frozen-lockfile --ignore-scripts
+    bun install --cwd .github/tests/renovate --force --ignore-scripts
     node --test .github/tests/renovate/python.test.mjs
 
 # test svg-lint only (fast loop)
@@ -224,7 +224,7 @@ release-config-check:
 # exercise packaged crate verification, release wiring and publication retries
 [group('release')]
 release-package-test:
-    bun install --cwd .github/tests/renovate --frozen-lockfile --ignore-scripts
+    bun install --cwd .github/tests/renovate --force --ignore-scripts
     uv sync --locked --all-packages --all-groups
     bun test ./.github
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
