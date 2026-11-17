@@ -231,11 +231,239 @@ pub fn is_attribute_node_kind(kind: &str) -> bool {
     kind == "attribute" || kind == "generic_attribute" || kind.ends_with("_attribute")
 }
 
+/// Decode the CSS escapes in `text`.
+///
+/// An escape follows CSS Syntax 3 §4.3.7, "consume an escaped code point": a
+/// backslash and 1 to 6 hex digits, with one following whitespace (CRLF
+/// counting as one), or a backslash and any other character. Zero and invalid
+/// code points become U+FFFD.
+///
+/// # Examples
+///
+/// ```rust
+/// assert_eq!(svg_tree::css_unescape(r"v\61 r"), "var");
+/// assert_eq!(svg_tree::css_unescape(r"a\.b"), "a.b");
+/// ```
+#[must_use]
+pub fn css_unescape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(backslash) = rest.find('\\') {
+        out.push_str(&rest[..backslash]);
+        rest = &rest[backslash + 1..];
+        if let Some((decoded, len)) = escaped_code_point(rest) {
+            out.push(decoded);
+            rest = &rest[len..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Rewrite the identifiers in CSS value `text` into one canonical spelling,
+/// so text comparisons and function-call splitting see what a CSS tokenizer
+/// sees.
+///
+/// Each ident sequence with escapes is decoded when the result still starts an
+/// ident sequence (CSS Syntax 3 §4.3.9) or follows `#` (a hash token value).
+/// Escaped characters outside the ident code points (CSS Syntax 3 §4.2) stay
+/// escaped, spelled `\<lowercase hex> `. Other sequences are left as written,
+/// because decoding `\31 0` to `10` would turn an ident into a number.
+/// Applying the function twice gives the same text as applying it once.
+///
+/// # Examples
+///
+/// ```rust
+/// assert_eq!(svg_tree::css_canonical_identifiers(r"v\61 r(--\63)"), "var(--c)");
+/// assert_eq!(svg_tree::css_canonical_identifiers(r"r\28 x"), r"r\28 x");
+/// assert_eq!(svg_tree::css_canonical_identifiers(r"r\(x"), r"r\28 x");
+/// assert_eq!(svg_tree::css_canonical_identifiers(r"\31 0"), r"\31 0");
+/// assert_eq!(svg_tree::css_canonical_identifiers(r"#\66 00"), "#f00");
+/// ```
+#[must_use]
+pub fn css_canonical_identifiers(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains('\\') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(ch) = rest.chars().next() {
+        let run_len = ident_run_len(rest);
+        if run_len == 0 {
+            out.push(ch);
+            rest = &rest[ch.len_utf8()..];
+            continue;
+        }
+        let (run, tail) = rest.split_at(run_len);
+        let decoded = decode_ident_run(run);
+        if out.ends_with('#') || starts_ident_sequence(&decoded) {
+            out.push_str(&decoded);
+        } else {
+            out.push_str(run);
+        }
+        rest = tail;
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// Decode the escape that follows a backslash, returning the code point and
+/// the bytes it spans. Returns `None` at the end of input.
+fn escaped_code_point(text: &str) -> Option<(char, usize)> {
+    let hex_len = text
+        .bytes()
+        .take(6)
+        .take_while(u8::is_ascii_hexdigit)
+        .count();
+    if hex_len == 0 {
+        let ch = text.chars().next()?;
+        return Some((ch, ch.len_utf8()));
+    }
+    let decoded = u32::from_str_radix(&text[..hex_len], 16)
+        .ok()
+        .filter(|&code| code != 0)
+        .and_then(char::from_u32)
+        .unwrap_or(char::REPLACEMENT_CHARACTER);
+    let after = &text[hex_len..];
+    let whitespace = if after.starts_with("\r\n") {
+        2
+    } else {
+        usize::from(
+            after
+                .bytes()
+                .next()
+                .is_some_and(|b| b.is_ascii_whitespace()),
+        )
+    };
+    Some((decoded, hex_len + whitespace))
+}
+
+/// CSS Syntax 3 §4.2 "ident-start code point".
+const fn is_ident_start(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_' || !ch.is_ascii()
+}
+
+/// CSS Syntax 3 §4.2 "ident code point".
+const fn is_ident_code_point(ch: char) -> bool {
+    is_ident_start(ch) || ch.is_ascii_digit() || ch == '-'
+}
+
+/// CSS Syntax 3 §4.3.8: a backslash followed by anything except a newline.
+fn is_valid_escape(next: Option<char>) -> bool {
+    next.is_some_and(|ch| !matches!(ch, '\n' | '\r' | '\u{c}'))
+}
+
+/// Byte length of the ident code points and valid escapes at the start of
+/// `text`.
+fn ident_run_len(text: &str) -> usize {
+    let mut len = 0;
+    loop {
+        let rest = &text[len..];
+        let mut chars = rest.chars();
+        match chars.next() {
+            Some('\\') if is_valid_escape(chars.next()) => {
+                len += 1 + escaped_code_point(&rest[1..]).map_or(0, |(_, escape)| escape);
+            }
+            Some(ch) if is_ident_code_point(ch) => len += ch.len_utf8(),
+            _ => return len,
+        }
+    }
+}
+
+/// Decode `run`, re-escaping every decoded character outside the ident code
+/// points as `\<lowercase hex> `.
+fn decode_ident_run(run: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut out = String::with_capacity(run.len());
+    let mut rest = run;
+    while let Some(ch) = rest.chars().next() {
+        let (decoded, len) = if ch == '\\' {
+            escaped_code_point(&rest[1..])
+                .map_or((None, 1), |(decoded, escape)| (Some(decoded), 1 + escape))
+        } else {
+            (Some(ch), ch.len_utf8())
+        };
+        match decoded {
+            Some(decoded) if is_ident_code_point(decoded) => out.push(decoded),
+            Some(decoded) => {
+                let _ = write!(out, "\\{:x} ", u32::from(decoded));
+            }
+            None => {}
+        }
+        rest = &rest[len..];
+    }
+    out
+}
+
+/// CSS Syntax 3 §4.3.9 "check if three code points would start an ident
+/// sequence".
+fn starts_ident_sequence(text: &str) -> bool {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some('-') => {
+            let mut rest = chars.clone();
+            match rest.next() {
+                Some('-') => true,
+                Some('\\') => is_valid_escape(rest.next()),
+                Some(ch) => is_ident_start(ch),
+                None => false,
+            }
+        }
+        Some('\\') => is_valid_escape(chars.next()),
+        Some(ch) => is_ident_start(ch),
+        None => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn css_unescape_decodes_hex_and_literal_escapes() {
+        assert_eq!(css_unescape("a\\.b"), "a.b");
+        assert_eq!(css_unescape("\\31 x"), "1x");
+        assert_eq!(css_unescape("\\0"), "\u{FFFD}");
+        assert_eq!(css_unescape("\\31\r\nx"), "1x");
+        assert_eq!(css_unescape("\\31\rx"), "1x");
+        assert_eq!(css_unescape("a\\"), "a");
+    }
+
+    #[test]
+    fn css_canonical_identifiers_decodes_only_what_stays_an_ident() {
+        let cases = [
+            ("red", "red"),
+            ("r\\65 d", "red"),
+            ("R\\45 D", "RED"),
+            ("v\\61 r(--\\63, \\#f00)", "var(--c, \\23 f00)"),
+            (
+                "color-mix(in srgb, r\\65 d, blue)",
+                "color-mix(in srgb, red, blue)",
+            ),
+            ("r\\28 x", "r\\28 x"),
+            ("r\\(x", "r\\28 x"),
+            ("\\31 0", "\\31 0"),
+            ("\\2d 5", "\\2d 5"),
+            ("-\\31 x", "-\\31 x"),
+            ("--\\31 x", "--1x"),
+            ("5\\61", "5\\61"),
+            ("#\\66 00", "#f00"),
+            ("#\\31 23", "#123"),
+            ("a\\\nb", "a\\\nb"),
+            ("a\\", "a\\"),
+        ];
+        for (input, expected) in cases {
+            let canonical = css_canonical_identifiers(input);
+            assert_eq!(canonical, expected, "input {input:?}");
+            assert_eq!(
+                css_canonical_identifiers(&canonical),
+                canonical,
+                "canonical form of {input:?} is stable"
+            );
+        }
+    }
 
     fn parse_svg(src: &[u8]) -> Result<tree_sitter::Tree, Box<dyn std::error::Error>> {
         let mut parser = tree_sitter::Parser::new();
