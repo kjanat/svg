@@ -188,11 +188,35 @@ const FOREIGN_GRAMMARS: &[(&str, ValueCheck)] = &[
         "_self | _parent | _top | _blank | <XML-Name>",
         check_xml_name,
     ),
+    ("auto | sRGB | <name> | <uri>", check_color_profile),
 ];
 
 /// An XML 1.0 `Name` (<https://www.w3.org/TR/xml/#NT-Name>).
 fn check_xml_name(value: &str) -> Option<String> {
     (!super::declarations::is_xml_name(value)).then(|| "is not an XML Name".to_owned())
+}
+
+/// The SVG 1.1 `color-profile` property: "auto | sRGB | <name> | <iri> |
+/// inherit", where "name ::= [^,()#x20#x9#xD#xA] /* any char except ",",
+/// "(", ")" or wsp */" and the IRI is written `url()` in a property value
+/// (<https://www.w3.org/TR/SVG11/color.html#ColorProfileProperty>,
+/// <https://www.w3.org/TR/SVG11/types.html#DataTypeName>). A `<name>` covers
+/// `auto`, `sRGB` and the CSS-wide keywords.
+fn check_color_profile(value: &str) -> Option<String> {
+    let name = value.trim_matches(|c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\u{c}'));
+    if !name.is_empty() && !name.contains([',', '(', ')', ' ', '\t', '\r', '\n']) {
+        return None;
+    }
+    let list = parse_component_values(value);
+    if list.depth_limited || contains_arbitrary_substitution(&list.values) {
+        return None;
+    }
+    let mut significant = list.significant();
+    let url = matches!(
+        (significant.next(), significant.next()),
+        (Some(only), None) if leaf_matches(Leaf::Url, UnitlessMode::Css, only)
+    );
+    (!url).then(|| "is neither a color profile name nor a url()".to_owned())
 }
 
 /// Catalog grammars that are not checked here.
@@ -377,13 +401,6 @@ const NAMED_TYPES: &[(&str, &str)] = &[
     // sub-production is restricted to <url> only."
     // https://drafts.csswg.org/css-ui-4/#typedef-cursor-url-set
     ("url-set", "<image-set()>"),
-    // SVG 1.1 color-profile: "<name>: A name corresponding to a defined color
-    // profile that is in the user agent's color profile description
-    // database" and an IRI reference to the profile, written url() in a
-    // property value.
-    // https://www.w3.org/TR/SVG11/color.html#ColorProfileProperty
-    ("name", "<ident>"),
-    ("uri", "<url>"),
     // "Clock-value ::= ( Full-clock-value | Partial-clock-value |
     // Timecount-value )", "Full-clock-value ::= Hours ":" Minutes ":"
     // Seconds ("." Fraction)?", "Partial-clock-value ::= Minutes ":" Seconds
@@ -2574,7 +2591,7 @@ mod tests {
                 panic!("{attr} on {element:?} is not a CSS grammar: {values:?}");
             };
             valid(grammar, &[value]);
-            invalid(grammar, &["#!garbage"]);
+            invalid(grammar, &["#!garbage)"]);
         }
     }
 
@@ -2802,6 +2819,30 @@ mod tests {
                 "circle(closest-side 1px)",
             ],
         );
+    }
+
+    // Claim: "Value: auto | sRGB | <name> | <iri> | inherit" and "name ::=
+    // [^,()#x20#x9#xD#xA] /* any char except ",", "(", ")" or wsp */"
+    // https://www.w3.org/TR/SVG11/color.html#ColorProfileProperty
+    // https://www.w3.org/TR/SVG11/types.html#DataTypeName
+    #[test]
+    fn color_profile_is_a_name_or_url() {
+        let profile = real("color-profile", None, "auto | sRGB | <name> | <uri>");
+        valid(
+            profile,
+            &[
+                "auto",
+                "sRGB",
+                "inherit",
+                "my-profile",
+                "Profile_2.icc",
+                "#p",
+                " url(#p) ",
+                "url('p.icc')",
+                "var(--p)",
+            ],
+        );
+        invalid(profile, &["", "two names", "a,b", "url(#p) extra", "f(x)"]);
     }
 
     // The parser takes any CSS value for clip-path, so an invalid one is a
