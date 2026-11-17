@@ -660,16 +660,38 @@ fn parse_grammar_unwrapping(
     (parser.pos == lexemes.len()).then_some(node)
 }
 
-/// The grammar of the arguments of a function named `name`, from every
-/// catalog definition of it, with bare numbers matched per `unitless`, or
-/// `None` when it has none or one this module cannot parse.
+/// Functions whose definition restricts its arguments in prose, with the
+/// grammar matched in place of every catalog definition.
+const FUNCTION_SYNTAXES: &[(&str, &str)] = &[
+    // circle(): "circle( <radial-size>? [ at <position> ]? )" and "Two
+    // <length-percentage> values are invalid."
+    // (https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-circle),
+    // with <radial-size> from NAMED_TYPES.
+    (
+        "circle",
+        "circle( [ <radial-extent>{1,2} | <length-percentage [0,∞]> ]? [ at <position> ]? )",
+    ),
+];
+
+/// The grammar of the arguments of a function named `name`, from
+/// [`FUNCTION_SYNTAXES`] or every catalog definition of it, with bare numbers
+/// matched per `unitless`, or `None` when it has none or one this module
+/// cannot parse.
 fn function_arguments(name: &str, unitless: UnitlessMode) -> Option<Node> {
     let unitless = Unitless {
         own: unitless,
         nested: unitless,
     };
     let name = name.to_ascii_lowercase();
-    let mut alternatives = svg_data::css_function_syntaxes(&name)
+    let syntaxes: Vec<&str> = match FUNCTION_SYNTAXES
+        .iter()
+        .find(|&&(function, _)| function == name)
+    {
+        Some(&(_, syntax)) => vec![syntax],
+        None => svg_data::css_function_syntaxes(&name).collect(),
+    };
+    let mut alternatives = syntaxes
+        .into_iter()
         .map(|syntax| parse_grammar_unwrapping(syntax, 0, Some(&name), unitless))
         .collect::<Option<Vec<Node>>>()?;
     match alternatives.len() {
@@ -2749,6 +2771,36 @@ mod tests {
                 real("filter", None, "none | <filter-value-list>")
             )
             .is_some()
+        );
+    }
+
+    // Claim: "<circle()> = circle( <radial-size>? [ at <position> ]? )" and
+    // "Two <length-percentage> values are invalid."
+    // https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-circle
+    #[test]
+    fn circle_takes_one_radius_length() {
+        let clip = real(
+            "clip-path",
+            None,
+            "<clip-source> | [ <basic-shape> || <geometry-box> ] | none",
+        );
+        valid(
+            clip,
+            &[
+                "circle(1px)",
+                "circle(closest-side farthest-side)",
+                "circle(closest-side at 1px 2px)",
+                "circle(at center)",
+                "ellipse(1px 2px)",
+            ],
+        );
+        invalid(
+            clip,
+            &[
+                "circle(1px 2px)",
+                "circle(-1px)",
+                "circle(closest-side 1px)",
+            ],
         );
     }
 
