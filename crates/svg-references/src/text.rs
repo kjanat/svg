@@ -185,44 +185,7 @@ pub fn strip_quotes(text: &str) -> (usize, &str) {
     }
 }
 
-pub fn css_unescape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch != '\\' {
-            out.push(ch);
-            continue;
-        }
-        let mut hex = String::new();
-        while hex.len() < 6 {
-            match chars.peek() {
-                Some(next) if next.is_ascii_hexdigit() => {
-                    hex.push(*next);
-                    chars.next();
-                }
-                _ => break,
-            }
-        }
-        if hex.is_empty() {
-            if let Some(next) = chars.next() {
-                out.push(next);
-            }
-            continue;
-        }
-        if chars.next_if_eq(&'\r').is_some() {
-            chars.next_if_eq(&'\n');
-        } else if chars.peek().is_some_and(char::is_ascii_whitespace) {
-            chars.next();
-        }
-        let decoded = u32::from_str_radix(&hex, 16)
-            .ok()
-            .filter(|&code| code != 0)
-            .and_then(char::from_u32)
-            .unwrap_or(char::REPLACEMENT_CHARACTER);
-        out.push(decoded);
-    }
-    out
-}
+pub use svg_tree::css_unescape;
 
 const fn is_css_ident_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-') || !ch.is_ascii()
@@ -254,7 +217,7 @@ fn css_escape_len(text: &str) -> Option<usize> {
     Some(end + space)
 }
 
-fn css_ident_len(text: &str) -> (usize, bool) {
+pub fn css_ident_len(text: &str) -> (usize, bool) {
     let mut len = 0;
     let mut escaped = false;
     loop {
@@ -585,15 +548,6 @@ mod tests {
         assert_eq!(css_escape_identifier("a\u{1}b"), "a\\1 b");
         assert_eq!(css_unescape(&css_escape_identifier("a\u{1}b")), "a\u{1}b");
         assert_eq!(css_escape_identifier("\0"), "\u{FFFD}");
-    }
-
-    #[test]
-    fn css_unescape_decodes_hex_and_literal_escapes() {
-        assert_eq!(css_unescape("a\\.b"), "a.b");
-        assert_eq!(css_unescape("\\31 x"), "1x");
-        assert_eq!(css_unescape("\\0"), "\u{FFFD}");
-        assert_eq!(css_unescape("\\31\r\nx"), "1x");
-        assert_eq!(css_unescape("\\31\rx"), "1x");
     }
 
     #[test]

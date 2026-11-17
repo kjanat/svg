@@ -845,14 +845,10 @@ fn push_css_identifier(
     target: fn(String) -> DefinitionTarget,
     out: &mut Vec<SymbolOccurrence>,
 ) {
-    let Some(text) = fragment.node_text(node) else {
-        return;
-    };
-    let (Some(start_byte), Some(end_byte), Some(start), Some(end)) = (
-        fragment.source_byte(node.start_byte()),
-        fragment.source_byte(node.end_byte()),
-        fragment.source_point(node.start_byte(), node.start_position()),
-        fragment.source_point(node.end_byte(), node.end_position()),
+    let (start, end) = crate::css_identifier_range(&fragment.text, node);
+    let (Some(text), Some((start_byte, end_byte, span))) = (
+        fragment.text.get(start..end),
+        fragment.source_range(start, end),
     ) else {
         return;
     };
@@ -864,7 +860,7 @@ fn push_css_identifier(
         },
         start_byte,
         end_byte,
-        span: span_between(start, end),
+        span,
     });
 }
 
@@ -1113,6 +1109,31 @@ mod tests {
             &DefinitionTarget::CustomProperty("--c".into()),
         );
         assert_eq!(props.len(), 2, "{occurrences:#?}");
+        Ok(())
+    }
+
+    #[test]
+    fn css_escaped_custom_property_names_are_whole_occurrences() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg><style>:root { --\63: red } rect { fill: var(--\63) }</style><rect style="--\63: blue; stroke: var(--c)"/></svg>"#;
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+        )
+        .iter()
+        .map(|o| (span_text(source, &o.span), o.role))
+        .collect();
+        assert_eq!(
+            spans,
+            [
+                (r"--\63", OccurrenceRole::Declaration),
+                (r"--\63", OccurrenceRole::Reference),
+                (r"--\63", OccurrenceRole::Declaration),
+                ("--c", OccurrenceRole::Reference),
+            ],
+            "{occurrences:#?}"
+        );
         Ok(())
     }
 
