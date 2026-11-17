@@ -1,3 +1,7 @@
+use std::{borrow::Cow, ops::Range};
+
+use svg_tree::css_canonical_identifiers;
+
 pub(super) fn is_style_raw_text(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
     if node.kind() != "raw_text" {
         return false;
@@ -76,13 +80,13 @@ pub(super) fn has_color_like_property(node: tree_sitter::Node<'_>, source: &[u8]
     let Some(name) = nearest_declaration_property_name(node, source) else {
         return false;
     };
-    is_color_like_property(name)
+    is_color_like_property(&name)
 }
 
 fn nearest_declaration_property_name<'a>(
     node: tree_sitter::Node<'_>,
     source: &'a [u8],
-) -> Option<&'a str> {
+) -> Option<Cow<'a, str>> {
     let mut current = Some(node);
 
     while let Some(node) = current {
@@ -95,75 +99,93 @@ fn nearest_declaration_property_name<'a>(
     None
 }
 
-pub(super) fn declaration_primary_value_node(
-    node: tree_sitter::Node<'_>,
-) -> Option<tree_sitter::Node<'_>> {
+/// The declaration's value: the first named node after its `:` other than a
+/// comment, and the byte
+/// range from that node to the `;`, `!` or `}` that ends the declaration,
+/// trailing whitespace excluded.
+///
+/// The end comes from the source text. tree-sitter-css splits an escaped
+/// function name (`c\6flor-mix(`) and its error recovery can end the
+/// declaration before the closing `)`.
+pub(super) fn declaration_value<'t>(
+    node: tree_sitter::Node<'t>,
+    source: &[u8],
+) -> Option<(tree_sitter::Node<'t>, Range<usize>)> {
     let mut cursor = node.walk();
-    if !cursor.goto_first_child() {
-        return None;
-    }
+    let mut children = node.children(&mut cursor);
+    children.by_ref().find(|child| child.kind() == ":")?;
+    let first = children.find(|child| child.is_named() && child.kind() != "comment")?;
+    let start = first.start_byte();
+    let end = start + css_value_len(source.get(start..)?);
+    Some((first, start..end))
+}
 
-    loop {
-        let child = cursor.node();
-        if child.is_named() && child.kind() != "property_name" {
-            return Some(child);
+/// Length of the CSS value at the start of `css`, up to the first `;`, `!`,
+/// `}` or unmatched closing bracket outside strings, comments and escapes,
+/// trailing whitespace excluded.
+fn css_value_len(css: &[u8]) -> usize {
+    let mut depth = 0usize;
+    let mut end = 0;
+    let mut index = 0;
+    while let Some(&byte) = css.get(index) {
+        match byte {
+            b'\\' => index += 1,
+            b'"' | b'\'' => {
+                index += 1;
+                while let Some(&inner) = css.get(index) {
+                    match inner {
+                        b'\\' => index += 1,
+                        _ if inner == byte => break,
+                        _ => {}
+                    }
+                    index += 1;
+                }
+            }
+            b'/' if css.get(index + 1) == Some(&b'*') => {
+                index += css[index + 2..]
+                    .windows(2)
+                    .position(|pair| pair == b"*/")
+                    .map_or(css.len() - index, |close| close + 3);
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' if depth > 0 => depth -= 1,
+            b';' | b'!' | b')' | b']' | b'}' if depth == 0 => break,
+            _ => {}
         }
-
-        if !cursor.goto_next_sibling() {
-            return None;
+        index += 1;
+        if !byte.is_ascii_whitespace() {
+            end = index.min(css.len());
         }
     }
+    end
 }
 
 pub(super) fn declaration_value_text<'a>(
     node: tree_sitter::Node<'_>,
     source: &'a [u8],
 ) -> Option<&'a str> {
-    let mut cursor = node.walk();
-    if !cursor.goto_first_child() {
-        return None;
-    }
-
-    let mut start = None;
-    let mut end = None;
-
-    loop {
-        let child = cursor.node();
-        if child.is_named() && child.kind() != "property_name" {
-            start.get_or_insert_with(|| child.start_byte());
-            end = Some(child.end_byte());
-        }
-
-        if !cursor.goto_next_sibling() {
-            break;
-        }
-    }
-
-    let range = start?..end?;
-    std::str::from_utf8(&source[range]).ok()
+    let (_, range) = declaration_value(node, source)?;
+    std::str::from_utf8(source.get(range)?).ok()
 }
 
+/// The declaration's property name: the text before its `:`, with escaped
+/// identifiers decoded, so `f\69ll` reads `fill` and `--\63` reads `--c`.
 pub(super) fn declaration_property_name<'a>(
     node: tree_sitter::Node<'_>,
     source: &'a [u8],
-) -> Option<&'a str> {
+) -> Option<Cow<'a, str>> {
     let mut cursor = node.walk();
-    if !cursor.goto_first_child() {
-        return None;
+    let colon = node
+        .children(&mut cursor)
+        .find(|child| child.kind() == ":")?;
+    let name = std::str::from_utf8(source.get(node.start_byte()..colon.start_byte())?)
+        .ok()?
+        .trim();
+    match css_canonical_identifiers(name) {
+        Cow::Borrowed(name) => Some(Cow::Borrowed(name)),
+        Cow::Owned(name) => Some(Cow::Owned(name)),
     }
-
-    loop {
-        let child = cursor.node();
-        if child.kind() == "property_name" {
-            return std::str::from_utf8(&source[child.byte_range()]).ok();
-        }
-
-        if !cursor.goto_next_sibling() {
-            break;
-        }
-    }
-
-    None
 }
 
 pub(super) fn is_color_like_property(name: &str) -> bool {
