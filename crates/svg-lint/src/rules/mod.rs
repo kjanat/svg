@@ -488,7 +488,9 @@ fn check_attribute_value(
     let Some(value) = crate::values::attribute_value_text(raw) else {
         return;
     };
-    if let Some(reason) = crate::values::invalid_reason_for(attr_name, values, &value) {
+    if let Some(reason) =
+        crate::values::invalid_reason_for(attr_name, values, &value, ctx.options.profile)
+    {
         push_diag_in_tag(
             &mut ctx.diagnostics,
             &mut ctx.suppressions,

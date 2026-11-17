@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
 use super::{ColorStop, CustomProperties, ResolvedColor};
+use svg_tree::css_canonical_identifiers;
+
 use crate::{named_colors, parse, types::ColorKind};
 
 /// Resolve a literal CSS color with no custom-property context.
@@ -15,10 +17,11 @@ use crate::{named_colors, parse, types::ColorKind};
 /// color is unknowable, and `resolve_css_color`'s fallback branch would
 /// otherwise paint a misleading swatch.
 pub(super) fn resolve_literal_color(text: &str) -> Option<ResolvedColor> {
-    if contains_var_function(text) {
+    let text = css_canonical_identifiers(text);
+    if contains_var_function(&text) {
         return None;
     }
-    resolve_css_color(text, &CustomProperties::new(), &mut HashSet::new())
+    resolve_css_color(&text, &CustomProperties::new(), &mut HashSet::new())
 }
 
 /// True if `text` contains a CSS `var(` function token (case-insensitive),
@@ -29,11 +32,14 @@ fn contains_var_function(text: &str) -> bool {
         .any(|window| window.eq_ignore_ascii_case(b"var("))
 }
 
+/// Resolve CSS color `text` against `custom_properties`. Escaped identifiers
+/// resolve like their decoded spelling, so `v\61 r(--\63)` reads `--c`.
 pub(super) fn resolve_css_color(
     text: &str,
     custom_properties: &CustomProperties<'_>,
     seen: &mut HashSet<String>,
 ) -> Option<ResolvedColor> {
+    let text = css_canonical_identifiers(text);
     let text = text.trim();
     if text.is_empty() {
         return None;

@@ -2,12 +2,13 @@ mod property;
 mod resolve;
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     ops::Range,
     sync::OnceLock,
 };
 
-use svg_tree::walk_tree;
+use svg_tree::{css_canonical_identifiers, walk_tree};
 use tree_sitter::{Parser, Point, Tree, TreeCursor};
 
 use crate::{
@@ -15,7 +16,9 @@ use crate::{
     types::{ColorInfo, ColorKind},
 };
 
-type CustomProperties<'a> = HashMap<&'a str, &'a str>;
+/// Custom property values keyed by property name with CSS escapes decoded, so
+/// `--\63` and `--c` are one property.
+type CustomProperties<'a> = HashMap<Cow<'a, str>, &'a str>;
 type CustomPropertyScopes<'a> = HashMap<CssScopeKey, CustomProperties<'a>>;
 type Rgba = (f32, f32, f32, f32);
 type ResolvedColor = (f32, f32, f32, f32, ColorKind);
@@ -318,7 +321,7 @@ fn try_extract_css_leaf(
 
     let (r, g, b, a, kind) = match node.kind() {
         "color_value" => {
-            let (r, g, b, a) = parse::hex(text)?;
+            let (r, g, b, a) = parse::hex(&css_canonical_identifiers(text))?;
             (r, g, b, a, ColorKind::Hex)
         }
         "call_expression" => {
@@ -336,7 +339,7 @@ fn try_extract_css_leaf(
             if !property::has_color_like_property(node, css_source) {
                 return None;
             }
-            resolve::parse_named_color(text)?
+            resolve::parse_named_color(&css_canonical_identifiers(text))?
         }
         _ => return None,
     };
@@ -367,12 +370,12 @@ fn try_extract_css_declaration(
     }
 
     let prop_name = property::declaration_property_name(node, css_source)?;
-    if !property::is_color_like_property(prop_name) {
+    if !property::is_color_like_property(&prop_name) {
         return None;
     }
 
-    let value_node = property::declaration_primary_value_node(node)?;
-    let value_text = property::declaration_value_text(node, css_source)?;
+    let (first_value, value_range) = property::declaration_value(node, css_source)?;
+    let value_text = std::str::from_utf8(&css_source[value_range.clone()]).ok()?;
     let scope = css_scope_key(node);
     // `resolved_scopes` already holds the fully merged property map for each
     // scope (block-local props overlaid on `:root` globals, local winning), so
@@ -388,9 +391,15 @@ fn try_extract_css_declaration(
 
     Some(build_color_info(
         (r, g, b, a),
-        offset_range(value_node.byte_range(), base_byte),
-        offset_point(value_node.start_position(), base_start),
-        offset_point(value_node.end_position(), base_start),
+        offset_range(value_range.clone(), base_byte),
+        offset_point(first_value.start_position(), base_start),
+        offset_point(
+            advance_point(
+                first_value.start_position(),
+                &css_source[first_value.start_byte()..value_range.end],
+            ),
+            base_start,
+        ),
         kind,
     ))
 }
@@ -421,7 +430,7 @@ fn collect_css_custom_properties<'a>(
         properties
             .entry(scope)
             .or_insert_with(HashMap::new)
-            .insert(prop_name, value_text);
+            .insert(prop_name.clone(), value_text);
         if scope != CssScopeKey::Root
             && let Some(block) = scope_block
             && block_is_root(block, css_source)
@@ -457,8 +466,8 @@ fn merge_scopes<'a>(scopes: &CustomPropertyScopes<'a>) -> CustomPropertyScopes<'
         // values are `&str` borrowed from the stylesheet, so these clones copy
         // references, not owned strings.
         let mut combined = root.clone();
-        for (&name, &value) in local {
-            combined.insert(name, value);
+        for (name, &value) in local {
+            combined.insert(name.clone(), value);
         }
         merged.insert(scope, combined);
     }
@@ -584,6 +593,18 @@ const fn build_color_info(
         end_col: end.column,
         kind,
     }
+}
+
+/// The position reached from `start` after `text`, in tree-sitter's byte
+/// columns.
+fn advance_point(start: Point, text: &[u8]) -> Point {
+    text.iter().fold(start, |point, &byte| {
+        if byte == b'\n' {
+            Point::new(point.row + 1, 0)
+        } else {
+            Point::new(point.row, point.column + 1)
+        }
+    })
 }
 
 const fn offset_range(range: Range<usize>, base_byte: usize) -> Range<usize> {
@@ -812,6 +833,68 @@ mod tests {
         assert!((stroke_ref.g - base.1).abs() < 0.02);
         assert!((stroke_ref.b - base.2).abs() < 0.02);
         Ok(())
+    }
+
+    fn color_at<'c>(src: &[u8], colors: &'c [ColorInfo], text: &str) -> Option<&'c ColorInfo> {
+        colors.iter().find(|color| {
+            std::str::from_utf8(&src[color.byte_range.clone()]).is_ok_and(|found| found == text)
+        })
+    }
+
+    fn is_rgb(color: &ColorInfo, r: f32, g: f32, b: f32) -> bool {
+        (color.r - r).abs() < 0.01 && (color.g - g).abs() < 0.01 && (color.b - b).abs() < 0.01
+    }
+
+    #[test]
+    fn escaped_css_identifiers_resolve_like_decoded_ones() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let src = br":root { --\63: blue; --d: r\65 d } a { fill: v\61 r(--c) } b { fill: var(--\64) } c { f\69ll: c\6flor-mix(in srgb, var(--c), var(--d)) } d { stroke: R\45 D }";
+        let svg = [b"<svg><style>".as_slice(), src, b"</style></svg>"].concat();
+        let colors = extract_colors(&svg);
+
+        let blue = color_at(&svg, &colors, r"v\61 r(--c)").ok_or("escaped var")?;
+        assert!(is_rgb(blue, 0.0, 0.0, 1.0));
+        let red = color_at(&svg, &colors, r"var(--\64)").ok_or("escaped name")?;
+        assert!(is_rgb(red, 1.0, 0.0, 0.0));
+        let mix = color_at(&svg, &colors, r"c\6flor-mix(in srgb, var(--c), var(--d))")
+            .ok_or("escaped color-mix")?;
+        assert!(is_rgb(mix, 0.5, 0.0, 0.5));
+        let named = color_at(&svg, &colors, r"R\45 D").ok_or("escaped named color")?;
+        assert!(is_rgb(named, 1.0, 0.0, 0.0));
+        Ok(())
+    }
+
+    #[test]
+    fn declaration_color_spans_the_whole_value() -> Result<(), Box<dyn std::error::Error>> {
+        let src = b"<svg><style>a { fill: c\\6flor-mix(in srgb,\n  red, blue) !important; stroke: /* x */ R\\45 D }</style></svg>";
+        let colors = extract_colors(src);
+
+        let mix = color_at(src, &colors, "c\\6flor-mix(in srgb,\n  red, blue)")
+            .ok_or("multi-line escaped color-mix")?;
+        assert!(is_rgb(mix, 0.5, 0.0, 0.5));
+        assert_eq!((mix.start_row, mix.start_col), (0, 22));
+        assert_eq!((mix.end_row, mix.end_col), (1, 12));
+
+        let named = color_at(src, &colors, "R\\45 D").ok_or("named after comment")?;
+        assert!(is_rgb(named, 1.0, 0.0, 0.0));
+        Ok(())
+    }
+
+    #[test]
+    fn escaped_structural_characters_do_not_form_calls() {
+        let src = br"<svg><style>:root { --c: red } a { fill: var\28 --c\29 } b { fill: rgb(\31 0 0 0) }</style></svg>";
+        let colors = extract_colors(src);
+        assert!(color_at(src, &colors, r"var\28 --c\29").is_none());
+        assert!(color_at(src, &colors, r"rgb(\31 0 0 0)").is_none());
+    }
+
+    #[test]
+    fn literal_color_rejects_escaped_var() {
+        assert!(resolve::resolve_literal_color(r"v\61 r(--x, red)").is_none());
+        assert!(
+            resolve::resolve_literal_color(r"color-mix(in srgb, V\41R(--x, red), blue)").is_none()
+        );
+        assert!(resolve::resolve_literal_color(r"r\65 d").is_some());
     }
 
     #[test]

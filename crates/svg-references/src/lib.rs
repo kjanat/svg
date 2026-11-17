@@ -34,7 +34,7 @@ pub use occurrences::{
 pub use outline::{OutlineElement, element_outline};
 pub use selection::selection_chain;
 use svg_tree::{child_of_kind, deepest_node_at, find_ancestor_any, has_ancestor, walk_tree};
-use tree_sitter::{Parser, Tree};
+use tree_sitter::{Parser, Point, Tree};
 
 /// A reference target that can be resolved to one or more definitions.
 ///
@@ -249,32 +249,65 @@ fn definition_target_in_stylesheet(css: &str, byte_offset: usize) -> Option<Defi
         raw_node.parent().unwrap_or(raw_node)
     };
 
-    if let Some(name) = css_custom_property_reference_name(node, css.as_bytes()) {
+    if let Some(name) = css_custom_property_reference_name(node, css, byte_offset) {
         return Some(DefinitionTarget::CustomProperty(name));
     }
 
-    let property_name = find_ancestor_any(node, &["property_name"])?;
-    let text = property_name.utf8_text(css.as_bytes()).ok()?;
-    text.starts_with("--")
-        .then(|| DefinitionTarget::CustomProperty(text::css_unescape(text)))
+    let declaration = find_ancestor_any(node, &["declaration"])?;
+    let (start, end) = css_identifier_range(css, child_of_kind(declaration, "property_name")?);
+    let name = text::css_unescape(css.get(start..end)?);
+    ((start..=end).contains(&byte_offset) && name.starts_with("--"))
+        .then_some(DefinitionTarget::CustomProperty(name))
 }
 
+/// The byte range of the CSS identifier that starts at `node`.
+///
+/// tree-sitter-css ends an identifier at its first escape (`--\63` becomes
+/// `--` and an `ERROR` holding `\63`), so the end comes from the text.
+pub(crate) fn css_identifier_range(css: &str, node: tree_sitter::Node<'_>) -> (usize, usize) {
+    let start = node.start_byte();
+    let len = css
+        .get(start..)
+        .map_or(0, |rest| text::css_ident_len(rest).0);
+    (start, node.end_byte().max(start + len))
+}
+
+/// The custom property named by the `var()` argument at `byte_offset`.
 fn css_custom_property_reference_name(
     node: tree_sitter::Node<'_>,
-    source: &[u8],
+    css: &str,
+    byte_offset: usize,
 ) -> Option<String> {
-    let plain_value = find_ancestor_any(node, &["plain_value"])?;
-    let name = plain_value.utf8_text(source).ok()?;
-    if !name.starts_with("--") {
-        return None;
-    }
-
-    let call_expression = find_ancestor_any(plain_value, &["call_expression"])?;
-    let function_name = child_of_kind(call_expression, "function_name")?;
-    let function_name = function_name.utf8_text(source).ok()?;
-    function_name
-        .eq_ignore_ascii_case("var")
-        .then(|| text::css_unescape(name))
+    let contains_offset = |&(start, end): &(usize, usize)| (start..=end).contains(&byte_offset);
+    let in_var_call = find_ancestor_any(node, &["arguments"])
+        .filter(|arguments| {
+            arguments
+                .parent()
+                .and_then(|call| child_of_kind(call, "function_name"))
+                .and_then(|function| function.utf8_text(css.as_bytes()).ok())
+                .is_some_and(|function| function.eq_ignore_ascii_case("var"))
+        })
+        .and_then(|arguments| {
+            let mut cursor = arguments.walk();
+            arguments
+                .named_children(&mut cursor)
+                .find(|argument| argument.kind() != "comment")
+        })
+        .filter(|first| first.kind() == "plain_value")
+        .map(|first| css_identifier_range(css, first))
+        .filter(contains_offset);
+    // tree-sitter-css splits an escaped function name (`v\61 r(`), so the
+    // call the argument belongs to is found in the text instead.
+    let in_escaped_var = || {
+        text::escaped_css_functions(css)
+            .into_iter()
+            .filter(|function| function.name.eq_ignore_ascii_case("var"))
+            .filter_map(|function| text::css_var_argument(css, function.arguments))
+            .find(contains_offset)
+    };
+    let (start, end) = in_var_call.or_else(in_escaped_var)?;
+    let name = text::css_unescape(css.get(start..end)?);
+    name.starts_with("--").then_some(name)
 }
 
 #[must_use]
@@ -460,15 +493,23 @@ pub fn collect_custom_property_definitions_from_stylesheet(
         let Some(property_name) = child_of_kind(node, "property_name") else {
             return;
         };
-        let Ok(name) = property_name.utf8_text(css.as_bytes()) else {
+        let (start, end) = css_identifier_range(css, property_name);
+        let Some(name) = css.get(start..end).map(text::css_unescape) else {
             return;
         };
         if !name.starts_with("--") {
             return;
         }
+        let name_end =
+            text::advance_point(property_name.start_position(), &css.as_bytes()[start..end]);
         results.push(NamedSpan {
-            name: text::css_unescape(name),
-            span: span_from_css_node(property_name, start_row, start_col),
+            name,
+            span: span_from_css_points(
+                property_name.start_position(),
+                name_end,
+                start_row,
+                start_col,
+            ),
         });
     });
     results.sort_by_key(|definition| {
@@ -702,20 +743,20 @@ fn span_from_node(node: tree_sitter::Node<'_>) -> Span {
 }
 
 fn span_from_css_node(node: tree_sitter::Node<'_>, base_row: usize, base_col: usize) -> Span {
-    Span {
-        start_row: node.start_position().row + base_row,
-        start_col: if node.start_position().row == 0 {
-            node.start_position().column + base_col
-        } else {
-            node.start_position().column
-        },
-        end_row: node.end_position().row + base_row,
-        end_col: if node.end_position().row == 0 {
-            node.end_position().column + base_col
-        } else {
-            node.end_position().column
-        },
-    }
+    span_from_css_points(
+        node.start_position(),
+        node.end_position(),
+        base_row,
+        base_col,
+    )
+}
+
+const fn span_from_css_points(start: Point, end: Point, base_row: usize, base_col: usize) -> Span {
+    let base = Point::new(base_row, base_col);
+    text::span_between(
+        text::rebase_point(base, start),
+        text::rebase_point(base, end),
+    )
 }
 
 fn parse_pi_attributes(content: &str) -> std::collections::HashMap<String, String> {
@@ -883,6 +924,67 @@ mod tests {
             Some(DefinitionTarget::CustomProperty("--panel-bg".into()))
         );
         Ok(())
+    }
+
+    #[test]
+    fn definition_target_resolves_escaped_var_references() -> Result<(), Box<dyn Error>> {
+        let source = r"<svg><style>:root { --c: red } a { fill: v\61 r(--c) } b { fill: V\61r(--c) } c { fill: r(--c) }</style></svg>";
+        let tree = parse_svg(source)?;
+        let at = |needle: &str| -> Result<Option<DefinitionTarget>, Box<dyn Error>> {
+            Ok(definition_target_at(
+                source.as_bytes(),
+                &tree,
+                offset_of(source, needle)? + needle.len() - 2,
+            ))
+        };
+        let property = Some(DefinitionTarget::CustomProperty("--c".into()));
+        assert_eq!(at(r"v\61 r(--c")?, property);
+        assert_eq!(at(r"V\61r(--c")?, property);
+        assert_eq!(at("c { fill: r(--c")?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn definition_target_reads_escaped_custom_property_names() -> Result<(), Box<dyn Error>> {
+        let source = r"<svg><style>:root { --\63: red } a { fill: var(--\63) } b { fill: var(--c, --x) }</style></svg>";
+        let tree = parse_svg(source)?;
+        let at = |needle: &str| -> Result<Option<DefinitionTarget>, Box<dyn Error>> {
+            Ok(definition_target_at(
+                source.as_bytes(),
+                &tree,
+                offset_of(source, needle)? + needle.len(),
+            ))
+        };
+        let property = Some(DefinitionTarget::CustomProperty("--c".into()));
+        assert_eq!(at(r":root { --\6")?, property);
+        assert_eq!(at(r"var(--\6")?, property);
+        assert_eq!(at("var(--c, --")?, None);
+        assert_eq!(at(r"--\63: r")?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn collects_escaped_custom_property_definitions() {
+        let defs = collect_custom_property_definitions_from_stylesheet(
+            ":root {\n  --\\63 : red; --plain: blue }",
+            3,
+            4,
+        );
+        let found: Vec<_> = defs
+            .iter()
+            .map(|d| {
+                (
+                    d.name.as_str(),
+                    (
+                        d.span.start_row,
+                        d.span.start_col,
+                        d.span.end_row,
+                        d.span.end_col,
+                    ),
+                )
+            })
+            .collect();
+        assert_eq!(found, [("--c", (4, 2, 4, 8)), ("--plain", (4, 15, 4, 22))]);
     }
 
     #[test]

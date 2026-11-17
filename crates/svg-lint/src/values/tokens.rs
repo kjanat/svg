@@ -252,7 +252,9 @@ mod tests {
     fn via_catalog(attr: &str, value: &str) -> Option<String> {
         let def = svg_data::attribute(attr);
         assert!(def.is_some(), "{attr} is in the catalog");
-        def.and_then(|def| super::super::invalid_reason(&def.values, value))
+        def.and_then(|def| {
+            super::super::invalid_reason(&def.values, value, svg_data::SpecSnapshotId::LATEST)
+        })
     }
 
     // Claim: "If the attribute is present, its value must either be the empty

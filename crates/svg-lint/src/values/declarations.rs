@@ -60,6 +60,13 @@ fn has_entity_reference(value: &str) -> bool {
     })
 }
 
+/// Whether `value` is an XML 1.0 `Name`: a `NameStartChar` followed by any
+/// number of `NameChar`s.
+pub(super) fn is_xml_name(value: &str) -> bool {
+    let mut chars = value.chars();
+    chars.next().is_some_and(is_xml_name_start_char) && chars.all(is_xml_name_char)
+}
+
 /// XML 1.0 `NameStartChar`.
 const fn is_xml_name_start_char(c: char) -> bool {
     matches!(

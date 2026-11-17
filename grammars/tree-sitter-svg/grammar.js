@@ -65,6 +65,8 @@ export default grammar({
 		$._raw_text,
 		'/>',
 		$._cdata_text,
+		$._functional_iri_css_double,
+		$._functional_iri_css_single,
 	],
 
 	extras: () => [],
@@ -765,7 +767,35 @@ export default grammar({
 
 		functional_iri_attribute_name: _ => oneOf(ATTRIBUTE_BUCKETS.functional_iri),
 
-		functional_iri_attribute_value: $ => quoted(choice('none', $.functional_iri, $.iri_reference)),
+		/**
+		 * `clip-path`, `mask`, `filter` and `cursor` also take CSS values such as
+		 * `circle(50%)`, `blur(2px)`, `url(#m) no-repeat` or an escaped `\75 rl(#m)`.
+		 * The scanner emits `css_value` for any content that is not `none`, one
+		 * `url(…)` or a bare IRI.
+		 */
+		functional_iri_attribute_value: $ =>
+			choice(
+				seq(
+					DQUOTE,
+					optional(choice(
+						'none',
+						$.functional_iri,
+						$.iri_reference,
+						alias($._functional_iri_css_double, $.css_value),
+					)),
+					DQUOTE,
+				),
+				seq(
+					SQUOTE,
+					optional(choice(
+						'none',
+						$.functional_iri,
+						$.iri_reference,
+						alias($._functional_iri_css_single, $.css_value),
+					)),
+					SQUOTE,
+				),
+			),
 
 		functional_iri: $ =>
 			seq(

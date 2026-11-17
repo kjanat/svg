@@ -10,8 +10,8 @@ use crate::{
     outline::element_tag,
     tag_attribute_value,
     text::{
-        CssFragment, advance_point, css_unescape, fragment_id, fragment_start, node_span,
-        rebase_point, span_between, xml_unescape,
+        CssFragment, advance_point, css_unescape, css_url_argument, escaped_css_functions,
+        fragment_id, fragment_start, node_span, rebase_point, span_between, xml_unescape,
     },
 };
 
@@ -214,6 +214,20 @@ fn css_links(fragment: &CssFragment, bases: &[String], links: &mut Vec<ExternalL
         }
         _ => {}
     });
+    for function in escaped_css_functions(&fragment.text) {
+        if function.name.eq_ignore_ascii_case("url")
+            && let Some((start, end)) = css_url_argument(&fragment.text, function.arguments)
+            && let Some((_, _, span)) = fragment.source_range(start, end)
+        {
+            push_link(
+                links,
+                &decode(&fragment.text[start..end]),
+                span,
+                bases,
+                true,
+            );
+        }
+    }
 }
 
 fn stylesheet_pi_link(node: tree_sitter::Node<'_>, source: &[u8], links: &mut Vec<ExternalLink>) {
@@ -412,6 +426,27 @@ mod tests {
             vec![
                 ("p.svg#p".to_owned(), "p.svg#p".to_owned()),
                 ("m.svg#m".to_owned(), "m.svg#m".to_owned()),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn css_escaped_url_functions_are_links() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>.x { background: u\\72l(b.png) }</style>",
+            "<rect fill=\"\\75 rl('p.svg#p') red\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let links: Vec<_> = external_links(source.as_bytes(), &tree)
+            .into_iter()
+            .map(|link| (link.target, span_text(source, &link.span).to_owned()))
+            .collect();
+        assert_eq!(
+            links,
+            vec![
+                ("b.png".to_owned(), "b.png".to_owned()),
+                ("p.svg#p".to_owned(), "p.svg#p".to_owned()),
             ]
         );
         Ok(())

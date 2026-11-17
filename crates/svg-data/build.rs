@@ -8,6 +8,7 @@
 //! it emits an empty catalog so the crate still compiles.
 
 use std::{
+    collections::BTreeMap,
     env,
     fmt::Write as _,
     fs,
@@ -50,6 +51,19 @@ struct CatalogCore {
     elements: Vec<Element>,
     #[serde(default)]
     attributes: Vec<Attribute>,
+    #[serde(default)]
+    css_definitions: CssDefinitions,
+}
+
+/// CSS types and property value ranges the attribute grammars reference.
+#[derive(Deserialize, Default)]
+struct CssDefinitions {
+    #[serde(default)]
+    types: BTreeMap<String, String>,
+    #[serde(default)]
+    properties: BTreeMap<String, String>,
+    #[serde(default)]
+    functions: BTreeMap<String, Vec<String>>,
 }
 
 /// Reference from `catalog.json` to a version-specific overlay document.
@@ -539,6 +553,9 @@ fn empty_catalog() -> String {
         "pub static INVENTORIES: &[crate::inventory::Inventory] = &[];",
         "pub static CATALOG_GRAPH: crate::types::CatalogGraph = crate::types::CatalogGraph { \
          nodes: &[], edges: &[] };",
+        "pub static CSS_TYPES: &[(&str, &str)] = &[];",
+        "pub static CSS_PROPERTIES: &[(&str, &str)] = &[];",
+        "pub static CSS_FUNCTIONS: &[(&str, &str)] = &[];",
     ]
     .join("\n")
 }
@@ -723,7 +740,35 @@ fn emit_catalog(
         "pub static CATALOG_GRAPH: crate::types::CatalogGraph = {};",
         emit_catalog_graph(graph)
     );
+    emit_css_definitions(&mut out, "CSS_TYPES", core.css_definitions.types.iter());
+    emit_css_definitions(
+        &mut out,
+        "CSS_PROPERTIES",
+        core.css_definitions.properties.iter(),
+    );
+    emit_css_definitions(
+        &mut out,
+        "CSS_FUNCTIONS",
+        core.css_definitions
+            .functions
+            .iter()
+            .flat_map(|(key, syntaxes)| syntaxes.iter().map(move |syntax| (key, syntax))),
+    );
     out
+}
+
+/// Append a name-sorted `(name, syntax)` table, searched by binary search. A
+/// name with several definitions has adjacent entries.
+fn emit_css_definitions<'a>(
+    out: &mut String,
+    name: &str,
+    definitions: impl Iterator<Item = (&'a String, &'a String)>,
+) {
+    let _ = writeln!(out, "pub static {name}: &[(&str, &str)] = &[");
+    for (key, syntax) in definitions {
+        let _ = writeln!(out, "({key:?}, {syntax:?}),");
+    }
+    out.push_str("];\n");
 }
 
 /// Append one generated snapshot metadata entry.

@@ -407,36 +407,87 @@ fn stderr_logs_have_no_colour_codes_when_not_a_terminal() -> TestResult {
     Ok(())
 }
 
-fn obsoleted_hover(client: &mut Client, uri: &str) -> TestResult<bool> {
+fn attribute_hover(client: &mut Client, uri: &str) -> TestResult<String> {
     let source = r#"<svg><text glyph-orientation-vertical="0">t</text></svg>"#;
     client.open(uri, source)?;
     let response = client.request(
         "textDocument/hover",
         &json!({ "textDocument": { "uri": uri }, "position": { "line": 0, "character": 14 } }),
     )?;
-    let value = response["result"]["contents"]["value"]
+    Ok(response["result"]["contents"]["value"]
         .as_str()
-        .ok_or("hover")?;
-    Ok(value.contains("Obsoleted"))
+        .ok_or("hover")?
+        .to_owned())
+}
+
+fn obsoleted_hover(client: &mut Client, uri: &str) -> TestResult<bool> {
+    Ok(attribute_hover(client, uri)?.contains("Obsoleted"))
 }
 
 #[test]
-fn an_unrelated_configuration_change_keeps_the_svg_settings() -> TestResult {
-    let svg11 = json!({ "svg": { "profile": "Svg11Rec20110816", "force_profile": true, "runtime_compat": false } });
-    let (mut client, _) = Client::start(&json!({}), &svg11)?;
-    assert!(!obsoleted_hover(&mut client, "file:///a.svg")?);
-    for settings in [json!({}), Value::Null, json!({ "other": { "x": 1 } })] {
-        client.notify(
-            "workspace/didChangeConfiguration",
-            &json!({ "settings": settings }),
-        )?;
-    }
-    assert!(!obsoleted_hover(&mut client, "file:///b.svg")?);
+fn a_push_only_client_resets_the_svg_settings_it_stops_sending() -> TestResult {
+    let mut fresh = Client::offline()?;
+    let default = obsoleted_hover(&mut fresh, "file:///default.svg")?;
+    assert!(fresh.shutdown_and_exit()?.success());
+    let opposite = if default {
+        json!({ "svg": { "profile": "Svg11Rec20110816", "force_profile": true, "runtime_compat": false } })
+    } else {
+        json!({ "svg": { "profile": "Svg2EditorsDraft", "force_profile": true, "runtime_compat": false } })
+    };
+    let (mut client, _) = Client::start(&json!({}), &opposite)?;
+    assert_eq!(
+        obsoleted_hover(&mut client, "file:///initial.svg")?,
+        !default
+    );
     client.notify(
         "workspace/didChangeConfiguration",
-        &json!({ "settings": { "svg": { "profile": "Svg2EditorsDraft", "force_profile": true } } }),
+        &json!({ "settings": null }),
     )?;
-    assert!(obsoleted_hover(&mut client, "file:///c.svg")?);
+    assert_eq!(obsoleted_hover(&mut client, "file:///null.svg")?, !default);
+    for (index, removed) in [json!({}), json!({ "other": { "x": 1 } })]
+        .into_iter()
+        .enumerate()
+    {
+        client.notify(
+            "workspace/didChangeConfiguration",
+            &json!({ "settings": opposite }),
+        )?;
+        assert_eq!(
+            obsoleted_hover(&mut client, &format!("file:///pushed-{index}.svg"))?,
+            !default
+        );
+        client.notify(
+            "workspace/didChangeConfiguration",
+            &json!({ "settings": removed }),
+        )?;
+        assert_eq!(
+            obsoleted_hover(&mut client, &format!("file:///removed-{index}.svg"))?,
+            default,
+            "{removed}"
+        );
+    }
+    assert!(client.shutdown_and_exit()?.success());
+    Ok(())
+}
+
+#[test]
+fn a_push_only_client_ignores_hover_settings_outside_the_svg_section() -> TestResult {
+    let offline = json!({ "svg": { "runtime_compat": false } });
+    let mobile = json!({ "browsers": ["safari_ios"], "sections": ["browsers"] });
+    let (mut client, _) = Client::start(&json!({}), &offline)?;
+    client.notify(
+        "workspace/didChangeConfiguration",
+        &json!({ "settings": { "svg": { "runtime_compat": false, "hover": mobile } } }),
+    )?;
+    let pushed = attribute_hover(&mut client, "file:///pushed.svg")?;
+    assert!(pushed.contains("Safari on iOS"), "{pushed}");
+    client.notify(
+        "workspace/didChangeConfiguration",
+        &json!({ "settings": { "hover": mobile } }),
+    )?;
+    let reset = attribute_hover(&mut client, "file:///reset.svg")?;
+    assert!(!reset.contains("Safari on iOS"), "{reset}");
+    assert!(reset.contains("Firefox"), "{reset}");
     assert!(client.shutdown_and_exit()?.success());
     Ok(())
 }

@@ -1151,14 +1151,15 @@ mod tests {
             let values = catalog_values(attr);
             for value in *valid {
                 assert_eq!(
-                    crate::values::invalid_reason(values, value),
+                    crate::values::invalid_reason(values, value, svg_data::SpecSnapshotId::LATEST),
                     None,
                     "{attr}={value:?} must be valid"
                 );
             }
             for value in *invalid {
                 assert!(
-                    crate::values::invalid_reason(values, value).is_some(),
+                    crate::values::invalid_reason(values, value, svg_data::SpecSnapshotId::LATEST)
+                        .is_some(),
                     "{attr}={value:?} must be invalid"
                 );
             }

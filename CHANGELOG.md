@@ -18,6 +18,42 @@ When bumping the workspace version after a catalog refresh:
 
 ### Fixed
 
+- Reset the SVG settings to their defaults when a client that cannot answer
+  `workspace/configuration` sends settings without an `svg` section.
+- Find `var()` and `url()` references whose function names contain CSS escapes,
+  such as `v\61 r(--c)`, so renaming `--c` or an id updates them, and list
+  escaped `url()` targets as document links.
+- Read a CSS escape followed by CRLF as one escape, keeping the line break out
+  of the decoded name.
+- Parse every CSS value of `clip-path`, `mask`, `filter` and `cursor`, such as
+  `circle(50%)`, `blur(2px)` or `url(#m) no-repeat`, instead of turning the
+  rest of the document into a syntax error.
+- Check the values of every attribute whose catalog value space is a CSS
+  grammar. Types, property ranges and functions such as `<basic-shape>`,
+  `<'outline-style'>` and `circle()` now expand, function arguments are checked
+  against the function's definition, and SMIL clock values and XML names have
+  their own checks. `filter="blur(2px) junk"`, `clip-path="circle(banana)"` and
+  `dur="2sec"` are now reported.
+- Drop the commented-out part of the CSS Fonts 3 `font-variant` grammar from
+  the catalog.
+- Resolve custom properties with escaped names, such as `--\63: red` and
+  `var(--\63)`, for go to definition, references and rename.
+- Show color swatches for escaped CSS identifiers, such as
+  `f\69ll: v\61 r(--\63)` or `R\45 D`, and span the swatch over the whole
+  declaration value.
+- Keep scanning a stylesheet for escaped `var()` and `url()` calls after a
+  string with escapes or a line break, a hash token such as `#v\61 r(`, a
+  comment before the `var()` argument, and escaped spaces in a `url()`.
+- Read hover settings only from `svg.hover`.
+- Report unitless numbers inside functions and referenced types in SVG 2
+  documents, such as `filter="hue-rotate(90)"` or `clip="rect(0, 50, 50, 0)"`.
+  SVG 1.1 documents still accept them.
+- Report `circle()` with two radius lengths, and check `color-profile` against
+  the SVG 1.1 name production.
+- Accept `shape()` curve control points and relative color component keywords,
+  such as `rgb(from red r g b)`.
+- Build the Zed extension's grammars from the revision that parses CSS values in
+  `clip-path`, `mask`, `filter` and `cursor`.
 - Stop printing the libc warning from the npm launcher on macOS, Windows and
   the BSDs. On Linux it warns only when both libc builds for the host's CPU are
   installed and the host libc cannot be identified.

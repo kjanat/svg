@@ -186,7 +186,31 @@
   the first of two agreeing declarations is recorded, so manifest order would
   change the recorded source (`XLinkRefAttrs` vs `types.html`).
 
+- CSS Fonts 3 comments out the `font-variant-alternates` part of the
+  `font-variant` grammar inside its propdef cell (`<!-- stylistic(...) || -->`).
+  Reading cell text keeps the comment body and the `--` of `-->`, so
+  `chapter::extract_property_definitions` strips HTML comments first.
+
+- `catalog.core.json` `css_definitions` carries the `@webref/css` syntax of
+  every type, property range and function the attribute grammars reach. webref
+  lags or collides in places: `<radial-size>` is the CSS Images 3 form (no
+  single percentage, so `circle(50%)` fails), `<control-point>` is the CSS
+  Shapes type rather than the keySplines one, `<number-optional-number>` has no
+  comma, and `<zero>`, `<url-modifier>` and `<top>` have no syntax. svg-lint's
+  `NAMED_TYPES` take precedence over the table for these.
+
 ## svg-lint Value Checks
+
+- `clip-path`, `mask`, `filter` and `cursor` parse any CSS value: values other
+  than `none`, one `url()` or a bare IRI become an opaque `css_value` node. The
+  CSS grammar check is the only thing that reports a bad one.
+- `<color>` reaches itself through `light-dark(<color>, <color>)`, so function
+  arguments are parsed only when a value uses that function
+  (`css_grammar::function_arguments`); resolving them while parsing the
+  enclosing grammar recurses until the depth limit.
+- A numeric slot takes a math function (its type is known only after evaluation)
+  but no other function: `match_numeric` answers `Unknown` for any function,
+  which once let `linear-gradient()` satisfy `<mask-layer>`'s `<position>`.
 
 - Typed attribute rules in tree-sitter-svg reject invalid values outright, so
   the value lint never sees them: `id="a b"`,

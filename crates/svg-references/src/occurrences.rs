@@ -7,9 +7,10 @@ use crate::{
     DefinitionTarget, Span, inline_style_fragments,
     text::{
         CssFragment, advance_point, css_escape_identifier, css_fragment_id, css_fragment_start,
-        css_unescape, fragment_id, fragment_start, is_xml_name, is_xml_whitespace, node_span,
-        open_hex_escape, rebase_point, span_between, strip_quotes, xml_escape_attribute,
-        xml_tokens, xml_unescape, xml_unescape_mapped,
+        css_unescape, css_url_argument, css_var_argument, escaped_css_functions, fragment_id,
+        fragment_start, is_xml_name, is_xml_whitespace, node_span, open_hex_escape, rebase_point,
+        span_between, strip_quotes, xml_escape_attribute, xml_tokens, xml_unescape,
+        xml_unescape_mapped,
     },
 };
 
@@ -599,7 +600,7 @@ fn presentation_occurrences(
     let Some((_, _, content)) = presentation_content(attribute, source) else {
         return;
     };
-    let decoded = xml_unescape(content).to_ascii_lowercase();
+    let decoded = css_unescape(&xml_unescape(content)).to_ascii_lowercase();
     if !decoded.contains("var(") && !decoded.contains("url(") {
         return;
     }
@@ -610,6 +611,7 @@ fn presentation_occurrences(
                 call_occurrence(&fragment, node, true, out);
             }
         });
+        escaped_call_occurrences(&fragment, out);
     }
 }
 
@@ -684,6 +686,7 @@ pub fn css_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) 
             _ => {}
         }
     });
+    escaped_call_occurrences(fragment, out);
 }
 
 fn attribute_selector_occurrence(
@@ -760,7 +763,18 @@ fn call_occurrence(
     } else if urls
         && function.eq_ignore_ascii_case("url")
         && let Some((start, end)) = url_argument_range(fragment, arguments)
-        && let Some(fragment_text) = fragment.text.get(start..end)
+    {
+        url_occurrence(fragment, start, end, out);
+    }
+}
+
+fn url_occurrence(
+    fragment: &CssFragment,
+    start: usize,
+    end: usize,
+    out: &mut Vec<SymbolOccurrence>,
+) {
+    if let Some(fragment_text) = fragment.text.get(start..end)
         && let Some(skip) = css_fragment_start(fragment_text)
         && let Some(name) = fragment_text.get(skip..).filter(|n| !n.is_empty())
         && let Some((source_start, source_end, span)) = fragment.source_range(start + skip, end)
@@ -776,6 +790,30 @@ fn call_occurrence(
             end_byte: source_end,
             span,
         });
+    }
+}
+
+fn escaped_call_occurrences(fragment: &CssFragment, out: &mut Vec<SymbolOccurrence>) {
+    for function in escaped_css_functions(&fragment.text) {
+        if function.name.eq_ignore_ascii_case("var")
+            && let Some((start, end)) = css_var_argument(&fragment.text, function.arguments)
+            && let Some((start_byte, end_byte, span)) = fragment.source_range(start, end)
+        {
+            out.push(SymbolOccurrence {
+                target: DefinitionTarget::CustomProperty(css_unescape(&fragment.text[start..end])),
+                role: OccurrenceRole::Reference,
+                syntax: OccurrenceSyntax::CssIdentifier {
+                    xml_escaped: fragment.xml_escaped,
+                },
+                start_byte,
+                end_byte,
+                span,
+            });
+        } else if function.name.eq_ignore_ascii_case("url")
+            && let Some((start, end)) = css_url_argument(&fragment.text, function.arguments)
+        {
+            url_occurrence(fragment, start, end, out);
+        }
     }
 }
 
@@ -807,14 +845,10 @@ fn push_css_identifier(
     target: fn(String) -> DefinitionTarget,
     out: &mut Vec<SymbolOccurrence>,
 ) {
-    let Some(text) = fragment.node_text(node) else {
-        return;
-    };
-    let (Some(start_byte), Some(end_byte), Some(start), Some(end)) = (
-        fragment.source_byte(node.start_byte()),
-        fragment.source_byte(node.end_byte()),
-        fragment.source_point(node.start_byte(), node.start_position()),
-        fragment.source_point(node.end_byte(), node.end_position()),
+    let (start, end) = crate::css_identifier_range(&fragment.text, node);
+    let (Some(text), Some((start_byte, end_byte, span))) = (
+        fragment.text.get(start..end),
+        fragment.source_range(start, end),
     ) else {
         return;
     };
@@ -826,7 +860,7 @@ fn push_css_identifier(
         },
         start_byte,
         end_byte,
-        span: span_between(start, end),
+        span,
     });
 }
 
@@ -1075,6 +1109,89 @@ mod tests {
             &DefinitionTarget::CustomProperty("--c".into()),
         );
         assert_eq!(props.len(), 2, "{occurrences:#?}");
+        Ok(())
+    }
+
+    #[test]
+    fn escaped_var_skips_comments_and_hash_tokens_are_text() -> Result<(), Box<dyn Error>> {
+        let source = r"<svg><style>:root { --c: red } a { fill: v\61 r(/* t */ --c) } b { --raw: #v\61 r(--c) }</style></svg>";
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let edits = rename_edits(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+            "--d",
+        )?;
+        let starts: Vec<usize> = edits.iter().map(|edit| edit.span.start_col).collect();
+        let declaration = source.find("--c:").ok_or("declaration")?;
+        let reference = source.find("*/ --c").ok_or("reference")? + 3;
+        assert_eq!(starts, [declaration, reference], "{occurrences:#?}");
+        Ok(())
+    }
+
+    #[test]
+    fn css_escaped_custom_property_names_are_whole_occurrences() -> Result<(), Box<dyn Error>> {
+        let source = r#"<svg><style>:root { --\63: red } rect { fill: var(--\63) }</style><rect style="--\63: blue; stroke: var(--c)"/></svg>"#;
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans: Vec<_> = of_target(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+        )
+        .iter()
+        .map(|o| (span_text(source, &o.span), o.role))
+        .collect();
+        assert_eq!(
+            spans,
+            [
+                (r"--\63", OccurrenceRole::Declaration),
+                (r"--\63", OccurrenceRole::Reference),
+                (r"--\63", OccurrenceRole::Declaration),
+                ("--c", OccurrenceRole::Reference),
+            ],
+            "{occurrences:#?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn css_escaped_function_names_are_references() -> Result<(), Box<dyn Error>> {
+        let source = concat!(
+            "<svg><style>:root { --c: red } rect { stroke: V\\61 r(--c); filter: u\\72l(#g) \
+             }</style>",
+            "<filter id=\"g\"/><rect fill=\"v\\61 r(--c)\" stroke=\"\\75 rl(#g)\" mask=\"\\75 \
+             rl(#g)\" clip-path=\"circle(50%)\"/></svg>",
+        );
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let spans = |target: &DefinitionTarget| -> Vec<&str> {
+            of_target(&occurrences, target)
+                .iter()
+                .map(|o| span_text(source, &o.span))
+                .collect()
+        };
+        assert_eq!(
+            spans(&DefinitionTarget::CustomProperty("--c".into())),
+            ["--c", "--c", "--c"],
+            "{occurrences:#?}"
+        );
+        assert_eq!(
+            spans(&DefinitionTarget::Id("g".into())),
+            ["g", "g", "g", "g"],
+            "{occurrences:#?}"
+        );
+        let edits = rename_edits(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+            "--d",
+        )?;
+        assert_eq!(
+            edits
+                .iter()
+                .map(|edit| (span_text(source, &edit.span), edit.new_text.as_str()))
+                .collect::<Vec<_>>(),
+            [("--c", "--d"), ("--c", "--d"), ("--c", "--d")]
+        );
         Ok(())
     }
 

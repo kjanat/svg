@@ -1836,7 +1836,9 @@ impl LanguageServer for SvgLanguageServer {
 
     async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
         tracing::debug!("did_change_configuration");
-        let applied = if params.settings.get("svg").is_some() {
+        let pushed = params.settings.get("svg").is_some()
+            || (params.settings.is_object() && !self.pulls_configuration.load(Ordering::Acquire));
+        let applied = if pushed {
             self.apply_profile_config(&params.settings).await;
             true
         } else {

@@ -1132,6 +1132,7 @@
       "type": "object",
       "required": [
         "attributes",
+        "css_definitions",
         "elements",
         "schema_version"
       ],
@@ -1142,6 +1143,10 @@
           "items": {
             "$ref": "#/$defs/CatalogAttribute"
           }
+        },
+        "css_definitions": {
+          "$ref": "#/$defs/CatalogCssDefinitions",
+          "description": "CSS types and property value ranges the attribute grammars reference,\nwith their `@webref/css` syntax."
         },
         "elements": {
           "description": "Element definitions, sorted by name.",
@@ -1156,6 +1161,40 @@
           "minimum": 0,
           "maximum": 65535,
           "format": "uint16"
+        }
+      }
+    },
+    "CatalogCssDefinitions": {
+      "description": "Definitions of the CSS types, property value ranges and functions that\ncatalog value grammars reference, transitively.",
+      "type": "object",
+      "required": [
+        "properties",
+        "types"
+      ],
+      "properties": {
+        "functions": {
+          "description": "Function syntaxes, keyed by function name without `()`. A function\ndefined for several properties (`rect()` for `<basic-shape>` and for\n`clip`) has every definition.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "properties": {
+          "description": "`<'property'>` value grammars, keyed by property name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "types": {
+          "description": "`<type>` grammars, keyed by type name without brackets.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
