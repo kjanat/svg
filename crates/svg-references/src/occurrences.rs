@@ -1113,6 +1113,23 @@ mod tests {
     }
 
     #[test]
+    fn escaped_var_skips_comments_and_hash_tokens_are_text() -> Result<(), Box<dyn Error>> {
+        let source = r"<svg><style>:root { --c: red } a { fill: v\61 r(/* t */ --c) } b { --raw: #v\61 r(--c) }</style></svg>";
+        let tree = parse_svg(source)?;
+        let occurrences = collect_symbol_occurrences(source.as_bytes(), &tree);
+        let edits = rename_edits(
+            &occurrences,
+            &DefinitionTarget::CustomProperty("--c".into()),
+            "--d",
+        )?;
+        let starts: Vec<usize> = edits.iter().map(|edit| edit.span.start_col).collect();
+        let declaration = source.find("--c:").ok_or("declaration")?;
+        let reference = source.find("*/ --c").ok_or("reference")? + 3;
+        assert_eq!(starts, [declaration, reference], "{occurrences:#?}");
+        Ok(())
+    }
+
+    #[test]
     fn css_escaped_custom_property_names_are_whole_occurrences() -> Result<(), Box<dyn Error>> {
         let source = r#"<svg><style>:root { --\63: red } rect { fill: var(--\63) }</style><rect style="--\63: blue; stroke: var(--c)"/></svg>"#;
         let tree = parse_svg(source)?;

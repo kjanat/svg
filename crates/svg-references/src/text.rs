@@ -233,20 +233,56 @@ pub fn css_ident_len(text: &str) -> (usize, bool) {
     }
 }
 
-fn css_string_len(text: &str) -> Option<usize> {
-    let quote = text.chars().next()?;
-    let mut chars = text.char_indices().skip(1);
-    while let Some((at, ch)) = chars.next() {
+/// How a string token at the start of CSS text ends (CSS Syntax 3 §4.3.5,
+/// "consume a string token").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CssString {
+    /// Closed by its quote, spanning this many bytes.
+    Closed(usize),
+    /// A bad string: an unescaped newline ends it, and scanning resumes at
+    /// that newline, this many bytes in.
+    Bad(usize),
+    /// The input ends inside the string.
+    Unterminated,
+}
+
+fn css_string(text: &str) -> CssString {
+    let Some(quote) = text.chars().next() else {
+        return CssString::Unterminated;
+    };
+    let mut at = quote.len_utf8();
+    while let Some(ch) = text[at..].chars().next() {
         match ch {
             '\\' => {
-                chars.next();
+                let after = &text[at + 1..];
+                at += 1 + if after.starts_with("\r\n") {
+                    2
+                } else if after.starts_with(['\n', '\r', '\x0c']) {
+                    1
+                } else {
+                    css_escape_len(&text[at..]).map_or(0, |escape| escape - 1)
+                };
             }
-            '\n' | '\r' | '\x0c' => return None,
-            _ if ch == quote => return Some(at + 1),
-            _ => {}
+            '\n' | '\r' | '\x0c' => return CssString::Bad(at),
+            _ if ch == quote => return CssString::Closed(at + 1),
+            _ => at += ch.len_utf8(),
         }
     }
-    None
+    CssString::Unterminated
+}
+
+/// The bytes of whitespace and comments at the start of `text`.
+fn css_whitespace_and_comments_len(text: &str) -> usize {
+    let mut len = 0;
+    loop {
+        let rest = &text[len..];
+        let trimmed = rest.trim_start_matches([' ', '\t', '\n', '\r', '\x0c']);
+        len += rest.len() - trimmed.len();
+        match trimmed.strip_prefix("/*") {
+            Some(comment) => len += comment.find("*/").map_or(trimmed.len(), |end| end + 4),
+            None => return len,
+        }
+    }
 }
 
 /// A CSS function token whose name contains an escape, such as `v\61 r(`.
@@ -263,7 +299,14 @@ pub fn escaped_css_functions(text: &str) -> Vec<EscapedCssFunction> {
         if let Some(comment) = rest.strip_prefix("/*") {
             at += comment.find("*/").map_or(rest.len(), |end| end + 4);
         } else if rest.starts_with(['"', '\'']) {
-            at += css_string_len(rest).unwrap_or(rest.len());
+            at += match css_string(rest) {
+                CssString::Closed(len) | CssString::Bad(len) => len,
+                CssString::Unterminated => rest.len(),
+            };
+        } else if let Some(name) = rest.strip_prefix(['#', '@']) {
+            // A hash token or at-keyword: its name is part of the token, so
+            // `#v\61 r(` is no function.
+            at += 1 + css_ident_len(name).0;
         } else if rest.starts_with(|ch: char| ch.is_ascii_digit()) {
             at += 1 + css_ident_len(&rest[1..]).0;
         } else if let (len @ 1.., escaped) = css_ident_len(rest) {
@@ -283,8 +326,7 @@ pub fn escaped_css_functions(text: &str) -> Vec<EscapedCssFunction> {
 
 /// The leading custom property name in a `var()` argument list starting at `arguments`.
 pub fn css_var_argument(text: &str, arguments: usize) -> Option<(usize, usize)> {
-    let rest = text.get(arguments..)?;
-    let start = arguments + rest.len() - rest.trim_start().len();
+    let start = arguments + css_whitespace_and_comments_len(text.get(arguments..)?);
     let (len, _) = css_ident_len(&text[start..]);
     css_unescape(&text[start..start + len])
         .starts_with("--")
@@ -297,15 +339,32 @@ pub fn css_url_argument(text: &str, arguments: usize) -> Option<(usize, usize)> 
     let start = arguments + rest.len() - rest.trim_start().len();
     let body = &text[start..];
     let (start, end) = if body.starts_with(['"', '\'']) {
-        let len = css_string_len(body)?;
+        let CssString::Closed(len) = css_string(body) else {
+            return None;
+        };
         (start + 1, start + len - 1)
     } else {
-        let len = body
-            .find(|ch: char| ch == ')' || ch.is_ascii_whitespace())
-            .unwrap_or(body.len());
-        (start, start + len)
+        (start, start + css_unquoted_url_len(body))
     };
     (end > start).then_some((start, end))
+}
+
+/// The bytes of an unquoted `url()` argument at the start of `text`, up to
+/// the first unescaped `)` or whitespace. An escape's whitespace terminator
+/// belongs to the escape (CSS Syntax 3 §4.3.6, "consume a url token").
+fn css_unquoted_url_len(text: &str) -> usize {
+    let mut len = 0;
+    loop {
+        let rest = &text[len..];
+        if let Some(escape) = css_escape_len(rest) {
+            len += escape;
+        } else {
+            match rest.chars().next() {
+                Some(ch) if ch != ')' && !ch.is_ascii_whitespace() => len += ch.len_utf8(),
+                _ => return len,
+            }
+        }
+    }
 }
 
 pub fn css_escape_identifier(name: &str) -> String {
@@ -577,11 +636,40 @@ mod tests {
     }
 
     #[test]
+    fn strings_consume_whole_escapes_and_recover_at_newlines() {
+        let names = |text: &str| -> Vec<String> {
+            escaped_css_functions(text)
+                .into_iter()
+                .map(|function| function.name)
+                .collect()
+        };
+        assert_eq!(names("'\\61\n v\\61 r(' u\\72l(a)"), ["url"]);
+        assert_eq!(names("'a\\\r\n v\\61 r(' u\\72l(a)"), ["url"]);
+        assert_eq!(names("content:'broken\nb: u\\72l(b.png)"), ["url"]);
+        assert_eq!(css_string("'a\\\r\nb'"), CssString::Closed(7));
+        assert_eq!(css_string("'ab\nc'"), CssString::Bad(3));
+        assert_eq!(css_string("'ab"), CssString::Unterminated);
+    }
+
+    #[test]
+    fn hash_and_at_keyword_names_are_no_functions() {
+        let text = "--raw: #v\\61 r(--c) @v\\61 r(--d) v\\61 r(--e)";
+        let arguments: Vec<_> = escaped_css_functions(text)
+            .into_iter()
+            .map(|function| &text[function.arguments..function.arguments + 3])
+            .collect();
+        assert_eq!(arguments, ["--e"]);
+    }
+
+    #[test]
     fn var_and_url_arguments_name_their_content() {
         let var = "v\\61 r( --a\\62 , red)";
         let (start, end) = css_var_argument(var, 7).unwrap_or_default();
         assert_eq!(&var[start..end], "--a\\62 ");
         assert_eq!(css_var_argument("v\\61 r(red)", 7), None);
+        let var = "v\\61 r(/* theme */ --c)";
+        let (start, end) = css_var_argument(var, 7).unwrap_or_default();
+        assert_eq!(&var[start..end], "--c");
 
         let url = "u\\72l( 'x y' )";
         let (start, end) = css_url_argument(url, 6).unwrap_or_default();
@@ -591,6 +679,14 @@ mod tests {
         assert_eq!(&url[start..end], "a.svg#b");
         assert_eq!(css_url_argument("u\\72l()", 6), None);
         assert_eq!(css_url_argument("u\\72l('open)", 6), None);
+        for (url, argument) in [
+            ("u\\72l(#gr\\61 d)", "#gr\\61 d"),
+            ("u\\72l(a\\20 b.svg )", "a\\20 b.svg"),
+            ("u\\72l(a\\)b)", "a\\)b"),
+        ] {
+            let (start, end) = css_url_argument(url, 6).unwrap_or_default();
+            assert_eq!(&url[start..end], argument, "{url}");
+        }
     }
 
     #[test]
