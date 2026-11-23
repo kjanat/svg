@@ -17,6 +17,10 @@ pkg-url = "{ repo }/releases/download/v{ version }/svg-v{ version }-{ target }{ 
 pkg-fmt = "tgz"
 bin-dir = "{ bin }{ binary-ext }"
 
+[features]
+default = ["cli"]
+cli     = ["clap"]
+
 [lib]
 name = "svg_format"
 path = "src/lib.rs"
@@ -36,10 +40,6 @@ tree-sitter-svg-path.workspace = true
 workspace = true
 features  = ["derive"]
 optional  = true
-
-[features]
-default = ["cli"]
-cli     = ["clap"]
 
 [lints]
 workspace = true
