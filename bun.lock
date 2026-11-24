@@ -6,7 +6,6 @@
       "name": "svg",
       "devDependencies": {
         "@biomejs/biome": "catalog:",
-        "@kjanat/actionlint": "https://pkg.pr.new/kjanat/actionlint/@kjanat/actionlint@905124e0c2ce74dd322b5f3189d232a75a0ec462",
         "@kjanat/fmt": "0.62.0",
         "@kjanat/rshellcheck": "1.2.0",
         "@kprint/kprint": "0.62.0",
@@ -189,20 +188,6 @@
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.7", "", { "os": "win32", "cpu": "x64" }, "sha512-uYfH+n+IAtVz3lh7m6JxdjxfJ3WCvAJDE3spHIUbU955V42oKymlhiQiu92fAhXZb7KOjvRcrfImySQbc1MFFg=="],
 
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
-
-    "@kjanat-actionlint/actionlint-darwin-arm64": ["@kjanat-actionlint/actionlint-darwin-arm64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-URzfo4LaVCAuOCuA4BXoDTu4Y+HCNcg0mceo0PNYoNLcnRnB1cxp1HldCTHlP2EVuv0XtuQH//tsoNJd1ATQ6A=="],
-
-    "@kjanat-actionlint/actionlint-darwin-x64": ["@kjanat-actionlint/actionlint-darwin-x64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-D2Ry/lQjq3RQwEMM0Pcf01Z3JmQbTRTJjKPRoO10ePEAYM5X1iPjsbcAbXjVDtKEig0/ky8dISXGgMMPBVol4w=="],
-
-    "@kjanat-actionlint/actionlint-linux-arm64": ["@kjanat-actionlint/actionlint-linux-arm64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-Ozchv6pNAwcIZNDQ+tp9colvBumu24RrxKFPZKk4yommwA+3pyNPGGcFOefC0ZS/HS66TJbTtK+5UYYzZBtssQ=="],
-
-    "@kjanat-actionlint/actionlint-linux-x64": ["@kjanat-actionlint/actionlint-linux-x64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-ez2JOrriCt4nbwsoOSsM6UwT1PBOrlatjuDSxSyA7VQi8cfzOdElyywi5BkUOzdZLkrZ/QC1zQJqyccjwj685w=="],
-
-    "@kjanat-actionlint/actionlint-win32-arm64": ["@kjanat-actionlint/actionlint-win32-arm64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-kXEPk5Gf2Ifsxcrbe6D7796qb2JWq5LCSw0XvgPHfkbiFsaCNKi8Ie3+Krqznnqc76Y4V92PAeW9jrkVIkPWlw=="],
-
-    "@kjanat-actionlint/actionlint-win32-x64": ["@kjanat-actionlint/actionlint-win32-x64@https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", {}, "sha512-jieTeLLsHogVkTptErXgBM/4Zf80OQSSAlPQNsDDXp3n9vyBP2pI2RK1b56TlOcfmDvjnx5WEBwmHPxHxjfw5Q=="],
-
-    "@kjanat/actionlint": ["@kjanat/actionlint@https://pkg.pr.new/kjanat/actionlint/@kjanat/actionlint@905124e0c2ce74dd322b5f3189d232a75a0ec462", { "dependencies": { "ansispeck": "^0.4.2" }, "optionalDependencies": { "@kjanat-actionlint/actionlint-darwin-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-darwin-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-darwin-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-linux-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-linux-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-linux-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-win32-arm64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-arm64@905124e0c2ce74dd322b5f3189d232a75a0ec462", "@kjanat-actionlint/actionlint-win32-x64": "https://pkg.pr.new/kjanat/actionlint/@kjanat-actionlint/actionlint-win32-x64@905124e0c2ce74dd322b5f3189d232a75a0ec462" }, "bin": { "actionlint": "bin/actionlint.mjs" } }, "sha512-bGvNk837rUMgOlO/h5POt8BnSPNh9/bVDs9cJ8ocWCuUSg9TYxzxAk4kEFnsENZYVx2xLjGvlHPFoZJU4DmiCA=="],
 
     "@kjanat/dreamcli": ["@kjanat/dreamcli@5.1.0", "", { "dependencies": { "ansispeck": "^0.4.3" } }, "sha512-yWEWOE98UYhiozDymxPXfBEr8p9fR3TCOKIB8Jjrtu9zyHuTt2bNedaSkSGUtkcl4FGtyxO0l7mI3P8W1BpPcw=="],
 
