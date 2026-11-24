@@ -10,7 +10,9 @@ on:
     inputs:
       tag: { description: Existing release tag (empty selects latest), required: false, type: string }
 permissions: { contents: read, actions: read }
-concurrency: { group: "runtime-smoke-${{ github.ref }}", cancel-in-progress: true }
+concurrency:
+  group: ${{ inputs.package-only && format('npm-backfill-package-{0}', github.run_id) || format('runtime-smoke-{0}', github.ref) }}
+  cancel-in-progress: ${{ !inputs.package-only }}
 
 jobs:
   package:
