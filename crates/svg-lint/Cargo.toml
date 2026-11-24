@@ -18,6 +18,10 @@ pkg-url = "{ repo }/releases/download/v{ version }/svg-v{ version }-{ target }{ 
 pkg-fmt = "tgz"
 bin-dir = "{ bin }{ binary-ext }"
 
+[features]
+default = ["cli"]
+cli     = ["clap", "serde_json"]
+
 [lib]
 name = "svg_lint"
 path = "src/lib.rs"
@@ -47,10 +51,6 @@ optional  = true
 
 [dev-dependencies]
 serde_json.workspace = true
-
-[features]
-default = ["cli"]
-cli     = ["clap", "serde_json"]
 
 [lints]
 workspace = true
