@@ -32,7 +32,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "catalog:",
-		"@kjanat/actionlint": "https://pkg.pr.new/kjanat/actionlint/@kjanat/actionlint@master",
+		"@kjanat/actionlint": "https://pkg.pr.new/kjanat/actionlint/@kjanat/actionlint@905124e0c2ce74dd322b5f3189d232a75a0ec462",
 		"@kjanat/fmt": "0.62.0",
 		"@kjanat/rshellcheck": "1.2.0",
 		"@kprint/kprint": "0.62.0",
