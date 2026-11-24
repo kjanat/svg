@@ -7,7 +7,9 @@ on:
     inputs:
       tag: { required: true, type: string }
       run-id: { required: true, type: string }
-      beepboop-execution-id: { required: false, type: string }
+      beepboop-execution-id: { required: true, type: string }
+      source-sha: { required: false, type: string }
+      dist-tag: { required: false, type: string }
   workflow_dispatch:
     inputs:
       tag: { description: Release tag to publish (e.g. v0.1.0), required: true, type: string }
@@ -25,7 +27,6 @@ on:
         required: false
         options: [latest, next]
         type: choice
-      dry-run: { description: Dry run only, required: true, default: false, type: boolean }
 
 permissions: { contents: read }
 
@@ -56,10 +57,10 @@ jobs:
       bundle: ${{ steps.matrix.outputs.bundle }}
       grammars: ${{ steps.matrix.outputs.grammars }}
     steps:
-      # Sparse-checkout from default branch — no tag-supplied code on disk.
+      # Load publisher helpers from the validated workflow commit for backfills.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -86,7 +87,7 @@ jobs:
           tag: ${{ env.RELEASE_TAG }}
           event-name: ${{ github.event_name }}
           dist-tag: ${{ inputs.dist-tag }}
-          dry-run: ${{ inputs.dry-run || false }}
+          dry-run: ${{ !inputs.beepboop-execution-id }}
 
       - name: generate publish matrices
         id: matrix
@@ -103,12 +104,12 @@ jobs:
       report-prefix: npm-runtime
 
   beepboop:
-    name: register publisher operation
+    name: resolve publisher context
     needs: [setup, runtime-smoke]
     runs-on: ubuntu-26.04
-    permissions: { contents: read, id-token: write }
+    permissions: {}
     outputs:
-      execution-id: ${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}
+      execution-id: ${{ inputs.beepboop-execution-id }}
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Resolve release version
@@ -116,13 +117,6 @@ jobs:
         shell: bash
         env: { RELEASE_TAG: "${{ env.RELEASE_TAG }}" }
         run: echo "version=${RELEASE_TAG#v}" >> "${GITHUB_OUTPUT}"
-      - uses: kjanat/beepboop/actions/begin@v1
-        id: begin
-        if: inputs.beepboop-execution-id == '' && needs.setup.outputs.dry-run != 'true'
-        with:
-          stream: main
-          operation: npm-backfill
-          version: ${{ steps.version.outputs.version }}
 
   # Tree-sitter grammar node packages, published from the tag's sources —
   # independent of the dist artifact, so this runs parallel to the platform
@@ -140,12 +134,12 @@ jobs:
       # from the tag, in source/ — no tag-supplied action code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+        with: { ref: "${{ inputs.source-sha || format('refs/tags/{0}', env.RELEASE_TAG) }}", persist-credentials: false, path: source }
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { registry-url: "${{ env.REGISTRY }}" }
@@ -195,7 +189,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -251,7 +245,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -308,7 +302,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false
@@ -368,7 +362,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: ".github/actions\ndistribution/npm/targets.json"
           sparse-checkout-cone-mode: false

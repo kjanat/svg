@@ -1,5 +1,9 @@
 name: runtime smoke validation
 on:
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      package-only: { required: false, default: false, type: boolean }
   pull_request:
   push: { branches: [master] }
   workflow_dispatch:
@@ -46,6 +50,7 @@ jobs:
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
   runtime:
+    if: "!inputs.package-only"
     needs: package
     uses: $/.github/workflows/runtime-smoke.yml
     with:
