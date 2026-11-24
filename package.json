@@ -46,7 +46,7 @@
 		"tree-sitter": "catalog:",
 		"web-features": "catalog:deno"
 	},
-	"packageManager": "bun@1.4.4",
+	"packageManager": "bun@1.4.5",
 	"volta": {
 		"node": "26.13.1",
 		"npm": "12.2.2"
