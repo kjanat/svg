@@ -3,7 +3,19 @@
 	"extends": [
 		"config:recommended"
 	],
+	"timezone": "Europe/Amsterdam",
+	"schedule": ["* * * * 1"],
+	"minimumReleaseAge": "24 hours",
 	"customManagers": [
+		{
+			"customType": "regex",
+			"description": "Track the Bun catalog range used by the grammar packages alongside the root formatter pins.",
+			"managerFilePatterns": ["/^package\\.json$/"],
+			"matchStrings": ["\"@kprint/kprint\"\\s*:\\s*\"(?<currentValue>\\^[^\"\\s]+)\""],
+			"depNameTemplate": "@kprint/kprint",
+			"datasourceTemplate": "npm",
+			"versioningTemplate": "npm"
+		},
 		{
 			"customType": "regex",
 			"description": "Python targets for Pyright and ty.",
@@ -34,6 +46,49 @@
 		}
 	],
 	"packageRules": [
+		{
+			"matchDatasources": ["crate"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "Rust dependencies",
+			"groupSlug": "rust-dependencies"
+		},
+		{
+			"matchDatasources": ["npm", "node-version"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "JavaScript tooling",
+			"groupSlug": "javascript-tooling"
+		},
+		{
+			"matchDatasources": ["pypi"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "Python tooling",
+			"groupSlug": "python-tooling"
+		},
+		{
+			"matchDatasources": ["maven"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "Java tooling",
+			"groupSlug": "java-tooling"
+		},
+		{
+			"matchPackageNames": ["@kjanat/fmt", "@kprint/kprint"],
+			"rangeStrategy": "bump",
+			"groupName": "kprint",
+			"groupSlug": "kprint",
+			"separateMajorMinor": false
+		},
+		{
+			"matchPackageNames": [
+				"tree-sitter",
+				"tree-sitter-cli",
+				"tree-sitter-language",
+				"github.com/tree-sitter/go-tree-sitter",
+				"tree-sitter/swift-tree-sitter",
+				"io.github.tree-sitter:jtreesitter"
+			],
+			"groupName": "Tree-sitter runtime and bindings",
+			"groupSlug": "tree-sitter"
+		},
 		{
 			"description": "No update PRs for GitHub Actions.",
 			"matchManagers": ["github-actions"],
