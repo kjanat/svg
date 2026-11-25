@@ -6,12 +6,12 @@ on:
   workflow_call:
     inputs:
       tag: { required: true, type: string }
-      beepboop-execution-id: { required: false, type: string }
+      beepboop-execution-id: { required: true, type: string }
+      source-sha: { required: false, type: string }
       dry-run: { description: Verify packages without uploading, required: false, default: false, type: boolean }
   workflow_dispatch:
     inputs:
       tag: { description: Release tag to publish (e.g. vX.Y.Z), required: true, type: string }
-      dry-run: { description: Dry run only (no upload to crates.io), required: false, default: false, type: boolean }
 
 permissions: { contents: read }
 
@@ -35,16 +35,16 @@ jobs:
       source_sha: ${{ steps.identity.outputs.source_sha }}
       artifact_id: ${{ steps.artifact.outputs.artifact-id }}
     steps:
-      # Resolve default-branch helpers once; publish jobs reuse this exact SHA.
+      # Pin helper code once; publish jobs reuse this exact SHA.
       # This does not change the workflow YAML GitHub selected for this run.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.source-sha && github.sha || github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+        with: { ref: "${{ inputs.source-sha || format('refs/tags/{0}', env.RELEASE_TAG) }}", persist-credentials: false, path: source }
       - name: record helper and release source revisions
         id: identity
         shell: python
@@ -79,30 +79,10 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  beepboop:
-    name: register publisher operation
-    needs: setup
-    runs-on: ubuntu-26.04
-    permissions: { contents: read, id-token: write }
-    outputs: { execution-id: "${{ inputs.beepboop-execution-id || steps.begin.outputs.execution-id }}" }
-    steps:
-      - name: Resolve release version
-        id: version
-        shell: bash
-        env: { RELEASE_TAG: "${{ env.RELEASE_TAG }}" }
-        run: echo "version=${RELEASE_TAG#v}" >> "${GITHUB_OUTPUT}"
-      - uses: kjanat/beepboop/actions/begin@v1
-        id: begin
-        if: inputs.beepboop-execution-id == '' && inputs.dry-run != true
-        with:
-          stream: main
-          operation: crates-backfill
-          version: ${{ steps.version.outputs.version }}
-
   publish:
     name: publish ${{ matrix.crate }}
-    needs: [setup, beepboop]
-    if: inputs.dry-run != true
+    needs: setup
+    if: inputs.beepboop-execution-id != '' && inputs.dry-run != true
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     # Beepboop exchanges GitHub OIDC for the granted publishing credential.
@@ -117,7 +97,7 @@ jobs:
           sparse-checkout: .github/actions
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: "refs/tags/${{ env.RELEASE_TAG }}", persist-credentials: false, path: source }
+        with: { ref: "${{ inputs.source-sha || format('refs/tags/{0}', env.RELEASE_TAG) }}", persist-credentials: false, path: source }
       - name: check helper and release source revisions
         id: identity
         shell: python
@@ -142,7 +122,7 @@ jobs:
       - uses: kjanat/beepboop/actions/credentials@v1
         id: credentials
         with:
-          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          execution-id: ${{ inputs.beepboop-execution-id }}
           aliases: '["crates-io"]'
 
       - name: cargo publish
@@ -161,7 +141,7 @@ jobs:
         if: ${{ !cancelled() && steps.credentials.outcome == 'success' }}
         uses: kjanat/beepboop/actions/report@v1
         with:
-          execution-id: ${{ needs.beepboop.outputs.execution-id }}
+          execution-id: ${{ inputs.beepboop-execution-id }}
           publications: |
             [{
               "id": "cargo:${{ matrix.crate }}",

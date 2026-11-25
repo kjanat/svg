@@ -1,12 +1,18 @@
 name: runtime smoke validation
 on:
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      package-only: { required: false, default: false, type: boolean }
   pull_request:
   push: { branches: [master] }
   workflow_dispatch:
     inputs:
       tag: { description: Existing release tag (empty selects latest), required: false, type: string }
 permissions: { contents: read, actions: read }
-concurrency: { group: "runtime-smoke-${{ github.ref }}", cancel-in-progress: true }
+concurrency:
+  group: ${{ inputs.package-only && format('npm-backfill-package-{0}', github.run_id) || format('runtime-smoke-{0}', github.ref) }}
+  cancel-in-progress: ${{ !inputs.package-only }}
 
 jobs:
   package:
@@ -46,6 +52,7 @@ jobs:
         with: { name: dist, path: distribution/npm/dist.tar, retention-days: 14, if-no-files-found: error }
 
   runtime:
+    if: "!inputs.package-only"
     needs: package
     uses: $/.github/workflows/runtime-smoke.yml
     with:

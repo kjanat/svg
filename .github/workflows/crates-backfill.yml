@@ -1,0 +1,35 @@
+---
+name: crates-backfill
+run-name: ${{ inputs.beepboop_title || github.workflow }}
+on:
+  workflow_dispatch:
+    inputs:
+      beepboop_execution_id: { required: true, type: string }
+      beepboop_title: { required: false, type: string }
+permissions: { contents: read }
+
+jobs:
+  beepboop:
+    name: register backfill
+    runs-on: ubuntu-26.04
+    permissions: { contents: read, id-token: write }
+    outputs:
+      execution-id: ${{ steps.begin.outputs.execution-id }}
+      tag: v${{ fromJSON(steps.begin.outputs.context).version }}
+      source-sha: ${{ fromJSON(steps.begin.outputs.context).sourceSha }}
+    steps:
+      - uses: kjanat/beepboop/actions/begin@v1
+        id: begin
+        with:
+          execution-id: ${{ inputs.beepboop_execution_id }}
+          stream: main
+          operation: crates-backfill
+
+  publish:
+    needs: beepboop
+    permissions: { contents: read, id-token: write }
+    uses: $/.github/workflows/crates-release.yml
+    with:
+      tag: ${{ needs.beepboop.outputs.tag }}
+      source-sha: ${{ needs.beepboop.outputs.source-sha }}
+      beepboop-execution-id: ${{ needs.beepboop.outputs.execution-id }}

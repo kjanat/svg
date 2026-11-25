@@ -34,7 +34,8 @@ merges, and merging the version PR publishes the release once its checks pass.
 
 After merging the configuration, refresh the repository inventory with
 `beepboop repositories discover kjanat/svg`. Authorize these runtime grants with
-your enrolled security key:
+your enrolled security key. Backfill grants are pinned to the dispatch workflow
+file, so grant them again when switching from the old publisher bindings:
 
 ```sh
 beepboop secrets grant kjanat/svg crates-io --stream main --operation promote --environment crates-io
@@ -46,8 +47,8 @@ beepboop secrets grant kjanat/svg npm-token --stream main --operation npm-backfi
 The normal release grants apply to the approved `promote` operation in
 `release.yml` on `refs/heads/master`. The parent workflow explicitly calls npm
 publishing; App-created release events therefore cannot start a duplicate
-publication run. Recovery runs on the current default branch use the dedicated
-backfill bindings. Every publisher retrieves its credential inside its existing
+publication run. Backfills run through dedicated Beepboop operations on the
+default branch. Every publisher retrieves its credential inside its existing
 GitHub environment, after the package and runtime verification gates. Dry runs
 preserve verification while skipping registry credential retrieval.
 
@@ -58,6 +59,22 @@ GitHub Actions exchanges OIDC identities for the authorized runtime values. Spec
 refresh uses `actions/token` and `actions/pull-request` with repository scopes
 for contents, pull requests and issues.
 
+## Backfill a published version
+
+Find the promotion execution with `beepboop runs list`. Start a backfill for
+that release using its execution ID:
+
+```sh
+beepboop runs backfill PROMOTION_ID npm-backfill
+beepboop runs backfill PROMOTION_ID crates-backfill
+```
+
+Beepboop checks that the published tag still points to the recorded commit, then
+dispatches the configured workflow. npm rebuilds the package archive from the
+published binaries and runs the normal runtime checks before publishing to the
+`backfill` dist-tag. If an operation fails, retry it with
+`beepboop runs recover BACKFILL_ID --action retry`.
+
 ## Pipeline layout
 
 - `distribution/npm/targets.json` — single source of truth: build targets
@@ -66,8 +83,8 @@ for contents, pull requests and issues.
 - `.github/workflows/release.yml` — verify → draft release → target matrix →
   build-dist → runtime checks → publish → npm handoff.
 - `.github/workflows/npm-release.yml` — smoke-tests the dist artifact, then
-  publishes platform packages and facades. Also runnable via `workflow_dispatch`
-  for backfills and dry runs.
+  publishes platform packages and facades. Manual dispatch runs verification
+  only.
 - `.github/workflows/runtime-smoke.yml` — shared required runtime checks used
   before GitHub release publication and again by every npm entry point.
 - `.github/workflows/runtime-smoke-ci.yml` — validates that same artifact
@@ -94,9 +111,10 @@ absence never blocks a release. Tier 1/2 targets are release-blocking.
 
 Runtime environments are explicit `runtime` objects on the existing entries in
 `distribution/npm/targets.json`. All configured runtime checks must pass before
-the GitHub release is published. Every npm trigger, including manual backfills,
-also runs the checks before either the grammar or platform publication wave.
-Failure prevents subsequent facade, alias, and bundle publication.
+the GitHub release is published. Every npm trigger, including Beepboop
+backfills, also runs the checks before either the grammar or platform
+publication wave. Failure prevents subsequent facade, alias, and bundle
+publication.
 
 | Targets                | Runtime environment                                          | Required         |
 | ---------------------- | ------------------------------------------------------------ | ---------------- |
@@ -187,19 +205,19 @@ Helpers and release sources have deliberately separate identities:
 - Setup checks out `.github/actions` from the default branch and records its
   exact commit. Every publishing job checks out that recorded helper commit,
   even if the default branch advances during the release.
-- Each source checkout still uses the requested release tag in `source/`. Its
+- Source checkouts use the recorded release commit for backfills and the
+  requested release tag for normal releases and verification, in `source/`. The
   commit must match setup, and the tag version must match all publishable
   packages. The toolchain comes from that source's `rust-toolchain.toml`.
 - The helper selection does **not** change which workflow YAML GitHub evaluates.
   An old tag or rerun can retain an old workflow definition. To use an updated
-  definition for an existing release, manually dispatch `crates-release.yml`
-  from the updated default branch and supply the existing release tag. Start
-  with `dry-run: true` to verify packages without uploads.
+  definition for an existing release, start a Beepboop backfill. Manually
+  dispatch `crates-release.yml` with the existing tag to verify without uploads.
 
-Both `workflow_dispatch` and `workflow_call` accept `dry-run: true`. Normal
-registry index and dependency downloads can occur during verification; no
-publishing job runs in this mode. If verification artifacts expire, start a
-fresh preparation run rather than bypassing the checks.
+Manual dispatch always verifies without uploading. A reusable workflow call can
+also set `dry-run: true`. Normal registry index and dependency downloads can
+occur during verification. If verification artifacts expire, start a fresh
+preparation run rather than bypassing the checks.
 
 `just release-package-test` exercises real unpublished-sibling packaging, an
 excluded required input, archive/source mismatches, workflow wiring and the
