@@ -31,7 +31,7 @@
     },
     "grammars/tree-sitter-svg": {
       "name": "tree-sitter-svg",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "node-addon-api": "catalog:",
         "node-gyp-build": "catalog:",
@@ -56,7 +56,7 @@
     },
     "grammars/tree-sitter-svg-paint": {
       "name": "tree-sitter-svg-paint",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "node-addon-api": "catalog:",
         "node-gyp-build": "catalog:",
@@ -81,7 +81,7 @@
     },
     "grammars/tree-sitter-svg-path": {
       "name": "tree-sitter-svg-path",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "node-addon-api": "catalog:",
         "node-gyp-build": "catalog:",
@@ -106,7 +106,7 @@
     },
     "grammars/tree-sitter-svg-transform": {
       "name": "tree-sitter-svg-transform",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "node-addon-api": "catalog:",
         "node-gyp-build": "catalog:",
