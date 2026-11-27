@@ -34,7 +34,7 @@ jobs:
         with: { node-version-file: package.json }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: package.json }
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
       - uses: denoland/setup-deno@v2
       - name: Install workspace dependencies
         working-directory: .

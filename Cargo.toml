@@ -17,6 +17,7 @@ categories   = ["development-tools"]
 base64               = "0.23"
 cc                   = "1.11"
 clap                 = "4.6"
+clap_complete        = { version = "4.6", features = ["unstable-dynamic"] }
 quick-xml            = "0.42"
 regex                = "1"
 schemars             = "1"

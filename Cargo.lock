@@ -148,6 +148,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a35200383f20018d41c14d1ab19c1727c697f544492143f7d93aa39f0187848"
+dependencies = [
+ "clap",
+ "clap_lex",
+ "is_executable",
+ "shlex",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -245,7 +257,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -579,6 +591,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "is_executable"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82cb6a9f675da968c63b6208c641b9dca58fc0133ae53375736b1767b0cab8bd"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -865,7 +886,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1106,6 +1127,7 @@ name = "svg-format"
 version = "0.5.2"
 dependencies = [
  "clap",
+ "svg-tree",
  "tree-sitter",
  "tree-sitter-svg",
  "tree-sitter-svg-path",
@@ -1116,6 +1138,7 @@ name = "svg-language-server"
 version = "0.5.2"
 dependencies = [
  "base64",
+ "clap",
  "quick-xml",
  "serde",
  "serde_json",
@@ -1143,6 +1166,7 @@ name = "svg-lint"
 version = "0.5.2"
 dependencies = [
  "clap",
+ "clap_complete",
  "serde_json",
  "svg-color",
  "svg-data",
@@ -1178,6 +1202,8 @@ dependencies = [
 name = "svg-tree"
 version = "0.5.2"
 dependencies = [
+ "clap",
+ "clap_complete",
  "tree-sitter",
  "tree-sitter-svg",
 ]
@@ -1237,7 +1263,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

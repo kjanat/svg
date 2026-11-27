@@ -13,6 +13,9 @@
 //! assert!(!svg_tree::is_attribute_name_kind("element"));
 //! ```
 
+#[cfg(feature = "cli")]
+pub mod cli;
+
 /// Iterative depth-first traversal of every node reachable from `cursor`.
 ///
 /// Calls `f` on each node visited.  Uses `TreeCursor` internally for

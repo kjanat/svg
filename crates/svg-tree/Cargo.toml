@@ -13,7 +13,12 @@ keywords               = ["svg", "traversal", "tree-sitter"]
 categories             = ["development-tools"]
 include                = ["/README.md", "/src/*"]
 
+[features]
+cli = ["dep:clap", "dep:clap_complete"]
+
 [dependencies]
+clap                  = { workspace = true, features = ["derive"], optional = true }
+clap_complete         = { workspace = true, optional = true }
 tree-sitter.workspace = true
 
 [dev-dependencies]

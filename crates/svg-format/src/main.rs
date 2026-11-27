@@ -7,7 +7,7 @@ use std::{
     process::ExitCode,
 };
 
-use clap::{Args, Parser};
+use clap::{Args, CommandFactory as _, Parser, ValueHint};
 use svg_format::{
     AttributeLayout, AttributeSort, BlankLines, FormatOptions, QuoteStyle, TextContentMode,
     WrappedAttributeIndent, format_with_options,
@@ -24,8 +24,11 @@ use svg_format::{
                   wrapping aligned under the tag name."
 )]
 struct Cli {
+    #[command(flatten)]
+    completion: svg_tree::cli::CompletionArgs,
+
     /// SVG file to format. Reads stdin when omitted.
-    #[arg(value_name = "FILE", conflicts_with = "stdin")]
+    #[arg(value_name = "FILE", value_hint = ValueHint::FilePath, conflicts_with = "stdin")]
     path: Option<PathBuf>,
 
     /// I/O mode selectors (in-place, check, stdin).
@@ -123,6 +126,10 @@ struct SelfCloseArgs {
 
 fn run() -> Result<ExitCode, String> {
     let cli = Cli::parse();
+    if let Some(result) = cli.completion.generate(Cli::command) {
+        result.map_err(|error| error.to_string())?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let defaults = FormatOptions::default();
     let read_stdin = cli.io.stdin || cli.path.is_none();
 
@@ -221,6 +228,7 @@ fn merge_ignore_prefixes(mut defaults: Vec<String>, extra: Vec<String>) -> Vec<S
 }
 
 fn main() -> ExitCode {
+    svg_tree::cli::complete(Cli::command);
     match run() {
         Ok(code) => code,
         Err(message) => {
