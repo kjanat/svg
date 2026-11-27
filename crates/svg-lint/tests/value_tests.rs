@@ -174,3 +174,22 @@ fn sizing_values_check_attr_and_calc_size_arguments() {
         ["\"attr(1 type(&lt;length&gt;))\"", "\"calc-size(auto)\""],
     );
 }
+
+#[test]
+fn cursor_image_set_type_takes_a_mime_string() {
+    let body = r#"<rect cursor='image-set(url(cursor.png) type("image/png")), auto'/>
+        <rect cursor='image-set(url(cursor.png) type(2)), auto'/>
+        <rect cursor='image-set(url(cursor.png) type(&lt;length&gt;)), auto'/>
+        <rect cursor='image-set(url(cursor.png) type("image/png" "image/jpeg")), auto'/>
+        <rect width='attr(data-size type("image/png"))'/>
+        <rect width='attr(data-size type("&lt;length&gt;"))'/>"#;
+    assert_eq!(
+        flagged_values(body),
+        [
+            "'image-set(url(cursor.png) type(2)), auto'",
+            "'image-set(url(cursor.png) type(&lt;length&gt;)), auto'",
+            "'image-set(url(cursor.png) type(\"image/png\" \"image/jpeg\")), auto'",
+            "'attr(data-size type(\"image/png\"))'",
+        ],
+    );
+}

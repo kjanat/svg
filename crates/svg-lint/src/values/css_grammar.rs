@@ -704,6 +704,8 @@ enum Node {
     /// function of that name matches, with arguments matching the function's
     /// own definition (see [`function_arguments`]).
     Function(String),
+    /// The string-only `type()` modifier in an image-set option.
+    ImageMimeType,
     /// Juxtaposition.
     Seq(Vec<Self>),
     /// `&&`.
@@ -1075,6 +1077,16 @@ impl<'g> GrammarParser<'_, 'g, '_> {
                 }
                 arguments?
             }
+            Lexeme::Function(name)
+                if name.eq_ignore_ascii_case("type")
+                    && matches!(
+                        self.lexemes.get(self.pos..),
+                        Some([Lexeme::Type("string"), Lexeme::CloseParen, ..])
+                    ) =>
+            {
+                self.pos += 2;
+                Node::ImageMimeType
+            }
             Lexeme::Function(name) => {
                 // A notation's arguments are matched against the function's
                 // own definition when a value uses it (see
@@ -1360,7 +1372,11 @@ impl Matcher<'_, '_> {
     /// exactly.
     fn ends(&self, node: &Node, pos: usize, whole: bool) -> BTreeSet<usize> {
         match node {
-            Node::Keyword(_) | Node::Delim(_) | Node::Type(..) | Node::Function(_) => self
+            Node::Keyword(_)
+            | Node::Delim(_)
+            | Node::Type(..)
+            | Node::Function(_)
+            | Node::ImageMimeType => self
                 .values
                 .get(pos)
                 .filter(|value| self.single(node, value))
@@ -1405,6 +1421,15 @@ impl Matcher<'_, '_> {
                         | (';', ComponentValue::Token(Token::Semicolon))
                         | (':', ComponentValue::Token(Token::Colon))
                 ) || matches!(value, ComponentValue::Token(Token::Delim(c)) if c == delim)
+            }
+            Node::ImageMimeType => {
+                let ComponentValue::Function(function) = value else {
+                    return false;
+                };
+                let mut args = function.value.iter().filter(|arg| !arg.is_whitespace());
+                function.name.eq_ignore_ascii_case("type")
+                    && matches!(args.next(), Some(ComponentValue::Token(Token::String(_))))
+                    && args.next().is_none()
             }
             Node::Function(name) => matches!(
                 value,
