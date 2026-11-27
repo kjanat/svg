@@ -108,8 +108,18 @@ impl Unitless {
 pub fn check_css_grammar(
     value: &str,
     grammar: &str,
+    graph: &CssGrammarGraph,
+    scope: UnitlessScope,
+) -> Option<String> {
+    check_css_grammar_with_ranges(value, grammar, graph, scope, true)
+}
+
+pub(super) fn check_css_grammar_with_ranges(
+    value: &str,
+    grammar: &str,
     _graph: &CssGrammarGraph,
     scope: UnitlessScope,
+    check_ranges: bool,
 ) -> Option<String> {
     if OPAQUE_GRAMMARS.contains(&grammar) {
         return None;
@@ -143,7 +153,7 @@ pub fn check_css_grammar(
         .ends(&root, 0, true)
         .contains(&values.len())
     };
-    if matches(true) {
+    if matches(check_ranges) {
         None
     } else if matches(false) {
         Some(format!(
@@ -1479,6 +1489,25 @@ mod tests {
             .filter(|name| super::function_arguments(name, super::UnitlessMode::Css).is_none())
             .collect();
         assert_eq!(unchecked, Vec::<&str>::new());
+    }
+
+    #[test]
+    fn delta_validation_ignores_ranges_but_checks_syntax() {
+        let graph = CssGrammarGraph {
+            root: 0,
+            nodes: &[],
+            edges: &[],
+        };
+        let scope = UnitlessScope::ValueColumn;
+        let grammar = "<number [0,1]>";
+        assert!(super::check_css_grammar("-0.5", grammar, &graph, scope).is_some());
+        assert_eq!(
+            super::check_css_grammar_with_ranges("-0.5", grammar, &graph, scope, false),
+            None
+        );
+        assert!(
+            super::check_css_grammar_with_ranges("red", grammar, &graph, scope, false).is_some()
+        );
     }
 
     // Claim: "Keywords are identifiers and are interpreted ASCII

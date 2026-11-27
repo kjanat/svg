@@ -514,20 +514,8 @@ fn check_animation_values(
     elem_name: &str,
     scope: &NamespaceScope<'_>,
 ) {
-    let mut cursor = tag.walk();
-    let attributes: Vec<_> = tag
-        .children(&mut cursor)
-        .filter_map(|attr| {
-            let name = find_attr_name(attr)?.utf8_text(ctx.source).ok()?;
-            let expanded = namespaces::expand_attribute_name(name, scope);
-            let value_node = attribute_value_node(attr)?;
-            let value =
-                crate::values::attribute_value_text(value_node.utf8_text(ctx.source).ok()?)?;
-            Some((expanded, value_node, value))
-        })
-        .collect();
-
-    let Some((_, _, name)) = attributes
+    let attributes = animation_attributes(ctx.source, tag, scope);
+    let Some((_, _, Some(name))) = attributes
         .iter()
         .find(|(name, _, _)| name.namespace_uri.is_none() && name.local_name == "attributeName")
     else {
@@ -549,36 +537,14 @@ fn check_animation_values(
                 name.local_name == "href" && name.namespace_uri == Some(XLINK_NAMESPACE_URI)
             })
         });
-    let target = if let Some((_, _, href)) = href {
-        href.trim().strip_prefix('#').and_then(|id| {
-            let point = (*ctx.defined_ids.get(id)?)?;
-            let mut root = node;
-            while let Some(parent) = root.parent() {
-                root = parent;
-            }
-            let mut current = root.descendant_for_point_range(point, point)?;
-            while !matches!(current.kind(), "element" | "svg_root_element") {
-                current = current.parent()?;
-            }
-            Some(current)
-        })
-    } else {
-        node.parent()
+    let href = match href {
+        Some((_, _, Some(value))) => Some(value.as_ref()),
+        Some(_) => return,
+        None => None,
     };
-
-    let Some(target_name) = target
-        .and_then(opening_tag)
-        .and_then(|tag| tag.child_by_field_name("name"))
-    else {
+    let Some(target_name) = animation_target_name(ctx, node, href) else {
         return;
     };
-    if !namespaces::resolves_to_svg_namespace(ctx.source, target_name) {
-        return;
-    }
-    let Ok(raw_target) = target_name.utf8_text(ctx.source) else {
-        return;
-    };
-    let (_, target_name) = namespaces::split_qualified_name(raw_target);
     let profile = ctx.options.profile;
     let ProfileLookup::Present { value: def, .. } =
         svg_data::attribute_for_profile_on_element(profile, &name, Some(target_name))
@@ -592,20 +558,46 @@ fn check_animation_values(
         return;
     };
 
-    for (attribute, value_node, value) in &attributes {
-        if attribute.namespace_uri.is_some() {
-            continue;
+    let has_attribute = |wanted| {
+        attributes
+            .iter()
+            .any(|(name, _, _)| name.namespace_uri.is_none() && name.local_name == wanted)
+    };
+    let additive = elem_name == "animate"
+        && attributes.iter().any(|(name, _, value)| {
+            name.namespace_uri.is_none()
+                && name.local_name == "additive"
+                && value.as_deref().is_none_or(|value| value.trim() == "sum")
+        });
+
+    for (attribute, value_node, value) in attributes.iter().filter_map(|entry| match entry {
+        (name, Some(node), Some(value)) if name.namespace_uri.is_none() => {
+            Some((name, node, value))
         }
+        _ => None,
+    }) {
+        let delta = attribute.local_name == "by"
+            || (additive
+                && (attribute.local_name != "to"
+                    || has_attribute("from")
+                    || has_attribute("values")));
+        let check = |item: &str| {
+            if delta {
+                crate::values::invalid_reason_for_delta(&name, grammar, item, profile)
+            } else {
+                crate::values::invalid_reason_for(&name, grammar, item, profile)
+            }
+        };
         let reason = match attribute.local_name {
             "to" | "from" | "by" if elem_name == "animate" || attribute.local_name == "to" => {
-                crate::values::invalid_reason_for(&name, grammar, value, profile)
+                check(value)
             }
             "values" if elem_name == "animate" => value
                 .trim_end()
                 .strip_suffix(';')
-                .unwrap_or(&value)
+                .unwrap_or(value)
                 .split(';')
-                .find_map(|item| crate::values::invalid_reason_for(&name, grammar, item, profile)),
+                .find_map(check),
             _ => None,
         };
         if let Some(reason) = reason {
@@ -623,6 +615,61 @@ fn check_animation_values(
             );
         }
     }
+}
+
+type AnimationAttribute<'src, 'tree> = (
+    namespaces::ExpandedName<'src>,
+    Option<Node<'tree>>,
+    Option<Cow<'src, str>>,
+);
+
+fn animation_attributes<'src, 'tree>(
+    source: &'src [u8],
+    tag: Node<'tree>,
+    scope: &NamespaceScope<'src>,
+) -> Vec<AnimationAttribute<'src, 'tree>> {
+    let mut cursor = tag.walk();
+    tag.children(&mut cursor)
+        .filter_map(|attr| {
+            let name = find_attr_name(attr)?.utf8_text(source).ok()?;
+            let expanded = namespaces::expand_attribute_name(name, scope);
+            let value_node = attribute_value_node(attr);
+            let value = value_node
+                .and_then(|node| node.utf8_text(source).ok())
+                .and_then(crate::values::attribute_value_text);
+            Some((expanded, value_node, value))
+        })
+        .collect()
+}
+
+/// Resolve a local fragment target, or the parent when href is absent.
+fn animation_target_name<'a>(
+    ctx: &LintContext<'a>,
+    animation: Node,
+    href: Option<&str>,
+) -> Option<&'a str> {
+    let target = match href {
+        None => animation.parent()?,
+        Some(href) => {
+            let id = href.trim().strip_prefix('#')?;
+            let point = (*ctx.defined_ids.get(id)?)?;
+            let mut root = animation;
+            while let Some(parent) = root.parent() {
+                root = parent;
+            }
+            let mut current = root.descendant_for_point_range(point, point)?;
+            while !matches!(current.kind(), "element" | "svg_root_element") {
+                current = current.parent()?;
+            }
+            current
+        }
+    };
+    let name = opening_tag(target)?.child_by_field_name("name")?;
+    if !namespaces::resolves_to_svg_namespace(ctx.source, name) {
+        return None;
+    }
+    let (_, local_name) = namespaces::split_qualified_name(name.utf8_text(ctx.source).ok()?);
+    Some(local_name)
 }
 
 /// Walk into an `attribute` node to find the name node.

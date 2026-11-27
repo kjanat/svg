@@ -131,3 +131,32 @@ fn animation_values_use_the_target_attribute_grammar() {
         ],
     );
 }
+
+#[test]
+fn animation_deltas_keep_syntax_checks_without_absolute_ranges() {
+    let body = r#"<circle r="10">
+        <animate attributeName="r" from="10" by="-5" dur="1s"/>
+        <animate attributeName="r" by="nope"/>
+        <animate attributeName="r" to="-1"/>
+        <animate attributeName="r" additive="sum" values="0; -5"/>
+        <animate attributeName="r" additive="sum" to="-2"/>
+        </circle>"#;
+    assert_eq!(flagged_values(body), ["\"nope\"", "\"-1\"", "\"-2\""]);
+}
+
+#[test]
+fn unresolved_animation_href_does_not_select_parent() {
+    let source = br##"<!DOCTYPE svg [<!ENTITY target "#text">]>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <text id="text">t</text>
+        <rect id="box">
+        <set href="&target;" xlink:href="#box" attributeName="x" to="1 2"/>
+        <set xlink:href="&target;" attributeName="x" to="1 2"/>
+        <set href="#text" attributeName="x" to="1 2"/>
+        </rect></svg>"##;
+    assert!(
+        lint(source)
+            .iter()
+            .all(|diag| diag.code != DiagnosticCode::InvalidAttributeValue)
+    );
+}
