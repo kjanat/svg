@@ -120,6 +120,14 @@ published binaries and runs the normal runtime checks before publishing to the
 Tier 3 targets are `experimental: true` and run with `continue-on-error`; their
 absence never blocks a release. Tier 1/2 targets are release-blocking.
 
+Cross jobs install their tools from `mise.release.toml`. `Cross.toml` pins the
+FreeBSD ARM64 and LoongArch GNU container images. FreeBSD ARM64 loads the shared
+`.cargo/build-std.toml` with nightly Rust. NetBSD x86-64 uses the host cross
+toolchain because the Cross image lacks `libexecinfo`.
+
+The Linux x86-64 musl leg runs all three built executables through an
+`actions-shells` Cross smoke step before uploading the archive.
+
 ## Distributed runtime coverage
 
 Runtime environments are explicit `runtime` objects on the existing entries in

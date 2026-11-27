@@ -1,0 +1,6 @@
+# Cross 0.2.5 does not select images for these targets automatically.
+[target.aarch64-unknown-freebsd]
+image = "ghcr.io/cross-rs/aarch64-unknown-freebsd@sha256:317107ff710735ba2ab91d71185e32a5781870238aa93d9c2e0399b986668fb1"
+
+[target.loongarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/loongarch64-unknown-linux-gnu@sha256:7331701ea4c970265eaddb82d8fd4345fbcc90bd8dd1604f147903c08ede8575"

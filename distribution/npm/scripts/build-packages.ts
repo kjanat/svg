@@ -115,7 +115,7 @@ interface Target {
 	cpu: NodeJS.Architecture[];
 	libc?: Libc[];
 	runner: string;
-	build: 'cargo' | 'cross' | 'cargo-cross-toolchain' | 'cargo-build-std' | 'vm';
+	build: 'cargo' | 'cross' | 'cargo-cross-toolchain' | 'cross-build-std' | 'vm';
 	tier: 1 | 2 | 3;
 	experimental?: boolean;
 	runtime?: { runner: string; container?: string };
