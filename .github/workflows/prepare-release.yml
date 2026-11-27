@@ -60,5 +60,5 @@ jobs:
           body: |
             Prepare v${{ fromJSON(steps.begin.outputs.context).version }} with coordinated manifests, lockfiles and generated grammar metadata.
 
-            Review the release notes before merging.
+            Add the release entry to `CHANGELOG.md` and review it before merging.
             **Merging publishes** the release *once its checks pass*.

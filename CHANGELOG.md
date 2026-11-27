@@ -16,6 +16,22 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-27
+
+### Added
+
+- Verify GitHub Release binary archives with GitHub artifact attestations.
+  Each build attests its archive before uploading it with its SHA-256 checksum.
+
+### Changed
+
+- Refresh the SVG catalog and generated grammar data, including browser
+  compatibility data from MDN Browser Compat Data 8.1.11 and Web Features 3.48.0.
+- Run npm and crates.io backfills through explicit Beepboop operations. npm
+  recovery can rebuild packages from published release archives after the
+  original workflow artifact expires, using the `backfill` dist-tag.
+- Beepboop labels version PRs `release` and assigns them to `kjanat`.
+
 ## [0.5.1] - 2026-11-17
 
 ### Changed
@@ -487,7 +503,8 @@ When bumping the workspace version after a catalog refresh:
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
 
-[Unreleased]: https://github.com/kjanat/svg/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/kjanat/svg/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/kjanat/svg/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kjanat/svg/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kjanat/svg/compare/v0.3.0...v0.4.0
