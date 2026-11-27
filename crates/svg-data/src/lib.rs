@@ -1308,35 +1308,111 @@ mod catalog_tests {
 
     #[test]
     fn element_scoped_attribute_compat_does_not_flatten_by_name() {
+        // Exercise both classifications without pinning the test to upstream BCD status.
+        const NO_CHROME: CompatFacts = CompatFacts {
+            browser_support: Some(&[(
+                "chrome",
+                &[BrowserVersion {
+                    version_added: Some(crate::browser_compat::VersionAdded::Unsupported(
+                        crate::browser_compat::Unsupported,
+                    )),
+                    ..BrowserVersion::EMPTY
+                }],
+            )]),
+            ..CompatFacts::EMPTY
+        };
+        let path = AttributeDef {
+            name: "path",
+            description: "",
+            mdn_url: "",
+            spec_url: None,
+            deprecated: false,
+            experimental: false,
+            standard_track: None,
+            animation: Animation::NotAnimatable,
+            presentation_attribute: None,
+            baseline: None,
+            discouraged: &[],
+            browser_support: None,
+            element_compat: &[AttributeElementCompat {
+                element: "textPath",
+                facts: CompatFacts {
+                    experimental: true,
+                    ..NO_CHROME
+                },
+            }],
+            element_values: &[],
+            values: AttributeValues::FreeText,
+            value_overrides: &[],
+            applicability: AttributeApplicability::Elements(&["animateMotion", "textPath"]),
+        };
+        let profile = SpecSnapshotId::LATEST;
+
+        assert!(compat_verdict_for_attribute(&path, profile).is_none());
+        assert!(
+            compat_verdict_for_attribute_on_element(&path, Some("animateMotion"), profile)
+                .is_none()
+        );
+        let Some(experimental) =
+            compat_verdict_for_attribute_on_element(&path, Some("textPath"), profile)
+        else {
+            panic!("experimental textPath with unsupported Chrome should produce a verdict");
+        };
+        assert_eq!(
+            experimental.reasons,
+            [
+                VerdictReason::BcdExperimental,
+                VerdictReason::UnsupportedIn("chrome".to_owned()),
+            ]
+        );
+
+        let stable_path = AttributeDef {
+            element_compat: &[AttributeElementCompat {
+                element: "textPath",
+                facts: NO_CHROME,
+            }],
+            ..path
+        };
+        let Some(stable) =
+            compat_verdict_for_attribute_on_element(&stable_path, Some("textPath"), profile)
+        else {
+            panic!("stable textPath with unsupported Chrome should still produce a verdict");
+        };
+        assert_eq!(
+            stable.reasons,
+            [VerdictReason::UnsupportedIn("chrome".to_owned())]
+        );
+    }
+
+    #[test]
+    fn generated_path_verdicts_follow_their_own_compat_records() {
         let Some(path) = attribute("path") else {
             panic!("path missing from catalog");
         };
+        let profile = SpecSnapshotId::LATEST;
+        let expected_global = compat_verdict_from_facts(&path.compat_facts());
+        assert_eq!(compat_verdict_for_attribute(path, profile), expected_global);
 
-        assert!(!path.experimental);
-        assert!(compat_verdict_for_attribute(path, SpecSnapshotId::LATEST).is_none());
-        assert!(
-            compat_verdict_for_attribute_on_element(
-                path,
-                Some("animateMotion"),
-                SpecSnapshotId::LATEST
-            )
-            .is_none()
-        );
-
-        let Some(text_path_verdict) =
-            compat_verdict_for_attribute_on_element(path, Some("textPath"), SpecSnapshotId::LATEST)
-        else {
-            panic!("textPath path facts should produce a verdict");
+        let scoped_record = |name| {
+            path.element_compat
+                .iter()
+                .find(|record| record.element == name)
         };
-        assert!(
-            text_path_verdict
-                .reasons
-                .contains(&VerdictReason::BcdExperimental)
+        let Some(text_path) = scoped_record("textPath") else {
+            panic!("textPath path compat missing from catalog");
+        };
+        assert_eq!(
+            compat_verdict_for_attribute_on_element(path, Some("textPath"), profile),
+            compat_verdict_from_facts(&text_path.facts)
         );
-        assert!(
-            text_path_verdict
-                .reasons
-                .contains(&VerdictReason::UnsupportedIn("chrome".to_owned()))
+
+        let expected_animate_motion = scoped_record("animateMotion")
+            .map_or(expected_global, |record| {
+                compat_verdict_from_facts(&record.facts)
+            });
+        assert_eq!(
+            compat_verdict_for_attribute_on_element(path, Some("animateMotion"), profile),
+            expected_animate_motion
         );
     }
 
