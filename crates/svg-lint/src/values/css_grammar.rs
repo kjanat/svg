@@ -150,6 +150,7 @@ pub(super) fn check_css_grammar_with_ranges(
             ranges,
             nested: scope.nested(),
             components: ComponentKeywords::None,
+            allows_percentage: root.allows_percentage(),
         }
         .ends(&root, 0, true)
         .contains(&values.len())
@@ -514,6 +515,19 @@ enum Node {
     },
     /// `!`: the group must produce at least one value.
     Required(Box<Self>),
+}
+
+impl Node {
+    fn allows_percentage(&self) -> bool {
+        match self {
+            Self::Type(Leaf::Numeric(ty), _, _) => ty.allows_percentage(),
+            Self::Seq(nodes) | Self::AllOf(nodes) | Self::AnyOf(nodes) | Self::OneOf(nodes) => {
+                nodes.iter().any(Self::allows_percentage)
+            }
+            Self::Repeat { node, .. } | Self::Required(node) => node.allows_percentage(),
+            _ => false,
+        }
+    }
 }
 
 /// A basic data type the matcher implements.
@@ -1026,6 +1040,7 @@ struct Matcher<'v, 'a> {
     nested: UnitlessMode,
     /// The identifiers that stand for a number in this argument list.
     components: ComponentKeywords,
+    allows_percentage: bool,
 }
 
 /// The component keywords of a relative color function, which "are all
@@ -1123,6 +1138,7 @@ pub(super) fn relative_color_matches(function: &Function<'_>) -> bool {
         ranges: false,
         nested: UnitlessMode::Css,
         components: ComponentKeywords::of(&function.name, &values),
+        allows_percentage: arguments.allows_percentage(),
     }
     .ends(&arguments, 0, true)
     .contains(&values.len())
@@ -1201,7 +1217,7 @@ impl Matcher<'_, '_> {
                 if let ComponentValue::Function(function) = value
                     && is_math_function(&function.name) =>
             {
-                calculation::matches(function, *ty, *unitless, |value| {
+                calculation::matches(function, *ty, *unitless, self.allows_percentage, |value| {
                     self.components.contains(value)
                 })
             }
@@ -1232,6 +1248,7 @@ impl Matcher<'_, '_> {
             ranges: self.ranges,
             nested: self.nested,
             components: ComponentKeywords::of(&function.name, &values),
+            allows_percentage: arguments.allows_percentage(),
         }
         .ends(&arguments, 0, true)
         .contains(&values.len())
@@ -2860,6 +2877,9 @@ mod tests {
                 "brightness(progress(no-clamp, 0, 1))",
                 "brightness(progress(no-clamp 2px, 0deg, 1deg))",
                 "brightness(random(wrong-key, 1, 10))",
+                "blur(calc(1px * sign(10%)))",
+                "brightness(calc-mix(1 150%, 3))",
+                "brightness(calc-mix(1 -50%, 3))",
                 "blur(random(fixed -1, 1px, 2px))",
                 "brightness(progress(1px * 1px, 2px * 2px, 3px * 3px))",
                 "blur(calc(1px +2px))",

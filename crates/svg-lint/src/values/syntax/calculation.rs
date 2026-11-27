@@ -56,6 +56,7 @@ pub fn matches(
     function: &Function<'_>,
     expected: NumericType,
     unitless: UnitlessMode,
+    allows_percentage: bool,
     keyword: impl Fn(&ComponentValue<'_>) -> bool,
 ) -> bool {
     let (expected, percent_hint) = match expected {
@@ -73,7 +74,7 @@ pub fn matches(
         NumericType::Flex => (Type::dimension(FLEX), None),
     };
     Calculation {
-        percent_hint,
+        percent_hint: percent_hint.or_else(|| allows_percentage.then_some(PERCENT)),
         keyword: &keyword,
     }
     .function(function)
@@ -89,16 +90,22 @@ pub fn valid_function(
     function: &Function<'_>,
     keyword: impl Fn(&ComponentValue<'_>) -> bool,
 ) -> bool {
-    [None, Some(LENGTH), Some(ANGLE), Some(TIME), Some(FREQUENCY)]
-        .into_iter()
-        .any(|percent_hint| {
-            Calculation {
-                percent_hint,
-                keyword: &keyword,
-            }
-            .function(function)
-            .is_some_and(Type::is_numeric_value)
-        })
+    [
+        Some(PERCENT),
+        Some(LENGTH),
+        Some(ANGLE),
+        Some(TIME),
+        Some(FREQUENCY),
+    ]
+    .into_iter()
+    .any(|percent_hint| {
+        Calculation {
+            percent_hint,
+            keyword: &keyword,
+        }
+        .function(function)
+        .is_some_and(Type::is_numeric_value)
+    })
 }
 
 type Keyword<'a> = dyn Fn(&ComponentValue<'_>) -> bool + 'a;
@@ -113,7 +120,7 @@ impl Calculation<'_> {
         match value {
             ComponentValue::Token(Token::Number(_)) => Some(Type::NUMBER),
             ComponentValue::Token(Token::Percentage(_)) => {
-                Some(Type::dimension(self.percent_hint.unwrap_or(PERCENT)))
+                Some(Type::dimension(self.percent_hint?))
             }
             ComponentValue::Token(Token::Dimension { unit, .. }) => {
                 let index = match unit_category(unit)? {
@@ -218,8 +225,11 @@ impl Calculation<'_> {
             return common(args.into_iter().map(|arg| {
                 self.sum(arg).or_else(|| {
                     let (weight, sum) = arg.split_last()?;
+                    if matches!(weight, ComponentValue::Token(Token::Percentage(number)) if !(0.0..=100.0).contains(&number.value)) {
+                        return None;
+                    }
                     let weight_type = Calculation {
-                        percent_hint: None,
+                        percent_hint: Some(PERCENT),
                         keyword: self.keyword,
                     }
                     .value(weight)?;
@@ -309,7 +319,7 @@ impl Calculation<'_> {
         stops: &[&[ComponentValue<'_>]],
     ) -> Option<Type> {
         let input = Self {
-            percent_hint: None,
+            percent_hint: Some(PERCENT),
             keyword: self.keyword,
         };
         let source_type = input.interpolation_source(source)?;
