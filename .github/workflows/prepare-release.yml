@@ -29,7 +29,7 @@ jobs:
             with: { node-version: "26" }
           - uses: astral-sh/setup-uv@v10.3.3
           - uses: denoland/setup-deno@v2
-          - uses: kjanat/setup-zig@v3.0.0
+          - uses: kjanat/setup-zig@v3
             with: { version: 0.16.0 }
       - name: Raise every version carrier
         env: { RELEASE_VERSION: "${{ fromJSON(steps.begin.outputs.context).version }}" }
@@ -60,5 +60,7 @@ jobs:
           body: |
             Prepare v${{ fromJSON(steps.begin.outputs.context).version }} with coordinated manifests, lockfiles and generated grammar metadata.
 
-            Add the release entry to `CHANGELOG.md` and review it before merging.
+            TODO:
+            - [ ] Update `CHANGELOG.md`
+
             **Merging publishes** the release *once its checks pass*.
