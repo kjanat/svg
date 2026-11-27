@@ -1086,6 +1086,18 @@ impl ComponentKeywords {
     }
 }
 
+/// Check relative color arguments with the same grammar and channel keywords
+/// used for colors embedded in other CSS values.
+pub(super) fn relative_color_matches(function: &Function<'_>) -> bool {
+    Matcher {
+        values: &[],
+        ranges: false,
+        nested: UnitlessMode::Css,
+        components: ComponentKeywords::None,
+    }
+    .arguments_match(function)
+}
+
 impl Matcher<'_, '_> {
     /// Every position at which `node`, matched from `pos`, can end.
     ///
