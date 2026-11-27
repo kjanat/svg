@@ -108,3 +108,26 @@ fn values_with_declared_entities_are_not_checked() {
         .collect();
     assert_eq!(diagnostics, []);
 }
+
+#[test]
+fn animation_values_use_the_target_attribute_grammar() {
+    let body = r##"<rect id="box"><set attributeName="fill" to="banana"/>
+        <animate attributeName="stroke-width" from="bad" to="2" by="nope" values="1; red; 3;"/>
+        <set attributeName="fill" to="blue"/>
+        <set attributeName="unknown" to="banana"/>
+        <set attributeName="id" to="banana"/>
+        <set to="banana"/>
+        </rect>
+        <set href="#box" attributeName="fill" to="bogus"/>
+        <set href="other.svg#box" attributeName="fill" to="outside"/>"##;
+    assert_eq!(
+        flagged_values(body),
+        [
+            "\"banana\"",
+            "\"bad\"",
+            "\"nope\"",
+            "\"1; red; 3;\"",
+            "\"bogus\""
+        ],
+    );
+}
