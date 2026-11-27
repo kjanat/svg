@@ -1453,11 +1453,12 @@ mod tests {
     fn check_wpt_cases(cases: &str) {
         let mut failures = Vec::new();
         for line in cases.lines().filter(|line| !line.starts_with('#')) {
-            let [expected, grammar, value]: [&str; 3] = line
-                .splitn(3, '\t')
-                .collect::<Vec<_>>()
-                .try_into()
-                .expect("expected validity, grammar, and value");
+            let mut fields = line.splitn(3, '\t');
+            let (Some(expected), Some(grammar), Some(value)) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                panic!("expected validity, grammar, and value: {line}");
+            };
             let expected_valid = match expected {
                 "valid" => true,
                 "invalid" => false,
