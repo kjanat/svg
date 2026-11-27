@@ -160,3 +160,37 @@ fn unresolved_animation_href_does_not_select_parent() {
             .all(|diag| diag.code != DiagnosticCode::InvalidAttributeValue)
     );
 }
+
+#[test]
+fn sizing_values_check_attr_and_calc_size_arguments() {
+    let body = r#"<rect width="attr(1 type(&lt;length&gt;))"/>
+        <rect width="calc-size(auto)"/>
+        <rect width="attr(data-size type(&lt;length&gt;), auto)"/>
+        <rect width="attr({data-size px}, 10px)"/>
+        <rect width="var(--width, attr(1 px))"/>
+        <rect width="first-valid(10px, attr(1 px))"/>
+        <rect width="calc-size(auto, size + 10px)"/>"#;
+    assert_eq!(
+        flagged_values(body),
+        ["\"attr(1 type(&lt;length&gt;))\"", "\"calc-size(auto)\""],
+    );
+}
+
+#[test]
+fn cursor_image_set_type_takes_a_mime_string() {
+    let body = r#"<rect cursor='image-set(url(cursor.png) type("image/png")), auto'/>
+        <rect cursor='image-set(url(cursor.png) type(2)), auto'/>
+        <rect cursor='image-set(url(cursor.png) type(&lt;length&gt;)), auto'/>
+        <rect cursor='image-set(url(cursor.png) type("image/png" "image/jpeg")), auto'/>
+        <rect width='attr(data-size type("image/png"))'/>
+        <rect width='attr(data-size type("&lt;length&gt;"))'/>"#;
+    assert_eq!(
+        flagged_values(body),
+        [
+            "'image-set(url(cursor.png) type(2)), auto'",
+            "'image-set(url(cursor.png) type(&lt;length&gt;)), auto'",
+            "'image-set(url(cursor.png) type(\"image/png\" \"image/jpeg\")), auto'",
+            "'attr(data-size type(\"image/png\"))'",
+        ],
+    );
+}

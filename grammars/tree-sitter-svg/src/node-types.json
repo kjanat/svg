@@ -1371,6 +1371,10 @@
       "required": false,
       "types": [
         {
+          "type": "css_value",
+          "named": true
+        },
+        {
           "type": "length_keyword_value",
           "named": true
         },

@@ -10,6 +10,10 @@ that require CSS-only length slots use `blur()` or `fit-content()` to avoid
 SVG's allowances for top-level unitless lengths. Serialization cases check
 whether the input parses.
 
+`sizing.tsv` draws from `calc-size/calc-size-parsing.html`,
+`attr-all-types.html`, and `attr-fallback-braces.html`. It also checks the
+wrapped first argument and deferred fallback cases from the PR review.
+
 Each row is an expectation, an SVG lint grammar, and a CSS input. The tests
 exercise static value parsing. They do not evaluate computed values or run
 the original browser test harness.

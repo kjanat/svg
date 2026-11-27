@@ -76,6 +76,7 @@ pub fn matches(
     Calculation {
         percent_hint: percent_hint.or_else(|| allows_percentage.then_some(PERCENT)),
         keyword: &keyword,
+        keyword_type: Type::NUMBER,
     }
     .function(function)
     .is_some_and(|result| {
@@ -102,10 +103,28 @@ pub fn valid_function(
         Calculation {
             percent_hint,
             keyword: &keyword,
+            keyword_type: Type::NUMBER,
         }
         .function(function)
         .is_some_and(Type::is_numeric_value)
     })
+}
+
+pub fn sizing_sum(values: &[ComponentValue<'_>], allow_size: bool) -> bool {
+    let length = Type::dimension(LENGTH);
+    let keyword = |value: &ComponentValue<'_>| {
+        allow_size
+            && value
+                .ident()
+                .is_some_and(|name| name.eq_ignore_ascii_case("size"))
+    };
+    Calculation {
+        percent_hint: Some(LENGTH),
+        keyword: &keyword,
+        keyword_type: length,
+    }
+    .sum(values)
+        == Some(length)
 }
 
 type Keyword<'a> = dyn Fn(&ComponentValue<'_>) -> bool + 'a;
@@ -113,6 +132,7 @@ type Keyword<'a> = dyn Fn(&ComponentValue<'_>) -> bool + 'a;
 struct Calculation<'a> {
     percent_hint: Option<usize>,
     keyword: &'a Keyword<'a>,
+    keyword_type: Type,
 }
 
 impl Calculation<'_> {
@@ -136,10 +156,12 @@ impl Calculation<'_> {
             ComponentValue::Token(Token::Ident(name))
                 if ["e", "pi", "infinity", "-infinity", "nan"]
                     .iter()
-                    .any(|keyword| name.eq_ignore_ascii_case(keyword))
-                    || (self.keyword)(value) =>
+                    .any(|keyword| name.eq_ignore_ascii_case(keyword)) =>
             {
                 Some(Type::NUMBER)
+            }
+            ComponentValue::Token(Token::Ident(_)) if (self.keyword)(value) => {
+                Some(self.keyword_type)
             }
             ComponentValue::Block(block) if block.kind == BlockKind::Paren => {
                 self.sum(&block.value)
@@ -231,6 +253,7 @@ impl Calculation<'_> {
                     let weight_type = Calculation {
                         percent_hint: Some(PERCENT),
                         keyword: self.keyword,
+                        keyword_type: self.keyword_type,
                     }
                     .value(weight)?;
                     (weight_type == Type::dimension(PERCENT)
@@ -321,6 +344,7 @@ impl Calculation<'_> {
         let input = Self {
             percent_hint: Some(PERCENT),
             keyword: self.keyword,
+            keyword_type: self.keyword_type,
         };
         let source_type = input.interpolation_source(source)?;
         let absolute = (!source_type.is_proportional()).then_some(source_type);

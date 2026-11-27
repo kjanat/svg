@@ -101,12 +101,19 @@ fn open_tags_before<'tree>(
             return None;
         }
         if tag && node.end_byte() <= offset {
-            // Missing delimiters inserted by error recovery do not open or close
-            // an element. Only explicit tags before the requested edit count.
-            if node
-                .child(node.child_count().saturating_sub(1))
-                .is_some_and(|last| last.kind() == ">" && !last.is_missing())
+            let end = node.child(node.child_count().saturating_sub(1));
+            // The parser can insert a missing delimiter just before a closing
+            // tag typed inside an unfinished opening tag.
+            if matches!(node.kind(), "start_tag" | "self_closing_tag")
+                && end.is_some_and(|last| last.is_missing())
+                && source[node.end_byte()..offset]
+                    .iter()
+                    .all(u8::is_ascii_whitespace)
             {
+                return None;
+            }
+            // Only explicit tags before the requested edit count.
+            if end.is_some_and(|last| last.kind() == ">" && !last.is_missing()) {
                 if node.kind() == "start_tag" {
                     open.push(node);
                 } else if let Some(name) = node

@@ -203,6 +203,7 @@ fn closing_tags_do_not_leak_into_excluded_contexts() -> TestResult {
         "<svg><g fill='</|",
         "<svg><g fill=</|",
         "<svg><g fill=red </|",
+        "<svg><rect width=10 </|",
         "<svg><g style='content: </|'/>",
         "<svg><g onclick='x = </|'/>",
         "<svg><foreignObject><div></|",

@@ -8,6 +8,9 @@
 import grammarData from '#grammarData' with { type: 'json' };
 import { D_ATTRIBUTE_NAMES } from '#grammarFixtures';
 
+const ENTITY_REFERENCE_PATTERN = /&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);/;
+const CSS_FUNCTION_START = /[ \t\r\n]*[-_A-Za-z][-_A-Za-z0-9]*\(/;
+const NON_MARKUP_PAYLOAD = /[^"'<&]+/;
 const NUMBER_PATTERN = /[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?/;
 
 // Literal delimiter tokens, named so the rules read intent over punctuation.
@@ -588,7 +591,7 @@ export default grammar({
 		 * pattern as CSS-in-`<style>`. Excludes only the quote delimiters and
 		 * XML-significant `<`/`&`, mirroring `data_uri_payload`.
 		 */
-		path_data_payload: _ => token(/[^"'<&]+/),
+		path_data_payload: _ => token(NON_MARKUP_PAYLOAD),
 
 		// style attribute (CSS injection)
 
@@ -707,7 +710,7 @@ export default grammar({
 		 */
 		transform_attribute_value: $ => quoted($.transform_payload),
 
-		transform_payload: _ => token(/[^"'<&]+/),
+		transform_payload: _ => token(NON_MARKUP_PAYLOAD),
 
 		// points attribute
 
@@ -752,9 +755,9 @@ export default grammar({
 				seq(SQUOTE, optional(alias($._paint_payload_single, $.paint_payload)), SQUOTE),
 			),
 
-		_paint_payload_double: _ => token(/(?:[^"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+		_paint_payload_double: _ => token(new RegExp(String.raw`(?:[^"<&]|${ENTITY_REFERENCE_PATTERN.source})+`)),
 
-		_paint_payload_single: _ => token(/(?:[^'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+		_paint_payload_single: _ => token(new RegExp(String.raw`(?:[^'<&]|${ENTITY_REFERENCE_PATTERN.source})+`)),
 
 		// functional IRI attribute (url(#ref))
 
@@ -870,11 +873,20 @@ export default grammar({
 		 * (`[ left | center | … | <length-percentage> ]…`). The plain
 		 * length/percentage/auto value keeps its existing shape; a keyword-bearing
 		 * value (one or more whitespace-separated keywords, optionally mixed with
-		 * lengths) is the alternative. A genuine pure-length attribute (`x`,
-		 * `width`) never carries a keyword in valid SVG, so this superset is
-		 * lossless and keeps the value typed.
+		 * lengths) is another alternative. CSS functions are captured as one
+		 * payload so the CSS value checker can interpret nested arguments and
+		 * XML character references.
 		 */
-		length_attribute_value: $ => quoted(choice($.length_or_percentage_or_auto, $.length_keyword_value)),
+		length_attribute_value: $ =>
+			choice(
+				quoted(choice($.length_or_percentage_or_auto, $.length_keyword_value)),
+				seq(DQUOTE, alias($._length_css_double, $.css_value), DQUOTE),
+				seq(SQUOTE, alias($._length_css_single, $.css_value), SQUOTE),
+			),
+
+		_length_css_double: _ => token(new RegExp(String.raw`${CSS_FUNCTION_START.source}(?:[^"<&]|${ENTITY_REFERENCE_PATTERN.source})*`)),
+
+		_length_css_single: _ => token(new RegExp(String.raw`${CSS_FUNCTION_START.source}(?:[^'<&]|${ENTITY_REFERENCE_PATTERN.source})*`)),
 
 		/**
 		 * Distinct from the plain length/percentage/auto branch: this fires only
@@ -1221,9 +1233,9 @@ export default grammar({
 			return choice(seq(optional($.wsp), name, repeat(seq($.wsp, name)), optional($.wsp)), $.wsp);
 		},
 
-		_class_name_double: _ => token(/(?:[^ \t\r\n"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+		_class_name_double: _ => token(new RegExp(String.raw`(?:[^ \t\r\n"<&]|${ENTITY_REFERENCE_PATTERN.source})+`)),
 
-		_class_name_single: _ => token(/(?:[^ \t\r\n'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)+/),
+		_class_name_single: _ => token(new RegExp(String.raw`(?:[^ \t\r\n'<&]|${ENTITY_REFERENCE_PATTERN.source})+`)),
 
 		// event attribute (JS injection)
 
@@ -1331,7 +1343,7 @@ export default grammar({
 
 		wsp: _ => token(/[ \t\r\n]+/),
 
-		entity_reference: _ => token(/&(#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);/),
+		entity_reference: _ => token(ENTITY_REFERENCE_PATTERN),
 
 		text: _ => token(prec(-1, /[^<&]+/)),
 
