@@ -74,7 +74,7 @@ jobs:
         with: { bun-version-file: package.json }
       - uses: taiki-e/install-action@v2
         with: { tool: "just,tombi,rust+rustfmt" }
-      - uses: kjanat/setup-zig@v3.0.0
+      - uses: kjanat/setup-zig@v3
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
       - uses: kjanat/dprint-check@v3
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { persist-credentials: false }
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
       - uses: taiki-e/install-action@v2
         with: { tool: just }
       - run: just check-python
@@ -135,10 +135,10 @@ jobs:
       - uses: taiki-e/install-action@v2
         with: { tool: "rust,just" }
       - uses: Swatinem/rust-cache@v2
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v7
         with: { node-version: "26" }
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
       - name: Release tooling regressions
         run: just release-package-test
       - name: verify actual workspace packages without uploading

@@ -1,0 +1,29 @@
+[tools]
+biome             = "latest"
+bun               = "latest"
+cargo-binstall    = "latest"
+cross             = "latest"
+deno              = "latest"
+just              = "latest"
+kprint            = "latest"
+markdownlint-cli2 = "latest"
+rust              = "latest"
+tombi             = "latest"
+tree-sitter       = "0.27.2"
+tsrs              = "latest"
+uv                = "latest"
+zig               = "0.16.0"
+
+[tool_alias]
+kprint = "github:kjanat/kprint[auto_update=true]"
+tsrs   = "npm:tsrs[auto_update=true]"
+cross  = "cargo:cross[auto_update=true]"
+
+[tasks]
+fmt.run   = "kprint fmt"
+fmt.alias = ["kfmt"]
+
+[settings]
+experimental                         = true
+idiomatic_version_file_enable_tools  = ["rust", "zig", "bun", "node"]
+idiomatic_version_file_disable_files = ["python"]
