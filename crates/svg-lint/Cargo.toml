@@ -20,7 +20,7 @@ bin-dir = "{ bin }{ binary-ext }"
 
 [features]
 default = ["cli"]
-cli     = ["clap", "serde_json"]
+cli     = ["dep:clap_complete", "clap", "serde_json", "svg-tree/cli"]
 
 [lib]
 name = "svg_lint"
@@ -43,6 +43,10 @@ tree-sitter-svg.workspace = true
 [dependencies.clap]
 workspace = true
 features  = ["derive"]
+optional  = true
+
+[dependencies.clap_complete]
+workspace = true
 optional  = true
 
 [dependencies.serde_json]

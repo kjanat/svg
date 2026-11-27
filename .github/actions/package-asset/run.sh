@@ -26,7 +26,7 @@ staging=$(mktemp -d)
 trap 'rm -rf "${staging-}"' EXIT
 
 # Lay out the contents the way upload-rust-binary-action does with
-# `leading_dir: false` and `include: README.md,LICENSE`: every file at
+# `leading_dir: false` and `include: README.md,LICENSE,completions`: every file at
 # the tarball root, no wrapper directory.
 staged=()
 while IFS= read -r bin; do
@@ -40,6 +40,7 @@ while IFS= read -r bin; do
 	staged+=("${bin}")
 done <<<"${bins}"
 cp README.md LICENSE "${staging}/"
+cp -R completions "${staging}/"
 
-tar -C "${staging}" -czf "${archive}" "${staged[@]}" README.md LICENSE
+tar -C "${staging}" -czf "${archive}" "${staged[@]}" README.md LICENSE completions
 sha256sum "${archive}" >"${checksum}"
