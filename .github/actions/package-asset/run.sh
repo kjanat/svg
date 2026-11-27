@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Required env: RELEASE_TAG, TARGET, BIN_DIR, GH_TOKEN (contents: write).
+# Required env: RELEASE_TAG, TARGET, BIN_DIR.
 set -euo pipefail
 
 RELEASE_TAG="${RELEASE_TAG:?RELEASE_TAG required}"
 TARGET="${TARGET:?TARGET required}"
 BIN_DIR="${BIN_DIR:?BIN_DIR required}"
-GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
 
 # Defensive: this path doesn't handle .exe binaries. Bail loudly if a
 # future matrix config routes a Windows target here.
@@ -44,5 +43,3 @@ cp README.md LICENSE "${staging}/"
 
 tar -C "${staging}" -czf "${archive}" "${staged[@]}" README.md LICENSE
 sha256sum "${archive}" >"${checksum}"
-
-gh release upload "${RELEASE_TAG}" "${archive}" "${checksum}" --clobber

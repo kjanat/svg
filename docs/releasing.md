@@ -59,6 +59,19 @@ GitHub Actions exchanges OIDC identities for the authorized runtime values. Spec
 refresh uses `actions/token` and `actions/pull-request` with repository scopes
 for contents, pull requests and issues.
 
+## Verify release archive provenance
+
+The release workflow generates a GitHub build attestation for each binary
+archive before publishing the release. Verify a downloaded archive with:
+
+```sh
+gh attestation verify "$archive" --repo kjanat/svg --signer-workflow kjanat/svg/.github/workflows/release.yml
+```
+
+The attestation identifies the build workflow invocation. Beepboop supplies the
+release commit separately, and the build checks out that commit. Archives
+published before the attestation step was added may have only checksums.
+
 ## Backfill a published version
 
 Find the promotion execution with `beepboop runs list`. Start a backfill for
