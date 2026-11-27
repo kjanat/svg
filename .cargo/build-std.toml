@@ -1,0 +1,3 @@
+# Load explicitly for targets that build the Rust standard library from source.
+[unstable]
+build-std = ["core", "alloc", "std", "proc_macro"]

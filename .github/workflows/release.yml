@@ -46,10 +46,12 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
 
+      - name: build native binaries
+        run: cargo build --locked --bin svg-format --bin svg-lint --bin svg-language-server
+
       - name: generate shell completions with native binaries
-        run: |
-          cargo build --locked --bin svg-format --bin svg-lint --bin svg-language-server
-          bash scripts/generate-shell-completions.sh target/debug completions
+        run: bash scripts/generate-shell-completions.sh target/debug completions
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: shell-completions, path: completions, if-no-files-found: error }
 
@@ -133,7 +135,7 @@ jobs:
     env:
       # KAJ-274: windows-11-arm runners intermittently fail crate fetches with
       # HTTP/2 stream errors; forcing HTTP/1.1 there is the standard workaround.
-      CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner == 'windows-11-arm' && 'false' || 'true' }}
+      CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner != 'windows-11-arm' }}
       CARGO_NET_RETRY: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -148,14 +150,21 @@ jobs:
         with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
       - name: install nightly rust (tier-3 build-std)
-        if: matrix.build-tool == 'cargo-build-std'
+        if: matrix.build-tool == 'cross-build-std'
         uses: dtolnay/rust-toolchain@6a52aad76a94a5fbc50d567bb5be24419801c1fb # nightly
         with: { toolchain: nightly, components: rust-src }
 
-      # Tier-2/3 cross targets: installs the cross C toolchain and exports
-      # CARGO_TARGET_*_LINKER so host cargo can link the target.
-      - name: setup cross toolchain
-        if: contains(fromJSON('["cargo-cross-toolchain", "cargo-build-std"]'), matrix.build-tool)
+      - name: install Cross release tools
+        if: contains(fromJSON('["cross", "cross-build-std"]'), matrix.build-tool)
+        uses: kjanat/mise-action@v6
+        with:
+          mise_env: release
+          cache: false
+          install_args: ${{ case(matrix.target == 'x86_64-unknown-linux-musl', 'cross cargo:rust-script', 'cross') }}
+
+      # NetBSD's Cross image lacks the libexecinfo required by Rust's std.
+      - name: setup NetBSD cross toolchain
+        if: matrix.build-tool == 'cargo-cross-toolchain'
         uses: taiki-e/setup-cross-toolchain-action@0375eb1d01bea430aa3202965839a7092960a23b # v1.43.1
         with: { target: "${{ matrix.target }}" }
 
@@ -166,35 +175,55 @@ jobs:
           dry-run: true
           dry-run-intended: true
           ref: refs/tags/${{ needs.beepboop.outputs.tag }}
-          bin: svg-language-server,svg-lint,svg-format
+          bin: "svg-language-server,svg-lint,svg-format"
           target: ${{ matrix.target }}
-          build-tool: ${{ matrix.build-tool == 'cargo-cross-toolchain' && 'cargo' || matrix.build-tool }}
+          build-tool: ${{ case(matrix.build-tool == 'cargo-cross-toolchain', 'cargo', matrix.build-tool) }}
           archive: svg-$tag-$target
           tar: all
           zip: none
           checksum: sha256
-          include: README.md,LICENSE,completions
+          include: "README.md,LICENSE,completions"
           locked: true
 
       # Tier-3: build/archive/upload manually since upload-rust-binary-action
-      # can't inject `-Z build-std`.
-      - name: build (cargo + -Z build-std)
-        if: matrix.build-tool == 'cargo-build-std'
-        env: { TARGET: "${{ matrix.target }}" }
-        run: cargo +nightly build --release --locked -Z build-std --target "${TARGET}" --bin svg-language-server --bin svg-lint --bin svg-format
+      # has no input for extra Cargo build flags.
+      - name: build with nightly Cross and build-std
+        if: matrix.build-tool == 'cross-build-std'
+        env: { target: "${{ matrix.target }}" }
+        run: cross +nightly build --config .cargo/build-std.toml --release --locked --target "${target}"
+          --bin svg-language-server --bin svg-lint --bin svg-format
 
-      - name: package binaries (cargo-build-std)
-        if: matrix.build-tool == 'cargo-build-std'
+      - name: package binaries (cross-build-std)
+        if: matrix.build-tool == 'cross-build-std'
         uses: $/.github/actions/package-asset
         with:
           tag: ${{ needs.beepboop.outputs.tag }}
           target: ${{ matrix.target }}
           bin-dir: ${{ github.workspace }}/target/${{ matrix.target }}/release
 
+      - uses: kjanat/actions-shells@v0
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        with: { doctor: true, runtimes: cross }
+
+      - name: smoke-test native binaries under musl
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        shell: "actions-shell cross --target x86_64-unknown-linux-musl {0}"
+        run: |
+          assert!(cfg!(target_env = "musl"), "expected the musl target");
+          let bin_dir = std::path::Path::new("target/${{ matrix.target }}/release");
+          for bin in ["svg-format", "svg-lint", "svg-language-server"] {
+              let result = std::process::Command::new(bin_dir.join(bin))
+                  .arg("--version")
+                  .output()
+                  .unwrap_or_else(|error| panic!("could not start {bin}: {error}"));
+              assert!(result.status.success(), "{bin}: {}", String::from_utf8_lossy(&result.stderr));
+              let version = String::from_utf8_lossy(&result.stdout);
+              assert!(version.starts_with(&format!("{bin} ")), "{bin}: {version}");
+          }
+
       - name: attest release archive
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: svg-${{ needs.beepboop.outputs.tag }}-${{ matrix.target }}.tar.gz
+        with: { subject-path: "svg-${{ needs.beepboop.outputs.tag }}-${{ matrix.target }}.tar.gz" }
 
       - uses: kjanat/beepboop/actions/token@v1
         id: automation
@@ -205,11 +234,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.automation.outputs.token }}
-          RELEASE_TAG: ${{ needs.beepboop.outputs.tag }}
-          TARGET: ${{ matrix.target }}
-        run: |
-          basename="svg-${RELEASE_TAG}-${TARGET}"
-          gh release upload "${RELEASE_TAG}" "${basename}.tar.gz" "${basename}.sha256" --clobber
+          release_tag: ${{ needs.beepboop.outputs.tag }}
+          basename: ${{ format('svg-{0}-{1}', needs.beepboop.outputs.tag, matrix.target) }}
+        run: gh release upload "${release_tag}" "${basename}.tar.gz" "${basename}.sha256" --clobber
 
       - name: verify asset uploaded
         uses: $/.github/actions/verify-asset
