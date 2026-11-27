@@ -19,7 +19,7 @@
 //!   substitution function (`var()`, `env()`, `attr()`, `if()`, ...);
 //! - any function other than the CSS Color 4 color functions, such as
 //!   `color-mix()`, `light-dark()`, `contrast-color()` or `device-cmyk()`;
-//! - relative color syntax (`rgb(from ...)`), `color()` with a custom or
+//! - `color()` with a custom or
 //!   unrecognized color space, and a function (a math function) wherever a
 //!   single color component is expected;
 //! - an SVG 1.1 `icc-color()` after a color
@@ -152,7 +152,7 @@ fn is_icc_color(value: &ComponentValue<'_>) -> bool {
 }
 
 /// The reason one component value is not a `<color>`.
-fn color_reason(value: &ComponentValue<'_>) -> Option<String> {
+pub(super) fn color_reason(value: &ComponentValue<'_>) -> Option<String> {
     match value {
         ComponentValue::Token(Token::Ident(ident)) => {
             (!is_color_keyword(ident)).then(|| format!("`{ident}` is not a color keyword"))
@@ -299,8 +299,25 @@ fn function_reason(function: &Function<'_>) -> Option<String> {
         .and_then(|value| value.ident())
         .is_some_and(|ident| ident.eq_ignore_ascii_case("from"));
     let problem = match name.as_str() {
-        // Relative color syntax (CSS Color 5) is not modelled.
-        _ if relative => None,
+        _ if relative
+            && matches!(
+                name.as_str(),
+                "rgb"
+                    | "rgba"
+                    | "hsl"
+                    | "hsla"
+                    | "hwb"
+                    | "lab"
+                    | "oklab"
+                    | "lch"
+                    | "oklch"
+                    | "color"
+                    | "alpha"
+            ) =>
+        {
+            (!super::css_grammar::relative_color_matches(function))
+                .then(|| "arguments do not match the relative color grammar".to_owned())
+        }
         "rgb" | "rgba" => rgb_problem(function, &args),
         "hsl" | "hsla" => hsl_problem(function, &args),
         "hwb" => modern_problem(
@@ -1017,6 +1034,29 @@ mod tests {
                 "alpha(from red / 0.5)",
             ],
         );
+        for check in [check_color, check_paint] {
+            assert_valid(
+                check,
+                &[
+                    "rgb(from contrast-color(red) r g b)",
+                    "rgb(from device-cmyk(0 0 0 1) r g b)",
+                    "rgb(from rgb(from contrast-color(red) r g b) r g b)",
+                ],
+            );
+            assert_invalid(
+                check,
+                &[
+                    "rgb(from red h s l)",
+                    "rgb(from contrast-color(red) r g)",
+                    "rgb(from banana r g b)",
+                    "rgb(from rgb(1 2) r g b)",
+                    "oklch(from red l c banana)",
+                    "color(from red xyz r g b)",
+                    "rgb(from red r g)",
+                    "rgb(from red, r, g, b)",
+                ],
+            );
+        }
     }
 
     // Claim: "A math function represents a numeric value, one of: <length>,

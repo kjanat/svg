@@ -1086,6 +1086,37 @@ impl ComponentKeywords {
     }
 }
 
+/// Check relative color arguments with the same grammar and channel keywords
+/// used for colors embedded in other CSS values.
+pub(super) fn relative_color_matches(function: &Function<'_>) -> bool {
+    let mut values: Vec<_> = function
+        .value
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .collect();
+    let Some(origin) = values.get_mut(1) else {
+        return false;
+    };
+    if !function.closed || super::color::color_reason(origin).is_some() {
+        return false;
+    }
+    // The color checker owns the origin's value space, including accept-only
+    // extension functions. A known color lets the grammar check the rest.
+    let checked_origin = ComponentValue::Token(Token::Ident("red".into()));
+    *origin = &checked_origin;
+    let Some(arguments) = function_arguments(&function.name, UnitlessMode::Css) else {
+        return false;
+    };
+    Matcher {
+        values: &values,
+        ranges: false,
+        nested: UnitlessMode::Css,
+        components: ComponentKeywords::of(&function.name, &values),
+    }
+    .ends(&arguments, 0, true)
+    .contains(&values.len())
+}
+
 impl Matcher<'_, '_> {
     /// Every position at which `node`, matched from `pos`, can end.
     ///
