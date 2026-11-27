@@ -50,25 +50,15 @@ jobs:
         run: bunx kfmt --diff
       - run: just verify
 
-      - uses: kjanat/beepboop/actions/token@v1
-        id: automation
-        with:
-          execution-id: ${{ steps.begin.outputs.execution-id }}
-          permission-pull-requests: write
       - uses: kjanat/beepboop/actions/pull-request@v1
-        id: pr
         with:
           branch: release/next-version
           base: master
+          labels: release
+          assignees: kjanat
           title: "chore(release): v${{ fromJSON(steps.begin.outputs.context).version }}"
           body: |
             Prepare v${{ fromJSON(steps.begin.outputs.context).version }} with coordinated manifests, lockfiles and generated grammar metadata.
 
             Review the release notes before merging.
             **Merging publishes** the release *once its checks pass*.
-      - name: Label release preparation PR
-        if: steps.pr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ steps.automation.outputs.token }}
-          PR_NUMBER: ${{ steps.pr.outputs.pull-request-number }}
-        run: gh pr edit "${PR_NUMBER}" --add-label release
