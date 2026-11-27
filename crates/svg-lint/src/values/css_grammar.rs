@@ -43,8 +43,11 @@ use svg_data::{CssGrammarGraph, SpecSnapshotId};
 use super::syntax::{
     calculation,
     cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
-    notation::{contains_arbitrary_substitution, is_math_function, is_whole_value},
-    parser::{ComponentValue, Function, parse_component_values},
+    notation::{
+        contains_arbitrary_substitution, is_arbitrary_substitution_function, is_math_function,
+        is_whole_value,
+    },
+    parser::{BlockKind, ComponentValue, Function, parse_component_values},
     tokenizer::{Token, tokenize},
     types::{NumericType, UnitlessMode, match_numeric},
 };
@@ -152,6 +155,9 @@ pub(super) fn check_css_grammar_with_ranges(
             nested: scope.nested(),
             components: ComponentKeywords::None,
             allows_percentage: root.allows_percentage(),
+            auto_basis: effective
+                .split_ascii_whitespace()
+                .any(|part| part == "auto"),
         }
         .ends(&root, 0, true)
         .contains(&values.len())
@@ -180,6 +186,11 @@ fn attr_argument_problem(values: &[ComponentValue<'_>]) -> Option<String> {
                             .to_owned(),
                     );
                 }
+                // Substitution functions select which arguments to evaluate.
+                // An unused fallback must not invalidate the declaration.
+                if is_arbitrary_substitution_function(&function.name) {
+                    continue;
+                }
                 if let Some(reason) = attr_argument_problem(&function.value) {
                     return Some(reason);
                 }
@@ -202,33 +213,42 @@ fn attr_arguments_match(function: &Function<'_>) -> bool {
     let Some(first) = arguments.next() else {
         return false;
     };
-    if arguments.next().is_some_and(|fallback| {
-        fallback.iter().any(|value| {
-            matches!(
-                value,
-                ComponentValue::Token(
-                    Token::BadString
-                        | Token::BadUrl
-                        | Token::CloseParen
-                        | Token::CloseSquare
-                        | Token::CloseCurly
-                        | Token::Semicolon
-                        | Token::Delim('!')
-                )
-            )
+    let fallback = arguments.next();
+    if arguments.next().is_some()
+        || fallback.is_some_and(|fallback| {
+            free_form_argument(fallback).is_none_or(|fallback| {
+                fallback.iter().any(|value| {
+                    matches!(
+                        value,
+                        ComponentValue::Token(
+                            Token::BadString
+                                | Token::BadUrl
+                                | Token::CloseParen
+                                | Token::CloseSquare
+                                | Token::CloseCurly
+                                | Token::Semicolon
+                                | Token::Delim('!')
+                        )
+                    )
+                })
+            })
         })
-    }) || arguments.next().is_some()
     {
         return false;
     }
-    if contains_arbitrary_substitution(first) {
+    let Some(first) = free_form_argument(first) else {
+        return false;
+    };
+    if first.is_empty() {
+        return false;
+    }
+    if fallback.is_some() || contains_arbitrary_substitution(first) {
+        // The fallback can replace an argument that fails the name/type
+        // check at computed-value time.
         return true;
     }
 
-    let first = &first[first
-        .iter()
-        .take_while(|value| value.is_whitespace())
-        .count()..];
+    let first = trim_components(first);
     let ([
         ComponentValue::Token(Token::Ident(_)),
         ComponentValue::Token(Token::Delim('|')),
@@ -256,6 +276,36 @@ fn attr_arguments_match(function: &Function<'_>) -> bool {
             ComponentValue::Token(Token::Delim('%')) => true,
             _ => leaf_matches(Leaf::CustomIdent, UnitlessMode::Css, ty),
         }
+}
+
+fn trim_components<'v, 'a>(values: &'v [ComponentValue<'a>]) -> &'v [ComponentValue<'a>] {
+    let start = values
+        .iter()
+        .take_while(|value| value.is_whitespace())
+        .count();
+    let end = values
+        .iter()
+        .rposition(|value| !value.is_whitespace())
+        .map_or(start, |end| end + 1);
+    &values[start..end]
+}
+
+fn free_form_argument<'v, 'a>(
+    values: &'v [ComponentValue<'a>],
+) -> Option<&'v [ComponentValue<'a>]> {
+    let values = trim_components(values);
+    match values {
+        [ComponentValue::Block(block)] if block.kind == BlockKind::Curly => {
+            Some(trim_components(&block.value))
+        }
+        _ if values.iter().any(
+            |value| matches!(value, ComponentValue::Block(block) if block.kind == BlockKind::Curly),
+        ) =>
+        {
+            None
+        }
+        _ => Some(values),
+    }
 }
 
 fn type_arguments_match(function: &Function<'_>, allow_url: bool) -> bool {
@@ -1197,6 +1247,7 @@ struct Matcher<'v, 'a> {
     /// The identifiers that stand for a number in this argument list.
     components: ComponentKeywords,
     allows_percentage: bool,
+    auto_basis: bool,
 }
 
 /// The component keywords of a relative color function, which "are all
@@ -1295,6 +1346,7 @@ pub(super) fn relative_color_matches(function: &Function<'_>) -> bool {
         nested: UnitlessMode::Css,
         components: ComponentKeywords::of(&function.name, &values),
         allows_percentage: arguments.allows_percentage(),
+        auto_basis: false,
     }
     .ends(&arguments, 0, true)
     .contains(&values.len())
@@ -1411,6 +1463,7 @@ impl Matcher<'_, '_> {
             nested: self.nested,
             components: ComponentKeywords::of(&function.name, &values),
             allows_percentage: arguments.allows_percentage(),
+            auto_basis: self.auto_basis,
         }
         .ends(&arguments, 0, true)
         .contains(&values.len())
@@ -1429,19 +1482,18 @@ impl Matcher<'_, '_> {
         let valid_basis = match (values.next(), values.next()) {
             (Some(value), None)
                 if value.ident().is_some_and(|ident| {
-                    [
-                        "any",
-                        "auto",
-                        "min-content",
-                        "max-content",
-                        "fit-content",
-                        "stretch",
-                        "contain",
-                        "min-intrinsic",
-                        "content",
-                    ]
-                    .iter()
-                    .any(|keyword| ident.eq_ignore_ascii_case(keyword))
+                    (self.auto_basis && ident.eq_ignore_ascii_case("auto"))
+                        || [
+                            "any",
+                            "min-content",
+                            "max-content",
+                            "fit-content",
+                            "stretch",
+                            "contain",
+                            "min-intrinsic",
+                        ]
+                        .iter()
+                        .any(|keyword| ident.eq_ignore_ascii_case(keyword))
                 }) =>
             {
                 allow_size = !value
@@ -1792,6 +1844,8 @@ mod tests {
                             ranges: true,
                             nested: super::UnitlessMode::Css,
                             components: super::ComponentKeywords::None,
+                            auto_basis: true,
+                            allows_percentage: true,
                         };
                         matcher.single(&super::Node::Function((*name).to_owned()), value)
                     }
@@ -2735,6 +2789,11 @@ mod tests {
                 "attr(data-size type('<length>#'), auto)",
                 "attr(|data-size %)",
                 "attr(svg|width px,)",
+                "attr({data-size px}, 10px)",
+                "attr({data-size px})",
+                "attr(1 type(<length>), 10px)",
+                "var(--width, attr(1 px))",
+                "attr(data-size, attr(1 px))",
                 "attr(data-size type(*))",
                 "attr(var(--attribute))",
                 "calc(1px + attr(data-size px))",
@@ -2754,6 +2813,7 @@ mod tests {
                 "attr(svg |width px)",
                 "attr(data-size px extra)",
                 "attr(, 1px)",
+                "attr(data-size, {10px} 20px)",
                 "calc(1px + attr(1 type(<length>)))",
             ],
         );
@@ -2771,7 +2831,7 @@ mod tests {
                 "calc-size(fit-content(10px), size * .5)",
                 "calc-size(50%, size)",
                 "calc-size(any, 2px)",
-                "calc-size(auto, 0)",
+                "calc-size(auto, 0px)",
                 "calc-size(calc-size(any, 2px), size + 10%)",
             ],
         );
@@ -2785,6 +2845,9 @@ mod tests {
                 "calc-size(any, size * 2)",
                 "calc-size(auto, 2px, 3px)",
                 "calc-size(auto, 2deg)",
+                "calc-size(content, size)",
+                "calc-size(auto, 0)",
+                "calc-size(0, 0px)",
             ],
         );
     }
@@ -2828,7 +2891,7 @@ mod tests {
         }
         let max = real("max-width", None, "none | <box-size> | <anchor-size()>");
         valid(max, &["none", "max-content", "50%", "0"]);
-        invalid(max, &["auto", "wide", "-1px"]);
+        invalid(max, &["auto", "wide", "-1px", "calc-size(auto, size)"]);
         let reason = check("-1px", "auto | <box-size>").unwrap_or_default();
         assert!(reason.contains("range"), "{reason}");
         let margin = real(

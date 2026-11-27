@@ -166,6 +166,8 @@ fn sizing_values_check_attr_and_calc_size_arguments() {
     let body = r#"<rect width="attr(1 type(&lt;length&gt;))"/>
         <rect width="calc-size(auto)"/>
         <rect width="attr(data-size type(&lt;length&gt;), auto)"/>
+        <rect width="attr({data-size px}, 10px)"/>
+        <rect width="var(--width, attr(1 px))"/>
         <rect width="calc-size(auto, size + 10px)"/>"#;
     assert_eq!(
         flagged_values(body),

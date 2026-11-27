@@ -118,10 +118,6 @@ pub fn sizing_sum(values: &[ComponentValue<'_>], allow_size: bool) -> bool {
                 .ident()
                 .is_some_and(|name| name.eq_ignore_ascii_case("size"))
     };
-    if matches!(trim(values), [ComponentValue::Token(Token::Number(number))] if number.value == 0.0)
-    {
-        return true;
-    }
     Calculation {
         percent_hint: Some(LENGTH),
         keyword: &keyword,

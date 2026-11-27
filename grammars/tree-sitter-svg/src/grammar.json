@@ -7840,7 +7840,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "&(#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);"
+        "value": "&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);"
       }
     },
     "text": {
