@@ -27,6 +27,27 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
+  shell-completions:
+    name: Shell completions
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: taiki-e/install-action@v2
+        with: { tool: rust }
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends expect fish zsh
+      - name: Exercise completions from a native release archive
+        run: |
+          cargo build --locked --bin svg-format --bin svg-lint --bin svg-language-server
+          bash scripts/generate-shell-completions.sh target/debug completions
+          RELEASE_TAG=v0.0.0 TARGET=x86_64-unknown-linux-gnu BIN_DIR=target/debug bash .github/actions/package-asset/run.sh
+          sha256sum --check svg-v0.0.0-x86_64-unknown-linux-gnu.sha256
+          mkdir extracted
+          tar -xzf svg-v0.0.0-x86_64-unknown-linux-gnu.tar.gz -C extracted
+          bash scripts/test-shell-completions.sh extracted extracted/completions
+
   wasm:
     name: Wasm allocator regression
     runs-on: ubuntu-26.04

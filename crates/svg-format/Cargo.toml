@@ -19,7 +19,7 @@ bin-dir = "{ bin }{ binary-ext }"
 
 [features]
 default = ["cli"]
-cli     = ["clap"]
+cli     = ["dep:clap_complete", "clap"]
 
 [lib]
 name = "svg_format"
@@ -39,6 +39,10 @@ tree-sitter-svg-path.workspace = true
 [dependencies.clap]
 workspace = true
 features  = ["derive"]
+optional  = true
+
+[dependencies.clap_complete]
+workspace = true
 optional  = true
 
 [lints]

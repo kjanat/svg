@@ -15,7 +15,7 @@ use std::{
     process::ExitCode,
 };
 
-use clap::{Parser, ValueEnum};
+use clap::{CommandFactory as _, Parser, ValueEnum, ValueHint};
 use svg_lint::{LintOptions, Severity, SvgDiagnostic};
 use tree_sitter::Parser as TsParser;
 
@@ -38,7 +38,7 @@ const EXIT_LINT_FAILURE: u8 = 1;
 )]
 struct Cli {
     /// SVG files to lint. Use `-` to read from stdin.
-    #[arg(value_name = "FILE")]
+    #[arg(value_name = "FILE", value_hint = ValueHint::FilePath)]
     paths: Vec<PathBuf>,
 
     /// Read a single SVG document from stdin (equivalent to passing `-`).
@@ -52,7 +52,7 @@ struct Cli {
     /// Spec profile/snapshot to lint against when a document declares none.
     ///
     /// Accepts canonical ids and friendly aliases (e.g. `svg2`, `svg1.1`).
-    #[arg(long, value_name = "PROFILE", default_value = "Svg2EditorsDraft")]
+    #[arg(long, value_name = "PROFILE", default_value = "Svg2EditorsDraft", add = clap_complete::ArgValueCandidates::new(profile_candidates))]
     profile: String,
 
     /// Ignore each document's declared profile and always use --profile.
@@ -386,6 +386,21 @@ fn diagnostic_to_json(diag: &SvgDiagnostic) -> serde_json::Value {
     })
 }
 
+fn profile_candidates() -> Vec<clap_complete::CompletionCandidate> {
+    svg_data::spec_snapshots()
+        .iter()
+        .flat_map(|snapshot| {
+            std::iter::once(snapshot.as_str()).chain(
+                svg_data::snapshot_metadata(*snapshot)
+                    .aliases
+                    .iter()
+                    .copied(),
+            )
+        })
+        .map(clap_complete::CompletionCandidate::new)
+        .collect()
+}
+
 /// Canonical profile ids plus their aliases, for error help text.
 fn known_profiles() -> Vec<String> {
     let mut out = Vec::new();
@@ -402,6 +417,15 @@ fn known_profiles() -> Vec<String> {
 }
 
 fn main() -> ExitCode {
+    clap_complete::CompleteEnv::with_factory(Cli::command)
+        .var("SVG_COMPLETE")
+        .shells(clap_complete::env::Shells(&[
+            &clap_complete::env::Bash,
+            &clap_complete::env::Fish,
+            &clap_complete::env::Zsh,
+        ]))
+        .completer("svg-lint")
+        .complete();
     match run() {
         Ok(code) => code,
         Err(message) => {

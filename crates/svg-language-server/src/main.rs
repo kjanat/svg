@@ -2,23 +2,50 @@
 
 use std::process::ExitCode;
 
+use clap::{CommandFactory as _, Parser};
+
+#[derive(Parser)]
+#[command(
+    name = "svg-language-server",
+    version,
+    disable_help_flag = true,
+    disable_version_flag = true,
+    about = "runs an LSP server over stdio",
+    help_template = "{name} {version}\n{about}\n\nusage: {usage}\n\n{all-args}"
+)]
+struct Cli {
+    /// Run the language server over standard input and output (the default).
+    #[arg(long, exclusive = true)]
+    stdio: bool,
+
+    /// Print help.
+    #[arg(short, long, exclusive = true)]
+    help: bool,
+
+    /// Print version.
+    #[arg(short = 'V', long, exclusive = true)]
+    version: bool,
+}
+
 fn main() -> ExitCode {
-    let mut args = std::env::args().skip(1);
-    let command = args.next();
-    if let Some(trailing) = args.next() {
-        return usage_error(&trailing);
-    }
-    match command.as_deref() {
-        Some("--version" | "-V") => {
-            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-            ExitCode::SUCCESS
-        }
-        Some("--help" | "-h") => {
-            println!("{}", usage());
-            ExitCode::SUCCESS
-        }
-        Some("--stdio") | None => serve(),
-        Some(arg) => usage_error(arg),
+    clap_complete::CompleteEnv::with_factory(Cli::command)
+        .var("SVG_COMPLETE")
+        .shells(clap_complete::env::Shells(&[
+            &clap_complete::env::Bash,
+            &clap_complete::env::Fish,
+            &clap_complete::env::Zsh,
+        ]))
+        .completer("svg-language-server")
+        .complete();
+    let cli = Cli::parse();
+    if cli.help {
+        print!("{}", Cli::command().render_help());
+        ExitCode::SUCCESS
+    } else if cli.version {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        ExitCode::SUCCESS
+    } else {
+        serve()
     }
 }
 
@@ -36,19 +63,4 @@ fn serve() -> ExitCode {
     let code = runtime.block_on(svg_language_server::run_stdio_server());
     runtime.shutdown_background();
     code
-}
-
-fn usage() -> String {
-    format!(
-        "{name} {version}\nruns an LSP server over stdio\n\nusage: {name} [--stdio | --version | \
-         --help]",
-        name = env!("CARGO_PKG_NAME"),
-        version = env!("CARGO_PKG_VERSION"),
-    )
-}
-
-fn usage_error(arg: &str) -> ExitCode {
-    eprintln!("unexpected argument: {arg}");
-    eprintln!("{}", usage());
-    ExitCode::from(2)
 }

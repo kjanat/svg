@@ -7,7 +7,7 @@ use std::{
     process::ExitCode,
 };
 
-use clap::{Args, Parser};
+use clap::{Args, CommandFactory as _, Parser, ValueHint};
 use svg_format::{
     AttributeLayout, AttributeSort, BlankLines, FormatOptions, QuoteStyle, TextContentMode,
     WrappedAttributeIndent, format_with_options,
@@ -25,7 +25,7 @@ use svg_format::{
 )]
 struct Cli {
     /// SVG file to format. Reads stdin when omitted.
-    #[arg(value_name = "FILE", conflicts_with = "stdin")]
+    #[arg(value_name = "FILE", value_hint = ValueHint::FilePath, conflicts_with = "stdin")]
     path: Option<PathBuf>,
 
     /// I/O mode selectors (in-place, check, stdin).
@@ -221,6 +221,15 @@ fn merge_ignore_prefixes(mut defaults: Vec<String>, extra: Vec<String>) -> Vec<S
 }
 
 fn main() -> ExitCode {
+    clap_complete::CompleteEnv::with_factory(Cli::command)
+        .var("SVG_COMPLETE")
+        .shells(clap_complete::env::Shells(&[
+            &clap_complete::env::Bash,
+            &clap_complete::env::Fish,
+            &clap_complete::env::Zsh,
+        ]))
+        .completer("svg-format")
+        .complete();
     match run() {
         Ok(code) => code,
         Err(message) => {

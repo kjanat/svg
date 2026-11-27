@@ -62,6 +62,28 @@ From source:
 cargo install --git https://github.com/kjanat/svg svg-language-server
 ```
 
+## Shell completions
+
+Native release archives ship completions for Bash, Zsh, Fish, and PowerShell
+under `completions/`. Keep the three SVG commands on your `PATH` so the scripts
+can query their options and arguments while you type.
+
+| Shell      | Load the scripts                                                          |
+| ---------- | ------------------------------------------------------------------------- |
+| Bash       | Source the files in `completions/bash/` from `~/.bashrc`.                 |
+| Zsh        | Add `completions/zsh/` to `fpath` before running `compinit`.              |
+| Fish       | Copy the files in `completions/fish/` into `~/.config/fish/completions/`. |
+| PowerShell | Dot-source `completions/powershell/_svg.ps1` from `$PROFILE`.             |
+
+To generate the same files from a release-matched checkout with the installed
+commands on your `PATH`, run:
+
+```sh
+bash scripts/generate-shell-completions.sh "$(dirname "$(command -v svg-format)")" ./completions
+```
+
+Replace the completion scripts when upgrading the binaries.
+
 ## Workspace Contents
 
 | Path                                 | Purpose                                                                |

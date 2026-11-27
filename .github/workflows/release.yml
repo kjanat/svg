@@ -46,6 +46,13 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D clippy::all -D warnings
       - run: cargo test --workspace
 
+      - name: generate shell completions with native binaries
+        run: |
+          cargo build --locked --bin svg-format --bin svg-lint --bin svg-language-server
+          bash scripts/generate-shell-completions.sh target/debug completions
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: shell-completions, path: completions, if-no-files-found: error }
+
   beepboop:
     name: register approved release
     runs-on: ubuntu-26.04
@@ -132,6 +139,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "${{ needs.beepboop.outputs.source-sha }}", persist-credentials: false }
 
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: shell-completions, path: completions }
+
       - name: install stable rust
         if: matrix.build-tool == 'cargo-cross-toolchain'
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
@@ -163,7 +173,7 @@ jobs:
           tar: all
           zip: none
           checksum: sha256
-          include: README.md,LICENSE
+          include: README.md,LICENSE,completions
           locked: true
 
       # Tier-3: build/archive/upload manually since upload-rust-binary-action
