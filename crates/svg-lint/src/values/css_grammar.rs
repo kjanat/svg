@@ -1097,7 +1097,7 @@ pub(super) fn relative_color_matches(function: &Function<'_>) -> bool {
     let Some(origin) = values.get_mut(1) else {
         return false;
     };
-    if !function.closed || super::color::color_reason(origin).is_some() {
+    if super::color::color_reason(origin).is_some() {
         return false;
     }
     // The color checker owns the origin's value space, including accept-only
@@ -1177,6 +1177,15 @@ impl Matcher<'_, '_> {
                     if function.name.eq_ignore_ascii_case(name) && self.arguments_match(function)
             ),
             Node::Type(Leaf::Numeric(_), _, _) if self.components.contains(value) => true,
+            // Like the absolute color checker, accept functions that can
+            // stand in for a channel whose value is unknown at parse time.
+            Node::Type(Leaf::Numeric(_), _, _)
+                if !matches!(self.components, ComponentKeywords::None)
+                    && matches!(value, ComponentValue::Function(function) if !is_math_function(&function.name)) =>
+            {
+                true
+            }
+
             Node::Type(leaf, range, unitless) => {
                 leaf_matches(*leaf, *unitless, value) && (!self.ranges || in_range(*range, value))
             }
