@@ -136,14 +136,11 @@ pub(super) fn check_css_grammar_with_ranges(
     }
     let effective = effective_grammar(grammar);
     let list = parse_component_values(value);
-    if list.depth_limited {
+    if list.depth_limited || is_whole_value(&list.values) || is_css_wide_keyword_value(value) {
         return None;
     }
     if contains_arbitrary_substitution(&list.values) {
         return attr_argument_problem(&list.values);
-    }
-    if is_whole_value(&list.values) || is_css_wide_keyword_value(value) {
-        return None;
     }
     let root = parse_grammar(effective, scope)?;
     let values: Vec<&ComponentValue<'_>> = list.significant().collect();
