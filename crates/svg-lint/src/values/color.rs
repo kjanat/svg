@@ -152,7 +152,7 @@ fn is_icc_color(value: &ComponentValue<'_>) -> bool {
 }
 
 /// The reason one component value is not a `<color>`.
-fn color_reason(value: &ComponentValue<'_>) -> Option<String> {
+pub(super) fn color_reason(value: &ComponentValue<'_>) -> Option<String> {
     match value {
         ComponentValue::Token(Token::Ident(ident)) => {
             (!is_color_keyword(ident)).then(|| format!("`{ident}` is not a color keyword"))
@@ -1035,10 +1035,21 @@ mod tests {
             ],
         );
         for check in [check_color, check_paint] {
+            assert_valid(
+                check,
+                &[
+                    "rgb(from contrast-color(red) r g b)",
+                    "rgb(from device-cmyk(0 0 0 1) r g b)",
+                    "rgb(from rgb(from contrast-color(red) r g b) r g b)",
+                ],
+            );
             assert_invalid(
                 check,
                 &[
                     "rgb(from red h s l)",
+                    "rgb(from contrast-color(red) r g)",
+                    "rgb(from banana r g b)",
+                    "rgb(from rgb(1 2) r g b)",
                     "oklch(from red l c banana)",
                     "color(from red xyz r g b)",
                     "rgb(from red r g)",
