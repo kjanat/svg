@@ -1709,6 +1709,11 @@ fn in_range(range: Range, value: &ComponentValue<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn wpt_sizing_parsing() {
+        check_wpt_cases(include_str!("../../tests/fixtures/css-wpt/sizing.tsv"));
+    }
+
     fn check_wpt_cases(cases: &str) {
         let mut failures = Vec::new();
         for line in cases.lines().filter(|line| !line.starts_with('#')) {
