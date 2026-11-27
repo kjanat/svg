@@ -123,6 +123,26 @@ pub fn invalid_reason_for(
     value: &str,
     profile: SpecSnapshotId,
 ) -> Option<String> {
+    check_attribute_value(attr, values, value, profile, true)
+}
+
+/// Check an animation increment before it is added to the base value.
+pub fn invalid_reason_for_delta(
+    attr: &str,
+    values: &AttributeValues,
+    value: &str,
+    profile: SpecSnapshotId,
+) -> Option<String> {
+    check_attribute_value(attr, values, value, profile, false)
+}
+
+fn check_attribute_value(
+    attr: &str,
+    values: &AttributeValues,
+    value: &str,
+    profile: SpecSnapshotId,
+    check_ranges: bool,
+) -> Option<String> {
     if attr == "d"
         && matches!(values, AttributeValues::CssGrammar { grammar, .. } if *grammar == D_PROPERTY_GRAMMAR)
     {
@@ -132,7 +152,7 @@ pub fn invalid_reason_for(
     // supplies their shared Length fallback, retain the CSS sizing grammar:
     // https://svgwg.org/svg2-draft/geometry.html#Sizing
     if matches!(attr, "width" | "height") && matches!(values, AttributeValues::Length) {
-        return css_grammar::check_css_grammar(
+        return css_grammar::check_css_grammar_with_ranges(
             value,
             "auto | <length-percentage>",
             &svg_data::CssGrammarGraph {
@@ -141,9 +161,25 @@ pub fn invalid_reason_for(
                 edges: &[],
             },
             css_grammar::UnitlessScope::for_profile(profile),
+            check_ranges,
         );
     }
-    invalid_reason(values, value, profile).or_else(|| constraints::check(attr, values, value))
+    if !check_ranges && let AttributeValues::CssGrammar { grammar, graph } = values {
+        return css_grammar::check_css_grammar_with_ranges(
+            value,
+            grammar,
+            graph,
+            css_grammar::UnitlessScope::for_profile(profile),
+            false,
+        );
+    }
+    invalid_reason(values, value, profile).or_else(|| {
+        if check_ranges {
+            constraints::check(attr, values, value)
+        } else {
+            constraints::empty_number(attr, values, value)
+        }
+    })
 }
 
 /// The catalog's grammar for the `d` property.

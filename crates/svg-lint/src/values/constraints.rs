@@ -72,7 +72,7 @@ pub fn check(attr: &str, values: &AttributeValues, value: &str) -> Option<String
 /// the filter, `pathLength` and `version` attributes are a bare `<number>`;
 /// and `tabindex` is an HTML valid integer, "one or more ASCII digits"
 /// (<https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-integer>).
-fn empty_number(attr: &str, values: &AttributeValues, value: &str) -> Option<String> {
+pub(super) fn empty_number(attr: &str, values: &AttributeValues, value: &str) -> Option<String> {
     let noun = match values {
         AttributeValues::Number => "a number",
         AttributeValues::Integer => "an integer",

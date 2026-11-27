@@ -1,9 +1,6 @@
 mod suppressions;
 
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-};
+use std::{borrow::Cow, collections::HashMap};
 
 use suppressions::Suppressions;
 use svg_data::{CompatVerdict, ProfileLookup, SpecLifecycle, VerdictReason};
@@ -59,7 +56,7 @@ struct LintContext<'a> {
     source: &'a [u8],
     diagnostics: Vec<SvgDiagnostic>,
     suppressions: Suppressions,
-    defined_ids: HashSet<String>,
+    defined_ids: HashMap<String, Option<tree_sitter::Point>>,
     seen_ids: HashMap<String, usize>,
     options: LintOptions,
     overrides: Option<&'a LintOverrides>,
@@ -200,6 +197,10 @@ fn check_element<'a>(
 
     // Check: Unknown/deprecated/experimental attributes
     check_attributes(ctx, tag, expanded_name.local_name, &scope);
+
+    if matches!(expanded_name.local_name, "animate" | "set") {
+        check_animation_values(ctx, node, tag, expanded_name.local_name, &scope);
+    }
 
     // Check: Duplicate id
     check_duplicate_id(
@@ -468,15 +469,7 @@ fn check_attribute_value(
     attr_name: &str,
     def: &svg_data::AttributeDef,
 ) {
-    // Typed attributes can nest the node that carries the value field one
-    // level down (`animate_motion_attribute` wraps a `d_attribute`).
-    let value_node = attr_node.child_by_field_name("value").or_else(|| {
-        let mut cursor = attr_node.walk();
-        attr_node
-            .named_children(&mut cursor)
-            .find_map(|child| child.child_by_field_name("value"))
-    });
-    let Some(value_node) = value_node else {
+    let Some(value_node) = attribute_value_node(attr_node) else {
         return;
     };
     let Ok(raw) = std::str::from_utf8(&ctx.source[value_node.byte_range()]) else {
@@ -501,6 +494,182 @@ fn check_attribute_value(
             format!("Invalid value for {attr_name} on <{elem_name}>: {reason}"),
         );
     }
+}
+
+fn attribute_value_node(attr_node: Node<'_>) -> Option<Node<'_>> {
+    // Typed attributes can nest the node that carries the value field one
+    // level down (`animate_motion_attribute` wraps a `d_attribute`).
+    attr_node.child_by_field_name("value").or_else(|| {
+        let mut cursor = attr_node.walk();
+        attr_node
+            .named_children(&mut cursor)
+            .find_map(|child| child.child_by_field_name("value"))
+    })
+}
+
+fn check_animation_values(
+    ctx: &mut LintContext<'_>,
+    node: Node,
+    tag: Node,
+    elem_name: &str,
+    scope: &NamespaceScope<'_>,
+) {
+    let attributes = animation_attributes(ctx.source, tag, scope);
+    let Some((_, _, Some(name))) = attributes
+        .iter()
+        .find(|(name, _, _)| name.namespace_uri.is_none() && name.local_name == "attributeName")
+    else {
+        return;
+    };
+    let name = name.trim();
+    let Some(name) =
+        canonical_svg_attribute_name(name, namespaces::expand_attribute_name(name, scope))
+    else {
+        return;
+    };
+
+    let href = attributes
+        .iter()
+        .filter(|(name, _, _)| name.local_name == "href")
+        .find(|(name, _, _)| name.namespace_uri.is_none())
+        .or_else(|| {
+            attributes.iter().find(|(name, _, _)| {
+                name.local_name == "href" && name.namespace_uri == Some(XLINK_NAMESPACE_URI)
+            })
+        });
+    let href = match href {
+        Some((_, _, Some(value))) => Some(value.as_ref()),
+        Some(_) => return,
+        None => None,
+    };
+    let Some(target_name) = animation_target_name(ctx, node, href) else {
+        return;
+    };
+    let profile = ctx.options.profile;
+    let ProfileLookup::Present { value: def, .. } =
+        svg_data::attribute_for_profile_on_element(profile, &name, Some(target_name))
+    else {
+        return;
+    };
+    if !def.animation.is_animatable() {
+        return;
+    }
+    let Some(grammar) = crate::values::values_for(def, target_name, profile) else {
+        return;
+    };
+
+    let has_attribute = |wanted| {
+        attributes
+            .iter()
+            .any(|(name, _, _)| name.namespace_uri.is_none() && name.local_name == wanted)
+    };
+    let additive = elem_name == "animate"
+        && attributes.iter().any(|(name, _, value)| {
+            name.namespace_uri.is_none()
+                && name.local_name == "additive"
+                && value.as_deref().is_none_or(|value| value.trim() == "sum")
+        });
+
+    for (attribute, value_node, value) in attributes.iter().filter_map(|entry| match entry {
+        (name, Some(node), Some(value)) if name.namespace_uri.is_none() => {
+            Some((name, node, value))
+        }
+        _ => None,
+    }) {
+        let delta = attribute.local_name == "by"
+            || (additive
+                && (attribute.local_name != "to"
+                    || has_attribute("from")
+                    || has_attribute("values")));
+        let check = |item: &str| {
+            if delta {
+                crate::values::invalid_reason_for_delta(&name, grammar, item, profile)
+            } else {
+                crate::values::invalid_reason_for(&name, grammar, item, profile)
+            }
+        };
+        let reason = match attribute.local_name {
+            "to" | "from" | "by" if elem_name == "animate" || attribute.local_name == "to" => {
+                check(value)
+            }
+            "values" if elem_name == "animate" => value
+                .trim_end()
+                .strip_suffix(';')
+                .unwrap_or(value)
+                .split(';')
+                .find_map(check),
+            _ => None,
+        };
+        if let Some(reason) = reason {
+            push_diag_in_tag(
+                &mut ctx.diagnostics,
+                &mut ctx.suppressions,
+                *value_node,
+                Some(tag.start_position().row),
+                Severity::Warning,
+                DiagnosticCode::InvalidAttributeValue,
+                format!(
+                    "Invalid {} for animated {name} on <{target_name}>: {reason}",
+                    attribute.local_name
+                ),
+            );
+        }
+    }
+}
+
+type AnimationAttribute<'src, 'tree> = (
+    namespaces::ExpandedName<'src>,
+    Option<Node<'tree>>,
+    Option<Cow<'src, str>>,
+);
+
+fn animation_attributes<'src, 'tree>(
+    source: &'src [u8],
+    tag: Node<'tree>,
+    scope: &NamespaceScope<'src>,
+) -> Vec<AnimationAttribute<'src, 'tree>> {
+    let mut cursor = tag.walk();
+    tag.children(&mut cursor)
+        .filter_map(|attr| {
+            let name = find_attr_name(attr)?.utf8_text(source).ok()?;
+            let expanded = namespaces::expand_attribute_name(name, scope);
+            let value_node = attribute_value_node(attr);
+            let value = value_node
+                .and_then(|node| node.utf8_text(source).ok())
+                .and_then(crate::values::attribute_value_text);
+            Some((expanded, value_node, value))
+        })
+        .collect()
+}
+
+/// Resolve a local fragment target, or the parent when href is absent.
+fn animation_target_name<'a>(
+    ctx: &LintContext<'a>,
+    animation: Node,
+    href: Option<&str>,
+) -> Option<&'a str> {
+    let target = match href {
+        None => animation.parent()?,
+        Some(href) => {
+            let id = href.trim().strip_prefix('#')?;
+            let point = (*ctx.defined_ids.get(id)?)?;
+            let mut root = animation;
+            while let Some(parent) = root.parent() {
+                root = parent;
+            }
+            let mut current = root.descendant_for_point_range(point, point)?;
+            while !matches!(current.kind(), "element" | "svg_root_element") {
+                current = current.parent()?;
+            }
+            current
+        }
+    };
+    let name = opening_tag(target)?.child_by_field_name("name")?;
+    if !namespaces::resolves_to_svg_namespace(ctx.source, name) {
+        return None;
+    }
+    let (_, local_name) = namespaces::split_qualified_name(name.utf8_text(ctx.source).ok()?);
+    Some(local_name)
 }
 
 /// Walk into an `attribute` node to find the name node.
@@ -635,7 +804,7 @@ fn check_missing_reference_definitions(
     scope: &NamespaceScope<'_>,
     diagnostics: &mut Vec<SvgDiagnostic>,
     suppressions: &mut Suppressions,
-    defined_ids: &HashSet<String>,
+    defined_ids: &HashMap<String, Option<tree_sitter::Point>>,
 ) {
     let tag_start = tag.start_position().row;
     let mut cursor = tag.walk();
@@ -664,7 +833,7 @@ fn check_missing_reference_definitions(
             let svg_references::DefinitionTarget::Id(id) = &reference.target else {
                 continue;
             };
-            if defined_ids.contains(id) {
+            if defined_ids.contains_key(id) {
                 continue;
             }
             let span = &reference.span;
@@ -1043,11 +1212,15 @@ fn diagnostic_lifecycle(
     )
 }
 
-fn collect_defined_ids(source: &[u8], tree: &Tree) -> HashSet<String> {
-    svg_references::collect_id_definitions(source, tree)
-        .into_iter()
-        .map(|definition| definition.name)
-        .collect()
+fn collect_defined_ids(source: &[u8], tree: &Tree) -> HashMap<String, Option<tree_sitter::Point>> {
+    let mut ids = HashMap::new();
+    for definition in svg_references::collect_id_definitions(source, tree) {
+        let point = tree_sitter::Point::new(definition.span.start_row, definition.span.start_col);
+        ids.entry(definition.name)
+            .and_modify(|target| *target = None)
+            .or_insert(Some(point));
+    }
+    ids
 }
 
 fn push_diag(
