@@ -1450,6 +1450,32 @@ fn in_range(range: Range, value: &ComponentValue<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+    fn check_wpt_cases(cases: &str) {
+        let mut failures = Vec::new();
+        for line in cases.lines().filter(|line| !line.starts_with('#')) {
+            let [expected, grammar, value]: [&str; 3] = line
+                .splitn(3, '\t')
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("expected validity, grammar, and value");
+            let expected_valid = match expected {
+                "valid" => true,
+                "invalid" => false,
+                _ => panic!("invalid WPT expectation: {expected}"),
+            };
+            let reason = check(value, grammar);
+            if reason.is_none() != expected_valid {
+                failures.push((expected, grammar, value, reason));
+            }
+        }
+        assert!(failures.is_empty(), "WPT mismatches: {failures:#?}");
+    }
+
+    #[test]
+    fn wpt_math_parsing() {
+        check_wpt_cases(include_str!("../../tests/fixtures/css-wpt/math.tsv"));
+    }
+
     use svg_data::{AttributeValues, CssGrammarGraph};
 
     use super::{UnitlessScope, check_css_grammar};
