@@ -177,11 +177,11 @@ jobs:
           locked: true
 
       # Tier-3: build/archive/upload manually since upload-rust-binary-action
-      # can't inject `-Z build-std`.
-      - name: build (cargo + -Z build-std)
+      # has no input for extra Cargo build flags.
+      - name: build with nightly Cargo and build-std
         if: matrix.build-tool == 'cargo-build-std'
         env: { TARGET: "${{ matrix.target }}" }
-        run: cargo +nightly build --release --locked -Z build-std --target "${TARGET}" --bin svg-language-server --bin svg-lint --bin svg-format
+        run: cargo +nightly --config .cargo/build-std.toml build --release --locked --target "${TARGET}" --bin svg-language-server --bin svg-lint --bin svg-format
 
       - name: package binaries (cargo-build-std)
         if: matrix.build-tool == 'cargo-build-std'
