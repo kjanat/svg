@@ -43,6 +43,7 @@
     )
 )]
 
+pub mod calculation;
 pub mod cascade;
 pub mod microsyntax;
 pub mod notation;

@@ -20,8 +20,8 @@
 //!   an arbitrary substitution function.
 //!
 //! A function in the value matches a functional notation of the same name in
-//! the grammar, and a math function matches wherever a numeric type is
-//! expected: its type is only known after evaluation.
+//! the grammar, and a math function matches a numeric slot
+//! when its calculation resolves to the type the slot accepts.
 //!
 //! Presentation attributes are parsed with `<number>` admitted wherever the
 //! catalog grammar text has `<length>`, `<length-percentage>` or `<angle>`:
@@ -41,6 +41,7 @@ use std::collections::BTreeSet;
 use svg_data::{CssGrammarGraph, SpecSnapshotId};
 
 use super::syntax::{
+    calculation,
     cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
     notation::{contains_arbitrary_substitution, is_math_function, is_whole_value},
     parser::{ComponentValue, Function, parse_component_values},
@@ -1196,6 +1197,14 @@ impl Matcher<'_, '_> {
                 true
             }
 
+            Node::Type(Leaf::Numeric(ty), _, unitless)
+                if let ComponentValue::Function(function) = value
+                    && is_math_function(&function.name) =>
+            {
+                calculation::matches(function, *ty, *unitless, |value| {
+                    self.components.contains(value)
+                })
+            }
             Node::Type(leaf, range, unitless) => {
                 leaf_matches(*leaf, *unitless, value) && (!self.ranges || in_range(*range, value))
             }
@@ -1207,6 +1216,9 @@ impl Matcher<'_, '_> {
     /// function of its name. A function without a definition this module can
     /// parse matches by name alone.
     fn arguments_match(&self, function: &Function<'_>) -> bool {
+        if is_math_function(&function.name) {
+            return calculation::valid_function(function, |value| self.components.contains(value));
+        }
         let Some(arguments) = function_arguments(&function.name, self.nested) else {
             return true;
         };
@@ -1362,7 +1374,6 @@ const TREE_COUNTING_FUNCTIONS: &[&str] = &["sibling-index", "sibling-count"];
 fn leaf_matches(leaf: Leaf, unitless: UnitlessMode, value: &ComponentValue<'_>) -> bool {
     if let Leaf::Numeric(ty) = leaf {
         if let ComponentValue::Function(function) = value
-            && !is_math_function(&function.name)
             && !TREE_COUNTING_FUNCTIONS
                 .iter()
                 .any(|name| function.name.eq_ignore_ascii_case(name))
@@ -1507,26 +1518,30 @@ mod tests {
         assert_eq!(unchecked, Vec::<&str>::new());
     }
 
-    // A function whose definition does not parse matches by name alone, so
-    // its arguments would go unchecked. Two kinds never reach argument
-    // matching: a value with an arbitrary substitution function (`attr()`,
-    // and `type()` inside it) is accepted whole, and the arguments of a math
-    // function or of calc-size() ("calc-size( <calc-size-basis>, <calc-sum> )")
-    // are a calculation whose type is only known after evaluation.
+    // Every catalog function must have an argument grammar or a dedicated
+    // checker. Substitution functions and sizing/type notations still bypass
+    // this check.
     #[test]
     fn every_catalog_function_checks_its_arguments() {
-        use super::super::syntax::notation::{
-            is_arbitrary_substitution_function, is_math_function,
-        };
+        use super::super::syntax::notation::is_arbitrary_substitution_function;
         let unchecked: Vec<&str> = svg_data::css_functions()
             .iter()
             .map(|&(name, _)| name)
             .filter(|&name| {
-                !is_arbitrary_substitution_function(name)
-                    && !is_math_function(name)
-                    && !matches!(name, "type" | "calc-size")
+                !is_arbitrary_substitution_function(name) && !matches!(name, "type" | "calc-size")
             })
-            .filter(|name| super::function_arguments(name, super::UnitlessMode::Css).is_none())
+            .filter(|name| {
+                let garbage = format!("{name}(1px + red)");
+                let list = super::parse_component_values(&garbage);
+                match list.values.as_slice() {
+                    [super::ComponentValue::Function(function)]
+                        if super::is_math_function(name) =>
+                    {
+                        super::calculation::valid_function(function, |_| false)
+                    }
+                    _ => super::function_arguments(name, super::UnitlessMode::Css).is_none(),
+                }
+            })
             .collect();
         assert_eq!(unchecked, Vec::<&str>::new());
     }
@@ -2816,6 +2831,13 @@ mod tests {
                 "drop-shadow(red 1px 1px)",
                 "blur()",
                 "blur(calc(1px + 2px))",
+                "blur(calc((2px * 3px) / 1px))",
+                "hue-rotate(calc(atan2(20px, 30px) + 10deg))",
+                "brightness(calc(4px / 2px))",
+                "blur(calc(1px + 2px",
+                "blur(calc-interpolate(50px by ease-in, 0px: 1px, ease-out, 100px: 3px))",
+                "blur(calc-mix(10px 25%, 30px 75%))",
+                "blur(random(--size, 10px, 30px))",
                 "opacity(sibling-index())",
             ],
         );
@@ -2826,6 +2848,19 @@ mod tests {
                 "red",
                 "circle(1px)",
                 "blur(red)",
+                "blur(calc(red))",
+                "blur(calc(1px + 1deg))",
+                "blur(calc(1px+ 2px))",
+                "blur(calc(1px +2px))",
+                "blur(calc(2px * 3px))",
+                "blur(min(1px,))",
+                "blur(clamp(1px, 2px))",
+                "blur(sin(10deg))",
+                "blur(calc-interpolate(red, 0%: 1px, 100%: 3px))",
+                "blur(calc-interpolate(50px, 0s: 1px, 100s: 3px))",
+                "blur(calc-mix(10px, 30deg))",
+                "blur(random(10px, 20deg))",
+                "hue-rotate(calc(1px))",
                 "blur(1px 2px)",
                 "hue-rotate(red)",
                 "drop-shadow(red)",
