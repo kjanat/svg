@@ -45,7 +45,7 @@ use super::syntax::{
     cascade::{is_css_wide_keyword, is_css_wide_keyword_value},
     notation::{contains_arbitrary_substitution, is_math_function, is_whole_value},
     parser::{ComponentValue, Function, parse_component_values},
-    tokenizer::Token,
+    tokenizer::{Token, tokenize},
     types::{NumericType, UnitlessMode, match_numeric},
 };
 
@@ -132,16 +132,17 @@ pub(super) fn check_css_grammar_with_ranges(
         return check(value);
     }
     let effective = effective_grammar(grammar);
-    let root = parse_grammar(effective, scope)?;
-
     let list = parse_component_values(value);
-    if list.depth_limited
-        || contains_arbitrary_substitution(&list.values)
-        || is_whole_value(&list.values)
-        || is_css_wide_keyword_value(value)
-    {
+    if list.depth_limited {
         return None;
     }
+    if contains_arbitrary_substitution(&list.values) {
+        return attr_argument_problem(&list.values);
+    }
+    if is_whole_value(&list.values) || is_css_wide_keyword_value(value) {
+        return None;
+    }
+    let root = parse_grammar(effective, scope)?;
     let values: Vec<&ComponentValue<'_>> = list.significant().collect();
 
     let matches = |ranges: bool| {
@@ -164,6 +165,161 @@ pub(super) fn check_css_grammar_with_ranges(
     } else {
         Some(format!("does not match `{grammar}`"))
     }
+}
+
+/// An `attr()` can substitute tokens into any property grammar. Its own
+/// arguments can still be checked before that grammar is deferred.
+fn attr_argument_problem(values: &[ComponentValue<'_>]) -> Option<String> {
+    for value in values {
+        match value {
+            ComponentValue::Function(function) => {
+                if function.name.eq_ignore_ascii_case("attr") && !attr_arguments_match(function) {
+                    return Some(
+                        "invalid attr() arguments: expected an attribute name, optional type, and \
+                         optional fallback"
+                            .to_owned(),
+                    );
+                }
+                if let Some(reason) = attr_argument_problem(&function.value) {
+                    return Some(reason);
+                }
+            }
+            ComponentValue::Block(block) => {
+                if let Some(reason) = attr_argument_problem(&block.value) {
+                    return Some(reason);
+                }
+            }
+            ComponentValue::Token(_) => {}
+        }
+    }
+    None
+}
+
+fn attr_arguments_match(function: &Function<'_>) -> bool {
+    let mut arguments = function
+        .value
+        .split(|value| matches!(value, ComponentValue::Token(Token::Comma)));
+    let Some(first) = arguments.next() else {
+        return false;
+    };
+    if arguments.next().is_some_and(|fallback| {
+        fallback.iter().any(|value| {
+            matches!(
+                value,
+                ComponentValue::Token(
+                    Token::BadString
+                        | Token::BadUrl
+                        | Token::CloseParen
+                        | Token::CloseSquare
+                        | Token::CloseCurly
+                        | Token::Semicolon
+                        | Token::Delim('!')
+                )
+            )
+        })
+    }) || arguments.next().is_some()
+    {
+        return false;
+    }
+    if contains_arbitrary_substitution(first) {
+        return true;
+    }
+
+    let first = &first[first
+        .iter()
+        .take_while(|value| value.is_whitespace())
+        .count()..];
+    let ([
+        ComponentValue::Token(Token::Ident(_)),
+        ComponentValue::Token(Token::Delim('|')),
+        ComponentValue::Token(Token::Ident(_)),
+        rest @ ..,
+    ]
+    | [
+        ComponentValue::Token(Token::Delim('|')),
+        ComponentValue::Token(Token::Ident(_)),
+        rest @ ..,
+    ]
+    | [ComponentValue::Token(Token::Ident(_)), rest @ ..]) = first
+    else {
+        return false;
+    };
+    let mut types = rest.iter().filter(|value| !value.is_whitespace());
+    let Some(ty) = types.next() else {
+        return true;
+    };
+    types.next().is_none()
+        && match ty {
+            ComponentValue::Function(ty) if ty.name.eq_ignore_ascii_case("type") => {
+                type_arguments_match(ty, false)
+            }
+            ComponentValue::Token(Token::Delim('%')) => true,
+            _ => leaf_matches(Leaf::CustomIdent, UnitlessMode::Css, ty),
+        }
+}
+
+fn type_arguments_match(function: &Function<'_>, allow_url: bool) -> bool {
+    let values = function
+        .value
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .collect::<Vec<_>>();
+    if let [ComponentValue::Token(Token::String(syntax))] = values.as_slice() {
+        return syntax_matches(&tokenize(syntax).collect::<Vec<_>>(), allow_url);
+    }
+    let tokens = function
+        .value
+        .iter()
+        .map(|value| {
+            if let ComponentValue::Token(token) = value {
+                Some(token.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Option<Vec<_>>>();
+    tokens.is_some_and(|tokens| syntax_matches(&tokens, allow_url))
+}
+
+/// The restricted syntax definition used by `type()`, CSS Values 5 §3.3.
+fn syntax_matches(mut tokens: &[Token<'_>], allow_url: bool) -> bool {
+    while matches!(tokens.first(), Some(Token::Whitespace)) {
+        tokens = &tokens[1..];
+    }
+    while matches!(tokens.last(), Some(Token::Whitespace)) {
+        tokens = &tokens[..tokens.len() - 1];
+    }
+    if matches!(tokens, [Token::Delim('*')]) {
+        return true;
+    }
+    tokens
+        .split(|token| matches!(token, Token::Delim('|')))
+        .all(|mut part| {
+            while matches!(part.first(), Some(Token::Whitespace)) {
+                part = &part[1..];
+            }
+            while matches!(part.last(), Some(Token::Whitespace)) {
+                part = &part[..part.len() - 1];
+            }
+            let multiplier = matches!(part.last(), Some(Token::Delim('#' | '+')));
+            if multiplier {
+                part = &part[..part.len() - 1];
+            }
+            match part {
+                [Token::Ident(_)] => true,
+                [Token::Delim('<'), Token::Ident(name), Token::Delim('>')] => {
+                    match name.to_ascii_lowercase().as_str() {
+                        "url" => allow_url,
+                        "transform-list" => !multiplier,
+                        "angle" | "color" | "custom-ident" | "image" | "integer" | "length"
+                        | "length-percentage" | "number" | "percentage" | "resolution"
+                        | "string" | "time" | "transform-function" => true,
+                        _ => false,
+                    }
+                }
+                _ => false,
+            }
+        })
 }
 
 /// The grammar matched for the catalog's `grammar`: its widened, ranged or
@@ -1232,6 +1388,12 @@ impl Matcher<'_, '_> {
     /// function of its name. A function without a definition this module can
     /// parse matches by name alone.
     fn arguments_match(&self, function: &Function<'_>) -> bool {
+        if function.name.eq_ignore_ascii_case("type") {
+            return type_arguments_match(function, true);
+        }
+        if function.name.eq_ignore_ascii_case("calc-size") {
+            return self.calc_size_arguments_match(function);
+        }
         if is_math_function(&function.name) {
             return calculation::valid_function(function, |value| self.components.contains(value));
         }
@@ -1252,6 +1414,51 @@ impl Matcher<'_, '_> {
         }
         .ends(&arguments, 0, true)
         .contains(&values.len())
+    }
+
+    /// <https://drafts.csswg.org/css-sizing-4/#calc-size>
+    fn calc_size_arguments_match(&self, function: &Function<'_>) -> bool {
+        let mut args = function
+            .value
+            .split(|value| matches!(value, ComponentValue::Token(Token::Comma)));
+        let (Some(basis), Some(calculation), None) = (args.next(), args.next(), args.next()) else {
+            return false;
+        };
+        let mut values = basis.iter().filter(|value| !value.is_whitespace());
+        let mut allow_size = true;
+        let valid_basis = match (values.next(), values.next()) {
+            (Some(value), None)
+                if value.ident().is_some_and(|ident| {
+                    [
+                        "any",
+                        "auto",
+                        "min-content",
+                        "max-content",
+                        "fit-content",
+                        "stretch",
+                        "contain",
+                        "min-intrinsic",
+                        "content",
+                    ]
+                    .iter()
+                    .any(|keyword| ident.eq_ignore_ascii_case(keyword))
+                }) =>
+            {
+                allow_size = !value
+                    .ident()
+                    .is_some_and(|ident| ident.eq_ignore_ascii_case("any"));
+                true
+            }
+            (Some(ComponentValue::Function(function)), None)
+                if ["calc-size", "fit-content", "stretch"]
+                    .iter()
+                    .any(|name| function.name.eq_ignore_ascii_case(name)) =>
+            {
+                self.arguments_match(function)
+            }
+            _ => calculation::sizing_sum(basis, false),
+        };
+        valid_basis && calculation::sizing_sum(calculation, allow_size)
     }
 
     fn is_comma(&self, pos: usize) -> bool {
@@ -1562,26 +1769,31 @@ mod tests {
         assert_eq!(unchecked, Vec::<&str>::new());
     }
 
-    // Every catalog function must have an argument grammar or a dedicated
-    // checker. Substitution functions and sizing/type notations still bypass
-    // this check.
+    // Every catalog function must have an argument grammar or reject
+    // malformed arguments through a dedicated matcher. Substitution functions
+    // use their own processing before the grammar matcher runs.
     #[test]
     fn every_catalog_function_checks_its_arguments() {
         use super::super::syntax::notation::is_arbitrary_substitution_function;
         let unchecked: Vec<&str> = svg_data::css_functions()
             .iter()
             .map(|&(name, _)| name)
-            .filter(|&name| {
-                !is_arbitrary_substitution_function(name) && !matches!(name, "type" | "calc-size")
-            })
+            .filter(|&name| !is_arbitrary_substitution_function(name))
             .filter(|name| {
                 let garbage = format!("{name}(1px + red)");
                 let list = super::parse_component_values(&garbage);
                 match list.values.as_slice() {
-                    [super::ComponentValue::Function(function)]
-                        if super::is_math_function(name) =>
+                    [value @ super::ComponentValue::Function(_)]
+                        if super::is_math_function(name)
+                            || matches!(*name, "type" | "calc-size") =>
                     {
-                        super::calculation::valid_function(function, |_| false)
+                        let matcher = super::Matcher {
+                            values: &[value],
+                            ranges: true,
+                            nested: super::UnitlessMode::Css,
+                            components: super::ComponentKeywords::None,
+                        };
+                        matcher.single(&super::Node::Function((*name).to_owned()), value)
                     }
                     _ => super::function_arguments(name, super::UnitlessMode::Css).is_none(),
                 }
@@ -2510,6 +2722,71 @@ mod tests {
         let ref_y = real("refY", Some("symbol"), "<length> | top | center | bottom");
         valid(ref_y, &["5", "5px", "50%", "bottom"]);
         invalid(ref_y, &["left", "auto"]);
+    }
+
+    // https://drafts.csswg.org/css-values-5/#attr-notation
+    #[test]
+    fn attr_checks_arguments_before_deferring_the_property_grammar() {
+        let grammar = "auto | <length-percentage>";
+        valid(
+            grammar,
+            &[
+                "attr(data-size type(<length> | auto), auto)",
+                "attr(data-size type('<length>#'), auto)",
+                "attr(|data-size %)",
+                "attr(svg|width px,)",
+                "attr(data-size type(*))",
+                "attr(var(--attribute))",
+                "calc(1px + attr(data-size px))",
+                "attr(data-size, {red, blue})",
+            ],
+        );
+        invalid(
+            grammar,
+            &[
+                "attr(1 type(<length>))",
+                "attr(data-size type())",
+                "attr(data-size type(<length> |))",
+                "attr(data-size type('<unknown>'))",
+                "attr(data-size type(<url>))",
+                "attr(data-size type(<number> #))",
+                "attr(data-size type(<transform-list>+))",
+                "attr(svg |width px)",
+                "attr(data-size px extra)",
+                "attr(, 1px)",
+                "calc(1px + attr(1 type(<length>)))",
+            ],
+        );
+    }
+
+    // https://drafts.csswg.org/css-sizing-4/#calc-size
+    #[test]
+    fn calc_size_checks_the_basis_and_calculation() {
+        let grammar = "auto | <length-percentage>";
+        valid(
+            grammar,
+            &[
+                "calc-size(auto, size + 10px)",
+                "calc-size(min-content, round(up, size, 20px))",
+                "calc-size(fit-content(10px), size * .5)",
+                "calc-size(50%, size)",
+                "calc-size(any, 2px)",
+                "calc-size(auto, 0)",
+                "calc-size(calc-size(any, 2px), size + 10%)",
+            ],
+        );
+        invalid(
+            grammar,
+            &[
+                "calc-size(auto)",
+                "calc-size(auto,)",
+                "calc-size(red, 10px)",
+                "calc-size(auto, size + 1deg)",
+                "calc-size(any, size * 2)",
+                "calc-size(auto, 2px, 3px)",
+                "calc-size(auto, 2deg)",
+            ],
+        );
     }
 
     // Claim: "Name: width, height, inline-size, block-size Value: auto |

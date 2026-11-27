@@ -160,3 +160,15 @@ fn unresolved_animation_href_does_not_select_parent() {
             .all(|diag| diag.code != DiagnosticCode::InvalidAttributeValue)
     );
 }
+
+#[test]
+fn sizing_values_check_attr_and_calc_size_arguments() {
+    let body = r#"<rect width="attr(1 type(&lt;length&gt;))"/>
+        <rect width="calc-size(auto)"/>
+        <rect width="attr(data-size type(&lt;length&gt;), auto)"/>
+        <rect width="calc-size(auto, size + 10px)"/>"#;
+    assert_eq!(
+        flagged_values(body),
+        ["\"attr(1 type(&lt;length&gt;))\"", "\"calc-size(auto)\""],
+    );
+}

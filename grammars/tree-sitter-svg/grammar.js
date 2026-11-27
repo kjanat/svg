@@ -870,11 +870,20 @@ export default grammar({
 		 * (`[ left | center | … | <length-percentage> ]…`). The plain
 		 * length/percentage/auto value keeps its existing shape; a keyword-bearing
 		 * value (one or more whitespace-separated keywords, optionally mixed with
-		 * lengths) is the alternative. A genuine pure-length attribute (`x`,
-		 * `width`) never carries a keyword in valid SVG, so this superset is
-		 * lossless and keeps the value typed.
+		 * lengths) is another alternative. CSS functions are captured as one
+		 * payload so the CSS value checker can interpret nested arguments and
+		 * XML character references.
 		 */
-		length_attribute_value: $ => quoted(choice($.length_or_percentage_or_auto, $.length_keyword_value)),
+		length_attribute_value: $ =>
+			choice(
+				quoted(choice($.length_or_percentage_or_auto, $.length_keyword_value)),
+				seq(DQUOTE, alias($._length_css_double, $.css_value), DQUOTE),
+				seq(SQUOTE, alias($._length_css_single, $.css_value), SQUOTE),
+			),
+
+		_length_css_double: _ => token(/[ \t\r\n]*[-_A-Za-z][-_A-Za-z0-9]*\((?:[^"<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)*/),
+
+		_length_css_single: _ => token(/[ \t\r\n]*[-_A-Za-z][-_A-Za-z0-9]*\((?:[^'<&]|&(?:#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z_:][A-Za-z0-9_.:-]*);)*/),
 
 		/**
 		 * Distinct from the plain length/percentage/auto branch: this fires only
