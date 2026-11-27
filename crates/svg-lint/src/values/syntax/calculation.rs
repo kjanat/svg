@@ -148,6 +148,20 @@ impl Calculation<'_> {
             {
                 Some(Type::NUMBER)
             }
+            ComponentValue::Function(function)
+                if ["anchor", "anchor-size"]
+                    .iter()
+                    .any(|name| function.name.eq_ignore_ascii_case(name)) =>
+            {
+                Some(Type::dimension(LENGTH))
+            }
+            ComponentValue::Function(function)
+                if ["media-progress", "container-progress"]
+                    .iter()
+                    .any(|name| function.name.eq_ignore_ascii_case(name)) =>
+            {
+                Some(Type::NUMBER)
+            }
             _ => None,
         }
     }
@@ -158,19 +172,17 @@ impl Calculation<'_> {
         while !values.is_empty() {
             // Both sides of a binary plus or minus require whitespace. A sign
             // absorbed into a number token is part of the operand instead.
-            let [
-                left,
-                ComponentValue::Token(Token::Delim('+' | '-')),
-                right,
-                rest @ ..,
-            ] = values
+            if !values.first().is_some_and(ComponentValue::is_whitespace) {
+                return None;
+            }
+            let [ComponentValue::Token(Token::Delim('+' | '-')), rest @ ..] = trim_start(values)
             else {
                 return None;
             };
-            if !left.is_whitespace() || !right.is_whitespace() {
+            if !rest.first().is_some_and(ComponentValue::is_whitespace) {
                 return None;
             }
-            values = trim(rest);
+            values = trim_start(rest);
             result = consistent(result, self.product(&mut values)?)?;
         }
         Some(result)
@@ -237,6 +249,16 @@ impl Calculation<'_> {
             args.remove(0);
         }
 
+        if name == "progress"
+            && let Some(first) = args.first_mut()
+            && let [modifier, value @ ..] = *first
+            && modifier
+                .ident()
+                .is_some_and(|name| name.eq_ignore_ascii_case("no-clamp"))
+        {
+            *first = trim_start(value);
+        }
+
         let count = args.len();
         let mut values = args.into_iter().enumerate().map(|(index, arg)| {
             if name == "clamp"
@@ -271,7 +293,10 @@ impl Calculation<'_> {
             ("pow", 2) | ("sqrt" | "exp", 1) | ("log", 1..=2) => values
                 .all(|ty| ty.flatten() == Some(number))
                 .then_some(number),
-            ("sign", 1) | ("progress", 3) => common(values.map(Option::flatten)).map(|_| number),
+            ("sign", 1) => common(values.map(Option::flatten)).map(|_| number),
+            ("progress", 3) => common(values.map(Option::flatten))
+                .filter(|ty| ty.is_numeric_value())
+                .map(|_| number),
             _ => None,
         }
     }
@@ -378,7 +403,12 @@ impl Calculation<'_> {
                     .ident()
                     .is_some_and(|name| name.eq_ignore_ascii_case("fixed")) =>
             {
-                self.value(value) == Some(Type::NUMBER)
+                match value {
+                    ComponentValue::Token(Token::Number(number)) => {
+                        (0.0..=1.0).contains(&number.value)
+                    }
+                    _ => self.value(value) == Some(Type::NUMBER),
+                }
             }
             [entry]
                 if entry
@@ -400,8 +430,13 @@ impl Calculation<'_> {
                             &mut dashed
                         } else if name.eq_ignore_ascii_case("element-scoped") {
                             &mut element
-                        } else {
+                        } else if name.eq_ignore_ascii_case("property-scoped")
+                            || name.eq_ignore_ascii_case("property-index-scoped")
+                            || name.to_ascii_lowercase().starts_with("ua-")
+                        {
                             &mut property
+                        } else {
+                            return false;
                         };
                         !std::mem::replace(seen, true)
                     })
