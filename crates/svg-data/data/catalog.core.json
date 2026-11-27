@@ -62967,7 +62967,6 @@
         },
         {
           "element": "textPath",
-          "experimental": true,
           "standard_track": true,
           "baseline": {
             "support": {
@@ -63061,7 +63060,7 @@
             ],
             "safari": [
               {
-                "version_added": false,
+                "version_added": "27.3",
                 "flags": [],
                 "impl_url": [],
                 "partial_implementation": false,
@@ -63070,7 +63069,7 @@
             ],
             "safari_ios": [
               {
-                "version_added": false,
+                "version_added": "27.3",
                 "flags": [],
                 "impl_url": [],
                 "partial_implementation": false,
@@ -63097,7 +63096,7 @@
             ],
             "webview_ios": [
               {
-                "version_added": false,
+                "version_added": "27.3",
                 "flags": [],
                 "impl_url": [],
                 "partial_implementation": false,
@@ -71365,160 +71364,9 @@
     {
       "name": "referrerpolicy",
       "description": "These attributes further describe the targetted resource and its relationship to the current document. Allowed values and meaning are as defined for the a element in HTML. The SVG Working Group is waiting on the HTML specification to clarify the processing model and algorithms for these attributes. The attributes should follow the definitions and algorithms as specified in the HTML specification. For more details on the ongoing clarification effort, see the HTML specification issue on processing model and algorithms for the HTML A element.",
-      "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/referrerpolicy",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/linking.html#AElementReferrerpolicyAttribute",
-      "standard_track": true,
       "animation": "not_animatable",
       "presentation_attribute": null,
-      "baseline": {
-        "support": {
-          "chrome": "51",
-          "chrome_android": "51",
-          "edge": "79",
-          "firefox": "52",
-          "firefox_android": "52",
-          "safari": "14",
-          "safari_ios": "14"
-        },
-        "status": "widely",
-        "raw_status": "\"high\"",
-        "low_date": {
-          "raw": "2020-09-16",
-          "date": "2020-09-16"
-        },
-        "high_date": {
-          "raw": "2023-03-16",
-          "date": "2023-03-16"
-        }
-      },
-      "browser_support": {
-        "chrome": [
-          {
-            "version_added": "51",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "chrome_android": [
-          {
-            "version_added": "51",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "edge": [
-          {
-            "version_added": "79",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "firefox": [
-          {
-            "version_added": "52",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "firefox_android": [
-          {
-            "version_added": "52",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "ie": [
-          {
-            "version_added": false,
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "oculus": [
-          {
-            "version_added": "5.0",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "opera": [
-          {
-            "version_added": "38",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "opera_android": [
-          {
-            "version_added": "41",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "safari": [
-          {
-            "version_added": "14",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "safari_ios": [
-          {
-            "version_added": "14",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "samsunginternet_android": [
-          {
-            "version_added": "7.2",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "webview_android": [
-          {
-            "version_added": "51",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ],
-        "webview_ios": [
-          {
-            "version_added": "14",
-            "flags": [],
-            "impl_url": [],
-            "partial_implementation": false,
-            "notes": []
-          }
-        ]
-      },
       "element_compat": [
         {
           "element": "a",
@@ -71666,6 +71514,403 @@
             "webview_ios": [
               {
                 "version_added": "14",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "feImage",
+          "standard_track": false,
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "image",
+          "standard_track": true,
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": "113",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": "113",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": "113",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": "31.2",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": "99",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": "76",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": "23.0",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": "113",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "element": "script",
+          "experimental": true,
+          "standard_track": true,
+          "browser_support": {
+            "chrome": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "chrome_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "edge": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "firefox_android": [
+              {
+                "version_added": "161",
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "ie": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "oculus": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "opera_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "safari_ios": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "samsunginternet_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_android": [
+              {
+                "version_added": false,
+                "flags": [],
+                "impl_url": [],
+                "partial_implementation": false,
+                "notes": []
+              }
+            ],
+            "webview_ios": [
+              {
+                "version_added": false,
                 "flags": [],
                 "impl_url": [],
                 "partial_implementation": false,
@@ -87363,7 +87608,7 @@
     },
     {
       "name": "text-anchor",
-      "description": "The 'text-anchor' property is used to align (start-, middle- or end-alignment) a string of pre-formatted text or auto-wrapped text where the wrapping area is determined from the 'inline-size' property relative to a given point. It is not applicable to other types of auto-wrapped text, see instead 'text-align'. For multi-line text, the alignment takes place for each line.",
+      "description": "The 'text-anchor' property is used to align (start-, middle- or end-alignment) a string of pre-formatted text or auto-wrapped text where the wrapping area is determined from the 'inline-size' property relative to a given point. For multi-line text, the alignment takes place for each line.",
       "mdn_url": "https://developer.mozilla.org/docs/Web/SVG/Reference/Attribute/text-anchor",
       "spec_url": "https://w3c.github.io/svgwg/svg2-draft/text.html#TextAnchorProperty",
       "standard_track": true,
