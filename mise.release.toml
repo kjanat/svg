@@ -1,0 +1,4 @@
+# Pins used by the Cross release jobs. Developer installs use mise.toml.
+[tools]
+cross               = "0.2.5"
+"cargo:rust-script" = "0.36.0"

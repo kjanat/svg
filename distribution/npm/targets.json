@@ -333,7 +333,7 @@
 				"arm64"
 			],
 			"runner": "ubuntu-26.04",
-			"build": "cargo-build-std",
+			"build": "cross-build-std",
 			"tier": 3,
 			"experimental": true
 		},
@@ -364,7 +364,7 @@
 				"glibc"
 			],
 			"runner": "ubuntu-26.04",
-			"build": "cargo-cross-toolchain",
+			"build": "cross",
 			"tier": 3,
 			"experimental": true
 		}
