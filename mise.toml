@@ -2,12 +2,13 @@
 biome             = "latest"
 bun               = "latest"
 cargo-binstall    = "latest"
-cross             = "latest"
+cross             = "0.2.5"
 deno              = "latest"
 just              = "latest"
 kprint            = "latest"
 markdownlint-cli2 = "latest"
 rust              = "latest"
+rust-script       = "0.36.0"
 tombi             = "latest"
 tree-sitter       = "0.27.2"
 tsrs              = "latest"
@@ -15,9 +16,10 @@ uv                = "latest"
 zig               = "0.16.0"
 
 [tool_alias]
-kprint = "github:kjanat/kprint[auto_update=true]"
-tsrs   = "npm:tsrs[auto_update=true]"
-cross  = "cargo:cross[auto_update=true]"
+cross       = "cargo:cross[auto_update=true]"
+kprint      = "github:kjanat/kprint[auto_update=true]"
+rust-script = "cargo:rust-script"
+tsrs        = "npm:tsrs[auto_update=true]"
 
 [tasks]
 fmt.run   = "kprint fmt"
