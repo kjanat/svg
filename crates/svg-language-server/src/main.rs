@@ -14,6 +14,9 @@ use clap::{CommandFactory as _, Parser};
     help_template = "{name} {version}\n{about}\n\nusage: {usage}\n\n{all-args}"
 )]
 struct Cli {
+    #[command(flatten)]
+    completion: svg_tree::cli::CompletionArgs,
+
     /// Run the language server over standard input and output (the default).
     #[arg(long, exclusive = true)]
     stdio: bool,
@@ -28,16 +31,17 @@ struct Cli {
 }
 
 fn main() -> ExitCode {
-    clap_complete::CompleteEnv::with_factory(Cli::command)
-        .var("SVG_COMPLETE")
-        .shells(clap_complete::env::Shells(&[
-            &clap_complete::env::Bash,
-            &clap_complete::env::Fish,
-            &clap_complete::env::Zsh,
-        ]))
-        .completer("svg-language-server")
-        .complete();
+    svg_tree::cli::complete(Cli::command);
     let cli = Cli::parse();
+    if let Some(result) = cli.completion.generate(Cli::command) {
+        return match result {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("svg-language-server: {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     if cli.help {
         print!("{}", Cli::command().render_help());
         ExitCode::SUCCESS

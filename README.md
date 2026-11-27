@@ -75,12 +75,20 @@ can query their options and arguments while you type.
 | Fish       | Copy the files in `completions/fish/` into `~/.config/fish/completions/`. |
 | PowerShell | Dot-source `completions/powershell/_svg.ps1` from `$PROFILE`.             |
 
-To generate the same files from a release-matched checkout with the installed
-commands on your `PATH`, run:
+Each binary generates its own script with `--completions [SHELL]`. Omit `SHELL`
+to use a supported `$SHELL`, or PowerShell when `PSModulePath` is set and
+`$SHELL` does not name a supported shell. Explicit shell executable paths work
+too.
 
 ```sh
-bash scripts/generate-shell-completions.sh "$(dirname "$(command -v svg-format)")" ./completions
+svg-lint --completions bash
+svg-format --completions zsh
+svg-language-server --completions fish
+svg-lint --completions powershell
 ```
+
+To generate the complete release layout from a checkout, pass the directory
+containing all three executables to `scripts/generate-shell-completions.sh`.
 
 Replace the completion scripts when upgrading the binaries.
 

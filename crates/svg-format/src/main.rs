@@ -24,6 +24,9 @@ use svg_format::{
                   wrapping aligned under the tag name."
 )]
 struct Cli {
+    #[command(flatten)]
+    completion: svg_tree::cli::CompletionArgs,
+
     /// SVG file to format. Reads stdin when omitted.
     #[arg(value_name = "FILE", value_hint = ValueHint::FilePath, conflicts_with = "stdin")]
     path: Option<PathBuf>,
@@ -123,6 +126,10 @@ struct SelfCloseArgs {
 
 fn run() -> Result<ExitCode, String> {
     let cli = Cli::parse();
+    if let Some(result) = cli.completion.generate(Cli::command) {
+        result.map_err(|error| error.to_string())?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let defaults = FormatOptions::default();
     let read_stdin = cli.io.stdin || cli.path.is_none();
 
@@ -221,15 +228,7 @@ fn merge_ignore_prefixes(mut defaults: Vec<String>, extra: Vec<String>) -> Vec<S
 }
 
 fn main() -> ExitCode {
-    clap_complete::CompleteEnv::with_factory(Cli::command)
-        .var("SVG_COMPLETE")
-        .shells(clap_complete::env::Shells(&[
-            &clap_complete::env::Bash,
-            &clap_complete::env::Fish,
-            &clap_complete::env::Zsh,
-        ]))
-        .completer("svg-format")
-        .complete();
+    svg_tree::cli::complete(Cli::command);
     match run() {
         Ok(code) => code,
         Err(message) => {

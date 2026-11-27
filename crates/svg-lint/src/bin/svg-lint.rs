@@ -37,6 +37,9 @@ const EXIT_LINT_FAILURE: u8 = 1;
                   use\n--profile."
 )]
 struct Cli {
+    #[command(flatten)]
+    completion: svg_tree::cli::CompletionArgs,
+
     /// SVG files to lint. Use `-` to read from stdin.
     #[arg(value_name = "FILE", value_hint = ValueHint::FilePath)]
     paths: Vec<PathBuf>,
@@ -169,6 +172,10 @@ impl Source {
 
 fn run() -> Result<ExitCode, String> {
     let cli = Cli::parse();
+    if let Some(result) = cli.completion.generate(Cli::command) {
+        result.map_err(|error| error.to_string())?;
+        return Ok(ExitCode::SUCCESS);
+    }
 
     let configured_profile = svg_data::resolve_profile_id(&cli.profile).ok_or_else(|| {
         format!(
@@ -417,15 +424,7 @@ fn known_profiles() -> Vec<String> {
 }
 
 fn main() -> ExitCode {
-    clap_complete::CompleteEnv::with_factory(Cli::command)
-        .var("SVG_COMPLETE")
-        .shells(clap_complete::env::Shells(&[
-            &clap_complete::env::Bash,
-            &clap_complete::env::Fish,
-            &clap_complete::env::Zsh,
-        ]))
-        .completer("svg-lint")
-        .complete();
+    svg_tree::cli::complete(Cli::command);
     match run() {
         Ok(code) => code,
         Err(message) => {

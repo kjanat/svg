@@ -1127,7 +1127,7 @@ name = "svg-format"
 version = "0.5.2"
 dependencies = [
  "clap",
- "clap_complete",
+ "svg-tree",
  "tree-sitter",
  "tree-sitter-svg",
  "tree-sitter-svg-path",
@@ -1139,7 +1139,6 @@ version = "0.5.2"
 dependencies = [
  "base64",
  "clap",
- "clap_complete",
  "quick-xml",
  "serde",
  "serde_json",
@@ -1203,6 +1202,8 @@ dependencies = [
 name = "svg-tree"
 version = "0.5.2"
 dependencies = [
+ "clap",
+ "clap_complete",
  "tree-sitter",
  "tree-sitter-svg",
 ]

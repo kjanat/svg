@@ -20,7 +20,7 @@ bin-dir = "{ bin }{ binary-ext }"
 
 [features]
 default = ["cli"]
-cli     = ["dep:clap_complete", "clap", "serde_json"]
+cli     = ["dep:clap_complete", "clap", "serde_json", "svg-tree/cli"]
 
 [lib]
 name = "svg_lint"

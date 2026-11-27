@@ -9,6 +9,19 @@ SVG_COMPLETION_TEST_DIR="$(cd "${2:?usage: test-shell-completions.sh BIN_DIR COM
 export SVG_COMPLETION_TEST_DIR
 export PATH="${bin_dir}:${PATH}"
 
+for bin in svg-format svg-lint svg-language-server; do
+	SHELL=/usr/bin/zsh PSModulePath=/example "${bin}" --completions >"${scratch}/generated"
+	cmp "${scratch}/generated" "${SVG_COMPLETION_TEST_DIR}/zsh/_${bin}"
+	SHELL=/usr/bin/ksh PSModulePath=/example "${bin}" --completions >"${scratch}/detected-pwsh"
+	SHELL=/usr/bin/fish "${bin}" --completions 'C:\Program Files\PowerShell\pwsh.exe' >"${scratch}/explicit-pwsh"
+	cmp "${scratch}/detected-pwsh" "${scratch}/explicit-pwsh"
+	if env -u SHELL -u PSModulePath "${bin}" --completions >"${scratch}/missing" 2>&1; then
+		echo "${bin}: --completions unexpectedly succeeded without a shell" >&2
+		exit 1
+	fi
+	grep -F 'could not detect shell' "${scratch}/missing"
+done
+
 cd "${scratch}"
 touch 'sample file.svg'
 
@@ -40,6 +53,8 @@ check json svg-lint --format j
 check svg2 svg-lint --profile svg2
 check 'sample file.svg' svg-lint sam
 check --stdio svg-language-server --st
+check --completions svg-language-server --comp
+check powershell svg-language-server --completions pow
 BASH
 
 fish --no-config <<'FISH'
