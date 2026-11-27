@@ -149,7 +149,7 @@ impl From<bool> for Match {
 
 impl NumericType {
     /// Whether a `<percentage>` is of this type.
-    const fn allows_percentage(self) -> bool {
+    pub(in crate::values) const fn allows_percentage(self) -> bool {
         matches!(
             self,
             Self::Percentage
