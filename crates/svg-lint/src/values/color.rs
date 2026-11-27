@@ -1038,6 +1038,9 @@ mod tests {
             assert_valid(
                 check,
                 &[
+                    "rgb(from red r g b",
+                    "rgb(from red r g b / media-progress(width, 300px, 1000px))",
+                    "rgb(from red r g b / container-progress(width, 300px, 1000px))",
                     "rgb(from contrast-color(red) r g b)",
                     "rgb(from device-cmyk(0 0 0 1) r g b)",
                     "rgb(from rgb(from contrast-color(red) r g b) r g b)",
