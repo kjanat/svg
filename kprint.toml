@@ -55,14 +55,14 @@ timeout      = 30
 playWithFire = true
 
 [[exec.commands]]
-command       = "rustfmt"
+command       = "rustfmt +nightly"
 exts          = ["rs"]
 cacheKeyFiles = ["rustfmt.toml", ".cargo/config.toml", "rust-toolchain.toml"]
 
 [[exec.commands]]
 command      = "just --dump --justfile {{file_path}}"
 fileNames    = ["justfile"]
-setupCommand = "node -e \"try { require('child_process').execSync('just --version', {stdio:'ignore'}); } catch { require('child_process').execSync('npm i -g rust-just', {stdio:'inherit'}); }\""
+setupCommand = "mise --quiet i just"
 
 [[exec.commands]]
 command = "zig fmt --color off --stdin"
