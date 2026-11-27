@@ -135,7 +135,7 @@ jobs:
     env:
       # KAJ-274: windows-11-arm runners intermittently fail crate fetches with
       # HTTP/2 stream errors; forcing HTTP/1.1 there is the standard workaround.
-      CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner == 'windows-11-arm' }}
+      CARGO_HTTP_MULTIPLEXING: ${{ matrix.runner != 'windows-11-arm' }}
       CARGO_NET_RETRY: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
