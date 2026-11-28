@@ -5,6 +5,7 @@ import { basename, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+	archiveBinary,
 	archivePath,
 	assertExecutable,
 	assertVersion,
@@ -22,6 +23,15 @@ import {
 } from '../actions/npm-smoke/runtime.mjs';
 
 const manifest = readJson(new URL('../../distribution/npm/targets.json', import.meta.url));
+
+test('archive lookup counts only the root binary, not its Bash completion', () => {
+	const name = 'svg-language-server';
+	const completion = `completions/bash/${name}`;
+	assert.equal(archiveBinary([name, completion], name), name);
+	assert.equal(archiveBinary([`./${name}`, `./${completion}`], name), `./${name}`);
+	assert.throws(() => archiveBinary([completion], name), /Expected one root-level/);
+	assert.throws(() => archiveBinary([name, `./${name}`, completion], name), /Expected one root-level/);
+});
 
 test('all eight tier-1 runtime environments come from the single manifest', () => {
 	const matrix = runtimeMatrix(manifest);

@@ -149,18 +149,25 @@ jobs:
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
-      - name: install nightly rust (tier-3 build-std)
+      - name: prepare the pinned Rust toolchain (tier-3 build-std)
         if: matrix.build-tool == 'cross-build-std'
-        uses: dtolnay/rust-toolchain@6a52aad76a94a5fbc50d567bb5be24419801c1fb # nightly
-        with: { toolchain: nightly, components: rust-src }
+        shell: bash
+        run: |
+          # Use the release checkout's rust-toolchain.toml, not floating nightly.
+          # Add the components explicitly so redispatch also works for older tags.
+          rustc --version
+          rustup component add rust-src rust-std
+          test -f "$(rustc --print sysroot)/lib/rustlib/src/rust/library/Cargo.lock"
 
       - name: install Cross release tools
         if: contains(fromJSON('["cross", "cross-build-std"]'), matrix.build-tool)
-        uses: kjanat/mise-action@v6
+        # Keep the runner's rustup toolchain; this action only installs Cargo tools.
+        env: { MISE_DISABLE_TOOLS: rust }
+        uses: kjanat/mise-action@ba8cdde9e7e3d26d190654d59b29bfeef2fb285c # v6 before release-specific workarounds
         with:
           mise_env: release
           cache: false
-          install_args: ${{ case(matrix.target == 'x86_64-unknown-linux-musl', 'cross cargo:rust-script', 'cross') }}
+          install_args: ${{ case(matrix.target == 'x86_64-unknown-linux-musl', 'cargo-binstall@1.28.0 cross rust-script', 'cargo-binstall@1.28.0 cross') }}
 
       # NetBSD's Cross image lacks the libexecinfo required by Rust's std.
       - name: setup NetBSD cross toolchain
@@ -190,7 +197,7 @@ jobs:
       - name: build with nightly Cross and build-std
         if: matrix.build-tool == 'cross-build-std'
         env: { target: "${{ matrix.target }}" }
-        run: cross +nightly build --config .cargo/build-std.toml --release --locked --target "${target}"
+        run: cross build --config .cargo/build-std.toml --release --locked --target "${target}"
           --bin svg-language-server --bin svg-lint --bin svg-format
 
       - name: package binaries (cross-build-std)

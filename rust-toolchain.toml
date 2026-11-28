@@ -1,4 +1,4 @@
 [toolchain]
 channel    = "nightly-2026-11-24"
 profile    = "default"
-components = ["rustfmt", "clippy", "llvm-tools", "cargo", "rust-analyzer"]
+components = ["rustfmt", "clippy", "llvm-tools", "cargo", "rust-analyzer", "rust-src", "rust-std"]
