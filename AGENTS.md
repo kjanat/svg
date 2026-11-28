@@ -71,6 +71,8 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 
 ## CONVENTIONS
 
+- Open every PR with matching labels from `gh label list` and assignee
+  `kjanat`.
 - Use `just` targets as source of truth for dev flow; `just verify` is the local
   preflight.
 - Format with `just format [FILES]` (`bunx '@kjanat/fmt'`, also `run fmt`).
