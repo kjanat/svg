@@ -7,7 +7,6 @@ import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { detectLibc } from '../../../distribution/npm/facade/lib/libc.mjs';
 import {
-	archiveBinary,
 	archivePath,
 	assertExecutable,
 	assertVersion,
@@ -106,7 +105,9 @@ try {
 	const originals = new Map();
 	for (const bin of manifest.binaries) {
 		const name = `${bin}${process.platform === 'win32' ? '.exe' : ''}`;
-		const path = join(extracted, archiveBinary(members, name));
+		const matches = members.filter(member => member === name || member === `./${name}`);
+		assert.equal(matches.length, 1, `Expected one ${name} in release archive`);
+		const path = join(extracted, matches[0]);
 		assertExecutable(path);
 		originals.set(bin, path);
 	}

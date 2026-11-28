@@ -9,13 +9,6 @@ export const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
 export const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 export const packageDirectory = name => name.replace(/^@/, '').replaceAll('/', '-');
 
-// Release binaries are at the tar root; completion scripts can share their names.
-export function archiveBinary(members, name) {
-	const matches = members.filter(member => member.replace(/^(?:\.\/)+/, '') === name);
-	assert.equal(matches.length, 1, `Expected one root-level ${name} in release archive`);
-	return matches[0];
-}
-
 export function run(command, args, options = {}) {
 	const { quiet = false, ...spawnOptions } = options;
 	const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...spawnOptions, shell: false });

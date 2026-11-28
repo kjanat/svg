@@ -149,21 +149,14 @@ jobs:
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with: { toolchain: stable, targets: "${{ matrix.target }}" }
 
-      - name: prepare the pinned Rust toolchain (tier-3 build-std)
+      - name: install Rust sources
         if: matrix.build-tool == 'cross-build-std'
-        shell: bash
-        run: |
-          # Use the release checkout's rust-toolchain.toml, not floating nightly.
-          # Add the components explicitly so redispatch also works for older tags.
-          rustc --version
-          rustup component add rust-src rust-std
-          test -f "$(rustc --print sysroot)/lib/rustlib/src/rust/library/Cargo.lock"
+        run: rustup component add rust-src
 
       - name: install Cross release tools
         if: contains(fromJSON('["cross", "cross-build-std"]'), matrix.build-tool)
-        # Keep the runner's rustup toolchain; this action only installs Cargo tools.
+        uses: kjanat/mise-action@ba8cdde9e7e3d26d190654d59b29bfeef2fb285c
         env: { MISE_DISABLE_TOOLS: rust }
-        uses: kjanat/mise-action@ba8cdde9e7e3d26d190654d59b29bfeef2fb285c # v6 before release-specific workarounds
         with:
           mise_env: release
           cache: false
