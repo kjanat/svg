@@ -210,7 +210,7 @@ jobs:
         shell: "actions-shell cross --target x86_64-unknown-linux-musl {0}"
         run: |
           assert!(cfg!(target_env = "musl"), "expected the musl target");
-          let bin_dir = std::path::Path::new("target/${{ matrix.target }}/release");
+          let bin_dir = std::path::Path::new("target/x86_64-unknown-linux-musl/release");
           for bin in ["svg-format", "svg-lint", "svg-language-server"] {
               let result = std::process::Command::new(bin_dir.join(bin))
                   .arg("--version")
