@@ -16,6 +16,7 @@ target/package catalog is `distribution/npm/targets.json`; the procedure is
 
 ## Conventions
 
+- Do not write tests for workflows, composite actions or packaging scripts.
 - Preserve trusted-publisher workflow paths, credential isolation and declared
   permissions when changing publication.
 - Crate helper code and release source code are separate checkouts. Setup
