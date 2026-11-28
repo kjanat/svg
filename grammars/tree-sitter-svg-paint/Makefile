@@ -1,6 +1,6 @@
 LANGUAGE_NAME := tree-sitter-svg-paint
 HOMEPAGE_URL := https://github.com/kjanat/svg
-VERSION := 0.5.2
+VERSION := 0.6.0
 
 # repository
 SRC_DIR := src
