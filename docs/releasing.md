@@ -157,7 +157,7 @@ Runtime jobs install these `.tgz` files, and publication uploads the same files.
 Checks verify:
 
 - The actual runtime OS, Node architecture, and detected libc match the selected
-  manifest entry. The existing #19 resolver regressions run in Alpine too.
+  manifest entry.
 - Original archive checksums and one copy of each of the three CLIs; executable
   permission bits on Unix before npm has a chance to repair them.
 - Binary hashes match through archive extraction, npm packaging, and install.
@@ -180,12 +180,9 @@ retains a JSON report for 14 days. Failed, absent, skipped, or unconfigured
 checks never count as successful runtime execution. These are startup/version
 checks, not a claim of full application testing on every platform.
 
-`just release-package-test` covers policy, archive integrity, version matching,
-permissions, stage reporting, and workflow gates. It is included in
-`just verify`. PR runtime validation builds npm trees from the latest published
-release's binaries using current templates, then transfers them to all eight
-environments. This validates packaging and execution without claiming a new
-binary build.
+PR runtime validation builds npm trees from the latest published release's
+binaries using current templates, then transfers them to all eight environments.
+This validates packaging and execution without claiming a new binary build.
 
 For an existing release whose old `dist` artifact lacks the original archives,
 dispatch `runtime-smoke-ci.yml` from the updated default branch with its `tag`
@@ -240,10 +237,7 @@ also set `dry-run: true`. Normal registry index and dependency downloads can
 occur during verification. If verification artifacts expire, start a fresh
 preparation run rather than bypassing the checks.
 
-`just release-package-test` exercises real unpublished-sibling packaging, an
-excluded required input, archive/source mismatches, workflow wiring and the
-publication retry loop. It also runs as part of `just verify`. CI separately
-verifies the repository's actual packages on every PR and push to `master`,
+CI verifies the repository's actual packages on every PR and push to `master`,
 without uploading them.
 
 References:

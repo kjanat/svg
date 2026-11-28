@@ -13,7 +13,6 @@ target/package catalog is `distribution/npm/targets.json`; the procedure is
 | Crate package verification/publication | `workflows/crates-release.yml`, `actions/crates-verify`, `actions/crates-publish` |
 | Ordinary PR checks                     | `workflows/ci.yml`                                                                |
 | Distributed runtime checks             | `workflows/runtime-smoke.yml`, `actions/npm-smoke`                                |
-| Release regression tests               | `tests/`                                                                          |
 
 ## Conventions
 
@@ -29,9 +28,8 @@ target/package catalog is `distribution/npm/targets.json`; the procedure is
   order-only dry run as verification of packaged contents.
 - Use the Python shell for Python-only workflow steps. Keep Python entry points
   with shebangs executable in Git.
-- `just release-config-check` checks workflow/script syntax;
-  `just release-package-test` checks behavior.
-  `just verify` includes all three.
+- `just release-config-check` checks workflow/script syntax and runs in
+  `just verify`.
 - Runtime coverage comes from `targets.json` runtime metadata. Smoke jobs
   consume the producer's archives and npm artifact after transfer and must not
   rebuild binaries. Keep build/package evidence separate from
