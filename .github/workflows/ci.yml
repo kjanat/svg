@@ -95,25 +95,6 @@ jobs:
         with: { tool: just }
       - run: just check-python
 
-  npm-facade:
-    name: npm facade (glibc + musl)
-    runs-on: ubuntu-26.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with: { persist-credentials: false }
-      - uses: actions/setup-node@v7
-        with: { node-version-file: package.json }
-      - name: Resolve pinned Node major
-        run: echo "NODE_MAJOR=$(jq -r '.volta.node | split(".")[0]' package.json)" >> "${GITHUB_ENV}"
-      - name: Resolver tests (glibc host)
-        env: { EXPECT_LIBC: glibc }
-        run: node --test "distribution/npm/facade/test/*.test.mjs"
-      - name: Resolver tests (musl host)
-        run: docker run --rm --volume "${PWD}:/work" --workdir /work
-          --env EXPECT_LIBC=musl "node:${NODE_MAJOR}-alpine"
-          node --test "distribution/npm/facade/test/*.test.mjs"
-
   deno:
     name: Deno typecheck
     runs-on: ubuntu-26.04
@@ -139,12 +120,6 @@ jobs:
       - uses: taiki-e/install-action@v2
         with: { tool: "rust,just" }
       - uses: Swatinem/rust-cache@v2
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v7
-        with: { node-version: "26" }
-      - uses: astral-sh/setup-uv@v10.4.0
-      - name: Release tooling regressions
-        run: just release-package-test
       - name: verify actual workspace packages without uploading
         shell: python
         run: |

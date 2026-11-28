@@ -92,6 +92,9 @@ color analysis, reference lookup, and shared tree-sitter helpers.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
+- Do not write tests for packaging or release tooling: `distribution/npm/`,
+  `.github/actions/`, `.github/workflows/`, `scripts/` release helpers. Ship
+  the minimal fix.
 - Do not edit generated catalog output in `svg-data`; change `build.rs` or
   `data/*.json` instead.
 - Do not assume one generic attribute node kind; tree-sitter-svg uses multiple

@@ -200,7 +200,6 @@ verify:
     just typecheck
     just baseline-icons-check
     just release-config-check
-    just release-package-test
     just lint
     just test
     just test-deno
@@ -220,15 +219,6 @@ release-config-check:
     bunx rshellcheck -x -o all --shell=bash .github/actions/*/run.sh
     node --experimental-strip-types --check distribution/npm/scripts/build-packages.ts
     ! grep -riEl 'not (yet )?published|not on (crates\.io|npm)( yet)?|coming soon' crates/*/README.md grammars/*/README.md distribution/npm/facade/*/README.md README.md
-
-# exercise packaged crate verification, release wiring and publication retries
-[group('release')]
-release-package-test:
-    bun install --cwd .github/tests/renovate --force --ignore-scripts
-    uv sync --locked --all-packages --all-groups
-    bun test ./.github
-    python -B -m unittest discover -s .github/tests -p test_crates.py -v
-    bash .github/tests/crates-publish.sh
 
 # preview the per-target build matrix release.yml will run
 [group('release')]

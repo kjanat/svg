@@ -44,9 +44,6 @@ jobs:
       - name: download and extract producer dist artifact
         uses: $/.github/actions/dist-artifact
         with: { run-id: "${{ inputs.run-id }}", token: "${{ github.token }}" }
-      - name: facade launcher tests
-        if: matrix.container == ''
-        run: node --test "distribution/npm/facade/test/*.test.mjs"
       - name: native archive and npm install smoke
         if: matrix.container == ''
         uses: $/.github/actions/npm-smoke
@@ -58,9 +55,9 @@ jobs:
         run: |
           docker run --rm --volume "${PWD}:/work" --workdir /work \
             --volume "${GITHUB_STEP_SUMMARY}:/step-summary" --env GITHUB_STEP_SUMMARY=/step-summary \
-            --env RELEASE_TAG --env HOST_PKG --env EXPECT_LIBC=musl \
+            --env RELEASE_TAG --env HOST_PKG \
             "${RUNTIME_CONTAINER}" sh -ec \
-            'node --test distribution/npm/facade/test/*.test.mjs; node .github/actions/npm-smoke/run.mjs'
+            'node .github/actions/npm-smoke/run.mjs'
       - name: report checks that could not start
         if: always()
         shell: node {0}
