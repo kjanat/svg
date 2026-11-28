@@ -155,7 +155,7 @@ jobs:
 
       - name: install Cross release tools
         if: contains(fromJSON('["cross", "cross-build-std"]'), matrix.build-tool)
-        uses: kjanat/mise-action@ba8cdde9e7e3d26d190654d59b29bfeef2fb285c
+        uses: kjanat/mise-action@v6
         env: { MISE_DISABLE_TOOLS: rust }
         with:
           mise_env: release
