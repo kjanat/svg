@@ -25,7 +25,7 @@ import { blue, green, italic, magenta, underline } from 'ansispeck';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { join, posix, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { env, stdout } from 'node:process';
 import { Parser, type ReadEntry } from 'tar';
 
@@ -686,7 +686,7 @@ async function extractBinariesFromTarball(
 	await new Promise<void>((resolvePromise, reject) => {
 		const parser = new Parser({
 			onReadEntry: (entry: ReadEntry) => {
-				const fileName = posix.basename(entry.path);
+				const fileName = entry.path.replace(/^\.\//, '');
 				if (entry.type !== 'File' || !wanted.has(fileName)) {
 					entry.resume();
 					return;

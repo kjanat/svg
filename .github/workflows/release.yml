@@ -273,7 +273,11 @@ jobs:
         with: { tag: "${{ needs.beepboop.outputs.tag }}", token: "${{ steps.automation.outputs.token }}" }
 
       - name: build npm packages
-        run: node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
+        env: { WORKFLOW_SHA: "${{ github.workflow_sha }}" }
+        run: |
+          git fetch --no-tags --depth=1 origin "$WORKFLOW_SHA"
+          git restore --source="$WORKFLOW_SHA" -- distribution/npm/scripts/build-packages.ts
+          node distribution/npm/scripts/build-packages.ts --version "${RELEASE_TAG#v}"
 
       - name: report archive and package evidence
         run: node .github/actions/npm-smoke/runtime.mjs inventory
