@@ -667,7 +667,7 @@ Released under the same license as \`${facade.name}\` (see \`LICENSE\`).
 `;
 }
 
-export async function extractBinariesFromTarball(
+async function extractBinariesFromTarball(
 	tarballPath: string,
 	binaryNames: string[],
 ): Promise<Map<string, Buffer>> {

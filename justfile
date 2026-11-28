@@ -225,7 +225,6 @@ release-config-check:
 [group('release')]
 release-package-test:
     bun install --cwd .github/tests/renovate --force --ignore-scripts
-    bun install --frozen-lockfile --ignore-scripts
     uv sync --locked --all-packages --all-groups
     bun test ./.github
     python -B -m unittest discover -s .github/tests -p test_crates.py -v
