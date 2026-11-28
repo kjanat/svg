@@ -16,6 +16,38 @@ When bumping the workspace version after a catalog refresh:
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-28
+
+### Added
+
+- Generate shell completions with `svg-format --completions`,
+  `svg-lint --completions` or `svg-language-server --completions`. Each command
+  detects the shell or accepts an explicit name, such as `--completions zsh`.
+  Native release archives also include scripts for Bash, Zsh, Fish and PowerShell.
+
+### Changed
+
+- Build the FreeBSD ARM64 and Linux LoongArch64 release binaries with Cross.
+  Check that all three x86-64 Linux binaries start and report their version
+  under musl.
+
+### Fixed
+
+- Check relative colors in SVG color and paint values. For example,
+  `rgb(from red r g b / alpha)` is valid, while `rgb(from red h s l)` uses
+  channels that do not belong to RGB.
+- Check animation values against the attribute named by `attributeName`.
+  A radius animation can shrink from `10` by `-5`, while an absolute target
+  radius of `-5` is diagnosed.
+- Report CSS math expressions with invalid arguments or incompatible units.
+  The linter checks the result type against the attribute, including whether
+  it accepts percentages.
+- Check the arguments of `attr()`, its `type()` annotation and `calc-size()`.
+  Accept MIME types in `image-set()` and sizing expressions such as
+  `calc-size(auto, size + 10px)`.
+- Stop the language server from suggesting a closing tag inside an unfinished
+  attribute.
+
 ## [0.5.2] - 2026-11-27
 
 ### Added
@@ -503,7 +535,8 @@ When bumping the workspace version after a catalog refresh:
   keyword and `text-decoration` now includes `blink`, cross-checked against the
   SVG 1.1 property index
 
-[Unreleased]: https://github.com/kjanat/svg/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/kjanat/svg/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/kjanat/svg/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/kjanat/svg/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/kjanat/svg/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kjanat/svg/compare/v0.4.0...v0.5.0

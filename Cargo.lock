@@ -1089,7 +1089,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "svg-color"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "svg-tree",
  "tree-sitter",
@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "svg-data"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "schemars",
  "serde",
@@ -1110,7 +1110,7 @@ dependencies = [
 
 [[package]]
 name = "svg-data-regen"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "json-schema-sort",
  "quick-xml",
@@ -1124,7 +1124,7 @@ dependencies = [
 
 [[package]]
 name = "svg-format"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "clap",
  "svg-tree",
@@ -1135,7 +1135,7 @@ dependencies = [
 
 [[package]]
 name = "svg-language-server"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "base64",
  "clap",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "svg-lint"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "svg-path-preview"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "quick-xml",
  "tree-sitter",
@@ -1188,7 +1188,7 @@ dependencies = [
 
 [[package]]
 name = "svg-references"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "svg-data",
  "svg-tree",
@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "svg-tree"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -1530,7 +1530,7 @@ checksum = "d0af592be68c579aa78a16846bd19422978c3c52e438523d45ff5d1bff1f9d4a"
 
 [[package]]
 name = "tree-sitter-svg"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1539,7 +1539,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-paint"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1548,7 +1548,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-path"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1557,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-svg-transform"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1931,7 +1931,7 @@ dependencies = [
 
 [[package]]
 name = "zed-svg"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "zed_extension_api",
 ]

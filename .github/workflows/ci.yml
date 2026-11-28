@@ -72,11 +72,15 @@ jobs:
         with: { persist-credentials: false }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: package.json }
+      - uses: kjanat/mise-action@v6
+        with: { install_args: just }
       - uses: taiki-e/install-action@v2
-        with: { tool: "just,tombi,rust+rustfmt" }
+        with: { tool: "tombi,rust+rustfmt" }
       - uses: kjanat/setup-zig@v3
         with: { version: 0.16.0 }
       - uses: Swatinem/rust-cache@v2
+      - name: Install nightly rustfmt before formatting in parallel
+        run: rustup toolchain install nightly --profile minimal --component rustfmt
       - uses: kjanat/dprint-check@v3
 
   python:
