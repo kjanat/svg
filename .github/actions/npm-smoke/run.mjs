@@ -105,7 +105,7 @@ try {
 	const originals = new Map();
 	for (const bin of manifest.binaries) {
 		const name = `${bin}${process.platform === 'win32' ? '.exe' : ''}`;
-		const matches = members.filter(member => member.split('/').at(-1) === name);
+		const matches = members.filter(member => member === name || member === `./${name}`);
 		assert.equal(matches.length, 1, `Expected one ${name} in release archive`);
 		const path = join(extracted, matches[0]);
 		assertExecutable(path);
